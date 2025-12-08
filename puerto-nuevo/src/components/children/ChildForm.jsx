@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usersService } from '../../services/users.service';
+import { talleresService } from '../../services/talleres.service';
 
 const ChildForm = ({ child = null, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -7,6 +8,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
     fechaNacimiento: '',
     ambiente: 'taller1',
     responsables: [],
+    talleresEspeciales: [],
     datosMedicos: {
       alergias: '',
       medicamentos: '',
@@ -16,16 +18,24 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
   });
 
   const [familyUsers, setFamilyUsers] = useState([]);
+  const [talleres, setTalleres] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const loadFamilyUsers = async () => {
-      const result = await usersService.getUsersByRole('family');
-      if (result.success) {
-        setFamilyUsers(result.users);
+    const loadData = async () => {
+      // Load family users
+      const familyResult = await usersService.getUsersByRole('family');
+      if (familyResult.success) {
+        setFamilyUsers(familyResult.users);
+      }
+
+      // Load talleres
+      const talleresResult = await talleresService.getAllTalleres();
+      if (talleresResult.success) {
+        setTalleres(talleresResult.talleres);
       }
     };
-    loadFamilyUsers();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -36,6 +46,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
         fechaNacimiento: child.fechaNacimiento || '',
         ambiente: child.ambiente || 'taller1',
         responsables: child.responsables || [],
+        talleresEspeciales: child.talleresEspeciales || [],
         datosMedicos: child.datosMedicos || {
           alergias: '',
           medicamentos: '',
@@ -70,6 +81,14 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
     setFormData(prev => ({
       ...prev,
       responsables: options
+    }));
+  };
+
+  const handleTalleresEspecialesChange = (e) => {
+    const options = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData(prev => ({
+      ...prev,
+      talleresEspeciales: options
     }));
   };
 
@@ -143,6 +162,25 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             ))}
           </select>
           <small>Mantén presionado Ctrl/Cmd para seleccionar múltiples</small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="talleresEspeciales">Talleres Especiales</label>
+          <select
+            id="talleresEspeciales"
+            name="talleresEspeciales"
+            multiple
+            value={formData.talleresEspeciales}
+            onChange={handleTalleresEspecialesChange}
+            className="select-multiple"
+          >
+            {talleres.map(taller => (
+              <option key={taller.id} value={taller.id}>
+                {taller.nombre}
+              </option>
+            ))}
+          </select>
+          <small>Selecciona los talleres especiales en los que participa (opcional)</small>
         </div>
       </div>
 

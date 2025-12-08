@@ -1,7 +1,7 @@
 # Estado Actual del Proyecto - Montessori Puerto Nuevo
 
 **Fecha:** 8 de Diciembre 2025
-**Fase completada:** Fase 4 - Sistema de Gestión de Usuarios ✅
+**Fase completada:** Fase 4.5 - Dashboards por Rol ✅
 
 ---
 
@@ -35,6 +35,13 @@
 - ✅ Integración con Cloud Functions `createUserWithRole` y `setUserRole`
 - ✅ Problema custom claims resuelto (familias pueden ver alumnos)
 
+### 5. Dashboards por Rol (FASE 4.5) ✅
+- ✅ `/docente` - Dashboard para guías de taller
+- ✅ `/tallerista` - Dashboard para talleristas de talleres especiales
+- ✅ `/aspirante` - Dashboard para familias en proceso de admisión
+- ✅ Rutas protegidas por rol con RoleGuard
+- ✅ Redirección automática según rol al hacer login
+
 ### 5. Archivos Clave Creados
 
 **Configuración:**
@@ -55,8 +62,11 @@
 - `services/users.service.js`
 - `pages/Login.jsx`
 - `pages/admin/AdminDashboard.jsx`
-- `pages/admin/UserManagement.jsx` ⭐ (NUEVO - Fase 4)
+- `pages/admin/UserManagement.jsx` ⭐ (Fase 4)
 - `pages/family/FamilyDashboard.jsx`
+- `pages/teacher/TeacherDashboard.jsx` ⭐ (Fase 4.5)
+- `pages/tallerista/TalleristaDashboard.jsx` ⭐ (Fase 4.5)
+- `pages/aspirante/AspiranteDashboard.jsx` ⭐ (Fase 4.5)
 - `App.jsx` - Router principal
 - `styles/design-system.css` - Variables CSS
 - `styles/global.css` - Reset + base
@@ -128,11 +138,13 @@ firebase deploy --only "firestore,storage,functions"
 
 ---
 
-## 📋 PRÓXIMA FASE (Fase 5)
+## 📋 ROADMAP DE FUNCIONALIDADES PENDIENTES
 
-**Objetivo:** Talleres Especiales + Documentación Institucional
+### FASE 5: Talleres Especiales + Documentación 🔴 PRÓXIMA
 
-**Ver detalle completo en:** `FASE4-USUARIOS-CHECKPOINT.md`
+**Ver detalle en:** `FASE4.5-DASHBOARDS-ROLES-CHECKPOINT.md`
+
+**Objetivo:** Completar funcionalidades de talleristas y sistema de documentos
 
 ### Funcionalidades a implementar:
 
@@ -156,27 +168,177 @@ firebase deploy --only "firestore,storage,functions"
    - Upload directo desde frontend
    - Preview de imágenes y PDFs
 
-### Archivos que se crearán:
-
-**Servicios:**
+**Archivos a crear:**
+- `src/pages/tallerista/MyTallerEspecial.jsx`
+- `src/pages/tallerista/TallerGallery.jsx`
+- `src/pages/shared/Documents.jsx`
 - `src/services/talleres.service.js`
 - `src/services/documents.service.js`
 - `src/services/storage.service.js`
+- `src/services/galleries.service.js`
 
-**Componentes:**
-- `src/components/talleres/TallerCard.jsx`
-- `src/components/talleres/TallerCalendar.jsx`
-- `src/components/talleres/TallerGallery.jsx`
-- `src/components/documents/DocumentUploader.jsx`
-- `src/components/documents/DocumentCard.jsx`
-- `src/components/documents/DocumentViewer.jsx`
+**Colecciones Firestore:**
+- `/talleres` - Info de talleres especiales
+- `/documents` - Documentos institucionales
+- `/galleries` - Galerías por taller
 
-**Páginas:**
-- `src/pages/admin/TalleresManager.jsx`
-- `src/pages/admin/DocumentsManager.jsx`
-- `src/pages/tallerista/TallerDashboard.jsx`
-- `src/pages/family/Talleres.jsx`
-- `src/pages/family/Documents.jsx`
+**Firebase Storage:**
+- Configurar buckets y rules
+- Upload/download de archivos
+
+---
+
+### 📘 DOCUMENTACIÓN: Talleres Especiales - Modelo de Datos y Lógica
+
+#### Concepto de Ambientes
+En Puerto Nuevo Montessori, los alumnos se dividen en dos grupos principales:
+- **Taller 1**: Alumnos de 6 a 9 años (`ambiente: 'taller1'`)
+- **Taller 2**: Alumnos de 9 a 12 años (`ambiente: 'taller2'`)
+
+#### Talleres Especiales
+Los talleres especiales son actividades **obligatorias** (no opcionales) que forman parte del horario escolar regular. Ejemplos: Yoga, Robótica, Teatro, Música, Educación Física, etc.
+
+**Características importantes:**
+- Cada taller especial pertenece a **UN SOLO ambiente** (Taller 1 o Taller 2)
+- **NO hay inscripciones individuales**: Todos los alumnos del ambiente asisten automáticamente
+- **NO hay límite de capacidad**: El taller es para todo el grupo
+- Si un tallerista enseña a ambos grupos, se crean **dos talleres separados** en la base de datos:
+  - Ejemplo: "Yoga Taller 1" (lunes 15:00-16:00) y "Yoga Taller 2" (martes 14:00-15:00)
+
+#### Estructura de Datos
+
+**Colección: `talleres`**
+```javascript
+{
+  nombre: "Yoga Taller 1",
+  descripcion: "Clase de yoga para niños de 6-9 años",
+  talleristaId: ["uid1", "uid2"],  // Array: permite múltiples talleristas
+  ambiente: "taller1",              // String: "taller1" o "taller2" (obligatorio)
+  horario: "Lunes 15:00 - 16:00",
+  diasSemana: ["Lunes"],
+  calendario: "https://...",        // URL a PDF/Excel con cronograma de actividades
+  estado: "activo",
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+**Subcolección: `talleres/{tallerId}/gallery`**
+```javascript
+{
+  fileName: "1234567890_foto.jpg",
+  tipo: "imagen",                   // "imagen" o "video"
+  url: "https://storage...",
+  uploadedBy: "uid",
+  uploadedByEmail: "email@...",
+  createdAt: timestamp
+}
+```
+
+**Campo en `children`:**
+```javascript
+{
+  ambiente: "taller1",              // Determina a qué talleres asiste automáticamente
+  // ... otros campos del alumno
+}
+```
+
+#### Lógica de Asignación
+1. Admin crea un taller y **debe** seleccionar el ambiente (Taller 1 o Taller 2)
+2. Admin asigna uno o más talleristas al taller
+3. Los alumnos se asignan automáticamente según su campo `ambiente`
+4. No hay proceso de inscripción ni lista de alumnos en el taller
+
+#### Funcionalidades Implementadas
+
+**Admin (`/admin/talleres`):**
+- Crear talleres con nombre, descripción, ambiente obligatorio
+- Asignar tallerista(s)
+- Configurar horario y días de la semana
+- Editar y eliminar talleres
+
+**Tallerista (`/tallerista/mi-taller`):**
+- Ver sus talleres asignados
+- Actualizar descripción, horario, días
+- Agregar URL de calendario (para cronogramas/actividades/muestras)
+- Ver ambiente asignado (Taller 1 o Taller 2)
+
+**Tallerista (`/tallerista/galeria`):**
+- Subir fotos y videos (max 50MB)
+- Ver galería del taller
+- Eliminar contenido propio
+
+#### Campo Calendario
+El campo `calendario` almacena una URL donde las familias y el equipo pueden descargar:
+- Cronograma de actividades del taller
+- Planificación mensual/trimestral
+- Fechas de muestras o presentaciones
+- Archivos en formato PDF, Excel, Google Drive, etc.
+
+#### Reglas de Seguridad
+
+**Firestore (`talleres`):**
+- Lectura: Todos los autenticados
+- Crear: Solo admin
+- Actualizar: Admin o tallerista asignado (verifica `talleristaId` array)
+- Eliminar: Solo admin
+
+**Storage (`talleres/{id}/gallery/`):**
+- Lectura: Todos los autenticados
+- Escritura: Admin o tallerista asignado (verifica `talleristaId` en Firestore)
+
+---
+
+### FASE 6: Funcionalidades Específicas de Guías 🟡
+
+**Prioridad:** Media
+
+**Objetivo:** Completar dashboard de guías con gestión de alumnos
+
+**Funcionalidades:**
+1. Ver alumnos de su taller específico (filtrado por `tallerAsignado`)
+2. Ver fichas completas de alumnos
+3. Registrar asistencias diarias
+4. Ver calendario del taller
+5. Comunicación directa con familias
+
+**Archivos a crear:**
+- `src/pages/teacher/MyTaller.jsx`
+- `src/pages/teacher/StudentDetail.jsx`
+- `src/pages/teacher/Attendance.jsx`
+- `src/pages/teacher/TallerCalendar.jsx`
+- `src/services/attendance.service.js`
+
+**Colecciones Firestore:**
+- `/attendance` - Registro de asistencias
+
+---
+
+### FASE 7: Sistema de Admisión de Aspirantes 🟢
+
+**Prioridad:** Baja
+
+**Objetivo:** Proceso completo de admisión para aspirantes
+
+**Funcionalidades:**
+1. Ver documentos del proceso
+2. Subir documentación requerida
+3. Ver estado del proceso (interesado → entrevista → documentación → aceptado/rechazado)
+4. Agendar entrevistas
+5. Panel admin para gestionar aspirantes
+
+**Archivos a crear:**
+- `src/pages/aspirante/Documents.jsx`
+- `src/pages/aspirante/MyStatus.jsx`
+- `src/pages/aspirante/Interviews.jsx`
+- `src/pages/aspirante/UploadDocs.jsx`
+- `src/pages/admin/AspirantesManager.jsx`
+- `src/services/aspirantes.service.js`
+
+**Colecciones Firestore:**
+- `/aspirantes` - Info y etapa del proceso
+- `/aspiration-documents` - Docs subidos
+- `/admission-interviews` - Entrevistas agendadas
 
 ---
 
@@ -253,14 +415,21 @@ Antes de empezar Fase 5, verifica:
 
 - [ ] El servidor dev inicia sin errores (`npm run dev`)
 - [ ] Puedes hacer login como admin
-- [ ] Ves el Dashboard Administrativo con link "Usuarios del Sistema"
-- [ ] Puedes acceder a `/admin/usuarios` y ver el panel de gestión
-- [ ] Firebase Console funciona (rules desplegadas)
+- [ ] Crear usuario con rol "teacher" en `/admin/usuarios`
+- [ ] Login como teacher → redirige a `/docente` ✅
+- [ ] Crear usuario con rol "tallerista" en `/admin/usuarios`
+- [ ] Login como tallerista → redirige a `/tallerista` ✅
+- [ ] Crear usuario con rol "aspirante" en `/admin/usuarios`
+- [ ] Login como aspirante → redirige a `/aspirante` ✅
 - [ ] Usuarios familia pueden ver sus alumnos (custom claims funcionando)
 
 Si todo funciona → Listo para Fase 5
 
 Si algo falla → Revisa sección "Cómo retomar el proyecto"
+
+**Documentación actualizada:**
+- `FASE4-USUARIOS-CHECKPOINT.md` - Sistema de gestión de usuarios
+- `FASE4.5-DASHBOARDS-ROLES-CHECKPOINT.md` - Dashboards por rol + roadmap detallado
 
 ---
 

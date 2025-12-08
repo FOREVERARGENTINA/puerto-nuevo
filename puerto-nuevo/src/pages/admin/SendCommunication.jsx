@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communicationsService } from '../../services/communications.service';
+import { talleresService } from '../../services/talleres.service';
 import { useAuth } from '../../hooks/useAuth';
-import { COMMUNICATION_TYPES, AMBIENTES, ROUTES } from '../../config/constants';
+import { COMMUNICATION_TYPES, AMBIENTES, ROUTES, ROLES } from '../../config/constants';
 
 export function SendCommunication() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [availableTalleres, setAvailableTalleres] = useState([]);
+  const [loadingTalleres, setLoadingTalleres] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -19,6 +22,36 @@ export function SendCommunication() {
     destinatarios: [],
     requiereLecturaObligatoria: false
   });
+
+  // Load available talleres based on user role
+  useEffect(() => {
+    const loadTalleres = async () => {
+      if (!user?.customClaims?.role) return;
+
+      setLoadingTalleres(true);
+      try {
+        let result;
+        
+        // If user is tallerista, only show their own talleres
+        if (user.customClaims.role === ROLES.TALLERISTA) {
+          result = await talleresService.getTalleresByTallerista(user.uid);
+        } else {
+          // Admin roles can see all talleres
+          result = await talleresService.getAllTalleres();
+        }
+
+        if (result.success) {
+          setAvailableTalleres(result.talleres);
+        }
+      } catch (error) {
+        console.error('Error loading talleres:', error);
+      } finally {
+        setLoadingTalleres(false);
+      }
+    };
+
+    loadTalleres();
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -162,20 +195,30 @@ export function SendCommunication() {
             <label htmlFor="taller" className="required">
               Taller Especial
             </label>
-            <input
-              type="text"
+            <select
               id="taller"
               name="taller"
-              className="form-input"
+              className="form-select"
               value={formData.taller}
               onChange={handleChange}
-              placeholder="Ej: Robótica, Yoga, Música"
               required
-              disabled={loading}
-            />
-            <p className="form-help">
-              En Fase 4 se agregará un selector de talleres desde la base de datos
-            </p>
+              disabled={loading || loadingTalleres}
+            >
+              <option value="">Selecciona un taller...</option>
+              {availableTalleres.map(taller => (
+                <option key={taller.id} value={taller.id}>
+                  {taller.nombre}
+                </option>
+              ))}
+            </select>
+            {loadingTalleres && (
+              <p className="form-help">Cargando talleres...</p>
+            )}
+            {!loadingTalleres && availableTalleres.length === 0 && (
+              <p className="form-help text-warning">
+                No tienes talleres asignados para enviar comunicados
+              </p>
+            )}
           </div>
         )}
 

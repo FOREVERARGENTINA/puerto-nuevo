@@ -9,10 +9,18 @@ import { SendCommunication } from './pages/admin/SendCommunication';
 import { ReadReceiptsPanel } from './pages/admin/ReadReceiptsPanel';
 import ChildrenManager from './pages/admin/ChildrenManager';
 import AppointmentsManager from './pages/admin/AppointmentsManager';
+import TalleresManager from './pages/admin/TalleresManager';
 import { FamilyDashboard } from './pages/family/FamilyDashboard';
 import { Communications } from './pages/family/Communications';
 import ChildProfile from './pages/family/ChildProfile';
 import BookAppointment from './pages/family/BookAppointment';
+import { TalleresEspeciales } from './pages/family/TalleresEspeciales';
+import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
+import { TalleristaDashboard } from './pages/tallerista/TalleristaDashboard';
+import { MyTallerEspecial } from './pages/tallerista/MyTallerEspecial';
+import { TallerGallery } from './pages/tallerista/TallerGallery';
+import { DocumentManager } from './pages/tallerista/DocumentManager';
+import { AspiranteDashboard } from './pages/aspirante/AspiranteDashboard';
 import { ROLES } from './config/constants';
 
 // Importar CSS
@@ -53,7 +61,7 @@ function App() {
             path="/admin/comunicar"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
+                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN, ROLES.TEACHER, ROLES.TALLERISTA]}>
                   <SendCommunication />
                 </RoleGuard>
               </ProtectedRoute>
@@ -85,6 +93,16 @@ function App() {
               <ProtectedRoute>
                 <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
                   <AppointmentsManager />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/talleres"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
+                  <TalleresManager />
                 </RoleGuard>
               </ProtectedRoute>
             }
@@ -127,6 +145,82 @@ function App() {
               <ProtectedRoute>
                 <RoleGuard allowedRoles={[ROLES.FAMILY]}>
                   <BookAppointment />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/talleres"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                  <TalleresEspeciales />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Teacher Routes */}
+          <Route
+            path="/docente"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.TEACHER]}>
+                  <TeacherDashboard />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Tallerista Routes */}
+          <Route
+            path="/tallerista"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                  <TalleristaDashboard />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tallerista/mi-taller"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                  <MyTallerEspecial />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tallerista/galeria"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                  <TallerGallery />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tallerista/documentos"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                  <DocumentManager />
+                </RoleGuard>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Aspirante Routes */}
+          <Route
+            path="/aspirante"
+            element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                  <AspiranteDashboard />
                 </RoleGuard>
               </ProtectedRoute>
             }

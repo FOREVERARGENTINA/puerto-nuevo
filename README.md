@@ -93,8 +93,16 @@ firebase deploy --only functions
 - [ ] **Fase 2:** Comunicación segmentada + Confirmación lectura
 - [ ] **Fase 3:** Fichas alumnos + Turnero
 - [ ] **Fase 4:** Talleres especiales + Documentos
-- [ ] **Fase 5:** Aspirantes + PWA
-- [ ] **Fase 6:** Optimización + Portal público
+- [x] **Fase 5:** Comunicación tallerista → familias + Inscripción talleres ✅
+- [ ] **Fase 6:** Aspirantes + PWA
+- [ ] **Fase 7:** Optimización + Portal público
+
+### Refactorizaciones Pendientes
+
+**Mejoras de código recomendadas para futuras versiones:**
+- Migrar carga de datos de `useEffect + setState` a React Query/SWR
+- Implementar custom hooks para data fetching
+- Actualizar patrones de ESLint deprecados (`react-hooks/set-state-in-effect`)
 
 ## Comandos Útiles
 

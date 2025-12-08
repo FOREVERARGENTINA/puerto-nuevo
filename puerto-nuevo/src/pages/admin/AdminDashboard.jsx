@@ -66,8 +66,18 @@ export function AdminDashboard() {
             </div>
           </div>
 
+          <div style={{ marginTop: 'var(--spacing-xl)' }}>
+            <h2>Talleres Especiales</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
+              <Link to={ROUTES.TALLERES_MANAGER} className="card" style={{ textDecoration: 'none' }}>
+                <h3 className="card__title">Gestión de Talleres</h3>
+                <p>Crear talleres especiales y asignar talleristas</p>
+              </Link>
+            </div>
+          </div>
+
           <div style={{ marginTop: 'var(--spacing-xl)' }} className="alert alert--success">
-            <strong>Fase 3 completada:</strong> Sistema de fichas de alumnos y turnero funcionando.
+            <strong>Fase 5 completada:</strong> Sistema de talleres especiales y documentos institucionales.
           </div>
         </div>
       </div>

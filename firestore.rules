@@ -111,16 +111,62 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Colección: /documents (documentos institucionales - Fase 4)
+    // Colección: /documents (documentos institucionales - Fase 5)
     match /documents/{docId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+      // Leer: Usuarios autenticados si su rol está en roles[] o si es admin
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        getUserRole() in resource.data.roles
+      );
+
+      // Crear/Actualizar: Admin y talleristas pueden subir documentos
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        getUserRole() == 'tallerista'
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        resource.data.uploadedBy == request.auth.uid
+      );
+
+      // Eliminar: Solo admin
+      allow delete: if isAdmin();
     }
 
-    // Colección: /talleres (talleres especiales - Fase 4)
+    // Colección: /talleres (talleres especiales - Fase 5)
     match /talleres/{tallerId} {
+      // Leer: Todos los autenticados pueden ver talleres activos
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+
+      // Crear: Solo admin
+      allow create: if isAdmin();
+
+      // Actualizar: Admin o el tallerista asignado puede actualizar
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid in resource.data.talleristaId
+      );
+
+      // Eliminar: Solo admin
+      allow delete: if isAdmin();
+
+      // Subcolección: /talleres/{tallerId}/gallery (fotos y videos)
+      match /gallery/{mediaId} {
+        // Leer: Todos los autenticados
+        allow read: if isAuthenticated();
+
+        // Crear/Actualizar: Admin o tallerista del taller
+        allow create, update: if isAdmin() || (
+          isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+        );
+
+        // Eliminar: Admin o quien lo subió
+        allow delete: if isAdmin() || (
+          isAuthenticated() &&
+          resource.data.uploadedBy == request.auth.uid
+        );
+      }
     }
 
     // Colección: /aspirantes (aspirantes - Fase 5)

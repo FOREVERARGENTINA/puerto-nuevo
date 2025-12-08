@@ -60,6 +60,7 @@ export const ROUTES = {
   USER_MANAGEMENT: '/admin/usuarios',
   SEND_COMMUNICATION: '/admin/comunicar',
   READ_RECEIPTS: '/admin/confirmaciones',
+  TALLERES_MANAGER: '/admin/talleres',
 
   // Family
   FAMILY_DASHBOARD: '/familia',
@@ -75,6 +76,8 @@ export const ROUTES = {
   // Tallerista
   TALLERISTA_DASHBOARD: '/tallerista',
   MY_TALLER_ESPECIAL: '/tallerista/mi-taller',
+  TALLER_GALLERY: '/tallerista/galeria',
+  TALLER_DOCUMENTS: '/tallerista/documentos',
 
   // Aspirante
   ASPIRANTE_DASHBOARD: '/aspirante',

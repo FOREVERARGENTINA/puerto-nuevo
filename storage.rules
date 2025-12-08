@@ -30,6 +30,33 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Talleres: galerías de fotos/videos (Fase 5)
+    match /talleres/{tallerId}/gallery/{fileName} {
+      // Leer: Todos los autenticados
+      allow read: if isAuthenticated();
+
+      // Escribir: Admin o tallerista del taller
+      allow write: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId
+      );
+    }
+
+    // Documentos institucionales (Fase 5)
+    match /documents/{category}/{fileName} {
+      // Leer: Admin o usuarios cuyo rol está en roles[] del documento
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.token.role in firestore.get(/databases/(default)/documents/documents/$(fileName)).data.roles
+      );
+
+      // Escribir: Admin o talleristas
+      allow write: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.role == 'tallerista'
+      );
+    }
+
     // Deny everything else
     match /{allPaths=**} {
       allow read, write: if false;

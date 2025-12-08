@@ -39,6 +39,10 @@ export function FamilyDashboard() {
                 <h3 className="card__title">Fichas de Alumnos</h3>
                 <p>Ver información y datos médicos de sus hijos</p>
               </Link>
+              <Link to="/familia/talleres" className="card" style={{ textDecoration: 'none' }}>
+                <h3 className="card__title">Talleres Especiales</h3>
+                <p>Ver información, calendarios y galerías de los talleres</p>
+              </Link>
               <Link to="/familia/turnos" className="card" style={{ textDecoration: 'none' }}>
                 <h3 className="card__title">Turnos y Reuniones</h3>
                 <p>Reservar turnos para reuniones con la escuela</p>

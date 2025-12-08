@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { ROLES, AMBIENTES, ROUTES } from '../../config/constants';
 
 export function UserManagement() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -21,10 +20,6 @@ export function UserManagement() {
     tallerAsignado: ''
   });
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
   const loadUsers = async () => {
     setLoading(true);
     const result = await usersService.getAllUsers();
@@ -35,6 +30,11 @@ export function UserManagement() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadUsers();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
