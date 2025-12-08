@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b *.md)",
+      "Bash(copy \"C:\\Users\\casa\\.claude\\plans\\optimized-exploring-lollipop.md\" \"C:\\Users\\casa\\.claude\\plans\\sunny-leaping-raven.md\")",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(firebase:*)",
+      "Bash(node assign-admin.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

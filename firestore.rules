@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funciones auxiliares para roles
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() in ['direccion', 'coordinacion', 'admin'];
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'teacher';
+    }
+
+    function isFamily() {
+      return isAuthenticated() && getUserRole() == 'family';
+    }
+
+    function canSendCommunications() {
+      return isAuthenticated() && getUserRole() in ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista'];
+    }
+
+    // Colección: /users (perfiles de usuarios)
+    match /users/{userId} {
+      // Leer: Usuario puede ver su propio perfil, admin puede ver todos
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isAdmin()
+      );
+
+      // Crear/Actualizar: Solo admin puede crear usuarios o el propio usuario puede actualizar ciertos campos
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (
+        request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'children'])
+      );
+
+      // Eliminar: Solo admin
+      allow delete: if isAdmin();
+    }
+
+    // Colección: /children (fichas de alumnos)
+    match /children/{childId} {
+      // Leer: Admin ve todos, familias pueden leer (filtrado por query array-contains), docentes ven alumnos de su ambiente
+      // NOTA: No podemos validar array-contains en security rules, el filtrado lo hace la query
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isFamily() ||
+        (isTeacher() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tallerAsignado == resource.data.ambiente)
+      );
+
+      // Crear/Actualizar/Eliminar: Solo admin
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Colección: /communications (comunicados)
+    match /communications/{commId} {
+      // Leer: Admin o si el usuario está en destinatarios[]
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid in resource.data.destinatarios
+      );
+
+      // Crear/Actualizar: Admin, docentes y talleristas pueden crear comunicados
+      allow create: if canSendCommunications();
+      allow update: if isAdmin() || resource.data.sentBy == request.auth.uid;
+
+      // Eliminar: Solo admin
+      allow delete: if isAdmin();
+
+      // Subcolección: lecturas (confirmaciones de lectura)
+      match /lecturas/{userId} {
+        // Crear: El propio usuario marca su lectura
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+
+        // Leer: Admin o el propio usuario
+        allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+
+        // No se puede actualizar ni eliminar
+        allow update, delete: if false;
+      }
+    }
+
+    // Colección: /appointments (turnos - Fase 3)
+    match /appointments/{appointmentId} {
+      // Leer: Admin ve todos, familias ven todos (incluye disponibles y sus propios turnos)
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isFamily()
+      );
+
+      // Crear: Admin crea slots
+      allow create: if isAdmin();
+
+      // Actualizar: Admin puede todo, familias solo reservar disponibles o cancelar sus turnos
+      allow update: if isAdmin() || (
+        isFamily() && (
+          (resource.data.estado == 'disponible' && request.resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'reservado') ||
+          (resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'cancelado')
+        )
+      );
+
+      // Eliminar: Solo admin
+      allow delete: if isAdmin();
+    }
+
+    // Colección: /documents (documentos institucionales - Fase 4)
+    match /documents/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Colección: /talleres (talleres especiales - Fase 4)
+    match /talleres/{tallerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Colección: /aspirantes (aspirantes - Fase 5)
+    match /aspirantes/{aspiranteId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == aspiranteId
+      );
+      allow write: if isAdmin();
+    }
+
+    // Por defecto, denegar todo lo demás
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

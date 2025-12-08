@@ -1,0 +1,13 @@
+{
+  "name": "puerto-nuevo-montessori",
+  "version": "1.0.0",
+  "description": "Scripts de administración para Puerto Nuevo Montessori",
+  "scripts": {
+    "verificar": "node verificar-datos-alumno.js",
+    "corregir": "node corregir-responsables.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "private": true
+}

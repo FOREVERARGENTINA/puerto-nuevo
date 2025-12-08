@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Funciones auxiliares
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth.token.role in ['direccion', 'coordinacion', 'admin'];
+    }
+
+    function canUpload() {
+      return request.auth.token.role in ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista'];
+    }
+
+    // Public: autenticados leen, admin/docentes/talleristas escriben
+    match /public/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if canUpload();
+    }
+
+    // Private: solo admin y responsables del niño
+    match /private/children/{childId}/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid in firestore.get(/databases/(default)/documents/children/$(childId)).data.responsables
+      );
+      allow write: if isAdmin();
+    }
+
+    // Deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
