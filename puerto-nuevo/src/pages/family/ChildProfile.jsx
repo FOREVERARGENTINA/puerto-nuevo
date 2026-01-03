@@ -1,31 +1,46 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { childrenService } from '../../services/children.service';
+import { usersService } from '../../services/users.service';
+import { LoadingScreen } from '../../components/common/LoadingScreen';
 import ChildCard from '../../components/children/ChildCard';
 
 const ChildProfile = () => {
   const { user } = useAuth();
   const [children, setChildren] = useState([]);
+  const [familyUsers, setFamilyUsers] = useState({});
   const [loading, setLoading] = useState(true);
 
   const loadChildren = async () => {
+    if (!user) return;
+
     setLoading(true);
-    console.log('🔍 DEBUG: Usuario completo:', user);
-    console.log('🔍 DEBUG: Buscando hijos para UID:', user.uid);
-    
-    // Verificar token y claims
-    const token = await user.getIdTokenResult();
-    console.log('🔍 DEBUG: Token claims:', token.claims);
-    console.log('🔍 DEBUG: Role en token:', token.claims.role);
-    
     const result = await childrenService.getChildrenByResponsable(user.uid);
-    console.log('🔍 DEBUG: Resultado de búsqueda:', result);
+    
     if (result.success) {
-      console.log('🔍 DEBUG: Hijos encontrados:', result.children);
       setChildren(result.children);
+
+      // Cargar información de todas las familias responsables
+      const uniqueResponsableIds = [...new Set(
+        result.children.flatMap(child => child.responsables || [])
+      )];
+
+      const familyUsersData = {};
+      for (const responsableId of uniqueResponsableIds) {
+        const userResult = await usersService.getUserById(responsableId);
+        if (userResult.success) {
+          familyUsersData[responsableId] = userResult.user;
+        } else {
+          // Agregar un placeholder para que no quede "Cargando..."
+          familyUsersData[responsableId] = {
+            displayName: 'Usuario no encontrado',
+            email: 'Sin datos'
+          };
+        }
+      }
+      setFamilyUsers(familyUsersData);
     } else {
-      console.error('❌ ERROR al cargar alumnos:', result.error);
-      alert('Error al cargar información de alumnos: ' + result.error);
+      console.error('Error al cargar alumnos:', result.error);
     }
     setLoading(false);
   };
@@ -38,7 +53,7 @@ const ChildProfile = () => {
   }, [user]);
 
   if (loading) {
-    return <div className="loading">Cargando información...</div>;
+    return <LoadingScreen message="Cargando información de alumnos..." />;
   }
 
   return (
@@ -59,6 +74,7 @@ const ChildProfile = () => {
               key={child.id}
               child={child}
               isAdmin={false}
+              familyUsers={familyUsers}
             />
           ))}
         </div>

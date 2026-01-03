@@ -4,6 +4,9 @@ import { talleresService } from '../../services/talleres.service';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../../config/firebase';
 import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { AlertDialog } from '../../components/common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 export function TallerGallery() {
   const { user } = useAuth();
@@ -13,6 +16,9 @@ export function TallerGallery() {
   const [gallery, setGallery] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+
+  const confirmDialog = useDialog();
+  const alertDialog = useDialog();
 
   const loadGallery = async (tallerId) => {
     const result = await talleresService.getGallery(tallerId);
@@ -52,13 +58,21 @@ export function TallerGallery() {
 
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime'];
     if (!validTypes.includes(file.type)) {
-      alert('Formato no válido. Solo se permiten imágenes (JPG, PNG, GIF) y videos (MP4, MOV)');
+      alertDialog.openDialog({
+        title: 'Formato No Válido',
+        message: 'Solo se permiten imágenes (JPG, PNG, GIF) y videos (MP4, MOV)',
+        type: 'error'
+      });
       return;
     }
 
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('El archivo es muy grande. Máximo 50MB');
+      alertDialog.openDialog({
+        title: 'Archivo Muy Grande',
+        message: 'El archivo es muy grande. Máximo 50MB',
+        type: 'error'
+      });
       return;
     }
 
@@ -81,10 +95,18 @@ export function TallerGallery() {
 
       await talleresService.addGalleryItem(selectedTaller.id, metadata);
       loadGallery(selectedTaller.id);
-      alert('Archivo subido correctamente');
+      alertDialog.openDialog({
+        title: 'Éxito',
+        message: 'Archivo subido correctamente',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error al subir archivo:', error);
-      alert('Error al subir el archivo: ' + error.message);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error al subir el archivo: ' + error.message,
+        type: 'error'
+      });
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -92,18 +114,31 @@ export function TallerGallery() {
   };
 
   const handleDelete = async (item) => {
-    if (!window.confirm('¿Estás seguro de eliminar este elemento?')) return;
-
-    try {
-      const storageRef = ref(storage, `talleres/${selectedTaller.id}/gallery/${item.fileName}`);
-      await deleteObject(storageRef);
-      await talleresService.deleteGalleryItem(selectedTaller.id, item.id);
-      loadGallery(selectedTaller.id);
-      alert('Elemento eliminado correctamente');
-    } catch (error) {
-      console.error('Error al eliminar:', error);
-      alert('Error al eliminar: ' + error.message);
-    }
+    confirmDialog.openDialog({
+      title: 'Eliminar Elemento',
+      message: '¿Estás seguro de eliminar este elemento?',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const storageRef = ref(storage, `talleres/${selectedTaller.id}/gallery/${item.fileName}`);
+          await deleteObject(storageRef);
+          await talleresService.deleteGalleryItem(selectedTaller.id, item.id);
+          loadGallery(selectedTaller.id);
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: 'Elemento eliminado correctamente',
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('Error al eliminar:', error);
+          alertDialog.openDialog({
+            title: 'Error',
+            message: 'Error al eliminar: ' + error.message,
+            type: 'error'
+          });
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -238,6 +273,23 @@ export function TallerGallery() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.closeDialog}
+        onConfirm={confirmDialog.dialogData.onConfirm}
+        title={confirmDialog.dialogData.title}
+        message={confirmDialog.dialogData.message}
+        type={confirmDialog.dialogData.type}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </div>
   );
 }

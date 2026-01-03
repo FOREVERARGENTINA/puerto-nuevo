@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { LoginForm } from '../components/auth/LoginForm';
+import { LoadingScreen } from '../components/common/LoadingScreen';
 import { ROLE_DASHBOARDS } from '../config/constants';
 
 export function Login() {
@@ -8,16 +9,7 @@ export function Login() {
 
   // Si ya está logueado, redirigir a su dashboard
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh'
-      }}>
-        <div className="spinner"></div>
-      </div>
-    );
+    return <LoadingScreen message="Iniciando sesión..." />;
   }
 
   if (user && role) {
@@ -26,17 +18,15 @@ export function Login() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'var(--color-background-alt)'
-    }}>
-      <div className="card" style={{ maxWidth: '400px', width: '100%', margin: 'var(--spacing-md)' }}>
-        <div className="card__header" style={{ textAlign: 'center' }}>
-          <h1 className="card__title">Montessori Puerto Nuevo</h1>
-          <p className="card__subtitle">Ingresa a tu cuenta</p>
+    <div className="login-page">
+      <div className="card login-card">
+        <div className="card__header">
+          <img
+            src="/logo-login.png"
+            alt="Montessori Puerto Nuevo"
+            className="login-logo"
+          />
+          <p className="login-subtitle">Portal Educativo</p>
         </div>
         <div className="card__body">
           <LoginForm />

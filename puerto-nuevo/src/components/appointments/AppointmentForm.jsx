@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { AlertDialog } from '../common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -6,6 +8,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     nota: ''
   });
   const [loading, setLoading] = useState(false);
+  const alertDialog = useDialog();
 
   useEffect(() => {
     if (userChildren && userChildren.length === 1) {
@@ -25,7 +28,11 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.hijoId) {
-      alert('Por favor selecciona un alumno');
+      alertDialog.openDialog({
+        title: 'Campo Requerido',
+        message: 'Por favor selecciona un alumno',
+        type: 'warning'
+      });
       return;
     }
     setLoading(true);
@@ -50,62 +57,115 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="appointment-form">
-      <div className="form-section">
-        <h3>Reservar Turno</h3>
-        
-        <div className="appointment-details">
-          <p>
-            <strong>Fecha y Hora:</strong><br />
-            {formatDateTime(appointment.fechaHora)}
-          </p>
-          {appointment.duracionMinutos && (
-            <p>
-              <strong>Duración:</strong> {appointment.duracionMinutos} minutos
-            </p>
-          )}
+    <div className="appointment-form-container">
+      <div className="card appointment-form-card">
+        <div className="card__header appointment-form-header">
+          <div className="appointment-form-header-icon">📅</div>
+          <h2 className="card__title">Reservar Turno</h2>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="hijoId">Alumno *</label>
-          <select
-            id="hijoId"
-            name="hijoId"
-            value={formData.hijoId}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Seleccionar alumno...</option>
-            {userChildren && userChildren.map(child => (
-              <option key={child.id} value={child.id}>
-                {child.nombreCompleto}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="card__body">
+          {/* Appointment Details Section */}
+          <div className="appointment-booking-summary">
+            <div className="booking-summary-item">
+              <div className="booking-summary-icon">🕐</div>
+              <div className="booking-summary-content">
+                <div className="booking-summary-label">Fecha y Hora</div>
+                <div className="booking-summary-value">{formatDateTime(appointment.fechaHora)}</div>
+              </div>
+            </div>
+            {appointment.duracionMinutos && (
+              <div className="booking-summary-item">
+                <div className="booking-summary-icon">⏱️</div>
+                <div className="booking-summary-content">
+                  <div className="booking-summary-label">Duración</div>
+                  <div className="booking-summary-value">{appointment.duracionMinutos} minutos</div>
+                </div>
+              </div>
+            )}
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="nota">Nota (opcional)</label>
-          <textarea
-            id="nota"
-            name="nota"
-            value={formData.nota}
-            onChange={handleChange}
-            rows="3"
-            placeholder="Motivo de la consulta, tema a tratar, etc."
-          />
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="appointment-form">
+            <div className="form-group">
+              <label htmlFor="hijoId" className="form-label">
+                <span className="form-label-icon">👤</span>
+                <span>Alumno *</span>
+              </label>
+              <select
+                id="hijoId"
+                name="hijoId"
+                value={formData.hijoId}
+                onChange={handleChange}
+                required
+                className="form-select"
+              >
+                <option value="">Seleccionar alumno...</option>
+                {userChildren && userChildren.map(child => (
+                  <option key={child.id} value={child.id}>
+                    {child.nombreCompleto}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="nota" className="form-label">
+                <span className="form-label-icon">📝</span>
+                <span>Nota (opcional)</span>
+              </label>
+              <textarea
+                id="nota"
+                name="nota"
+                value={formData.nota}
+                onChange={handleChange}
+                rows="4"
+                placeholder="Motivo de la consulta, tema a tratar, etc."
+                className="form-textarea"
+              />
+              <div className="form-helper-text">
+                Puedes incluir detalles sobre el motivo de la reunión para que la escuela esté mejor preparada.
+              </div>
+            </div>
+
+            <div className="form-actions appointment-form-actions">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="btn btn--outline btn--lg"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary btn--lg"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Reservando...
+                  </>
+                ) : (
+                  <>
+                    ✓ Confirmar Reserva
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <div className="form-actions">
-        <button type="button" onClick={onCancel} className="btn btn-secondary">
-          Cancelar
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Reservando...' : 'Confirmar Reserva'}
-        </button>
-      </div>
-    </form>
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
+    </div>
   );
 };
 

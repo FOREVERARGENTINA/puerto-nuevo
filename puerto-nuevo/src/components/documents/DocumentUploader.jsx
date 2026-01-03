@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { documentsService } from '../../services/documents.service';
+import { AlertDialog } from '../common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 export function DocumentUploader({ onUploadSuccess }) {
   const { user } = useAuth();
@@ -12,6 +14,7 @@ export function DocumentUploader({ onUploadSuccess }) {
     roles: []
   });
   const [selectedFile, setSelectedFile] = useState(null);
+  const alertDialog = useDialog();
 
   const categorias = [
     { value: 'institucional', label: 'Institucional' },
@@ -62,13 +65,21 @@ export function DocumentUploader({ onUploadSuccess }) {
     ];
 
     if (!validTypes.includes(file.type)) {
-      alert('Formato no válido. Solo se permiten PDF, Word, Excel e imágenes');
+      alertDialog.openDialog({
+        title: 'Formato No Válido',
+        message: 'Solo se permiten PDF, Word, Excel e imágenes',
+        type: 'error'
+      });
       return;
     }
 
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('El archivo es muy grande. Máximo 10MB');
+      alertDialog.openDialog({
+        title: 'Archivo Muy Grande',
+        message: 'El archivo es muy grande. Máximo 10MB',
+        type: 'error'
+      });
       return;
     }
 
@@ -79,17 +90,29 @@ export function DocumentUploader({ onUploadSuccess }) {
     e.preventDefault();
 
     if (!selectedFile) {
-      alert('Debes seleccionar un archivo');
+      alertDialog.openDialog({
+        title: 'Archivo Requerido',
+        message: 'Debes seleccionar un archivo',
+        type: 'warning'
+      });
       return;
     }
 
     if (!formData.titulo.trim()) {
-      alert('Debes ingresar un título');
+      alertDialog.openDialog({
+        title: 'Título Requerido',
+        message: 'Debes ingresar un título',
+        type: 'warning'
+      });
       return;
     }
 
     if (formData.roles.length === 0) {
-      alert('Debes seleccionar al menos un rol que pueda ver el documento');
+      alertDialog.openDialog({
+        title: 'Roles Requeridos',
+        message: 'Debes seleccionar al menos un rol que pueda ver el documento',
+        type: 'warning'
+      });
       return;
     }
 
@@ -104,7 +127,11 @@ export function DocumentUploader({ onUploadSuccess }) {
       const result = await documentsService.uploadDocument(selectedFile, metadata);
 
       if (result.success) {
-        alert('Documento subido correctamente');
+        alertDialog.openDialog({
+          title: 'Éxito',
+          message: 'Documento subido correctamente',
+          type: 'success'
+        });
         setFormData({
           titulo: '',
           descripcion: '',
@@ -116,11 +143,19 @@ export function DocumentUploader({ onUploadSuccess }) {
           onUploadSuccess();
         }
       } else {
-        alert('Error al subir documento: ' + result.error);
+        alertDialog.openDialog({
+          title: 'Error',
+          message: 'Error al subir documento: ' + result.error,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Error al subir documento:', error);
-      alert('Error al subir documento: ' + error.message);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error al subir documento: ' + error.message,
+        type: 'error'
+      });
     } finally {
       setUploading(false);
     }
@@ -215,6 +250,14 @@ export function DocumentUploader({ onUploadSuccess }) {
       >
         {uploading ? 'Subiendo...' : 'Subir documento'}
       </button>
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </form>
   );
 }

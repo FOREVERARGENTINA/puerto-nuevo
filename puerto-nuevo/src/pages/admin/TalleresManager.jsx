@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { talleresService } from '../../services/talleres.service';
 import { usersService } from '../../services/users.service';
 import { useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { AlertDialog } from '../../components/common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 const TalleresManager = () => {
   const navigate = useNavigate();
@@ -19,13 +22,20 @@ const TalleresManager = () => {
     ambiente: ''
   });
 
+  const confirmDialog = useDialog();
+  const alertDialog = useDialog();
+
   const loadTalleres = async () => {
     setLoading(true);
     const result = await talleresService.getAllTalleres();
     if (result.success) {
       setTalleres(result.talleres);
     } else {
-      alert('Error al cargar talleres: ' + result.error);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error al cargar talleres: ' + result.error,
+        type: 'error'
+      });
     }
     setLoading(false);
   };
@@ -99,17 +109,29 @@ const TalleresManager = () => {
     e.preventDefault();
 
     if (!formData.nombre.trim()) {
-      alert('El nombre del taller es obligatorio');
+      alertDialog.openDialog({
+        title: 'Campo Requerido',
+        message: 'El nombre del taller es obligatorio',
+        type: 'warning'
+      });
       return;
     }
 
     if (!formData.talleristaId) {
-      alert('Debes asignar un tallerista');
+      alertDialog.openDialog({
+        title: 'Campo Requerido',
+        message: 'Debes asignar un tallerista',
+        type: 'warning'
+      });
       return;
     }
 
     if (!formData.ambiente) {
-      alert('Debes seleccionar un ambiente (Taller 1 o Taller 2)');
+      alertDialog.openDialog({
+        title: 'Campo Requerido',
+        message: 'Debes seleccionar un ambiente (Taller 1 o Taller 2)',
+        type: 'warning'
+      });
       return;
     }
 
@@ -121,26 +143,45 @@ const TalleresManager = () => {
     }
 
     if (result.success) {
-      alert(editingTaller ? 'Taller actualizado exitosamente' : 'Taller creado exitosamente');
+      alertDialog.openDialog({
+        title: 'Éxito',
+        message: editingTaller ? 'Taller actualizado exitosamente' : 'Taller creado exitosamente',
+        type: 'success'
+      });
       resetForm();
       loadData();
     } else {
-      alert('Error: ' + result.error);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error: ' + result.error,
+        type: 'error'
+      });
     }
   };
 
   const handleDelete = async (tallerId) => {
-    if (!window.confirm('¿Estás seguro de eliminar este taller? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    const result = await talleresService.deleteTaller(tallerId);
-    if (result.success) {
-      alert('Taller eliminado exitosamente');
-      loadData();
-    } else {
-      alert('Error al eliminar: ' + result.error);
-    }
+    confirmDialog.openDialog({
+      title: 'Eliminar Taller',
+      message: '¿Estás seguro de eliminar este taller? Esta acción no se puede deshacer.',
+      type: 'danger',
+      onConfirm: async () => {
+        const result = await talleresService.deleteTaller(tallerId);
+        if (result.success) {
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: 'Taller eliminado exitosamente',
+            type: 'success'
+          });
+          loadData();
+        } else {
+          alertDialog.openDialog({
+            title: 'Error',
+            message: 'Error al eliminar: ' + result.error,
+            type: 'error'
+          });
+        }
+      }
+    });
   };
 
   const getTalleristaName = (talleristaUid) => {
@@ -352,6 +393,23 @@ const TalleresManager = () => {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.closeDialog}
+        onConfirm={confirmDialog.dialogData.onConfirm}
+        title={confirmDialog.dialogData.title}
+        message={confirmDialog.dialogData.message}
+        type={confirmDialog.dialogData.type}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </div>
   );
 };

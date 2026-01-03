@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
+import { LoadingScreen } from '../../components/common/LoadingScreen';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { AlertDialog } from '../../components/common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 import ChildForm from '../../components/children/ChildForm';
 import ChildCard from '../../components/children/ChildCard';
 
@@ -13,13 +17,20 @@ const ChildrenManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [familyUsers, setFamilyUsers] = useState({});
 
+  const confirmDialog = useDialog();
+  const alertDialog = useDialog();
+
   const loadChildren = async () => {
     setLoading(true);
     const result = await childrenService.getAllChildren();
     if (result.success) {
       setChildren(result.children);
     } else {
-      alert('Error al cargar alumnos: ' + result.error);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error al cargar alumnos: ' + result.error,
+        type: 'error'
+      });
     }
     setLoading(false);
   };
@@ -63,27 +74,46 @@ const ChildrenManager = () => {
     }
 
     if (result.success) {
-      alert(editingChild ? 'Alumno actualizado exitosamente' : 'Alumno creado exitosamente');
+      alertDialog.openDialog({
+        title: 'Éxito',
+        message: editingChild ? 'Alumno actualizado exitosamente' : 'Alumno creado exitosamente',
+        type: 'success'
+      });
       setShowForm(false);
       setEditingChild(null);
       loadData();
     } else {
-      alert('Error: ' + result.error);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error: ' + result.error,
+        type: 'error'
+      });
     }
   };
 
   const handleDelete = async (childId) => {
-    if (!confirm('¿Estás seguro de eliminar este alumno? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    const result = await childrenService.deleteChild(childId);
-    if (result.success) {
-      alert('Alumno eliminado exitosamente');
-      loadData();
-    } else {
-      alert('Error al eliminar: ' + result.error);
-    }
+    confirmDialog.openDialog({
+      title: 'Eliminar Alumno',
+      message: '¿Estás seguro de eliminar este alumno? Esta acción no se puede deshacer.',
+      type: 'danger',
+      onConfirm: async () => {
+        const result = await childrenService.deleteChild(childId);
+        if (result.success) {
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: 'Alumno eliminado exitosamente',
+            type: 'success'
+          });
+          loadData();
+        } else {
+          alertDialog.openDialog({
+            title: 'Error',
+            message: 'Error al eliminar: ' + result.error,
+            type: 'error'
+          });
+        }
+      }
+    });
   };
 
   const handleCancel = () => {
@@ -98,7 +128,7 @@ const ChildrenManager = () => {
   });
 
   if (loading) {
-    return <div className="loading">Cargando alumnos...</div>;
+    return <LoadingScreen message="Cargando información de alumnos..." />;
   }
 
   if (showForm) {
@@ -178,6 +208,23 @@ const ChildrenManager = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.closeDialog}
+        onConfirm={confirmDialog.dialogData.onConfirm}
+        title={confirmDialog.dialogData.title}
+        message={confirmDialog.dialogData.message}
+        type={confirmDialog.dialogData.type}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </div>
   );
 };

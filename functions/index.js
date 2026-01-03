@@ -6,6 +6,7 @@ admin.initializeApp();
 
 // Importar triggers
 const { onCommunicationCreated } = require('./src/triggers/onCommunicationCreated');
+const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
 /**
  * Cloud Function: setUserRole
@@ -20,7 +21,7 @@ exports.setUserRole = onCall(async (request) => {
 
   // Verificar que quien llama tiene permisos de admin
   const callerRole = request.auth.token.role;
-  if (!callerRole || !['admin', 'direccion', 'coordinacion'].includes(callerRole)) {
+  if (!callerRole || !['superadmin', 'coordinacion'].includes(callerRole)) {
     throw new HttpsError(
       'permission-denied',
       'Solo administradores pueden asignar roles'
@@ -35,7 +36,7 @@ exports.setUserRole = onCall(async (request) => {
   }
 
   // Validar que el rol es válido
-  const validRoles = ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista', 'family', 'aspirante'];
+  const validRoles = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
   if (!validRoles.includes(role)) {
     throw new HttpsError('invalid-argument', `Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
   }
@@ -76,7 +77,7 @@ exports.createUserWithRole = onCall(async (request) => {
   }
 
   const callerRole = request.auth.token.role;
-  if (!['admin', 'direccion', 'coordinacion'].includes(callerRole)) {
+  if (!['superadmin', 'coordinacion'].includes(callerRole)) {
     throw new HttpsError('permission-denied', 'Solo administradores pueden crear usuarios');
   }
 
@@ -87,7 +88,7 @@ exports.createUserWithRole = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'email, password y role son requeridos');
   }
 
-  const validRoles = ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista', 'family', 'aspirante'];
+  const validRoles = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
   if (!validRoles.includes(role)) {
     throw new HttpsError('invalid-argument', `Rol inválido`);
   }
@@ -132,3 +133,6 @@ exports.createUserWithRole = onCall(async (request) => {
 
 // Exportar triggers
 exports.onCommunicationCreated = onCommunicationCreated;
+
+// Exportar scheduled functions
+exports.sendSnacksReminder = sendSnacksReminder;

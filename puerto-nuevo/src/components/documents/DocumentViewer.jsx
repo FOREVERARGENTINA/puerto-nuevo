@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { documentsService } from '../../services/documents.service';
 import { useAuth } from '../../hooks/useAuth';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { AlertDialog } from '../common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 export function DocumentViewer({ isAdmin = false }) {
   const { user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterCategoria, setFilterCategoria] = useState('all');
+
+  const confirmDialog = useDialog();
+  const alertDialog = useDialog();
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -33,16 +39,29 @@ export function DocumentViewer({ isAdmin = false }) {
   }, [loadDocuments]);
 
   const handleDelete = async (doc) => {
-    if (!window.confirm(`¿Estás seguro de eliminar "${doc.titulo}"?`)) return;
+    confirmDialog.openDialog({
+      title: 'Eliminar Documento',
+      message: `¿Estás seguro de eliminar "${doc.titulo}"?`,
+      type: 'danger',
+      onConfirm: async () => {
+        const result = await documentsService.deleteDocument(doc.id, doc.categoria, doc.archivoNombre);
 
-    const result = await documentsService.deleteDocument(doc.id, doc.categoria, doc.archivoNombre);
-
-    if (result.success) {
-      alert('Documento eliminado correctamente');
-      loadDocuments();
-    } else {
-      alert('Error al eliminar: ' + result.error);
-    }
+        if (result.success) {
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: 'Documento eliminado correctamente',
+            type: 'success'
+          });
+          loadDocuments();
+        } else {
+          alertDialog.openDialog({
+            title: 'Error',
+            message: 'Error al eliminar: ' + result.error,
+            type: 'error'
+          });
+        }
+      }
+    });
   };
 
   const filteredDocuments = filterCategoria === 'all'
@@ -155,6 +174,23 @@ export function DocumentViewer({ isAdmin = false }) {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.closeDialog}
+        onConfirm={confirmDialog.dialogData.onConfirm}
+        title={confirmDialog.dialogData.title}
+        message={confirmDialog.dialogData.message}
+        type={confirmDialog.dialogData.type}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </div>
   );
 }

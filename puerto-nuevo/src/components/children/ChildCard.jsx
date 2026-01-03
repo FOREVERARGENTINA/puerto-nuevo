@@ -56,7 +56,11 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
               const familia = familyUsers[responsableId];
               return (
                 <p key={responsableId}>
-                  <strong>Familia {index + 1}:</strong> {familia ? (familia.displayName || familia.email) : 'Cargando...'}
+                  <strong>Familia {index + 1}:</strong> {
+                    familia
+                      ? (familia.displayName || familia.email)
+                      : <span style={{ color: 'var(--color-text-light)' }}>Cargando datos...</span>
+                  }
                 </p>
               );
             })}

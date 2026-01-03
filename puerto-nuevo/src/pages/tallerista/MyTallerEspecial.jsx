@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { talleresService } from '../../services/talleres.service';
 import { useNavigate } from 'react-router-dom';
+import { AlertDialog } from '../../components/common/AlertDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 export function MyTallerEspecial() {
   const { user } = useAuth();
@@ -16,6 +18,8 @@ export function MyTallerEspecial() {
     diasSemana: [],
     calendario: ''
   });
+
+  const alertDialog = useDialog();
 
   const loadTalleres = useCallback(async () => {
     if (!user?.uid) return;
@@ -72,11 +76,19 @@ export function MyTallerEspecial() {
     const result = await talleresService.updateTaller(selectedTaller.id, formData);
 
     if (result.success) {
-      alert('Taller actualizado correctamente');
+      alertDialog.openDialog({
+        title: 'Éxito',
+        message: 'Taller actualizado correctamente',
+        type: 'success'
+      });
       setEditing(false);
       loadTalleres();
     } else {
-      alert('Error al actualizar: ' + result.error);
+      alertDialog.openDialog({
+        title: 'Error',
+        message: 'Error al actualizar: ' + result.error,
+        type: 'error'
+      });
     }
   };
 
@@ -294,6 +306,14 @@ export function MyTallerEspecial() {
           )}
         </div>
       </div>
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={alertDialog.closeDialog}
+        title={alertDialog.dialogData.title}
+        message={alertDialog.dialogData.message}
+        type={alertDialog.dialogData.type}
+      />
     </div>
   );
 }

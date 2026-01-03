@@ -1,28 +1,16 @@
 import { useAuth } from '../../hooks/useAuth';
-import { authService } from '../../services/auth.service';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function TeacherDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await authService.logout();
-    navigate('/login');
-  };
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
       <div className="card">
         <div className="card__header">
           <h1 className="card__title">Dashboard Guía de Taller</h1>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-            <span className="badge badge--primary">Guía</span>
-            <button onClick={handleLogout} className="btn btn--sm btn--outline">
-              Cerrar Sesión
-            </button>
-          </div>
+          <span className="badge badge--primary">Guía</span>
         </div>
 
         <div className="card__body">
@@ -38,6 +26,10 @@ export function TeacherDashboard() {
               <Link to={ROUTES.SEND_COMMUNICATION} className="card" style={{ textDecoration: 'none' }}>
                 <h3 className="card__title">Enviar Comunicado</h3>
                 <p>Comunicar novedades a las familias de tu taller</p>
+              </Link>
+              <Link to={ROUTES.TEACHER_DOCUMENTS} className="card" style={{ textDecoration: 'none' }}>
+                <h3 className="card__title">Documentos</h3>
+                <p>Acceder a documentos pedagógicos e institucionales</p>
               </Link>
               <div className="card" style={{ opacity: 0.6 }}>
                 <h3 className="card__title">Calendario</h3>

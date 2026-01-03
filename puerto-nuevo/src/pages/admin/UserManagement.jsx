@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { ROLES, AMBIENTES, ROUTES } from '../../config/constants';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useDialog } from '../../hooks/useDialog';
 
 export function UserManagement() {
   const { user } = useAuth();
@@ -11,6 +13,8 @@ export function UserManagement() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const confirmDialog = useDialog();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -51,8 +55,8 @@ export function UserManagement() {
       return;
     }
 
-    if (formData.role === ROLES.TEACHER && !formData.tallerAsignado) {
-      setError('Debes seleccionar un taller para guías');
+    if (formData.role === ROLES.DOCENTE && !formData.tallerAsignado) {
+      setError('Debes seleccionar un taller para docentes');
       return;
     }
 
@@ -61,7 +65,7 @@ export function UserManagement() {
       password: formData.password,
       displayName: formData.displayName || formData.email.split('@')[0],
       role: formData.role,
-      tallerAsignado: formData.role === ROLES.TEACHER ? formData.tallerAsignado : null
+      tallerAsignado: formData.role === ROLES.DOCENTE ? formData.tallerAsignado : null
     });
 
     if (result.success) {
@@ -81,23 +85,27 @@ export function UserManagement() {
   };
 
   const handleChangeRole = async (uid, currentEmail, newRole) => {
-    if (!confirm(`¿Cambiar rol de ${currentEmail} a ${newRole}?`)) return;
-
-    const result = await usersService.setUserRole(uid, newRole);
-    if (result.success) {
-      setSuccess(`Rol actualizado a ${newRole} para ${currentEmail}`);
-      await loadUsers();
-    } else {
-      setError('Error al cambiar rol: ' + result.error);
-    }
+    confirmDialog.openDialog({
+      title: 'Cambiar Rol',
+      message: `¿Cambiar rol de ${currentEmail} a ${newRole}?`,
+      type: 'warning',
+      onConfirm: async () => {
+        const result = await usersService.setUserRole(uid, newRole);
+        if (result.success) {
+          setSuccess(`Rol actualizado a ${newRole} para ${currentEmail}`);
+          await loadUsers();
+        } else {
+          setError('Error al cambiar rol: ' + result.error);
+        }
+      }
+    });
   };
 
   const getRoleLabel = (role) => {
     const labels = {
-      [ROLES.DIRECCION]: 'Dirección',
+      [ROLES.SUPERADMIN]: 'SuperAdmin',
       [ROLES.COORDINACION]: 'Coordinación',
-      [ROLES.ADMIN]: 'Administrador',
-      [ROLES.TEACHER]: 'Guía de Taller',
+      [ROLES.DOCENTE]: 'Docente',
       [ROLES.TALLERISTA]: 'Tallerista',
       [ROLES.FAMILY]: 'Familia',
       [ROLES.ASPIRANTE]: 'Aspirante'
@@ -112,14 +120,14 @@ export function UserManagement() {
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
         <div className="spinner"></div>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
       <div className="card">
         <div className="card__header">
           <h1 className="card__title">Gestión de Usuarios</h1>
@@ -130,18 +138,18 @@ export function UserManagement() {
 
         <div className="card__body">
           {error && (
-            <div className="alert alert--error" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div className="alert alert--error mb-md">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="alert alert--success" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div className="alert alert--success mb-md">
               {success}
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
+          <div className="user-stats">
             <p><strong>Total de usuarios:</strong> {users.length}</p>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
@@ -152,11 +160,11 @@ export function UserManagement() {
           </div>
 
           {showCreateForm && (
-            <div className="card" style={{ marginBottom: 'var(--spacing-lg)', background: 'var(--color-background)' }}>
+            <div className="card create-form-card">
               <div className="card__body">
                 <h3>Crear Nuevo Usuario</h3>
-                <form onSubmit={handleCreateUser} style={{ marginTop: 'var(--spacing-md)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
+                <form onSubmit={handleCreateUser} className="form-grid">
+                  <div className="grid-cards">
                     <div className="form-group">
                       <label htmlFor="email">Email *</label>
                       <input
@@ -210,16 +218,15 @@ export function UserManagement() {
                         className="form-input"
                       >
                         <option value={ROLES.FAMILY}>Familia</option>
-                        <option value={ROLES.TEACHER}>Guía de Taller</option>
+                        <option value={ROLES.DOCENTE}>Docente</option>
                         <option value={ROLES.TALLERISTA}>Tallerista</option>
-                        <option value={ROLES.ADMIN}>Administrador</option>
                         <option value={ROLES.COORDINACION}>Coordinación</option>
-                        <option value={ROLES.DIRECCION}>Dirección</option>
+                        <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
                         <option value={ROLES.ASPIRANTE}>Aspirante</option>
                       </select>
                     </div>
 
-                    {formData.role === ROLES.TEACHER && (
+                    {formData.role === ROLES.DOCENTE && (
                       <div className="form-group">
                         <label htmlFor="tallerAsignado">Taller Asignado *</label>
                         <select
@@ -238,7 +245,7 @@ export function UserManagement() {
                     )}
                   </div>
 
-                  <div style={{ marginTop: 'var(--spacing-md)', display: 'flex', gap: 'var(--spacing-sm)' }}>
+                  <div className="flex-row mt-md">
                     <button type="submit" className="btn btn--primary">
                       Crear Usuario
                     </button>
@@ -255,7 +262,7 @@ export function UserManagement() {
             </div>
           )}
 
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
@@ -285,22 +292,20 @@ export function UserManagement() {
                     </td>
                     <td>
                       <select
-                        className="form-input"
-                        style={{ minWidth: '150px' }}
+                        className="form-input role-select"
                         value={u.role}
                         onChange={(e) => handleChangeRole(u.id, u.email, e.target.value)}
                         disabled={u.id === user.uid}
                       >
                         <option value={ROLES.FAMILY}>Familia</option>
-                        <option value={ROLES.TEACHER}>Guía de Taller</option>
+                        <option value={ROLES.DOCENTE}>Docente</option>
                         <option value={ROLES.TALLERISTA}>Tallerista</option>
-                        <option value={ROLES.ADMIN}>Administrador</option>
                         <option value={ROLES.COORDINACION}>Coordinación</option>
-                        <option value={ROLES.DIRECCION}>Dirección</option>
+                        <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
                         <option value={ROLES.ASPIRANTE}>Aspirante</option>
                       </select>
                       {u.id === user.uid && (
-                        <small style={{ display: 'block', color: 'var(--color-text-light)' }}>
+                        <small className="user-note">
                           (tu usuario)
                         </small>
                       )}
@@ -312,6 +317,15 @@ export function UserManagement() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.closeDialog}
+        onConfirm={confirmDialog.dialogData.onConfirm}
+        title={confirmDialog.dialogData.title}
+        message={confirmDialog.dialogData.message}
+        type={confirmDialog.dialogData.type}
+      />
     </div>
   );
 }

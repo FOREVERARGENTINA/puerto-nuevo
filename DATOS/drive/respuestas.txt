@@ -1,0 +1,145 @@
+Información para empezar con el desarrollo
+________________________________________
+1. Identidad Institucional
+1.1 Datos Básicos
+●	Logo oficial (formato SVG o PNG en alta calidad) En carpeta LOGOS
+●	Colores institucionales 
+Los que están en el logo
+
+
+●	Teléfonos de contacto 1162730758 - El otro a definir, probablemente el numero de telefono de taller 2 que maneja Cami
+
+●	Email institucional oficial: montessori.puertonuevo@gmail.com; info.montessoripuertonuevo@gmail.com para consultas.
+
+●	Redes sociales montessori_puertonuevo
+
+●	Horarios de atención lunes a viernes a 9 a 16 hs
+
+1.2 Contenido Institucional
+●	Misión y visión de la escuela En carpeta INSTITUCIONAL
+
+●	Texto de presentación institucional - Pendiente. lo subire a la carpeta de institucional
+
+
+●	Historia de la escuela- Pendiente. lo subire a la carpeta de institucional
+
+
+●	Equipo directivo (nombres, cargos y fotos)- Pendiente. lo subire a la carpeta de institucional
+
+●	Fotos de las instalaciones - Pendiente. lo subire a la carpeta de institucional
+
+
+●	Videos institucionales  Pendiente. lo subire a la carpeta de institucional
+________________________________________
+2. Estructura Organizacional
+2.1 Ambientes y Talleres
+●	Talleres especiales planificados para 2026:  Robótica, Yoga, Teatro, Folclore, Inglés…. Otros (a confirmar) 
+
+●	Horarios de cada taller Pendiente. A confirmar en febrero 2026. puedo pasarte uno de 2025 para luego reemplazar.
+2.2 Roles y Permisos
+●	Definir quién puede enviar comunicados
+o	Admin -  Emilse - Otra persona a definir
+o	Coordinación -  Emilse - Camila - Rosana 
+o	Docentes  -  Emilse - Camila - Rosana - Vanesa - Gise - Javi
+o	Talleristas Camila como nexo
+
+●	Definir quién debe aprobar comunicaciones oficiales Emilse - Camila - Rosana 
+
+●	Definir quién puede ver información médica completa  Emilse - Camila - Rosana - Vanesa - Gise
+
+●	Especificar qué puede ver y hacer cada rol A DEFINIR
+
+●	Casos especiales (ejemplo: guía que también cumple rol de tallerista)- los talleristas no enviaran mensajes.
+________________________________________
+3. Documentación Institucional
+●	Reglamento interno - Falta terminar de completar - (que se lea por partes)
+●	Calendario escolar 2026 - a definir
+●	Proyecto Pedagógico Institucional (PPI) En proceso 
+●	Protocolos médicos y autorizaciones Autorizaciones digitales?
+●	Protocolos de seguridad y emergencias A escribir
+●	Circulares importantes
+visita de familias al ambiente
+vueltas al sol
+●	Material informativo para nuevas familias en carpeta MATERIAL INFORMATIVO PARA FAMILIAS
+●	Otros documentos (organizar en carpetas):
+o	Carpeta general
+o	Taller 1
+listado alimentos para snack
+orden para enviar alimentos por semana.
+
+
+
+o	Taller 2
+
+listado alimentos para snack
+orden para enviar alimentos por semana.
+Listado temas de evaluaciones
+
+
+o	Aspirantes
+________________________________________
+4. Sistema de Turnos
+●	Duración estándar por turno 30 minutos - dejar 10 minutos entre cada turno
+●	Días y horarios disponibles para reuniones - a definir en febrero. Seguramente 1 dia a la semana a partir de las 16 hs
+●	Excepciones o días bloqueados - martes no para taller 2 o reuniones excepcionales.
+●	Roles autorizados para crear y administrar turnos Emilse Camila Rosana
+________________________________________
+5. Proceso de Aspirantes
+●	Etapas del proceso (sugerido):
+1.	Interesado Idealmente participar de la charla informativa general. 
+
+2.	Entrevista Solicitar por mail de info.montessoripuertonuevo@gmail.com  una entrevista individual. En entrevista individual entregar planillas a completar a mano por la familia con info del niño aspirante.
+
+3.	Documentación En entrevista individual traer los informes del jardín/escuela. Fotocopia del dni del niño y del adulto a cargo. 
+
+4.	Aceptado / Rechazado
+En octubre se confirma
+
+●	Documentación requerida en cada etapa
+En entrevista individual traer los informes del jardín/escuela. Fotocopia del dni.
+Leer los principios de Montessori
+
+●	Materiales informativos para cada etapa
+En entrevista individual entregar planillas a completar a mano por la familia.
+En aceptacion, familia debe venir a leer y firmar el reglamento 
+
+●	Requisitos de ingreso
+
+Vacantes disponibles. Aceptación de reglamento y normas de convivencia. 
+Se efectiviza con el Pago de matricula.
+
+●	Documentos que los aspirantes deben leer y marcar como leídos (ya en paso 3)
+reglamento y normas de convivencia
+info ingresantes
+material para familias.
+________________________________________
+6. Información Médica y Emergencias
+●	Protocolo de actuación ante emergencias médicas Ante situación de emergencia se llama a medicardio.
+
+●	Información médica crítica que debe estar siempre visible. Fichas de atención médica 
+
+
+
+●	Contactos institucionales para emergencias MEDICARDIO TELÉFONO DE EMERGENCIAS: 0800 122 1121 · TELÉFONO DE EMERGENCIAS: 4847-5500
+
+________________________________________
+7. Aspectos Legales y Privacidad
+●	Política de privacidad
+●	Términos y condiciones de uso de la plataforma
+●	Consentimiento de uso de imágenes - autorizacion de difusion de imagenes en RRSS
+●	Aviso de protección de datos personales 
+________________________________________
+8. Hosting y Dominio
+●	Dominio web propio? (ejemplo: www.puertomontessori.edu.ar) 
+yo tenia el www.montessoripuertonuevo.com.ar pero lo dejé de pagar. Debe estar disponible. Sino puede ser www.montessoripuertonuevo.edu.ar
+________________________________________
+9. Capacitación y Soporte
+●	Disponibilidad para capacitación interna sobre el uso de la plataforma
+●	Persona de contacto para dudas técnicas y coordinación vos? 
+________________________________________
+Formato de Entrega Sugerido
+●	Textos e información: Documento Word o Google Docs
+●	Fotos y videos: Carpeta en Google Drive (compartir enlace)
+●	Documentos institucionales: Archivos PDF organizados por carpetas
+●	Respuestas a confirmaciones: Email o documento consolidado
+ok

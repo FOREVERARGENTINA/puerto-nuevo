@@ -9,7 +9,15 @@
       "Bash(npm install)",
       "Bash(npm install:*)",
       "Bash(firebase:*)",
-      "Bash(node assign-admin.js:*)"
+      "Bash(node assign-admin.js:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(node update-admin-role.js:*)",
+      "Bash(copy \"E:\\\\Aideas\\\\PUERTO NUEVO\\\\datos\\\\imagenes\\\\logo-login.png\" \"E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\public\\\\logo-login.png\")",
+      "Bash(find:*)",
+      "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Last 50\")",
+      "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Index \\(0..20\\)\")",
+      "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Index \\(2046..2120\\)\")"
     ],
     "deny": [],
     "ask": []

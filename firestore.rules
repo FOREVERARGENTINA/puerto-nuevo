@@ -11,28 +11,76 @@ service cloud.firestore {
       return request.auth.token.role;
     }
 
-    function isAdmin() {
-      return isAuthenticated() && getUserRole() in ['direccion', 'coordinacion', 'admin'];
+    // Roles principales
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'superadmin';
     }
 
-    function isTeacher() {
-      return isAuthenticated() && getUserRole() == 'teacher';
+    function isCoordinacion() {
+      return isAuthenticated() && getUserRole() == 'coordinacion';
+    }
+
+    function isDocente() {
+      return isAuthenticated() && getUserRole() == 'docente';
+    }
+
+    function isTallerista() {
+      return isAuthenticated() && getUserRole() == 'tallerista';
     }
 
     function isFamily() {
       return isAuthenticated() && getUserRole() == 'family';
     }
 
+    // Roles administrativos (SuperAdmin y Coordinación)
+    function isAdmin() {
+      return isSuperAdmin() || isCoordinacion();
+    }
+
+    // Permisos específicos
     function canSendCommunications() {
-      return isAuthenticated() && getUserRole() in ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista'];
+      // SuperAdmin, Coordinación, Docentes (NO talleristas)
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
+    }
+
+    function canApproveCommunications() {
+      // Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
+      return isSuperAdmin() || isCoordinacion();
+    }
+
+    function canViewMedicalInfo() {
+      // SuperAdmin, Coordinación y algunos Docentes
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
+    }
+
+    function canManageAppointments() {
+      // Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
+      return isSuperAdmin() || isCoordinacion();
+    }
+
+    function canManageTalleres() {
+      // SuperAdmin y Coordinación
+      return isAdmin();
+    }
+
+    function canUploadDocuments() {
+      // SuperAdmin, Coordinación, Docentes, Talleristas
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
+    }
+
+    // Verifica si el usuario objetivo es una familia (para permitir ver nombres de otros responsables)
+    function isTargetFamily(userId) {
+      return resource.data.role == 'family';
     }
 
     // Colección: /users (perfiles de usuarios)
     match /users/{userId} {
-      // Leer: Usuario puede ver su propio perfil, admin puede ver todos
+      // Leer: Usuario puede ver su propio perfil, admin puede ver todos, 
+      // familias pueden ver otros responsables de sus hijos
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
-        isAdmin()
+        isAdmin() ||
+        (isFamily() && isTargetFamily(userId))
       );
 
       // Crear/Actualizar: Solo admin puede crear usuarios o el propio usuario puede actualizar ciertos campos
@@ -53,7 +101,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isAdmin() ||
         isFamily() ||
-        (isTeacher() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tallerAsignado == resource.data.ambiente)
+        (isDocente() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tallerAsignado == resource.data.ambiente)
       );
 
       // Crear/Actualizar/Eliminar: Solo admin
@@ -68,12 +116,19 @@ service cloud.firestore {
         request.auth.uid in resource.data.destinatarios
       );
 
-      // Crear/Actualizar: Admin, docentes y talleristas pueden crear comunicados
+      // Crear: SuperAdmin, Coordinación, Docentes (NO talleristas)
       allow create: if canSendCommunications();
-      allow update: if isAdmin() || resource.data.sentBy == request.auth.uid;
 
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
+      // Actualizar: Admin puede todo, o el creador puede editar (si no está aprobado)
+      allow update: if isAdmin() || (
+        resource.data.sentBy == request.auth.uid &&
+        (!exists(/databases/$(database)/documents/communications/$(commId)) ||
+         !resource.data.keys().hasAny(['aprobado']) ||
+         resource.data.aprobado == false)
+      );
+
+      // Eliminar: Solo SuperAdmin
+      allow delete: if isSuperAdmin();
 
       // Subcolección: lecturas (confirmaciones de lectura)
       match /lecturas/{userId} {
@@ -96,19 +151,19 @@ service cloud.firestore {
         isFamily()
       );
 
-      // Crear: Admin crea slots
-      allow create: if isAdmin();
+      // Crear: Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
+      allow create: if canManageAppointments();
 
       // Actualizar: Admin puede todo, familias solo reservar disponibles o cancelar sus turnos
-      allow update: if isAdmin() || (
+      allow update: if canManageAppointments() || (
         isFamily() && (
           (resource.data.estado == 'disponible' && request.resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'reservado') ||
           (resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'cancelado')
         )
       );
 
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
+      // Eliminar: Solo SuperAdmin y Coordinación
+      allow delete: if canManageAppointments();
     }
 
     // Colección: /documents (documentos institucionales - Fase 5)
@@ -119,17 +174,16 @@ service cloud.firestore {
         getUserRole() in resource.data.roles
       );
 
-      // Crear/Actualizar: Admin y talleristas pueden subir documentos
-      allow create: if isAuthenticated() && (
-        isAdmin() ||
-        getUserRole() == 'tallerista'
-      );
+      // Crear: Admin, Coordinación, Docentes, Talleristas
+      allow create: if canUploadDocuments();
+
+      // Actualizar: Admin puede todo, otros solo sus propios documentos
       allow update: if isAdmin() || (
-        isAuthenticated() &&
+        canUploadDocuments() &&
         resource.data.uploadedBy == request.auth.uid
       );
 
-      // Eliminar: Solo admin
+      // Eliminar: Solo SuperAdmin y Coordinación
       allow delete: if isAdmin();
     }
 
@@ -138,17 +192,17 @@ service cloud.firestore {
       // Leer: Todos los autenticados pueden ver talleres activos
       allow read: if isAuthenticated();
 
-      // Crear: Solo admin
-      allow create: if isAdmin();
+      // Crear: Solo SuperAdmin y Coordinación
+      allow create: if canManageTalleres();
 
       // Actualizar: Admin o el tallerista asignado puede actualizar
-      allow update: if isAdmin() || (
-        isAuthenticated() &&
+      allow update: if canManageTalleres() || (
+        isTallerista() &&
         request.auth.uid in resource.data.talleristaId
       );
 
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
+      // Eliminar: Solo SuperAdmin y Coordinación
+      allow delete: if canManageTalleres();
 
       // Subcolección: /talleres/{tallerId}/gallery (fotos y videos)
       match /gallery/{mediaId} {
@@ -176,6 +230,44 @@ service cloud.firestore {
         request.auth.uid == aspiranteId
       );
       allow write: if isAdmin();
+    }
+
+    // Colección: /snackAssignments (calendario de snacks)
+    match /snackAssignments/{assignmentId} {
+      // Leer: Admin ve todos, familias solo sus propias asignaciones
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (isFamily() && resource.data.familiaUid == request.auth.uid)
+      );
+
+      // Crear/Eliminar: Solo SuperAdmin y Coordinación
+      allow create, delete: if isAdmin();
+
+      // Actualizar: Admin puede todo, familias solo pueden confirmar o solicitar cambio
+      allow update: if isAdmin() || (
+        isFamily() &&
+        resource.data.familiaUid == request.auth.uid &&
+        (
+          // Permitir confirmar
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmadoPorFamilia', 'estado', 'solicitudCambio', 'motivoCambio', 'fechaConfirmacion', 'updatedAt']) &&
+           request.resource.data.confirmadoPorFamilia == true) ||
+          // Permitir solicitar cambio
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solicitudCambio', 'motivoCambio', 'confirmadoPorFamilia', 'estado', 'fechaSolicitudCambio', 'updatedAt']) &&
+           request.resource.data.solicitudCambio == true)
+        )
+      );
+    }
+
+    // Colección: /snackLists (listas de snacks por ambiente)
+    match /snackLists/{ambiente} {
+      // Leer: Todos los autenticados pueden ver las listas
+      allow read: if isAuthenticated();
+
+      // Crear/Actualizar: Solo SuperAdmin y Coordinación
+      allow create, update: if isAdmin();
+
+      // Eliminar: Solo SuperAdmin
+      allow delete: if isSuperAdmin();
     }
 
     // Por defecto, denegar todo lo demás

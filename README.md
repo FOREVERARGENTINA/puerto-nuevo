@@ -4,7 +4,7 @@ Intranet educativa + Portal institucional para escuela Montessori.
 
 ## Stack Tecnológico
 
-- **Frontend:** React 18 + Vite 5
+- **Frontend:** React 19 + Vite 7
 - **Backend:** Firebase (Firestore, Storage, Cloud Functions, Authentication)
 - **Hosting:** Firebase Hosting
 - **Notificaciones:** FCM (push) + Resend (email)
@@ -12,7 +12,14 @@ Intranet educativa + Portal institucional para escuela Montessori.
 
 ## Estado del Proyecto
 
-✅ **Fase 1 completada:** Sistema de autenticación y roles funcionando
+**Fase actual:** Fase 5 - Talleres Especiales (80% completada)
+
+✅ **Fases completadas:**
+- Fase 1: Autenticación y roles
+- Fase 2: Comunicación segmentada + confirmación de lectura
+- Fase 3: Fichas de alumnos + Sistema de turnos
+- Fase 4: Gestión de usuarios y roles
+- Fase 4.5: Dashboards por rol
 
 Ver `ESTADO-ACTUAL.md` para detalles completos del progreso.
 
@@ -57,52 +64,78 @@ Abre http://localhost:5173
 firebase deploy
 
 # Solo rules
-firebase deploy --only "firestore,storage"
+firebase deploy --only firestore,storage
 
 # Solo functions
 firebase deploy --only functions
+
+# Solo hosting
+firebase deploy --only hosting
 ```
 
 ## Usuarios de Prueba
 
 ### Admin
-- Email: `admin@puertenuevo.com`
-- Rol: `admin`
-- Acceso: Dashboard administrativo
+- Email: `admin@puerto.com`
+- Password: sonamos
+- Acceso: Dashboard administrativo completo
 
 ## Estructura del Proyecto
 
 ```
 ├── DATOS/              # Documentación original
+│   └── historico/      # Fases completadas
 ├── functions/          # Cloud Functions
 ├── puerto-nuevo/       # Frontend React
 ├── firestore.rules     # Security Rules Firestore
+├── firestore.indexes.json  # Índices Firestore
 ├── storage.rules       # Security Rules Storage
 └── firebase.json       # Configuración Firebase
 ```
 
+## Funcionalidades Implementadas
+
+### Sistema de Autenticación
+- Login con email/password
+- Roles: Admin, Dirección, Coordinación, Guía, Tallerista, Familia, Aspirante
+- Custom claims para control de acceso
+- Dashboards específicos por rol
+
+### Comunicación
+- Comunicados segmentados (global, por ambiente, por taller, individual)
+- Confirmación de lectura obligatoria
+- Panel de tracking de confirmaciones
+- Modal bloqueante para comunicados críticos
+
+### Gestión de Alumnos
+- Fichas completas con datos médicos
+- Asignación de responsables
+- Filtros por ambiente (Taller 1/Taller 2)
+- Vista de familias con sus hijos
+
+### Sistema de Turnos
+- Reserva de turnos por familias
+- Panel administrativo de gestión
+- Bloqueo de horarios y días
+- Estadísticas de asistencia
+
+### Talleres Especiales
+- Creación y gestión de talleres por ambiente
+- Asignación de talleristas
+- Galerías de fotos/videos
+- Vista para familias con información de talleres
+- Calendarios de actividades
+
+### Gestión de Usuarios
+- Creación de usuarios con roles
+- Asignación/cambio de roles
+- Asignación de ambiente para guías
+- Panel administrativo completo
+
 ## Documentación
 
-- **Plan completo:** `C:\Users\casa\.claude\plans\sunny-leaping-raven.md`
-- **Estado actual:** `ESTADO-ACTUAL.md`
-- **Próximos pasos:** `PASOS-SIGUIENTES.md`
-
-## Fases del Proyecto
-
-- [x] **Fase 1:** Autenticación + Roles ✅
-- [ ] **Fase 2:** Comunicación segmentada + Confirmación lectura
-- [ ] **Fase 3:** Fichas alumnos + Turnero
-- [ ] **Fase 4:** Talleres especiales + Documentos
-- [x] **Fase 5:** Comunicación tallerista → familias + Inscripción talleres ✅
-- [ ] **Fase 6:** Aspirantes + PWA
-- [ ] **Fase 7:** Optimización + Portal público
-
-### Refactorizaciones Pendientes
-
-**Mejoras de código recomendadas para futuras versiones:**
-- Migrar carga de datos de `useEffect + setState` a React Query/SWR
-- Implementar custom hooks para data fetching
-- Actualizar patrones de ESLint deprecados (`react-hooks/set-state-in-effect`)
+- **Estado actual completo:** `ESTADO-ACTUAL.md`
+- **Documentación histórica:** `DATOS/historico/`
 
 ## Comandos Útiles
 
@@ -112,9 +145,6 @@ firebase functions:log
 
 # Listar proyectos Firebase
 firebase projects:list
-
-# Ver qué está desplegado
-firebase deploy --only hosting --dry-run
 
 # Limpiar caché de Vite
 cd puerto-nuevo && npm run build -- --force
@@ -129,6 +159,9 @@ Archivos que **NUNCA** deben subirse a Git:
 
 Ya están en `.gitignore` ✅
 
-## Soporte
+## Próximos Pasos
 
-Revisa `ESTADO-ACTUAL.md` para troubleshooting y cómo retomar el proyecto.
+Ver `ESTADO-ACTUAL.md` para:
+- Funcionalidades pendientes de Fase 5
+- Roadmap completo de fases futuras
+- Troubleshooting y soporte

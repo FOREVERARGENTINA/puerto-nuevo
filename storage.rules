@@ -8,11 +8,11 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return request.auth.token.role in ['direccion', 'coordinacion', 'admin'];
+      return request.auth.token.role in ['superadmin', 'coordinacion'];
     }
 
     function canUpload() {
-      return request.auth.token.role in ['direccion', 'coordinacion', 'admin', 'teacher', 'tallerista'];
+      return request.auth.token.role in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
     }
 
     // Public: autenticados leen, admin/docentes/talleristas escriben
@@ -44,16 +44,12 @@ service firebase.storage {
 
     // Documentos institucionales (Fase 5)
     match /documents/{category}/{fileName} {
-      // Leer: Admin o usuarios cuyo rol está en roles[] del documento
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        request.auth.token.role in firestore.get(/databases/(default)/documents/documents/$(fileName)).data.roles
-      );
+      // Leer: Todos los autenticados (el control de acceso se hace en Firestore)
+      allow read: if isAuthenticated();
 
-      // Escribir: Admin o talleristas
-      allow write: if isAdmin() || (
-        isAuthenticated() &&
-        request.auth.token.role == 'tallerista'
+      // Escribir: Solo superadmin y coordinacion
+      allow write: if isAuthenticated() && (
+        request.auth.token.role in ['superadmin', 'coordinacion']
       );
     }
 

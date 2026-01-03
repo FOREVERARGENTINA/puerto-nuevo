@@ -178,6 +178,9 @@ export const appointmentsService = {
     try {
       await updateDoc(doc(appointmentsCollection, appointmentId), {
         estado: 'disponible',
+        familiaUid: null,
+        hijoId: null,
+        nota: null,
         updatedAt: serverTimestamp()
       });
       return { success: true };

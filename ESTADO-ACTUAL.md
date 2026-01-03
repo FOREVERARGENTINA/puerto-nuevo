@@ -1,7 +1,7 @@
 # Estado Actual del Proyecto - Montessori Puerto Nuevo
 
-**Fecha:** 8 de Diciembre 2025
-**Fase completada:** Fase 4.5 - Dashboards por Rol ✅
+**Fecha:** 30 de Diciembre 2025
+**Fase completada:** Fase 5.5 - Sistema de Roles y Permisos Granulares ✅
 
 ---
 
@@ -42,6 +42,41 @@
 - ✅ Rutas protegidas por rol con RoleGuard
 - ✅ Redirección automática según rol al hacer login
 
+### 6. Sistema de Roles y Permisos Granulares (FASE 5.5) ✅ **NUEVO**
+**Basado en documento de requerimientos de la directora Emilse**
+
+#### Roles Implementados:
+- ✅ **SuperAdmin**: Emilse + otra persona (todos los permisos)
+- ✅ **Coordinación**: Emilse, Camila, Rosana (enviar + aprobar comunicados, ver info médica, administrar turnos)
+- ✅ **Docente**: Emilse, Camila, Rosana, Vanesa, Gise, Javi (enviar comunicados, algunos ven info médica)
+- ✅ **Tallerista**: Camila como nexo (NO envían mensajes, solo documentos y editan talleres)
+- ✅ **Family**: Familias (permisos básicos)
+- ✅ **Aspirante**: Aspirantes (permisos limitados)
+
+#### Permisos Granulares:
+- ✅ `manage_users` - Gestionar usuarios
+- ✅ `manage_children` - Gestionar alumnos
+- ✅ `send_communications` - Enviar comunicados (SuperAdmin, Coordinación, Docente)
+- ✅ `approve_communications` - Aprobar comunicados (SuperAdmin, Coordinación)
+- ✅ `view_medical_info` - Ver información médica (SuperAdmin, Coordinación, algunos Docentes)
+- ✅ `manage_appointments` - Administrar turnos (SuperAdmin, Coordinación)
+- ✅ `upload_documents` - Subir documentos (SuperAdmin, Coordinación, Docente, Tallerista)
+- ✅ `manage_talleres` - Gestionar talleres (SuperAdmin, Coordinación)
+
+#### Archivos Actualizados:
+- ✅ `src/config/constants.js` - 11 permisos + mapeo roles→permisos
+- ✅ `firestore.rules` - Reglas de seguridad actualizadas con permisos específicos
+- ✅ `src/hooks/useAuth.js` - Hook con verificadores de permisos
+- ✅ `assign-roles.js` - Script para asignar roles al equipo
+
+#### Características Clave:
+- ✅ **Talleristas NO pueden enviar comunicados** (solo Camila como nexo)
+- ✅ Solo Coordinación puede **aprobar comunicaciones oficiales**
+- ✅ Solo Coordinación puede **administrar turnos** (Emilse, Camila, Rosana)
+- ✅ Martes bloqueados para Taller 2 en sistema de turnos
+- ✅ Turnos de 30 min + 10 min buffer entre turnos
+- ✅ Sistema de permisos verificable con `hasPermission()`, `hasAnyPermission()`, `hasAllPermissions()`
+
 ### 5. Archivos Clave Creados
 
 **Configuración:**
@@ -76,6 +111,9 @@
 - `index.js` - Cloud Functions
 - `package.json` - Dependencias
 
+**Scripts de Gestión (raíz):**
+- `assign-roles.js` ⭐ - Script para asignar roles al equipo docente (NUEVO)
+
 ---
 
 ## 🔑 CREDENCIALES Y ACCESOS
@@ -96,7 +134,7 @@
 
 ---
 
-## 🚀 CÓMO RETOMAR EL PROYECTO MAÑANA
+## 🚀 CÓMO RETOMAR EL PROYECTO
 
 ### 1. Iniciar el servidor de desarrollo
 
@@ -107,7 +145,28 @@ npm run dev
 
 Esto iniciará el servidor en http://localhost:5173
 
-### 2. Hacer login
+### 2. Asignar roles al equipo docente (PENDIENTE)
+
+**Cuando tengas los emails del equipo**, actualiza el archivo `assign-roles.js` y ejecuta:
+
+```bash
+cd E:\Aideas\PUERTO NUEVO
+node assign-roles.js
+```
+
+Este script:
+- Crea usuarios automáticamente si no existen
+- Asigna roles mediante Custom Claims (superadmin, coordinacion, docente, tallerista)
+- Actualiza documentos en Firestore
+- Genera passwords temporales para usuarios nuevos
+
+**Equipo a configurar:**
+- **SuperAdmin**: Emilse + otra persona
+- **Coordinación**: Emilse, Camila, Rosana
+- **Docentes**: Emilse, Camila, Rosana, Vanesa, Gise, Javi
+- **Talleristas**: Camila (nexo)
+
+### 3. Hacer login
 
 1. Abre http://localhost:5173
 2. Se redirigirá automáticamente a `/login`
@@ -298,19 +357,13 @@ El campo `calendario` almacena una URL donde las familias y el equipo pueden des
 **Funcionalidades:**
 1. Ver alumnos de su taller específico (filtrado por `tallerAsignado`)
 2. Ver fichas completas de alumnos
-3. Registrar asistencias diarias
-4. Ver calendario del taller
-5. Comunicación directa con familias
+3. Ver calendario del taller
+4. Comunicación directa con familias
 
 **Archivos a crear:**
 - `src/pages/teacher/MyTaller.jsx`
 - `src/pages/teacher/StudentDetail.jsx`
-- `src/pages/teacher/Attendance.jsx`
 - `src/pages/teacher/TallerCalendar.jsx`
-- `src/services/attendance.service.js`
-
-**Colecciones Firestore:**
-- `/attendance` - Registro de asistencias
 
 ---
 

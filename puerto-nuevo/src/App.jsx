@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { UserManagement } from './pages/admin/UserManagement';
@@ -10,16 +11,20 @@ import { ReadReceiptsPanel } from './pages/admin/ReadReceiptsPanel';
 import ChildrenManager from './pages/admin/ChildrenManager';
 import AppointmentsManager from './pages/admin/AppointmentsManager';
 import TalleresManager from './pages/admin/TalleresManager';
+import { SnacksCalendar } from './pages/admin/SnacksCalendar';
 import { FamilyDashboard } from './pages/family/FamilyDashboard';
 import { Communications } from './pages/family/Communications';
 import ChildProfile from './pages/family/ChildProfile';
 import BookAppointment from './pages/family/BookAppointment';
 import { TalleresEspeciales } from './pages/family/TalleresEspeciales';
+import { MySnacks } from './pages/family/MySnacks';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
 import { TalleristaDashboard } from './pages/tallerista/TalleristaDashboard';
 import { MyTallerEspecial } from './pages/tallerista/MyTallerEspecial';
 import { TallerGallery } from './pages/tallerista/TallerGallery';
 import { DocumentManager } from './pages/tallerista/DocumentManager';
+import { DocumentsAdmin } from './pages/admin/DocumentsAdmin';
+import { Documents } from './pages/shared/Documents';
 import { AspiranteDashboard } from './pages/aspirante/AspiranteDashboard';
 import { ROLES } from './config/constants';
 
@@ -41,9 +46,11 @@ function App() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <AdminDashboard />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AdminDashboard />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -51,9 +58,11 @@ function App() {
             path="/admin/usuarios"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <UserManagement />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <UserManagement />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -61,9 +70,11 @@ function App() {
             path="/admin/comunicar"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN, ROLES.TEACHER, ROLES.TALLERISTA]}>
-                  <SendCommunication />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
+                    <SendCommunication />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -71,9 +82,11 @@ function App() {
             path="/admin/confirmaciones"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <ReadReceiptsPanel />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <ReadReceiptsPanel />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -81,9 +94,11 @@ function App() {
             path="/admin/alumnos"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <ChildrenManager />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <ChildrenManager />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -91,9 +106,11 @@ function App() {
             path="/admin/turnos"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <AppointmentsManager />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AppointmentsManager />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -101,9 +118,35 @@ function App() {
             path="/admin/talleres"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.DIRECCION, ROLES.COORDINACION, ROLES.ADMIN]}>
-                  <TalleresManager />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <TalleresManager />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/snacks"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <SnacksCalendar />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/documentos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <DocumentsAdmin />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -113,9 +156,11 @@ function App() {
             path="/familia"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                  <FamilyDashboard />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <FamilyDashboard />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -123,9 +168,11 @@ function App() {
             path="/familia/comunicados"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                  <Communications />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <Communications />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -133,9 +180,11 @@ function App() {
             path="/familia/hijos"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                  <ChildProfile />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <ChildProfile />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -143,9 +192,11 @@ function App() {
             path="/familia/turnos"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                  <BookAppointment />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <BookAppointment />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -153,9 +204,37 @@ function App() {
             path="/familia/talleres"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                  <TalleresEspeciales />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <TalleresEspeciales />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/snacks"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <MySnacks />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Family Documents Route */}
+          <Route
+            path="/familia/documentos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <Documents />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -165,9 +244,23 @@ function App() {
             path="/docente"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.TEACHER]}>
-                  <TeacherDashboard />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <TeacherDashboard />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/docente/documentos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <Documents />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -177,9 +270,11 @@ function App() {
             path="/tallerista"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
-                  <TalleristaDashboard />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <TalleristaDashboard />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -187,9 +282,11 @@ function App() {
             path="/tallerista/mi-taller"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
-                  <MyTallerEspecial />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <MyTallerEspecial />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -197,9 +294,11 @@ function App() {
             path="/tallerista/galeria"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
-                  <TallerGallery />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <TallerGallery />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -207,9 +306,11 @@ function App() {
             path="/tallerista/documentos"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
-                  <DocumentManager />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <DocumentManager />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />
@@ -219,9 +320,23 @@ function App() {
             path="/aspirante"
             element={
               <ProtectedRoute>
-                <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
-                  <AspiranteDashboard />
-                </RoleGuard>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                    <AspiranteDashboard />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aspirante/documentos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                    <Documents />
+                  </RoleGuard>
+                </Layout>
               </ProtectedRoute>
             }
           />

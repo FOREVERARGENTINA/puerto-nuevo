@@ -1,28 +1,16 @@
 import { useAuth } from '../../hooks/useAuth';
-import { authService } from '../../services/auth.service';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function TalleristaDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await authService.logout();
-    navigate('/login');
-  };
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
       <div className="card">
         <div className="card__header">
           <h1 className="card__title">Dashboard Tallerista</h1>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-            <span className="badge badge--warning">Tallerista</span>
-            <button onClick={handleLogout} className="btn btn--sm btn--outline">
-              Cerrar Sesión
-            </button>
-          </div>
+          <span className="badge badge--warning">Tallerista</span>
         </div>
 
         <div className="card__body">

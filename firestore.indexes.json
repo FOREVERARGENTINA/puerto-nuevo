@@ -125,6 +125,84 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "snackAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ambiente",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaInicio",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "snackAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "familiaUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaInicio",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "snackAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "fechaInicio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "confirmadoPorFamilia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordatorioEnviado",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "snackAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "familiaUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "confirmadoPorFamilia",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "familiaUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaHora",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
