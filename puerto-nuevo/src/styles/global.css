@@ -11,6 +11,10 @@ html {
   font-size: 16px; /* Base para rem */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Transición suave al cambiar tema */
+  transition: background-color var(--transition-normal), 
+              color var(--transition-normal);
 }
 
 body {
@@ -20,6 +24,10 @@ body {
   color: var(--color-text);
   background-color: var(--color-background-alt);
   min-height: 100vh;
+  
+  /* Transición suave para el tema */
+  transition: background-color var(--transition-normal), 
+              color var(--transition-normal);
 }
 
 /* TIPOGRAFÍA */

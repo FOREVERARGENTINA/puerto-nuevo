@@ -121,5 +121,16 @@ export const usersService = {
     } catch (error) {
       return { success: false, error: error.message };
     }
+  },
+
+  // Actualiza email/displayName en Firebase Auth y Firestore (callable)
+  async updateUserAuth(uid, data) {
+    try {
+      const updateUser = httpsCallable(functions, 'updateUserAuth');
+      const result = await updateUser({ uid, ...data });
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
 };

@@ -230,7 +230,7 @@ export function MyTallerEspecial() {
 
                   <div style={{ marginBottom: 'var(--spacing-md)' }}>
                     <h3>Ambiente</h3>
-                    <p>{selectedTaller.ambiente === 'taller1' ? 'Taller 1 (6-9 años)' : selectedTaller.ambiente === 'taller2' ? 'Taller 2 (9-12 años)' : 'No asignado'}</p>
+                <p>{selectedTaller.ambiente === 'taller1' ? 'Taller 1' : selectedTaller.ambiente === 'taller2' ? 'Taller 2' : 'No asignado'}</p>
                   </div>
                 </div>
               ) : (

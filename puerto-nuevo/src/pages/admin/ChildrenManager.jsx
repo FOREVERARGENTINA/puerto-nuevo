@@ -2,20 +2,25 @@ import { useState, useEffect } from 'react';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
+import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import ChildForm from '../../components/children/ChildForm';
 import ChildCard from '../../components/children/ChildCard';
 
+const CHILDREN_PAGE_SIZE = 12;
+
 const ChildrenManager = () => {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [filterAmbiente, setFilterAmbiente] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [familyUsers, setFamilyUsers] = useState({});
+  const [visibleCount, setVisibleCount] = useState(CHILDREN_PAGE_SIZE);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -55,6 +60,10 @@ const ChildrenManager = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    setVisibleCount(CHILDREN_PAGE_SIZE);
+  }, [filterAmbiente, searchTerm]);
+
   const handleCreate = () => {
     setEditingChild(null);
     setShowForm(true);
@@ -66,28 +75,33 @@ const ChildrenManager = () => {
   };
 
   const handleSubmit = async (data) => {
+    setSaving(true);
     let result;
-    if (editingChild) {
-      result = await childrenService.updateChild(editingChild.id, data);
-    } else {
-      result = await childrenService.createChild(data);
-    }
+    try {
+      if (editingChild) {
+        result = await childrenService.updateChild(editingChild.id, data);
+      } else {
+        result = await childrenService.createChild(data);
+      }
 
-    if (result.success) {
-      alertDialog.openDialog({
-        title: 'Éxito',
-        message: editingChild ? 'Alumno actualizado exitosamente' : 'Alumno creado exitosamente',
-        type: 'success'
-      });
-      setShowForm(false);
-      setEditingChild(null);
-      loadData();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: 'Error: ' + result.error,
-        type: 'error'
-      });
+      if (result.success) {
+        alertDialog.openDialog({
+          title: 'Éxito',
+          message: editingChild ? 'Alumno actualizado exitosamente' : 'Alumno creado exitosamente',
+          type: 'success'
+        });
+        setShowForm(false);
+        setEditingChild(null);
+        loadData();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: 'Error: ' + result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -127,6 +141,13 @@ const ChildrenManager = () => {
     return matchesAmbiente && matchesSearch;
   });
 
+  const visibleChildren = filteredChildren.slice(0, visibleCount);
+  const hasMoreChildren = filteredChildren.length > visibleChildren.length;
+
+  const handleShowMore = () => {
+    setVisibleCount(prev => Math.min(prev + CHILDREN_PAGE_SIZE, filteredChildren.length));
+  };
+
   if (loading) {
     return <LoadingScreen message="Cargando información de alumnos..." />;
   }
@@ -134,79 +155,108 @@ const ChildrenManager = () => {
   if (showForm) {
     return (
       <div className="page-container">
-        <div className="page-header">
-          <h1>{editingChild ? 'Editar Alumno' : 'Nuevo Alumno'}</h1>
+        <div className="page-header page-header--spaced">
+          <div>
+            <h1>{editingChild ? 'Editar Alumno' : 'Nuevo Alumno'}</h1>
+            <p className="muted-text">Actualizá la información del alumno y sus responsables.</p>
+          </div>
         </div>
-        <ChildForm
-          child={editingChild}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-        />
+        <div className="card new-form-card">
+          <ChildForm
+            child={editingChild}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <h1>Gestión de Alumnos</h1>
-        <button onClick={handleCreate} className="btn btn-primary">
+      <div className="page-header page-header--spaced">
+        <div>
+          <h1>Gestión de Alumnos</h1>
+          <p className="muted-text">Organizá familias, datos médicos y responsables desde un mismo lugar.</p>
+        </div>
+        <button onClick={handleCreate} className="btn btn--primary btn--lg">
           + Nuevo Alumno
         </button>
       </div>
 
-      <div className="filters-bar">
-        <div className="filter-group">
-          <label htmlFor="search">Buscar:</label>
-          <input
-            type="text"
-            id="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Nombre del alumno..."
-          />
-        </div>
+      <div className="filters-card card">
+        <div className="filters-grid">
+          <div className="filter-group">
+            <label htmlFor="search" className="form-label">Buscar</label>
+            <input
+              type="text"
+              id="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="form-input"
+              placeholder="Nombre del alumno..."
+            />
+          </div>
 
-        <div className="filter-group">
-          <label htmlFor="ambiente">Ambiente:</label>
-          <select
-            id="ambiente"
-            value={filterAmbiente}
-            onChange={(e) => setFilterAmbiente(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            <option value="taller1">Taller 1 (6-9)</option>
-            <option value="taller2">Taller 2 (9-12)</option>
-          </select>
-        </div>
+          <div className="filter-group">
+            <label htmlFor="ambiente" className="form-label">Ambiente</label>
+            <select
+              id="ambiente"
+              value={filterAmbiente}
+              onChange={(e) => setFilterAmbiente(e.target.value)}
+              className="form-select"
+            >
+              <option value="all">Todos</option>
+            <option value="taller1">Taller 1</option>
+            <option value="taller2">Taller 2</option>
+            </select>
+          </div>
 
-        <div className="filter-stats">
-          <span className="stat">
-            Total: <strong>{filteredChildren.length}</strong>
-          </span>
+          <div className="filter-stats">
+            <div className="stat-card">
+              <p className="stat-label">Alumnos totales</p>
+              <p className="stat-value">{filteredChildren.length}</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-label">Mostrando</p>
+              <p className="stat-value">{visibleChildren.length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {filteredChildren.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state empty-state--card card">
           <p>No se encontraron alumnos</p>
-          <button onClick={handleCreate} className="btn btn-primary">
+          <button onClick={handleCreate} className="btn btn--primary btn--lg">
             Crear primer alumno
           </button>
         </div>
       ) : (
-        <div className="children-grid">
-          {filteredChildren.map(child => (
-            <ChildCard
-              key={child.id}
-              child={child}
-              familyUsers={familyUsers}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              isAdmin={true}
-            />
-          ))}
-        </div>
+        <>
+          <div className="children-grid">
+            {visibleChildren.map(child => (
+              <ChildCard
+                key={child.id}
+                child={child}
+                familyUsers={familyUsers}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                isAdmin={true}
+              />
+            ))}
+          </div>
+          {hasMoreChildren && (
+            <div className="children-grid__footer">
+              <span className="muted-text">
+                Mostrando {visibleChildren.length} de {filteredChildren.length} alumnos
+              </span>
+              <button type="button" onClick={handleShowMore} className="btn btn--secondary btn--sm">
+                Ver más alumnos
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <ConfirmDialog
@@ -224,6 +274,11 @@ const ChildrenManager = () => {
         title={alertDialog.dialogData.title}
         message={alertDialog.dialogData.message}
         type={alertDialog.dialogData.type}
+      />
+
+      <LoadingModal
+        isOpen={saving}
+        message={editingChild ? 'Actualizando alumno...' : 'Creando alumno...'}
       />
     </div>
   );

@@ -1,42 +1,70 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
+import { ThemeProvider } from './hooks/useTheme';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { UserManagement } from './pages/admin/UserManagement';
-import { SendCommunication } from './pages/admin/SendCommunication';
-import { ReadReceiptsPanel } from './pages/admin/ReadReceiptsPanel';
-import ChildrenManager from './pages/admin/ChildrenManager';
-import AppointmentsManager from './pages/admin/AppointmentsManager';
-import TalleresManager from './pages/admin/TalleresManager';
-import { SnacksCalendar } from './pages/admin/SnacksCalendar';
-import { FamilyDashboard } from './pages/family/FamilyDashboard';
-import { Communications } from './pages/family/Communications';
-import ChildProfile from './pages/family/ChildProfile';
-import BookAppointment from './pages/family/BookAppointment';
-import { TalleresEspeciales } from './pages/family/TalleresEspeciales';
-import { MySnacks } from './pages/family/MySnacks';
-import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
-import { TalleristaDashboard } from './pages/tallerista/TalleristaDashboard';
-import { MyTallerEspecial } from './pages/tallerista/MyTallerEspecial';
-import { TallerGallery } from './pages/tallerista/TallerGallery';
-import { DocumentManager } from './pages/tallerista/DocumentManager';
-import { DocumentsAdmin } from './pages/admin/DocumentsAdmin';
-import { Documents } from './pages/shared/Documents';
-import { AspiranteDashboard } from './pages/aspirante/AspiranteDashboard';
 import { ROLES } from './config/constants';
+
+// Lazy load páginas admin
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement').then(m => ({ default: m.UserManagement })));
+const SendCommunication = lazy(() => import('./pages/admin/SendCommunication').then(m => ({ default: m.SendCommunication })));
+const ReadReceiptsPanel = lazy(() => import('./pages/admin/ReadReceiptsPanel').then(m => ({ default: m.ReadReceiptsPanel })));
+const ChildrenManager = lazy(() => import('./pages/admin/ChildrenManager'));
+const AppointmentsManager = lazy(() => import('./pages/admin/AppointmentsManager'));
+const TalleresManager = lazy(() => import('./pages/admin/TalleresManager'));
+const SnacksCalendar = lazy(() => import('./pages/admin/SnacksCalendar').then(m => ({ default: m.SnacksCalendar })));
+const DocumentsAdmin = lazy(() => import('./pages/admin/DocumentsAdmin').then(m => ({ default: m.DocumentsAdmin })));
+
+// Lazy load páginas familia
+const FamilyDashboard = lazy(() => import('./pages/family/FamilyDashboard').then(m => ({ default: m.FamilyDashboard })));
+const Communications = lazy(() => import('./pages/family/Communications').then(m => ({ default: m.Communications })));
+const ChildProfile = lazy(() => import('./pages/family/ChildProfile'));
+const BookAppointment = lazy(() => import('./pages/family/BookAppointment'));
+const TalleresEspeciales = lazy(() => import('./pages/family/TalleresEspeciales').then(m => ({ default: m.TalleresEspeciales })));
+const MySnacks = lazy(() => import('./pages/family/MySnacks').then(m => ({ default: m.MySnacks })));
+
+// Lazy load páginas docente
+const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
+
+// Lazy load páginas tallerista
+const TalleristaDashboard = lazy(() => import('./pages/tallerista/TalleristaDashboard').then(m => ({ default: m.TalleristaDashboard })));
+const MyTallerEspecial = lazy(() => import('./pages/tallerista/MyTallerEspecial').then(m => ({ default: m.MyTallerEspecial })));
+const TallerGallery = lazy(() => import('./pages/tallerista/TallerGallery').then(m => ({ default: m.TallerGallery })));
+const DocumentManager = lazy(() => import('./pages/tallerista/DocumentManager').then(m => ({ default: m.DocumentManager })));
+
+// Lazy load páginas compartidas
+const Documents = lazy(() => import('./pages/shared/Documents').then(m => ({ default: m.Documents })));
+
+// Lazy load páginas aspirante
+const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
 
 // Importar CSS
 import './styles/design-system.css';
 import './styles/global.css';
 import './styles/components.css';
 
+// Componente de loading
+const PageLoader = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh'
+  }}>
+    <div>Cargando...</div>
+  </div>
+);
+
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Login */}
           <Route path="/login" element={<Login />} />
@@ -384,8 +412,10 @@ function App() {
             }
           />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

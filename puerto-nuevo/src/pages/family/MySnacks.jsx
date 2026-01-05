@@ -42,7 +42,7 @@ export function MySnacks() {
   }, [user.uid]);
 
   const handleConfirm = async (assignmentId) => {
-    const result = await snacksService.confirmAssignment(assignmentId);
+    const result = await snacksService.confirmFamilyAssignment(assignmentId, user.uid);
     if (result.success) {
       setSuccess('¡Confirmación registrada! Gracias por avisar.');
       await loadMyAssignments();
@@ -201,12 +201,31 @@ export function MySnacks() {
                         )}
 
                         <div className="assignment-actions">
-                          {assignment.confirmadoPorFamilia ? (
-                            <div className="assignment-confirmed">
-                              <span>✓</span>
-                              <span>Ya confirmaste que traerás los snacks</span>
-                            </div>
-                          ) : assignment.solicitudCambio ? (
+                          {(() => {
+                            // Check if already confirmed (by this family or another)
+                            const myFamily = Array.isArray(assignment.familias) 
+                              ? assignment.familias.find(f => f.uid === user.uid)
+                              : null;
+                            const iConfirmed = myFamily?.confirmed;
+                            const alreadyConfirmed = assignment.confirmadoPorFamilia;
+                            
+                            if (alreadyConfirmed) {
+                              const confirmedBy = assignment.confirmadoPor;
+                              return (
+                                <div className="assignment-confirmed">
+                                  <span>✓</span>
+                                  <span>
+                                    {iConfirmed 
+                                      ? 'Ya confirmaste que traerás los snacks'
+                                      : `Ya confirmado por: ${confirmedBy}`
+                                    }
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
+                            if (assignment.solicitudCambio) {
+                              return (
                             <div className="assignment-change-request">
                               <p>
                                 <strong>⚠️ Solicitud de cambio enviada</strong>
@@ -220,8 +239,12 @@ export function MySnacks() {
                                 La escuela confirmará si puede asignarte la fecha que solicitaste.
                               </p>
                             </div>
-                          ) : !past && (
-                            <div className="assignment-buttons">
+                              );
+                            }
+                            
+                            if (!past) {
+                              return (
+                                <div className="assignment-buttons">
                               <button
                                 onClick={() => handleConfirm(assignment.id)}
                                 className="btn btn--primary"
@@ -234,8 +257,12 @@ export function MySnacks() {
                               >
                                 ✗ No puedo, solicitar cambio
                               </button>
-                            </div>
-                          )}
+                                </div>
+                              );
+                            }
+                            
+                            return null;
+                          })()}
                         </div>
 
                         {past && (

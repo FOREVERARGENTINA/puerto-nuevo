@@ -31,23 +31,51 @@ export const snacksService = {
 
       const existingSnapshot = await getDocs(q);
 
+      // Construir familias array si se pasaron responsables
+      let familias = [];
+      let familiasUids = [];
+      if (Array.isArray(data.responsables) && data.responsables.length > 0) {
+        // data.responsables = [{uid, name, email}] or [uid]
+        familias = data.responsables.map(r => {
+          if (typeof r === 'string') {
+            return { uid: r, name: null, email: null, confirmed: false };
+          }
+          return { uid: r.uid, name: r.name || null, email: r.email || null, confirmed: false };
+        });
+        familiasUids = familias.map(f => f.uid);
+      } else if (data.familiaUid) {
+        familias = [{ uid: data.familiaUid, name: data.familiaNombre || null, email: data.familiaEmail || null, confirmed: false }];
+        familiasUids = [data.familiaUid];
+      }
+
       if (!existingSnapshot.empty) {
-        return {
-          success: false,
-          error: 'Ya existe una asignación para esta semana en este taller. Por favor selecciona otra fecha.'
-        };
+        // Si ya existe una asignación para este ambiente y semana, actualizamos con la información de child o familias si viene
+        const existingDoc = existingSnapshot.docs[0];
+        const updateData = {};
+        if (data.childId) updateData.childId = data.childId;
+        if (data.childName) updateData.childName = data.childName;
+        if (familias.length > 0) {
+          updateData.familias = familias;
+          updateData.familiasUids = familiasUids;
+        }
+        if (Object.keys(updateData).length > 0) {
+          updateData.updatedAt = serverTimestamp();
+          await updateDoc(doc(db, 'snackAssignments', existingDoc.id), updateData);
+        }
+        return { success: true, id: existingDoc.id, updated: true };
       }
 
       const snackData = {
         ambiente: data.ambiente,
         fechaInicio: data.fechaInicio, // Formato: "2026-03-03" (lunes)
         fechaFin: data.fechaFin,         // Formato: "2026-03-07" (viernes)
-        familiaUid: data.familiaUid,
-        familiaEmail: data.familiaEmail,
-        familiaNombre: data.familiaNombre,
+        familias,
+        familiasUids,
+        // Soporte para alumno (child) cuando la asignación viene por alumno
+        childId: data.childId || null,
+        childName: data.childName || null,
         estado: 'pendiente',              // pendiente | confirmado | completado | cambio_solicitado
         recordatorioEnviado: false,
-        confirmadoPorFamilia: false,
         solicitudCambio: false,
         motivoCambio: null,
         createdAt: serverTimestamp(),
@@ -91,9 +119,10 @@ export const snacksService = {
    */
   async getAssignmentsByFamily(familiaUid) {
     try {
+      // Ahora usamos familiasUids para poder devolver asignaciones donde la familia esté en la lista
       const q = query(
         collection(db, 'snackAssignments'),
-        where('familiaUid', '==', familiaUid),
+        where('familiasUids', 'array-contains', familiaUid),
         orderBy('fechaInicio', 'asc')
       );
 
@@ -128,6 +157,48 @@ export const snacksService = {
       return { success: true };
     } catch (error) {
       console.error('Error confirming assignment:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Confirmación por familia dentro de una asignación
+   * Con que 1 familia confirme, toda la asignación queda confirmada (son padres del mismo alumno)
+   */
+  async confirmFamilyAssignment(assignmentId, familyUid) {
+    try {
+      const docRef = doc(db, 'snackAssignments', assignmentId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return { success: false, error: 'Assignment not found' };
+
+      const data = snap.data();
+      const familias = Array.isArray(data.familias) ? data.familias : [];
+      let changed = false;
+      let confirmedByName = '';
+
+      const newFamilias = familias.map(f => {
+        if (f.uid === familyUid && !f.confirmed) {
+          changed = true;
+          confirmedByName = f.name || f.email || familyUid;
+          return { ...f, confirmed: true, fechaConfirmacion: new Date().toISOString() };
+        }
+        return f;
+      });
+
+      if (changed) {
+        // Una familia confirmó -> TODO confirmado (son padres del mismo alumno)
+        await updateDoc(docRef, {
+          familias: newFamilias,
+          confirmadoPorFamilia: true,
+          confirmadoPor: confirmedByName,
+          estado: 'confirmado',
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error confirming family assignment:', error);
       return { success: false, error: error.message };
     }
   },
@@ -253,6 +324,36 @@ export const snacksService = {
       return { success: true };
     } catch (error) {
       console.error('Error updating snack list:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Crear "semana suspendida" (vacaciones, no hay snacks)
+   */
+  async createSuspendedWeek(ambiente, fechaInicio, fechaFin, motivo = 'Vacaciones') {
+    try {
+      const suspendedData = {
+        ambiente,
+        fechaInicio,
+        fechaFin,
+        familiaUid: 'SUSPENDED',
+        familiaEmail: '',
+        familiaNombre: `⛔ ${motivo}`,
+        estado: 'suspendido',
+        suspendido: true,
+        motivoSuspension: motivo,
+        recordatorioEnviado: false,
+        confirmadoPorFamilia: false,
+        solicitudCambio: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      const docRef = await addDoc(collection(db, 'snackAssignments'), suspendedData);
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error creating suspended week:', error);
       return { success: false, error: error.message };
     }
   }

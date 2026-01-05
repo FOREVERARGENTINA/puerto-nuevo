@@ -45,7 +45,10 @@ export function ReadConfirmationModal({ communication, onConfirm, blocking = tru
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric'
-                  })}
+                  })}{' '}
+                  <span style={{ marginLeft: '0.5rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                    • Enviado por {communication.sentByDisplayName || '—'}
+                  </span>
                 </p>
               )}
             </div>

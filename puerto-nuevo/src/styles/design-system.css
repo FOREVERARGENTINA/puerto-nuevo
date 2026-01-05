@@ -2,10 +2,11 @@
 /* Variables CSS centralizadas */
 
 :root {
-  /* COLORES PRINCIPALES - Paleta Montessori */
-  --color-primary: #2C5F2D;           /* Verde natural */
-  --color-primary-dark: #1A3A1B;
-  --color-primary-light: #4A8B4D;
+  /* COLORES PRINCIPALES - Paleta Puerto Nuevo */
+  --color-primary: #5BA5A8;           /* Azul cyan medio - para badges/chips */
+  --color-primary-dark: #3D7E81;      /* Versión oscura para hover */
+  --color-primary-light: #B9D8DA;     /* Azul cyan suave - marca original */
+  --color-primary-soft: #E5F2F3;      /* Muy suave para fondos */
 
   --color-secondary: #D4A574;         /* Madera/beige cálido */
   --color-secondary-dark: #B8885A;
@@ -93,13 +94,43 @@
   --z-tooltip: 1070;
 }
 
-/* DARK MODE (opcional, para futuro) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #1A1A1A;
-    --color-background-alt: #2C2C2C;
-    --color-text: #E8E8E8;
-    --color-text-light: #A0A0A0;
-    --color-border: #404040;
-  }
+/* DARK MODE - Activado con data-theme="dark" */
+[data-theme="dark"] {
+  /* Backgrounds oscuros pero no negros puros */
+  --color-background: #1A1D1E;
+  --color-background-alt: #262A2C;
+  --color-background-warm: #2A2621;
+  
+  /* Textos adaptados */
+  --color-text: #E8EAED;
+  --color-text-light: #9AA0A6;
+  
+  /* Bordes sutiles */
+  --color-border: #3C4043;
+  
+  /* Colores primarios ajustados para oscuro - más brillantes */
+  --color-primary: #7DBEC1;
+  --color-primary-dark: #5BA5A8;
+  --color-primary-light: #B9D8DA;
+  --color-primary-soft: #2A3E3F;
+  
+  /* Secundarios más cálidos en oscuro */
+  --color-secondary: #E8C8A0;
+  --color-secondary-dark: #D4A574;
+  --color-secondary-light: #F5DEC0;
+  
+  /* Accent más visible */
+  --color-accent: #FF9147;
+  
+  /* Estados adaptados */
+  --color-success: #34C759;
+  --color-warning: #FF9F0A;
+  --color-error: #FF453A;
+  --color-info: #5AC8FA;
+  
+  /* Sombras más pronunciadas en oscuro */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
 }

@@ -4,12 +4,27 @@ import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { ROLES, AMBIENTES, ROUTES } from '../../config/constants';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
 
 export function UserManagement() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
+
+  // Edit user modal
+  const [editingUser, setEditingUser] = useState(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    email: '',
+    displayName: '',
+    role: ROLES.FAMILY,
+    tallerAsignado: '',
+    disabled: false
+  });
+
+  // Update: allow coordinacion (isAdmin) to edit users
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -23,6 +38,19 @@ export function UserManagement() {
     role: ROLES.FAMILY,
     tallerAsignado: ''
   });
+
+  // Search / filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
+
+  const filteredUsers = searchTerm
+    ? users.filter(u => {
+        const q = searchTerm.toLowerCase();
+        return (u.email || '').toLowerCase().includes(q) ||
+               (u.displayName || '').toLowerCase().includes(q) ||
+               (u.role || '').toLowerCase().includes(q);
+      })
+    : users;
 
   const loadUsers = async () => {
     setLoading(true);
@@ -84,21 +112,70 @@ export function UserManagement() {
     }
   };
 
-  const handleChangeRole = async (uid, currentEmail, newRole) => {
-    confirmDialog.openDialog({
-      title: 'Cambiar Rol',
-      message: `¿Cambiar rol de ${currentEmail} a ${newRole}?`,
-      type: 'warning',
-      onConfirm: async () => {
-        const result = await usersService.setUserRole(uid, newRole);
-        if (result.success) {
-          setSuccess(`Rol actualizado a ${newRole} para ${currentEmail}`);
-          await loadUsers();
-        } else {
-          setError('Error al cambiar rol: ' + result.error);
-        }
-      }
+  // Abrir modal de edición (solo superadmin)
+  const openEditUser = (u) => {
+    setEditingUser(u);
+    setEditFormData({
+      email: u.email || '',
+      displayName: u.displayName || '',
+      role: u.role || ROLES.FAMILY,
+      tallerAsignado: u.tallerAsignado || '',
+      disabled: !!u.disabled
     });
+    setShowEditForm(true);
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const handleSaveUserEdits = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setError('');
+    setSuccess('');
+    setUpdating(true);
+
+    try {
+      // If email or displayName changed, update in Auth first
+      const emailChanged = editFormData.email && editFormData.email !== editingUser.email;
+      const displayNameChanged = editFormData.displayName !== editingUser.displayName;
+
+      if (emailChanged || displayNameChanged) {
+        const authRes = await usersService.updateUserAuth(editingUser.id, {
+          email: editFormData.email,
+          displayName: editFormData.displayName
+        });
+        if (!authRes.success) throw new Error('Error actualizando Auth: ' + authRes.error);
+      }
+
+      const updates = {
+        email: editFormData.email,
+        displayName: editFormData.displayName,
+        tallerAsignado: editFormData.role === ROLES.DOCENTE ? editFormData.tallerAsignado : null,
+        disabled: !!editFormData.disabled
+      };
+
+      // Si cambió el rol, use callable to set custom claim
+      if (editFormData.role && editFormData.role !== editingUser.role) {
+        const roleRes = await usersService.setUserRole(editingUser.id, editFormData.role);
+        if (!roleRes.success) throw new Error('No se pudo actualizar rol: ' + roleRes.error);
+      }
+
+      const res = await usersService.updateUser(editingUser.id, updates);
+      if (!res.success) throw new Error(res.error);
+
+      setSuccess('Usuario actualizado.');
+      setShowEditForm(false);
+      setEditingUser(null);
+      await loadUsers();
+
+    } catch (err) {
+      setError(err.message || 'Error actualizando usuario');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const getRoleLabel = (role) => {
@@ -149,14 +226,33 @@ export function UserManagement() {
             </div>
           )}
 
-          <div className="user-stats">
-            <p><strong>Total de usuarios:</strong> {users.length}</p>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="btn btn--primary"
-            >
-              {showCreateForm ? 'Cancelar' : '+ Crear Usuario'}
-            </button>
+          <div className="user-stats user-stats--compact">
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <p style={{ margin: 0 }}><strong>Total:</strong> {users.length} {searchTerm ? `· Mostrando ${filteredUsers.length}` : ''}</p>
+              <input
+                type="text"
+                className="form-input form-input--sm"
+                placeholder="Buscar por email, nombre o rol..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                aria-label="Buscar usuarios"
+                style={{ width: 260 }}
+              />
+              {searchTerm && (
+                <button type="button" className="btn btn--sm btn--outline" onClick={() => setSearchTerm('')}>
+                  Limpiar
+                </button>
+              )}
+            </div>
+
+            <div>
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="btn btn--primary"
+              >
+                {showCreateForm ? 'Cancelar' : '+ Crear Usuario'}
+              </button>
+            </div>
           </div>
 
           {showCreateForm && (
@@ -262,40 +358,45 @@ export function UserManagement() {
             </div>
           )}
 
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Nombre</th>
-                  <th>Rol Actual</th>
-                  <th>Taller</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.email}</td>
-                    <td>{u.displayName || '-'}</td>
-                    <td>
-                      <span className="badge badge--primary">
-                        {getRoleLabel(u.role)}
-                      </span>
-                    </td>
-                    <td>{getTallerLabel(u.tallerAsignado)}</td>
-                    <td>
-                      <span className={`badge ${u.disabled ? 'badge--error' : 'badge--success'}`}>
-                        {u.disabled ? 'Deshabilitado' : 'Activo'}
-                      </span>
-                    </td>
-                    <td>
+          {/* Edit user modal (superadmin only) */}
+          {showEditForm && editingUser && (
+            <div className="card create-form-card">
+              <div className="card__body">
+                <h3>Editar Usuario: {editingUser.email}</h3>
+                <form onSubmit={handleSaveUserEdits} className="form-grid">
+                  <div className="grid-cards">
+                    <div className="form-group">
+                      <label htmlFor="editEmail">Email</label>
+                      <input
+                        type="email"
+                        id="editEmail"
+                        name="email"
+                        value={editFormData.email}
+                        onChange={handleEditInputChange}
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="editDisplayName">Nombre completo</label>
+                      <input
+                        type="text"
+                        id="editDisplayName"
+                        name="displayName"
+                        value={editFormData.displayName}
+                        onChange={handleEditInputChange}
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="editRole">Rol</label>
                       <select
-                        className="form-input role-select"
-                        value={u.role}
-                        onChange={(e) => handleChangeRole(u.id, u.email, e.target.value)}
-                        disabled={u.id === user.uid}
+                        id="editRole"
+                        name="role"
+                        value={editFormData.role}
+                        onChange={handleEditInputChange}
+                        className="form-input"
                       >
                         <option value={ROLES.FAMILY}>Familia</option>
                         <option value={ROLES.DOCENTE}>Docente</option>
@@ -304,10 +405,99 @@ export function UserManagement() {
                         <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
                         <option value={ROLES.ASPIRANTE}>Aspirante</option>
                       </select>
-                      {u.id === user.uid && (
-                        <small className="user-note">
-                          (tu usuario)
-                        </small>
+                    </div>
+
+                    {editFormData.role === ROLES.DOCENTE && (
+                      <div className="form-group">
+                        <label htmlFor="editTaller">Taller Asignado</label>
+                        <select
+                          id="editTaller"
+                          name="tallerAsignado"
+                          value={editFormData.tallerAsignado}
+                          onChange={handleEditInputChange}
+                          className="form-input"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value={AMBIENTES.TALLER_1}>Taller 1</option>
+                          <option value={AMBIENTES.TALLER_2}>Taller 2</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="disabled"
+                          checked={!!editFormData.disabled}
+                          onChange={handleEditInputChange}
+                        />{' '}
+                        Deshabilitado
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex-row mt-md">
+                    <button type="submit" className="btn btn--primary">
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowEditForm(false); setEditingUser(null); }}
+                      className="btn btn--outline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <div className="table-container">
+            <table className="table table--compact">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Nombre</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map(u => (
+                  <tr key={u.id}>
+                    <td style={{ width: 240 }}>{u.email}</td>
+                    <td style={{ width: 180 }}>{u.displayName || '-'}</td>
+                    <td style={{ width: 160 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <span className="badge badge--primary">
+                          {getRoleLabel(u.role)}
+                        </span>
+                        {u.tallerAsignado && (
+                          <span className="badge badge--info">
+                            {getTallerLabel(u.tallerAsignado)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ width: 110 }}>
+                      <span className={`badge ${u.disabled ? 'badge--error' : 'badge--success'}`}>
+                        {u.disabled ? 'Deshabilitado' : 'Activo'}
+                      </span>
+                    </td>
+                    <td style={{ width: 100 }}>
+                      {isAdmin ? (
+                        <button
+                          className="btn btn--sm btn--outline"
+                          onClick={() => openEditUser(u)}
+                          disabled={u.id === user.uid}
+                        >
+                          Editar
+                        </button>
+                      ) : (
+                        <span>-</span>
                       )}
                     </td>
                   </tr>
@@ -325,6 +515,11 @@ export function UserManagement() {
         title={confirmDialog.dialogData.title}
         message={confirmDialog.dialogData.message}
         type={confirmDialog.dialogData.type}
+      />
+
+      <LoadingModal
+        isOpen={updating}
+        message="Actualizando usuario..."
       />
     </div>
   );

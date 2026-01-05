@@ -53,11 +53,9 @@ export function ReadReceiptsPanel() {
     try {
       const result = await communicationsService.getAllCommunications(200);
       if (result.success) {
-        const withRequiredRead = result.communications.filter(
-          comm => comm.requiereLecturaObligatoria
-        );
-        setCommunications(withRequiredRead);
-        loadAllStats(withRequiredRead);
+        // Mostrar todos los comunicados (no solo los que requieren lectura obligatoria)
+        setCommunications(result.communications);
+        loadAllStats(result.communications);
       } else {
         setError(result.error);
       }
@@ -129,6 +127,20 @@ export function ReadReceiptsPanel() {
     setStats(comm.statsData);
     setPendingUsers([]);
     setShowDetailModal(true);
+
+    // Si no tenemos el nombre del remitente, intentar cargarlo desde usuarios
+    if (!comm.sentByDisplayName && comm.sentBy) {
+      try {
+        const senderRes = await usersService.getUserById(comm.sentBy);
+        if (senderRes.success) {
+          setSelectedComm(prev => ({ ...prev, sentByDisplayName: senderRes.user.displayName || senderRes.user.email || '—' }));
+        } else {
+          setSelectedComm(prev => ({ ...prev, sentByDisplayName: '—' }));
+        }
+      } catch (err) {
+        console.error('Error cargando remitente:', err);
+      }
+    }
 
     if (!comm.destinatarios || comm.destinatarios.length === 0) {
       return;
@@ -315,7 +327,7 @@ export function ReadReceiptsPanel() {
         <div className="card__body">
           {communications.length === 0 ? (
             <div className="alert alert--info">
-              No hay comunicados con lectura obligatoria.
+              No hay comunicados aún.
             </div>
           ) : (
             <>
@@ -589,6 +601,20 @@ export function ReadReceiptsPanel() {
                 }}>
                   {selectedComm.body}
                 </p>
+
+                {selectedComm.attachments && selectedComm.attachments.length > 0 && (
+                  <div style={{ marginTop: 'var(--spacing-md)' }}>
+                    <strong>Archivos adjuntos:</strong>
+                    <ul>
+                      {selectedComm.attachments.map((att, idx) => (
+                        <li key={idx} style={{ marginTop: 'var(--spacing-xs)' }}>
+                          <a href={att.url} target="_blank" rel="noopener noreferrer">{att.name}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div style={{
                   marginTop: 'var(--spacing-sm)',
                   paddingTop: 'var(--spacing-sm)',
@@ -608,6 +634,9 @@ export function ReadReceiptsPanel() {
                         month: 'long',
                         year: 'numeric'
                       })}
+                      <span style={{ marginLeft: '0.5rem', fontWeight: 500, color: 'var(--color-text-light)' }}>
+                        • Enviado por {selectedComm.sentByDisplayName || selectedComm.sentBy || '—' }
+                      </span>
                     </span>
                   )}
                 </div>

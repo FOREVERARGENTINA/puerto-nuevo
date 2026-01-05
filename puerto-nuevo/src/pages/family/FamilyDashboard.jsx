@@ -45,10 +45,6 @@ export function FamilyDashboard() {
               </Link>
             </div>
           </div>
-
-          <div className="alert alert--success mt-xl">
-            <strong>Fase 3 completada:</strong> Sistema de fichas de alumnos y turnero funcionando.
-          </div>
         </div>
       </div>
     </div>

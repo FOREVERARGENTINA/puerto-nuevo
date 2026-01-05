@@ -12,7 +12,8 @@ import {
   limit,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 
 const communicationsCollection = collection(db, 'communications');
 
@@ -26,6 +27,31 @@ export const communicationsService = {
       });
       return { success: true, id: docRef.id };
     } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async uploadAttachments(commId, files) {
+    try {
+      const attachments = [];
+      for (const file of files) {
+        const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        const storageRef = ref(storage, `communications/${commId}/${fileName}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        attachments.push({ name: file.name, url: downloadURL, path: `communications/${commId}/${fileName}` });
+      }
+
+      // Guardar metadata en el documento y marcar adjuntos como completos
+      await updateDoc(doc(communicationsCollection, commId), {
+        attachments,
+        hasPendingAttachments: false,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true, attachments };
+    } catch (error) {
+      console.error('Error subiendo adjuntos:', error);
       return { success: false, error: error.message };
     }
   },

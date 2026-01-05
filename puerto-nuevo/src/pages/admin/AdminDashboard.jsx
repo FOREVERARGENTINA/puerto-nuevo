@@ -71,10 +71,6 @@ export function AdminDashboard() {
               </Link>
             </div>
           </div>
-
-          <div className="alert alert--success mt-xl">
-            <strong>Fase 5 completada:</strong> Sistema de talleres especiales y documentos institucionales.
-          </div>
         </div>
       </div>
     </div>

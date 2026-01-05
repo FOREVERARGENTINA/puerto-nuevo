@@ -309,8 +309,8 @@ const TalleresManager = () => {
                     required
                   >
                     <option value="">Seleccionar ambiente...</option>
-                    <option value="taller1">Taller 1 (6-9 años)</option>
-                    <option value="taller2">Taller 2 (9-12 años)</option>
+                    <option value="taller1">Taller 1</option>
+                    <option value="taller2">Taller 2</option>
                   </select>
                   <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)' }}>
                     Este taller es para alumnos del Taller 1 o Taller 2
@@ -347,7 +347,7 @@ const TalleresManager = () => {
                           )}
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-sm)' }}>
                             <div>
-                              <strong>Ambiente:</strong> {taller.ambiente === 'taller1' ? 'Taller 1 (6-9)' : taller.ambiente === 'taller2' ? 'Taller 2 (9-12)' : 'No asignado'}
+                              <strong>Ambiente:</strong> {taller.ambiente === 'taller1' ? 'Taller 1' : taller.ambiente === 'taller2' ? 'Taller 2' : 'No asignado'}
                             </div>
                             <div>
                               <strong>Tallerista:</strong> {getTalleristaName(Array.isArray(taller.talleristaId) ? taller.talleristaId[0] : taller.talleristaId)}

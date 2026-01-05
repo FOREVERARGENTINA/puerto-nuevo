@@ -140,7 +140,7 @@ export function TalleresEspeciales() {
               <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
                 <h2 style={{ margin: 0 }}>{selectedTaller.nombre}</h2>
                 <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)' }}>
-                  {selectedTaller.ambiente === 'taller1' ? 'Taller 1 (6-9 años)' : 'Taller 2 (9-12 años)'}
+                  {selectedTaller.ambiente === 'taller1' ? 'Taller 1' : 'Taller 2'}
                 </span>
               </div>
 

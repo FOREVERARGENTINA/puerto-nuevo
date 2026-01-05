@@ -1,10 +1,23 @@
 import { useNavigate } from 'react-router-dom';
 import { formatRelativeTime } from '../../utils/dateHelpers';
+import { readReceiptsService } from '../../services/readReceipts.service';
+import { useAuth } from '../../hooks/useAuth';
+import Icon from '../ui/Icon';
 
 export function NotificationDropdown({ notifications, onClose }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
+    // Si es un comunicado, marcarlo como leído antes de navegar
+    if (notification.type === 'comunicado' && notification.metadata?.commId && user) {
+      try {
+        await readReceiptsService.markAsRead(notification.metadata.commId, user.uid, user.displayName || user.email);
+      } catch (err) {
+        console.error('Error marking notification as read', err);
+      }
+    }
+
     navigate(notification.actionUrl);
     onClose();
   };
@@ -13,7 +26,9 @@ export function NotificationDropdown({ notifications, onClose }) {
     return (
       <div className="notification-dropdown">
         <div className="notification-empty">
-          <span className="icon">✅</span>
+          <span className="icon icon--large icon--muted" aria-hidden="true">
+            <Icon name="check-circle" size={48} />
+          </span>
           <p>No tenés notificaciones pendientes</p>
         </div>
       </div>
