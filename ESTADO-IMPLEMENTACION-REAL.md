@@ -221,34 +221,61 @@
 
 ---
 
-## ⚠️ FUNCIONALIDADES PENDIENTES DE IMPLEMENTAR
+## 🔄 ACTUALIZACIÓN DE IMPLEMENTACIÓN
 
-### 1. Flujo de Aprobación de Comunicados
-- Estados: borrador → pendiente → aprobado → enviado
-- Solo Coordinación puede aprobar
-- Panel de aprobación en admin
+### ✅ Items recientemente implementados y documentados
 
-### 2. Información Institucional
-- Página de contacto (emails, teléfonos, RRSS)
-- Equipo docente con fotos y roles
-- Info de emergencias (MEDICARDIO: 0800 122 1121)
-- Horarios 2026
+1. **Flujo de envío de comunicados** — **Implementado y documentado (Opción A: enviar al crear)**
+   - UI: `src/pages/admin/SendCommunication.jsx` (checkbox `Enviar por email`, **activado por defecto**)
+   - Servicios: `src/services/communications.service.js` (persiste `sendByEmail` en el documento)
+   - Cloud Functions: `functions/src/triggers/onCommunicationCreated.js` — ahora expande destinatarios **y** realiza envío por email (Resend si está configurado) y push (FCM) por lotes con estado por destinatario en `/communications/{id}/emailStatus/{uid}`
+   - Documentación añadida en: `datos/IMPLEMENTACION.md` (sección "Comunicados — envío por email")
 
-### 3. Sistema de Snacks por Taller
-- Listado de alimentos permitidos
-- Calendario rotativo de familias
-- Recordatorios automáticos
+   **Nota de impacto:** la decisión actual es que los comunicados se envían inmediatamente ("se envía y listo"). El trigger implementado es idempotente por destinatario (no reenviará si `emailStatus` está `sent`) y marca destinatarios como `queued` si no hay `RESEND_API_KEY`. Las reglas de lectura siguen permitiendo ver comunicados al crearse, por tanto el flujo es inmediato y no incluye paso de aprobación por ahora.
 
-### 4. Validaciones Específicas de Turnos
-- Bloqueo de martes para Taller 2
-- Enforcement de 30 min + 10 min buffer
+2. **Confirmaciones de lectura en documentos** — **Implementado y documentado (upload/download only)**
+   - UI: `src/components/documents/DocumentViewer.jsx` / `src/pages/shared/Documents.jsx`
+   - Backend: `src/services/documents.service.js` y colección `/documents/{id}/readReceipts`
+   - **Nota:** Actualmente el sistema soporta subida y descarga de documentos y registro de lecturas, **pero NO** mantiene historial/versionado ni existe UI para versiones (solo upload/download). Para historial de versiones ver sección "Versionado" en `datos/IMPLEMENTACION.md`.
+   - Documentación añadida en: `datos/IMPLEMENTACION.md` (sección "Documentos — confirmaciones de lectura")
 
-### 5. Información Médica de Alumnos
-- Campos médicos en ficha de alumno
-- Permisos para ver (solo coordinación + algunos docentes)
-- Protocolos de emergencia
+3. **Sistema de snacks por taller** — **Implementado y documentado**
+   - UI: `src/pages/admin/SnacksManager.jsx`, `src/pages/family/SnacksCalendar.jsx`
+   - Servicios: `src/services/snacks.service.js`
+   - Firestore: colecciones `/snacks` y `/snacks/calendar`
+   - Documentación añadida en: `datos/IMPLEMENTACION.md` (sección "Snacks — gestión y calendario")
+
+4. **Validaciones faltantes en Turnero (listadas para QA)**
+   - Reglas exactas pendientes:
+     - Bloquear reservaciones en **martes** para alumnos del **Taller 2**.
+     - Enforce de ventana: **turnos de 30 min** con **10 min buffer** entre turnos (no permitir crear/reservar turnos que violen esta regla).
+     - Evitar solapamientos/alineaciones que omitan el buffer (validación server-side en `appointments.service.js` o en Cloud Function/transaction).
+   - Archivo(s) a tocar: `src/services/appointments.service.js`, `src/pages/admin/AppointmentsManager.jsx`, y/o añadir validación server-side (Cloud Function o Firestore transaction) para evitar races.
 
 ---
+
+### ⚠️ Pendientes por implementar (detallado y opciones)
+
+1. **Versionado de documentos** — (NO implementado)
+   - Objetivo: mantener historial de versiones, poder restaurar o revisar cambios y asociar `readReceipts` por versión.
+   - Archivos sugeridos: `src/components/documents/DocumentVersionList.jsx`, extender `src/services/documents.service.js`.
+   - Estructura Firestore propuesta: subcolección `/documents/{id}/versions` con metadatos + URL en Storage.
+   - Opciones de implementación (ver `datos/IMPLEMENTACION.md` para pros/cons y estimaciones).
+
+2. **Página(s) pública(s) de información institucional** — (NO implementado)
+   - Objetivo: contacto, equipo, emergencias, horarios y acceso para aspirantes.
+   - Archivos sugeridos: `src/pages/public/Contact.jsx`, `src/pages/public/Equipo.jsx`, `src/pages/public/InfoEmergencias.jsx`.
+   - Opciones: páginas estáticas en frontend vs contenido Markdown/JSON editable (ver `datos/IMPLEMENTACION.md`).
+
+3. **Campos médicos y permisos** — (NO implementado)
+   - Objetivo: campos médicos en `children/{id}` + permisos `view_medical_info` / `edit_medical_info` correctamente aplicados.
+   - Archivos sugeridos: extender `src/components/children/ChildForm.jsx`, `src/pages/family/ChildProfile.jsx`, y reglas en `firestore.rules`.
+   - Opciones de implementación incluidas en `datos/IMPLEMENTACION.md`.
+
+---
+
+*La documentación de los ítems implementados fue centralizada en `datos/IMPLEMENTACION.md`.*
+
 
 ## 🚀 PRÓXIMOS PASOS RECOMENDADOS
 

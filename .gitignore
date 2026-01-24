@@ -3,7 +3,7 @@ node_modules/
 functions/node_modules/
 
 # Build
-puerto-nuevo/dist/
+dist/
 build/
 
 # Firebase

@@ -5,7 +5,7 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 
 // Importar triggers
-const { onCommunicationCreated } = require('./src/triggers/onCommunicationCreated');
+const { onCommunicationCreated, onCommunicationUpdated } = require('./src/triggers/onCommunicationCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
 /**
@@ -131,8 +131,58 @@ exports.createUserWithRole = onCall(async (request) => {
   }
 });
 
+/**
+ * Cloud Function: updateUserAuth
+ * Actualiza email y displayName en Firebase Authentication y Firestore
+ * Permitido solo para superadmin y coordinacion
+ */
+exports.updateUserAuth = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+
+  const callerRole = request.auth.token.role;
+  if (!['superadmin', 'coordinacion'].includes(callerRole)) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden actualizar Auth');
+  }
+
+  const { uid, email, displayName } = request.data;
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'uid es requerido');
+  }
+
+  try {
+    const updateParams = {};
+    if (email) updateParams.email = email;
+    if (displayName) updateParams.displayName = displayName;
+
+    if (Object.keys(updateParams).length === 0) {
+      throw new HttpsError('invalid-argument', 'email o displayName son requeridos');
+    }
+
+    // Actualizar en Firebase Auth
+    await admin.auth().updateUser(uid, updateParams);
+
+    // Actualizar en Firestore
+    const updates = {};
+    if (email) updates.email = email;
+    if (displayName) updates.displayName = displayName;
+    if (Object.keys(updates).length > 0) {
+      await admin.firestore().collection('users').doc(uid).set(updates, { merge: true });
+    }
+
+    console.log(`Auth actualizado para ${uid} por ${request.auth.uid}`);
+
+    return { success: true, message: 'Usuario actualizado en Auth y Firestore' };
+  } catch (error) {
+    console.error('Error actualizando usuario en Auth:', error);
+    throw new HttpsError('internal', `Error actualizando usuario: ${error.message}`);
+  }
+});
+
 // Exportar triggers
 exports.onCommunicationCreated = onCommunicationCreated;
+exports.onCommunicationUpdated = onCommunicationUpdated;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

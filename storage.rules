@@ -47,9 +47,26 @@ service firebase.storage {
       // Leer: Todos los autenticados (el control de acceso se hace en Firestore)
       allow read: if isAuthenticated();
 
-      // Escribir: Solo superadmin y coordinacion
+      // Escribir:
+      // - Superadmin y Coordinación pueden subir cualquier documento.
+      // - Talleristas pueden subir documentos **solo** en la categoría 'taller'.
       allow write: if isAuthenticated() && (
-        request.auth.token.role in ['superadmin', 'coordinacion']
+        request.auth.token.role in ['superadmin', 'coordinacion'] ||
+        (request.auth.token.role == 'tallerista' && category == 'taller')
+      );
+    }
+
+    // Comunicados: archivos adjuntos
+    match /communications/{commId}/{fileName} {
+      // Leer: Usuarios autenticados que están en destinatarios del comunicado
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid in firestore.get(/databases/(default)/documents/communications/$(commId)).data.destinatarios
+      );
+
+      // Escribir: Superadmin, Coordinación, Docentes (quienes pueden crear comunicados)
+      allow write: if isAuthenticated() && (
+        request.auth.token.role in ['superadmin', 'coordinacion', 'docente']
       );
     }
 

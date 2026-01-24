@@ -8,6 +8,7 @@ Intranet educativa + Portal institucional para escuela Montessori.
 - **Backend:** Firebase (Firestore, Storage, Cloud Functions, Authentication)
 - **Hosting:** Firebase Hosting
 - **Notificaciones:** FCM (push) + Resend (email)
+  - Para envio por email en producción configura `RESEND_API_KEY` en las Cloud Functions; si no está configurado, los destinatarios se marcarán `queued` y no se enviará email automáticamente.
 - **PWA:** Service Worker + manifest.json
 
 ## Estado del Proyecto
@@ -33,12 +34,11 @@ Ver `ESTADO-ACTUAL.md` para detalles completos del progreso.
 ### Primera vez
 
 ```bash
-# 1. Instalar dependencias del frontend
-cd puerto-nuevo
+# 1. Instalar dependencias del proyecto
 npm install
 
 # 2. Instalar dependencias de Cloud Functions
-cd ../functions
+cd functions
 npm install
 
 # 3. Configurar Firebase CLI
@@ -51,7 +51,6 @@ firebase use puerto-nuevo-montessori
 
 ```bash
 # Iniciar servidor de desarrollo
-cd puerto-nuevo
 npm run dev
 ```
 
@@ -83,14 +82,17 @@ firebase deploy --only hosting
 ## Estructura del Proyecto
 
 ```
-├── DATOS/              # Documentación original
-│   └── historico/      # Fases completadas
+├── datos/              # Documentación e imágenes
 ├── functions/          # Cloud Functions
-├── puerto-nuevo/       # Frontend React
+├── src/                # Frontend React (código fuente)
+├── public/             # Assets públicos
+├── dist/               # Build de producción
 ├── firestore.rules     # Security Rules Firestore
 ├── firestore.indexes.json  # Índices Firestore
 ├── storage.rules       # Security Rules Storage
-└── firebase.json       # Configuración Firebase
+├── firebase.json       # Configuración Firebase
+├── vite.config.js      # Configuración Vite
+└── package.json        # Dependencias y scripts
 ```
 
 ## Funcionalidades Implementadas
@@ -147,7 +149,7 @@ firebase functions:log
 firebase projects:list
 
 # Limpiar caché de Vite
-cd puerto-nuevo && npm run build -- --force
+npm run build -- --force
 ```
 
 ## Seguridad

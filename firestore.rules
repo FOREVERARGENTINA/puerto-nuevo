@@ -43,16 +43,6 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
     }
 
-    function canApproveCommunications() {
-      // Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
-      return isSuperAdmin() || isCoordinacion();
-    }
-
-    function canViewMedicalInfo() {
-      // SuperAdmin, Coordinación y algunos Docentes
-      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
-    }
-
     function canManageAppointments() {
       // Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
       return isSuperAdmin() || isCoordinacion();
@@ -68,9 +58,9 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
     }
 
-    // Verifica si el usuario objetivo es una familia (para permitir ver nombres de otros responsables)
-    function isTargetFamily(userId) {
-      return resource.data.role == 'family';
+    function canCreateEvents() {
+      // SuperAdmin, Coordinación, Docentes
+      return canSendCommunications();
     }
 
     // Colección: /users (perfiles de usuarios)
@@ -80,7 +70,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (isFamily() && isTargetFamily(userId))
+        (isFamily() && resource.data.role == 'family')
       );
 
       // Crear/Actualizar: Solo admin puede crear usuarios o el propio usuario puede actualizar ciertos campos
@@ -141,6 +131,18 @@ service cloud.firestore {
         // No se puede actualizar ni eliminar
         allow update, delete: if false;
       }
+    }
+
+    // Colección: /events (calendario de eventos)
+    match /events/{eventId} {
+      // Leer: todos los usuarios autenticados (para el calendario del sidebar)
+      allow read: if isAuthenticated();
+
+      // Crear: roles que pueden enviar comunicados
+      allow create: if canCreateEvents();
+
+      // Actualizar/Eliminar: solo admin
+      allow update, delete: if isAdmin();
     }
 
     // Colección: /appointments (turnos - Fase 3)
@@ -235,25 +237,34 @@ service cloud.firestore {
     // Colección: /snackAssignments (calendario de snacks)
     match /snackAssignments/{assignmentId} {
       // Leer: Admin ve todos, familias solo sus propias asignaciones
+      // Soporta tanto el modelo viejo (familiaUid) como el nuevo (familiasUids array)
       allow read: if isAuthenticated() && (
         isAdmin() ||
-        (isFamily() && resource.data.familiaUid == request.auth.uid)
+        (isFamily() && (
+          resource.data.familiaUid == request.auth.uid ||
+          request.auth.uid in resource.data.get('familiasUids', [])
+        ))
       );
 
       // Crear/Eliminar: Solo SuperAdmin y Coordinación
       allow create, delete: if isAdmin();
 
-      // Actualizar: Admin puede todo, familias solo pueden confirmar o solicitar cambio
+      // Actualizar: Admin puede todo, familias solo pueden confirmar, solicitar cambio o cancelar
       allow update: if isAdmin() || (
         isFamily() &&
-        resource.data.familiaUid == request.auth.uid &&
+        (resource.data.familiaUid == request.auth.uid || request.auth.uid in resource.data.get('familiasUids', [])) &&
         (
-          // Permitir confirmar
+          // Permitir confirmar (modelo viejo - confirmadoPorFamilia)
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmadoPorFamilia', 'estado', 'solicitudCambio', 'motivoCambio', 'fechaConfirmacion', 'updatedAt']) &&
            request.resource.data.confirmadoPorFamilia == true) ||
           // Permitir solicitar cambio
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solicitudCambio', 'motivoCambio', 'confirmadoPorFamilia', 'estado', 'fechaSolicitudCambio', 'updatedAt']) &&
-           request.resource.data.solicitudCambio == true)
+           request.resource.data.solicitudCambio == true) ||
+          // Permitir cancelar turno
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'motivoCancelacion', 'confirmadoPorFamilia', 'fechaCancelacion', 'updatedAt']) &&
+           request.resource.data.estado == 'cancelado') ||
+          // Permitir confirmación por familia (modelo nuevo - actualizar array familias)
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familias', 'estado', 'confirmadoPorFamilia', 'confirmadoPor', 'updatedAt'])
         )
       );
     }

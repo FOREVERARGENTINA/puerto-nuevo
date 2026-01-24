@@ -1,0 +1,207 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+
+const eventsCollection = collection(db, 'events');
+
+const normalizeDateInput = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const [datePart] = value.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    if (year && month && day) {
+      return new Date(year, month - 1, day);
+    }
+  }
+  return new Date(value);
+};
+
+/**
+ * Servicio para gestión de eventos del calendario
+ */
+export const eventsService = {
+  /**
+   * Crear nuevo evento
+   */
+  async createEvent(data) {
+    try {
+      const eventDate = normalizeDateInput(data.fecha);
+      const docRef = await addDoc(eventsCollection, {
+        ...data,
+        fecha: eventDate ? Timestamp.fromDate(eventDate) : null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      window.dispatchEvent(new CustomEvent('events:updated'));
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error al crear evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener evento por ID
+   */
+  async getEventById(eventId) {
+    try {
+      const eventDoc = await getDoc(doc(eventsCollection, eventId));
+      if (eventDoc.exists()) {
+        return {
+          success: true,
+          event: { id: eventDoc.id, ...eventDoc.data() }
+        };
+      }
+      return { success: false, error: 'Evento no encontrado' };
+    } catch (error) {
+      console.error('Error al obtener evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener todos los eventos
+   */
+  async getAllEvents() {
+    try {
+      const q = query(eventsCollection, orderBy('fecha', 'asc'));
+      const snapshot = await getDocs(q);
+      const events = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      return { success: true, events };
+    } catch (error) {
+      console.error('Error al obtener eventos:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener eventos de un mes específico
+   */
+  async getEventsByMonth(year, month) {
+    try {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+      const q = query(
+        eventsCollection,
+        where('fecha', '>=', Timestamp.fromDate(startDate)),
+        where('fecha', '<=', Timestamp.fromDate(endDate)),
+        orderBy('fecha', 'asc')
+      );
+
+      const snapshot = await getDocs(q);
+      const events = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      return { success: true, events };
+    } catch (error) {
+      console.error('Error al obtener eventos del mes:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener eventos futuros
+   */
+  async getUpcomingEvents(limit = 10) {
+    try {
+      const now = Timestamp.now();
+      const q = query(
+        eventsCollection,
+        where('fecha', '>=', now),
+        orderBy('fecha', 'asc')
+      );
+
+      const snapshot = await getDocs(q);
+      const events = snapshot.docs
+        .slice(0, limit)
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      return { success: true, events };
+    } catch (error) {
+      console.error('Error al obtener eventos próximos:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Actualizar evento
+   */
+  async updateEvent(eventId, data) {
+    try {
+      const eventRef = doc(eventsCollection, eventId);
+      const updateData = { ...data, updatedAt: serverTimestamp() };
+
+      if (data.fecha) {
+        const eventDate = normalizeDateInput(data.fecha);
+        updateData.fecha = eventDate ? Timestamp.fromDate(eventDate) : null;
+      }
+
+      await updateDoc(eventRef, updateData);
+      window.dispatchEvent(new CustomEvent('events:updated'));
+      return { success: true };
+    } catch (error) {
+      console.error('Error al actualizar evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Eliminar evento
+   */
+  async deleteEvent(eventId) {
+    try {
+      await deleteDoc(doc(eventsCollection, eventId));
+      window.dispatchEvent(new CustomEvent('events:updated'));
+      return { success: true };
+    } catch (error) {
+      console.error('Error al eliminar evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener eventos asociados a un comunicado
+   */
+  async getEventByCommunicationId(commId) {
+    try {
+      const q = query(
+        eventsCollection,
+        where('communicationId', '==', commId)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return { success: true, event: null };
+      }
+
+      const eventDoc = snapshot.docs[0];
+      return {
+        success: true,
+        event: { id: eventDoc.id, ...eventDoc.data() }
+      };
+    } catch (error) {
+      console.error('Error al obtener evento por comunicado:', error);
+      return { success: false, error: error.message };
+    }
+  }
+};

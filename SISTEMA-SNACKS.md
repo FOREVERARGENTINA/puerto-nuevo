@@ -38,6 +38,8 @@ Sistema completo para gestionar las asignaciones semanales de snacks. Una famili
 - Tabla con todas las asignaciones mostrando:
   - Semana completa (formato: "Semana del 5 de enero al 9 de enero de 2026")
   - Familia y email
+
+UI: En la vista de administración se selecciona primero el **Taller (ambiente)** y luego la **Familia** responsable. La lista de familias está filtrada por ambiente (solo familias con hijos en ese taller aparecen). La fecha debe ser un **lunes** — el viernes se calcula automáticamente.
   - Estado (pendiente, confirmado, cambio_solicitado, completado)
   - Detalles (confirmación o solicitud de cambio con motivo)
   - Estado del recordatorio

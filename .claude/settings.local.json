@@ -17,7 +17,11 @@
       "Bash(find:*)",
       "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Last 50\")",
       "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Index \\(0..20\\)\")",
-      "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Index \\(2046..2120\\)\")"
+      "Bash(powershell -Command \"Get-Content ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\puerto-nuevo\\\\src\\\\styles\\\\components.css'' | Select-Object -Index \\(2046..2120\\)\")",
+      "Bash(grep:*)",
+      "Bash(npm run build:*)",
+      "Bash(mv:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

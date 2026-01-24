@@ -7,7 +7,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "public": "puerto-nuevo/dist",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
