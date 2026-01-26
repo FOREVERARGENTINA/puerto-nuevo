@@ -226,3 +226,14 @@ select:focus-visible {
     padding: 0 var(--spacing-xl);
   }
 }
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .grid-cards,
+  .grid-cards-sm {
+    grid-template-columns: 1fr;
+  }
+}

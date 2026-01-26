@@ -1,17 +1,13 @@
-﻿import { useAuth } from '../../hooks/useAuth';
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function AdminDashboard() {
-  const { role } = useAuth();
-
   return (
     <div className="container page-container admin-dashboard-page">
       <div className="dashboard-header">
         <div>
           <h1 className="dashboard-title">Panel Administrativo</h1>
         </div>
-        <span className="badge badge--primary">{role}</span>
       </div>
       <div className="dashboard-content">
         <section className="dashboard-section">
@@ -20,6 +16,10 @@ export function AdminDashboard() {
             <Link to={ROUTES.SEND_COMMUNICATION} className="card card--compact card--clickable link-unstyled">
               <h3 className="card__title">Comunicados</h3>
               <p>Crear y enviar comunicados</p>
+            </Link>
+            <Link to={ROUTES.ADMIN_CONVERSATIONS} className="card card--compact card--clickable link-unstyled">
+              <h3 className="card__title">Conversaciones</h3>
+              <p>Mensajes privados con familias</p>
             </Link>
             <Link to={ROUTES.READ_RECEIPTS} className="card card--compact card--clickable link-unstyled">
               <h3 className="card__title">Confirmaciones de Lectura</h3>
@@ -69,4 +69,3 @@ export function AdminDashboard() {
     </div>
   );
 }
-

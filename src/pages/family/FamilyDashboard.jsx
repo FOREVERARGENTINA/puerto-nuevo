@@ -18,6 +18,10 @@ export function FamilyDashboard() {
                 <h3 className="card__title">Comunicados</h3>
                 <p>Ver comunicados de la escuela y confirmar lectura</p>
               </Link>
+              <Link to={ROUTES.FAMILY_CONVERSATIONS} className="card card--compact card--clickable link-unstyled">
+                <h3 className="card__title">Conversaciones</h3>
+                <p>Enviar consultas privadas y ver respuestas</p>
+              </Link>
               <Link to="/familia/hijos" className="card card--compact card--clickable link-unstyled">
                 <h3 className="card__title">Fichas de Alumnos</h3>
                 <p>Ver información y datos médicos de sus hijos</p>

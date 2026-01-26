@@ -17,14 +17,21 @@ const BookAppointment = () => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [earliestAllowed, setEarliestAllowed] = useState(null);
 
   const alertDialog = useDialog();
 
   const loadAvailableAppointments = async () => {
     const result = await appointmentsService.getAllAppointments();
     if (result.success) {
+      const minLeadTimeMs = 12 * 60 * 60 * 1000;
+      const earliestAllowedDate = new Date(Date.now() + minLeadTimeMs);
+      setEarliestAllowed(earliestAllowedDate);
       const available = result.appointments.filter(app => 
-        app.estado === 'disponible' && !app.familiaUid
+        app.estado === 'disponible' &&
+        !app.familiaUid &&
+        (!Array.isArray(app.familiasUids) || app.familiasUids.length === 0) &&
+        (app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora)) >= earliestAllowedDate
       );
       setAvailableAppointments(available);
     }
@@ -69,6 +76,7 @@ const BookAppointment = () => {
   const handleBookingSubmit = async (data) => {
     const result = await appointmentsService.updateAppointment(data.appointmentId, {
       familiaUid: user.uid,
+      familiasUids: [user.uid],
       hijoId: data.hijoId,
       nota: data.nota,
       estado: 'reservado'
@@ -132,24 +140,23 @@ const BookAppointment = () => {
     return availableAppointments.filter(app => {
       const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
       const appDateString = appDate.toISOString().split('T')[0];
-      return appDateString === dateString;
+      const meetsLeadTime = earliestAllowed ? appDate >= earliestAllowed : true;
+      return appDateString === dateString && meetsLeadTime;
     });
   };
 
-  const hasMyAppointmentOnDate = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return myAppointments.some(app => {
-      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
-      const appDateString = appDate.toISOString().split('T')[0];
-      return appDateString === dateString && app.estado === 'reservado';
-    });
-  };
 
   const changeMonth = (offset) => {
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + offset);
     setCurrentMonth(newMonth);
     setSelectedDate(null);
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(today);
   };
 
   const formatTime = (timestamp) => {
@@ -203,9 +210,40 @@ const BookAppointment = () => {
     );
   }
 
-  const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth);
   const upcomingAppointments = getUpcomingAppointments();
   const selectedDateAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
+  const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const todayDateString = new Date().toISOString().split('T')[0];
+  const earliestAllowedDate = earliestAllowed || null;
+  const currentMonthYear = currentMonth.getFullYear();
+  const currentMonthIndex = currentMonth.getMonth();
+
+  const availableAppointmentsForMonth = availableAppointments.filter(app => {
+    const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+    return appDate.getFullYear() === currentMonthYear && appDate.getMonth() === currentMonthIndex;
+  });
+
+  const daysWithAppointments = (() => {
+    const set = new Set();
+    availableAppointmentsForMonth.forEach(app => {
+      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      set.add(appDate.getDate());
+    });
+    return set;
+  })();
+
+  const days = (() => {
+    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
+    const offset = (startingDayOfWeek + 6) % 7;
+    const list = [];
+    for (let i = 0; i < offset; i++) list.push(null);
+    for (let day = 1; day <= daysInMonth; day++) list.push(day);
+    return list;
+  })();
 
   return (
     <div className="page-container">
@@ -213,191 +251,187 @@ const BookAppointment = () => {
         <h1>Turnos y Reuniones</h1>
       </div>
 
-      {/* Upcoming Appointments Section */}
-      {upcomingAppointments.length > 0 && (
-        <div className="card upcoming-appointments-card">
-          <div className="card__header">
-            <h2 className="card__title">Próximos Turnos Reservados</h2>
-          </div>
-          <div className="card__body">
-            <div className="upcoming-appointments-list">
-              {upcomingAppointments.slice(0, 3).map(app => (
-                <div key={app.id} className="upcoming-appointment-item">
-                  <div className="appointment-details">
-                    <div className="appointment-datetime">{formatDateTime(app.fechaHora)}</div>
-                    {app.nota && <div className="appointment-note">{app.nota}</div>}
+      <div className="appointments-manager-layout">
+        <div className="appointments-list-panel">
+          <div className="card">
+            <div className="card__body">
+              {upcomingAppointments.length > 0 && (
+                <>
+                  <h2 className="card__title">Próximos turnos</h2>
+                  <div className="upcoming-appointments-list">
+                    {upcomingAppointments.slice(0, 3).map(app => (
+                      <div key={app.id} className="upcoming-appointment-item">
+                        <div className="appointment-details">
+                          <div className="appointment-datetime">{formatDateTime(app.fechaHora)}</div>
+                          {app.nota && <div className="appointment-note">{app.nota}</div>}
+                        </div>
+                        <button
+                          onClick={() => handleCancelAppointment(app.id)}
+                          className="btn btn--sm btn--outline btn--danger-outline"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ))}
                   </div>
+                  <div className="divider" />
+                </>
+              )}
+
+              <h2 className="card__title">
+                {selectedDate
+                  ? `Turnos del ${selectedDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}`
+                  : 'Selecciona un día'}
+              </h2>
+              <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>
+
+              {!selectedDate ? (
+                <div className="empty-state">
+                  <p className="empty-state__text">Selecciona un día en el calendario para ver los turnos disponibles</p>
+                </div>
+              ) : selectedDateAppointments.length === 0 ? (
+                <div className="empty-state">
+                  <p className="empty-state__text">No hay turnos disponibles para este día</p>
+                </div>
+              ) : (
+                <div className="available-slots-list">
+                  {selectedDateAppointments.map(app => (
+                    <div key={app.id} className="available-slot-item">
+                      <div className="slot-time-info">
+                        <div className="slot-time">{formatTime(app.fechaHora)}</div>
+                        <div className="slot-duration">{app.duracionMinutos} min</div>
+                      </div>
+                      <button
+                        onClick={() => handleSelectSlot(app)}
+                        className="btn btn--primary btn--sm"
+                      >
+                        Reservar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {myAppointments.length > 0 && (
+                <>
+                  <div className="divider" />
+                  <h2 className="card__title">Todos mis turnos</h2>
+                  <div className="my-appointments-list">
+                    {myAppointments.map(app => {
+                      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+                      const isPast = appDate < new Date();
+
+                      return (
+                        <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
+                          <div className="appointment-datetime">
+                            {formatDateTime(app.fechaHora)}
+                          </div>
+                          <div className="appointment-meta">
+                            <span className={`badge badge--${
+                              app.estado === 'reservado' ? 'warning' :
+                              app.estado === 'asistio' ? 'success' :
+                              'secondary'
+                            }`}>
+                              {app.estado === 'reservado' ? 'Confirmado' : app.estado}
+                            </span>
+                            {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
+                          </div>
+                          {app.estado === 'reservado' && !isPast && (
+                            <button
+                              onClick={() => handleCancelAppointment(app.id)}
+                              className="btn btn--sm btn--outline btn--danger-outline"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="card events-calendar-panel appointments-calendar-panel">
+          <div className="card__header">
+            <div>
+              <h2 className="card__title">Calendario</h2>
+              <p className="card__subtitle">
+                {monthNames[currentMonthIndex]} {currentMonthYear}
+              </p>
+            </div>
+            <span className="badge badge--info">{availableAppointmentsForMonth.length} este mes</span>
+          </div>
+
+          <div className="card__body">
+            <div className="event-calendar events-calendar--manager">
+              <div className="event-calendar__header">
+                <button
+                  onClick={() => changeMonth(-1)}
+                  className="event-calendar__nav-btn"
+                  aria-label="Mes anterior"
+                >
+                  <span>‹</span>
+                </button>
+                <div className="event-calendar__month">
+                  {monthNames[currentMonthIndex]} {currentMonthYear}
+                </div>
+                <div className="event-calendar__actions">
                   <button
-                    onClick={() => handleCancelAppointment(app.id)}
-                    className="btn btn--sm btn--outline btn--danger-outline"
+                    onClick={() => changeMonth(1)}
+                    className="event-calendar__nav-btn"
+                    aria-label="Siguiente mes"
                   >
-                    Cancelar
+                    <span>›</span>
+                  </button>
+                  <button
+                    onClick={goToToday}
+                    className="event-calendar__today-btn"
+                    type="button"
+                  >
+                    Hoy
                   </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Grid */}
-      <div className="appointments-main-grid">
-        {/* Calendar Section */}
-        <div className="card appointments-calendar-card">
-          <div className="card__header">
-            <h2 className="card__title">Calendario de Disponibilidad</h2>
-          </div>
-          <div className="card__body">
-            {/* Month Navigation */}
-            <div className="calendar-month-nav">
-              <button onClick={() => changeMonth(-1)} className="btn btn--sm btn--ghost">
-                ← Anterior
-              </button>
-              <h3 className="calendar-month-title">
-                {currentMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-              </h3>
-              <button onClick={() => changeMonth(1)} className="btn btn--sm btn--ghost">
-                Siguiente →
-              </button>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="calendar-grid">
-              {/* Day headers */}
-              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                <div key={day} className="calendar-day-header">{day}</div>
-              ))}
-
-              {/* Empty cells before first day */}
-              {[...Array(startingDayOfWeek)].map((_, i) => (
-                <div key={`empty-${i}`} className="calendar-day calendar-day--empty"></div>
-              ))}
-
-              {/* Days of month */}
-              {[...Array(daysInMonth)].map((_, i) => {
-                const dayNumber = i + 1;
-                const date = new Date(year, month, dayNumber);
-                const dateString = date.toISOString().split('T')[0];
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const isPast = date < today;
-                const isToday = dateString === today.toISOString().split('T')[0];
-                const hasAppointments = getAppointmentsForDate(date).length > 0;
-                const hasMyAppointment = hasMyAppointmentOnDate(date);
-                const isSelected = selectedDate && dateString === selectedDate.toISOString().split('T')[0];
-
-                return (
-                  <div
-                    key={dayNumber}
-                    className={`calendar-day ${isPast ? 'calendar-day--past' : ''} ${isToday ? 'calendar-day--today' : ''} ${isSelected ? 'calendar-day--selected' : ''} ${hasAppointments && !isPast ? 'calendar-day--available' : ''} ${hasMyAppointment ? 'calendar-day--booked' : ''}`}
-                    onClick={() => !isPast && setSelectedDate(date)}
-                  >
-                    <span className="calendar-day-number">{dayNumber}</span>
-                    {hasMyAppointment && <div className="calendar-day-indicator calendar-day-indicator--booked"></div>}
-                    {hasAppointments && !isPast && !hasMyAppointment && (
-                      <div className="calendar-day-indicator calendar-day-indicator--available"></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Legend */}
-            <div className="calendar-legend">
-              <div className="legend-item">
-                <div className="legend-color legend-color--available"></div>
-                <span>Turnos disponibles</span>
               </div>
-              <div className="legend-item">
-                <div className="legend-color legend-color--booked"></div>
-                <span>Tus turnos</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Available Slots for Selected Date */}
-        <div className="card appointments-slots-card">
-          <div className="card__header">
-            <h2 className="card__title">
-              {selectedDate
-                ? `Turnos del ${selectedDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}`
-                : 'Selecciona un día'}
-            </h2>
-          </div>
-          <div className="card__body">
-            {!selectedDate ? (
-              <div className="empty-state">
-                <p className="empty-state__text">Selecciona un día en el calendario para ver los turnos disponibles</p>
-              </div>
-            ) : selectedDateAppointments.length === 0 ? (
-              <div className="empty-state">
-                <p className="empty-state__text">No hay turnos disponibles para este día</p>
-              </div>
-            ) : (
-              <div className="available-slots-list">
-                {selectedDateAppointments.map(app => (
-                  <div key={app.id} className="available-slot-item">
-                    <div className="slot-time-info">
-                      <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                      <div className="slot-duration">{app.duracionMinutos} min</div>
-                    </div>
-                    <button
-                      onClick={() => handleSelectSlot(app)}
-                      className="btn btn--primary btn--sm"
-                    >
-                      Reservar
-                    </button>
+              <div className="event-calendar__weekdays">
+                {dayNames.map((name, i) => (
+                  <div key={i} className="event-calendar__weekday">
+                    {name}
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* All My Appointments */}
-      {myAppointments.length > 0 && (
-        <div className="card my-appointments-card">
-          <div className="card__header">
-            <h2 className="card__title">Todos Mis Turnos</h2>
-          </div>
-          <div className="card__body">
-            <div className="my-appointments-list">
-              {myAppointments.map(app => {
-                const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
-                const isPast = appDate < new Date();
-
-                return (
-                  <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
-                    <div className="appointment-datetime">
-                      {formatDateTime(app.fechaHora)}
+              <div className="event-calendar__days">
+                {days.map((day, index) => {
+                  const dayDate = day ? new Date(currentMonthYear, currentMonthIndex, day) : null;
+                  const isToday = dayDate && dayDate.toISOString().split('T')[0] === todayDateString;
+                  const hasAppointments = day && daysWithAppointments.has(day);
+                  const isTooSoon = dayDate && earliestAllowedDate && dayDate < earliestAllowedDate;
+                  const isSelected = selectedDate &&
+                    day &&
+                    selectedDate.toISOString().split('T')[0] === new Date(currentMonthYear, currentMonthIndex, day).toISOString().split('T')[0];
+                  return (
+                    <div
+                      key={index}
+                      className={`event-calendar__day ${
+                        day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
+                      } ${day && hasAppointments ? 'event-calendar__day--has-event' : ''} ${
+                        isSelected ? 'event-calendar__day--selected' : ''
+                      } ${isToday ? 'event-calendar__day--today' : ''}`}
+                      onClick={() => day && !isTooSoon && setSelectedDate(new Date(currentMonthYear, currentMonthIndex, day))}
+                    >
+                      {day}
                     </div>
-                    <div className="appointment-meta">
-                      <span className={`badge badge--${
-                        app.estado === 'reservado' ? 'warning' :
-                        app.estado === 'asistio' ? 'success' :
-                        'secondary'
-                      }`}>
-                        {app.estado === 'reservado' ? 'Confirmado' : app.estado}
-                      </span>
-                      {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
-                    </div>
-                    {app.estado === 'reservado' && !isPast && (
-                      <button
-                        onClick={() => handleCancelAppointment(app.id)}
-                        className="btn btn--sm btn--outline btn--danger-outline"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

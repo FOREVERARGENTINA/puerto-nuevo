@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { appointmentsService } from '../../services/appointments.service';
 import { usersService } from '../../services/users.service';
+import { childrenService } from '../../services/children.service';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, serverTimestamp } from 'firebase/firestore';
+import { ROLES } from '../../config/constants';
 
 const AppointmentsManager = () => {
   const [appointments, setAppointments] = useState([]);
@@ -13,9 +15,19 @@ const AppointmentsManager = () => {
   const [showCreateSlots, setShowCreateSlots] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showActionsModal, setShowActionsModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewMode, setViewMode] = useState('week'); // 'day', 'week', or 'month'
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState('');
+  const [familyUsers, setFamilyUsers] = useState([]);
+  const [children, setChildren] = useState([]);
+  const [childSearchTerm, setChildSearchTerm] = useState('');
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const [familySearchTerm, setFamilySearchTerm] = useState('');
+  const [selectedFamilyIds, setSelectedFamilyIds] = useState([]);
   const [slotsForm, setSlotsForm] = useState({
     diaSemana: '1',
     fechaDesde: '',
@@ -30,22 +42,60 @@ const AppointmentsManager = () => {
   const alertDialog = useDialog();
 
   const enrichWithUserEmails = async (appointments) => {
+    const userCache = new Map();
+    const childCache = new Map();
     const enriched = [];
+
     for (const app of appointments) {
-      if (app.familiaUid) {
-        const userResult = await usersService.getUserById(app.familiaUid);
-        if (userResult.success) {
-          enriched.push({
-            ...app,
-            familiaEmail: userResult.user.email
-          });
-        } else {
-          enriched.push(app);
+      const familyIds = Array.isArray(app.familiasUids) && app.familiasUids.length > 0
+        ? app.familiasUids
+        : app.familiaUid
+          ? [app.familiaUid]
+          : [];
+
+      const familiasInfo = [];
+      for (const uid of familyIds) {
+        if (!userCache.has(uid)) {
+          userCache.set(uid, await usersService.getUserById(uid));
         }
-      } else {
-        enriched.push(app);
+        const userResult = userCache.get(uid);
+        if (userResult?.success) {
+          familiasInfo.push({
+            uid,
+            email: userResult.user.email || '',
+            displayName: userResult.user.displayName || ''
+          });
+        }
       }
+
+      let familiaEmail = app.familiaEmail || '';
+      let familiaDisplayName = app.familiaDisplayName || '';
+      if (familiasInfo.length > 0) {
+        familiaEmail = familiasInfo[0].email || familiaEmail;
+        familiaDisplayName = familiasInfo[0].displayName || familiaDisplayName;
+      }
+
+      let hijoNombre = app.hijoNombre || '';
+
+      if (app.hijoId) {
+        if (!childCache.has(app.hijoId)) {
+          childCache.set(app.hijoId, await childrenService.getChildById(app.hijoId));
+        }
+        const childResult = childCache.get(app.hijoId);
+        if (childResult?.success) {
+          hijoNombre = childResult.child.nombreCompleto || hijoNombre;
+        }
+      }
+
+      enriched.push({
+        ...app,
+        familiaEmail,
+        familiaDisplayName,
+        familiasInfo,
+        hijoNombre
+      });
     }
+
     return enriched;
   };
 
@@ -63,6 +113,41 @@ const AppointmentsManager = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     loadAppointments();
   }, []);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+
+    const loadAssignOptions = async () => {
+      setAssignLoading(true);
+      setAssignError('');
+      const [usersResult, childrenResult] = await Promise.all([
+        usersService.getUsersByRole(ROLES.FAMILY),
+        childrenService.getAllChildren()
+      ]);
+
+      if (usersResult.success) {
+        setFamilyUsers(usersResult.users);
+      }
+
+      if (childrenResult.success) {
+        setChildren(childrenResult.children);
+      }
+
+      setAssignLoading(false);
+    };
+
+    setChildSearchTerm('');
+    setFamilySearchTerm('');
+    setSelectedChildId('');
+    setSelectedFamilyIds([]);
+    loadAssignOptions();
+  }, [showAssignModal]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+    setSelectedFamilyIds([]);
+    setFamilySearchTerm('');
+  }, [selectedChildId, showAssignModal]);
 
   const handleSlotFormChange = (e) => {
     const { name, value } = e.target;
@@ -231,48 +316,77 @@ const AppointmentsManager = () => {
     closeActionsModal();
   };
 
-  // Date navigation helpers
-  const changeDate = (days) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
+  const handleOpenAssignModal = () => {
+    setAssignError('');
+    setShowAssignModal(true);
   };
 
-  const changeWeek = (weeks) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + (weeks * 7));
-    setSelectedDate(newDate);
+  const closeAssignModal = () => {
+    setShowAssignModal(false);
+    setAssignError('');
+    setSelectedChildId('');
+    setSelectedFamilyIds([]);
   };
 
-  const goToToday = () => {
-    setSelectedDate(new Date());
-  };
-
-  const getWeekDays = (date) => {
-    const days = [];
-    const currentDate = new Date(date);
-    const dayOfWeek = currentDate.getDay();
-    const diff = currentDate.getDate() - dayOfWeek; // First day is Sunday
-
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(currentDate.setDate(diff + i));
-      days.push(new Date(day));
+  const toggleFamilySelection = (uid) => {
+    if (selectedFamilyIds.includes(uid)) {
+      setSelectedFamilyIds(prev => prev.filter(id => id !== uid));
+      return;
     }
 
-    return days;
+    if (selectedFamilyIds.length >= 2) {
+      setAssignError('Podés seleccionar hasta 2 familias.');
+      return;
+    }
+
+    setAssignError('');
+    setSelectedFamilyIds(prev => [...prev, uid]);
   };
 
-  const getAppointmentsForDate = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return appointments.filter(app => {
-      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
-      const appDateString = appDate.toISOString().split('T')[0];
-      return appDateString === dateString;
-    }).sort((a, b) => {
-      const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
-      const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
-      return dateA - dateB;
+  const handleAssignFamilies = async () => {
+    if (!selectedAppointment) return;
+    if (!selectedChildId) {
+      setAssignError('Seleccioná un alumno.');
+      return;
+    }
+    if (selectedFamilyIds.length === 0) {
+      setAssignError('Seleccioná al menos una familia.');
+      return;
+    }
+
+    setAssignLoading(true);
+    setAssignError('');
+    const result = await appointmentsService.updateAppointment(selectedAppointment.id, {
+      estado: 'reservado',
+      familiaUid: selectedFamilyIds[0],
+      familiasUids: selectedFamilyIds,
+      hijoId: selectedChildId,
+      assignedAt: serverTimestamp()
     });
+
+    setAssignLoading(false);
+
+    if (result.success) {
+      closeAssignModal();
+      closeActionsModal();
+      loadAppointments();
+    } else {
+      setAssignError(result.error || 'No se pudo asignar el turno.');
+    }
+  };
+
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  // Date navigation helpers
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDay(today.getDate());
   };
 
   const formatTime = (timestamp) => {
@@ -280,13 +394,6 @@ const AppointmentsManager = () => {
     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString('es-AR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short'
-    });
-  };
 
   const formatFullDate = (date) => {
     return date.toLocaleDateString('es-AR', {
@@ -315,24 +422,6 @@ const AppointmentsManager = () => {
     setCurrentMonth(newMonth);
   };
 
-  const getAppointmentCountForDate = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    const dayAppointments = appointments.filter(app => {
-      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
-      const appDateString = appDate.toISOString().split('T')[0];
-      return appDateString === dateString;
-    });
-
-    return {
-      total: dayAppointments.length,
-      disponible: dayAppointments.filter(a => a.estado === 'disponible').length,
-      reservado: dayAppointments.filter(a => a.estado === 'reservado').length,
-      bloqueado: dayAppointments.filter(a => a.estado === 'bloqueado').length,
-      asistio: dayAppointments.filter(a => a.estado === 'asistio').length,
-      cancelado: dayAppointments.filter(a => a.estado === 'cancelado').length
-    };
-  };
-
   const getTodayMinDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -342,14 +431,105 @@ const AppointmentsManager = () => {
     return <LoadingScreen message="Cargando gestión de turnos..." />;
   }
 
-  const weekDays = getWeekDays(selectedDate);
   const todayDateString = new Date().toISOString().split('T')[0];
+  const currentMonthYear = currentMonth.getFullYear();
+  const currentMonthIndex = currentMonth.getMonth();
+
+  const appointmentsForMonth = appointments.filter(app => {
+    const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+    return appDate.getFullYear() === currentMonthYear && appDate.getMonth() === currentMonthIndex;
+  });
+
+  const filteredAppointments = selectedDay
+    ? appointmentsForMonth.filter(app => {
+        const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+        return appDate.getDate() === selectedDay;
+      })
+    : appointmentsForMonth;
+
+  const searchedAppointments = searchTerm.trim()
+    ? filteredAppointments.filter(app => {
+        const term = searchTerm.trim().toLowerCase();
+        const email = (app.familiaEmail || '').toLowerCase();
+        const name = (app.familiaDisplayName || '').toLowerCase();
+        const child = (app.hijoNombre || '').toLowerCase();
+        const estado = (app.estado || '').toLowerCase();
+        return email.includes(term) || name.includes(term) || child.includes(term) || estado.includes(term);
+      })
+    : filteredAppointments;
+
+  const grouped = (() => {
+    const map = new Map();
+    const sorted = [...searchedAppointments].sort((a, b) => {
+      const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
+      const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+      return dateA - dateB;
+    });
+    sorted.forEach(app => {
+      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      const key = appDate.toISOString().split('T')[0];
+      if (!map.has(key)) map.set(key, { date: appDate, items: [] });
+      map.get(key).items.push(app);
+    });
+    return Array.from(map.values());
+  })();
+
+  const daysWithAppointments = (() => {
+    const set = new Set();
+    appointmentsForMonth.forEach(app => {
+      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      set.add(appDate.getDate());
+    });
+    return set;
+  })();
+
+  const days = (() => {
+    const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
+    const offset = (startingDayOfWeek + 6) % 7;
+    const list = [];
+    for (let i = 0; i < offset; i++) list.push(null);
+    for (let day = 1; day <= daysInMonth; day++) list.push(day);
+    return list;
+  })();
+
+  const familyUsersMap = new Map(familyUsers.map(user => [user.id, user]));
+  const filteredChildren = childSearchTerm.trim()
+    ? children.filter(child =>
+        (child.nombreCompleto || '').toLowerCase().includes(childSearchTerm.trim().toLowerCase())
+      )
+    : children;
+
+  const selectedChild = selectedChildId
+    ? children.find(child => child.id === selectedChildId)
+    : null;
+
+  const childResponsables = Array.isArray(selectedChild?.responsables) ? selectedChild.responsables : [];
+
+  const responsablesInfo = childResponsables.map(uid => {
+    const user = familyUsersMap.get(uid);
+    return user || { id: uid, displayName: '', email: '' };
+  });
+
+  const filteredResponsables = familySearchTerm.trim()
+    ? responsablesInfo.filter(user => {
+        const term = familySearchTerm.trim().toLowerCase();
+        return (user.displayName || '').toLowerCase().includes(term) ||
+          (user.email || '').toLowerCase().includes(term);
+      })
+    : responsablesInfo;
+
+  const selectedFamiliesInfo = Array.isArray(selectedAppointment?.familiasInfo)
+    ? selectedAppointment.familiasInfo
+    : [];
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Gestión de Turnos</h1>
-        <div className="page-header-actions">
+    <div className="container page-container appointments-manager-page">
+      <div className="dashboard-header dashboard-header--compact appointments-header">
+        <div>
+          <h1 className="dashboard-title">Turnos</h1>
+          <p className="dashboard-subtitle">Calendario y administración</p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
           <button
             onClick={() => setShowCreateSlots(!showCreateSlots)}
             className="btn btn--primary"
@@ -468,249 +648,193 @@ const AppointmentsManager = () => {
         </div>
       )}
 
-      {/* Week View */}
-      <div className="card admin-appointments-calendar-card">
-        <div className="card__header">
-          <h2 className="card__title">Calendario Semanal</h2>
-          <div className="view-mode-toggle">
-            <button
-              className={`btn btn--sm ${viewMode === 'day' ? 'btn--primary' : 'btn--ghost'}`}
-              onClick={() => setViewMode('day')}
-            >
-              Día
-            </button>
-            <button
-              className={`btn btn--sm ${viewMode === 'week' ? 'btn--primary' : 'btn--ghost'}`}
-              onClick={() => setViewMode('week')}
-            >
-              Semana
-            </button>
-            <button
-              className={`btn btn--sm ${viewMode === 'month' ? 'btn--primary' : 'btn--ghost'}`}
-              onClick={() => setViewMode('month')}
-            >
-              Mes
-            </button>
-          </div>
-        </div>
-
-        <div className="card__body">
-          {/* Navigation */}
-          <div className="calendar-month-nav">
-            <button
-              onClick={() => {
-                if (viewMode === 'week') changeWeek(-1);
-                else if (viewMode === 'day') changeDate(-1);
-                else changeMonth(-1);
-              }}
-              className="btn btn--sm btn--ghost"
-            >
-              ← {viewMode === 'week' ? 'Semana Anterior' : viewMode === 'day' ? 'Día Anterior' : 'Mes Anterior'}
-            </button>
-            <div className="calendar-nav-center">
-              <h3 className="calendar-month-title">
-                {viewMode === 'week'
-                  ? `Semana del ${formatDate(weekDays[0])} al ${formatDate(weekDays[6])}`
-                  : viewMode === 'day'
-                  ? formatFullDate(selectedDate)
-                  : currentMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
-                }
-              </h3>
-              <button onClick={goToToday} className="btn btn--sm btn--ghost">
-                Hoy
-              </button>
-            </div>
-            <button
-              onClick={() => {
-                if (viewMode === 'week') changeWeek(1);
-                else if (viewMode === 'day') changeDate(1);
-                else changeMonth(1);
-              }}
-              className="btn btn--sm btn--ghost"
-            >
-              {viewMode === 'week' ? 'Semana Siguiente' : viewMode === 'day' ? 'Día Siguiente' : 'Mes Siguiente'} →
-            </button>
-          </div>
-
-          {/* Week View */}
-          {viewMode === 'week' ? (
-            <div className="week-grid">
-              {weekDays.map((day, index) => {
-                const dayAppointments = getAppointmentsForDate(day);
-                const isToday = day.toISOString().split('T')[0] === todayDateString;
-
-                return (
-                  <div key={index} className={`week-day-column ${isToday ? 'week-day-column--today' : ''}`}>
-                    <div className="week-day-header">
-                      <div className="week-day-name">
-                        {day.toLocaleDateString('es-AR', { weekday: 'short' })}
-                      </div>
-                      <div className="week-day-date">
-                        {day.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-                      </div>
-                    </div>
-                    <div className="week-day-slots">
-                      {dayAppointments.length === 0 ? (
-                        <div className="empty-day-message">Sin turnos</div>
-                      ) : (
-                        dayAppointments.map(app => (
-                          <div
-                            key={app.id}
-                            className={`admin-appointment-slot admin-appointment-slot--${app.estado}`}
-                            onClick={() => handleSelectSlot(app)}
-                          >
-                            <div className="slot-time-badge">{formatTime(app.fechaHora)}</div>
-                            <div className={`slot-estado-badge slot-estado-badge--${app.estado}`}>
-                              {app.estado === 'disponible' && 'Disponible'}
-                              {app.estado === 'bloqueado' && 'Bloqueado'}
-                              {app.estado === 'reservado' && 'Reservado'}
-                              {app.estado === 'asistio' && 'Asistió'}
-                              {app.estado === 'cancelado' && 'Cancelado'}
-                            </div>
-                            {app.familiaEmail && (
-                              <div className="slot-family-name">{app.familiaEmail.split('@')[0]}</div>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
+      <div className="dashboard-content">
+        <div className="appointments-manager-layout">
+          <div className="appointments-list-panel">
+            <div className="card">
+              <div className="card__body">
+                <div className="events-filters" style={{ marginBottom: 'var(--spacing-md)' }}>
+                  <div className="events-filter-field" style={{ flex: 1 }}>
+                    <label className="form-label" htmlFor="appointments-search">
+                      Buscar familia o alumno
+                    </label>
+                    <input
+                      id="appointments-search"
+                      type="text"
+                      className="form-input form-input--sm"
+                      placeholder="Buscar por familia, alumno o estado..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          ) : viewMode === 'month' ? (
-            /* Month View */
-            <div className="admin-month-view">
-              <div className="admin-calendar-grid">
-                {/* Day headers */}
-                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                  <div key={day} className="calendar-day-header">{day}</div>
-                ))}
-
-                {/* Empty cells before first day */}
-                {[...Array(getDaysInMonth(currentMonth).startingDayOfWeek)].map((_, i) => (
-                  <div key={`empty-${i}`} className="admin-calendar-day admin-calendar-day--empty"></div>
-                ))}
-
-                {/* Days of month */}
-                {[...Array(getDaysInMonth(currentMonth).daysInMonth)].map((_, i) => {
-                  const dayNumber = i + 1;
-                  const date = new Date(getDaysInMonth(currentMonth).year, getDaysInMonth(currentMonth).month, dayNumber);
-                  const dateString = date.toISOString().split('T')[0];
-                  const isToday = dateString === todayDateString;
-                  const counts = getAppointmentCountForDate(date);
-
-                  return (
-                    <div
-                      key={dayNumber}
-                      className={`admin-calendar-day ${isToday ? 'admin-calendar-day--today' : ''}`}
-                      onClick={() => {
-                        setSelectedDate(date);
-                        setViewMode('day');
-                      }}
-                    >
-                      <div className="admin-calendar-day-number">{dayNumber}</div>
-                      {counts.total > 0 && (
-                        <div className="admin-calendar-day-stats">
-                          {counts.disponible > 0 && (
-                            <div className="admin-stat-badge admin-stat-badge--success" title="Disponibles">
-                              {counts.disponible}
-                            </div>
-                          )}
-                          {counts.reservado > 0 && (
-                            <div className="admin-stat-badge admin-stat-badge--warning" title="Reservados">
-                              {counts.reservado}
-                            </div>
-                          )}
-                          {counts.bloqueado > 0 && (
-                            <div className="admin-stat-badge admin-stat-badge--secondary" title="Bloqueados">
-                              {counts.bloqueado}
-                            </div>
-                          )}
-                          {counts.asistio > 0 && (
-                            <div className="admin-stat-badge admin-stat-badge--info" title="Asistieron">
-                              {counts.asistio}
-                            </div>
-                          )}
-                          {counts.cancelado > 0 && (
-                            <div className="admin-stat-badge admin-stat-badge--danger" title="Cancelados">
-                              {counts.cancelado}
-                            </div>
-                          )}
+                  <div className="flex gap-sm" style={{ alignItems: 'flex-end' }}>
+                    {selectedDay && (
+                      <button className="btn btn--sm btn--outline" onClick={() => setSelectedDay(null)}>
+                        Ver todo el mes
+                      </button>
+                    )}
+                    {searchTerm.trim() && (
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--outline events-filter-clear"
+                        onClick={() => setSearchTerm('')}
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {grouped.length === 0 ? (
+                  <div className="empty-state">
+                    <p className="empty-state__text">No hay turnos para esta fecha</p>
+                  </div>
+                ) : (
+                  <div className="day-appointments-list">
+                    {grouped.map(group => (
+                      <div key={group.date.toISOString()}>
+                        <div className="events-day-heading" style={{ marginTop: 'var(--spacing-md)' }}>
+                          {formatFullDate(group.date)}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        {group.items.length === 0 ? (
+                          <div className="empty-day-message">Sin turnos</div>
+                        ) : (
+                          group.items.map(app => {
+                            const familiesInfo = Array.isArray(app.familiasInfo) ? app.familiasInfo : [];
+                            const fallbackFamilyLabel = app.familiaDisplayName || app.familiaEmail;
+                            const familyLabels = familiesInfo.length > 0
+                              ? familiesInfo.map(fam => fam.displayName || fam.email).filter(Boolean)
+                              : (fallbackFamilyLabel ? [fallbackFamilyLabel] : []);
+                            const showSecondaryEmail = familiesInfo.length === 0 && app.familiaDisplayName && app.familiaEmail;
+                            const childLabel = app.hijoNombre || '';
 
-              {/* Month Legend */}
-              <div className="admin-month-legend">
-                <div className="legend-title">Estados de Turnos:</div>
-                <div className="legend-items">
-                  <div className="legend-item">
-                    <div className="admin-stat-badge admin-stat-badge--success">0</div>
-                    <span>Disponibles</span>
+                            return (
+                              <div
+                                key={app.id}
+                                className={`admin-day-appointment-item admin-day-appointment-item--${app.estado}`}
+                                onClick={() => handleSelectSlot(app)}
+                              >
+                                <div className="appointment-time-section">
+                                  <div className="appointment-time">{formatTime(app.fechaHora)}</div>
+                                  <div className="appointment-duration">{app.duracionMinutos} min</div>
+                                </div>
+                                <div className="appointment-info-section">
+                                  <span className={`badge badge--${
+                                    app.estado === 'disponible' ? 'success' :
+                                    app.estado === 'bloqueado' ? 'secondary' :
+                                    app.estado === 'reservado' ? 'warning' :
+                                    app.estado === 'asistio' ? 'info' :
+                                    'danger'
+                                  }`}>
+                                    {app.estado}
+                                  </span>
+                                  {(familyLabels.length > 0 || showSecondaryEmail || childLabel) && (
+                                    <div className="appointment-identity">
+                                      {familyLabels.map((label, index) => (
+                                        <span
+                                          key={`${app.id}-family-${index}`}
+                                          className={`appointment-family ${index > 0 ? 'appointment-family--secondary' : ''}`}
+                                        >
+                                          {label}
+                                        </span>
+                                      ))}
+                                      {showSecondaryEmail && (
+                                        <span className="appointment-family appointment-family--secondary">
+                                          {app.familiaEmail}
+                                        </span>
+                                      )}
+                                      {childLabel && (
+                                        <span className="appointment-child">Alumno: {childLabel}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {app.nota && (
+                                    <span className="appointment-note-preview">{app.nota}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="legend-item">
-                    <div className="admin-stat-badge admin-stat-badge--warning">0</div>
-                    <span>Reservados</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="card events-calendar-panel appointments-calendar-panel">
+            <div className="card__header">
+              <div>
+                <h2 className="card__title">Calendario</h2>
+                <p className="card__subtitle">
+                  {monthNames[currentMonthIndex]} {currentMonthYear}
+                </p>
+              </div>
+              <span className="badge badge--info">{appointmentsForMonth.length} este mes</span>
+            </div>
+
+            <div className="card__body">
+              <div className="event-calendar events-calendar--manager">
+                <div className="event-calendar__header">
+                  <button
+                    onClick={() => changeMonth(-1)}
+                    className="event-calendar__nav-btn"
+                    aria-label="Mes anterior"
+                  >
+                    <span>‹</span>
+                  </button>
+                  <div className="event-calendar__month">
+                    {monthNames[currentMonthIndex]} {currentMonthYear}
                   </div>
-                  <div className="legend-item">
-                    <div className="admin-stat-badge admin-stat-badge--secondary">0</div>
-                    <span>Bloqueados</span>
+                  <div className="event-calendar__actions">
+                    <button
+                      onClick={() => changeMonth(1)}
+                      className="event-calendar__nav-btn"
+                      aria-label="Siguiente mes"
+                    >
+                      <span>›</span>
+                    </button>
+                    <button
+                      onClick={goToToday}
+                      className="event-calendar__today-btn"
+                      type="button"
+                    >
+                      Hoy
+                    </button>
                   </div>
-                  <div className="legend-item">
-                    <div className="admin-stat-badge admin-stat-badge--info">0</div>
-                    <span>Asistieron</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="admin-stat-badge admin-stat-badge--danger">0</div>
-                    <span>Cancelados</span>
-                  </div>
+                </div>
+
+                <div className="event-calendar__weekdays">
+                  {dayNames.map((name, i) => (
+                    <div key={i} className="event-calendar__weekday">
+                      {name}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="event-calendar__days">
+                  {days.map((day, index) => {
+                    const isToday = day && new Date(currentMonthYear, currentMonthIndex, day).toISOString().split('T')[0] === todayDateString;
+                    const hasAppointments = day && daysWithAppointments.has(day);
+                    return (
+                      <div
+                        key={index}
+                        className={`event-calendar__day ${
+                          day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
+                        } ${day && hasAppointments ? 'event-calendar__day--has-event' : ''} ${
+                          selectedDay === day ? 'event-calendar__day--selected' : ''
+                        } ${isToday ? 'event-calendar__day--today' : ''}`}
+                        onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
+                      >
+                        {day}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          ) : (
-            /* Day View */
-            <div className="day-appointments-list">
-              {getAppointmentsForDate(selectedDate).length === 0 ? (
-                <div className="empty-state">
-                  <p className="empty-state__text">No hay turnos para este día</p>
-                </div>
-              ) : (
-                getAppointmentsForDate(selectedDate).map(app => (
-                  <div
-                    key={app.id}
-                    className={`admin-day-appointment-item admin-day-appointment-item--${app.estado}`}
-                    onClick={() => handleSelectSlot(app)}
-                  >
-                    <div className="appointment-time-section">
-                      <div className="appointment-time">{formatTime(app.fechaHora)}</div>
-                      <div className="appointment-duration">{app.duracionMinutos} min</div>
-                    </div>
-                    <div className="appointment-info-section">
-                      <span className={`badge badge--${
-                        app.estado === 'disponible' ? 'success' :
-                        app.estado === 'bloqueado' ? 'secondary' :
-                        app.estado === 'reservado' ? 'warning' :
-                        app.estado === 'asistio' ? 'info' :
-                        'danger'
-                      }`}>
-                        {app.estado}
-                      </span>
-                      {app.familiaEmail && (
-                        <span className="appointment-family">{app.familiaEmail}</span>
-                      )}
-                      {app.nota && (
-                        <span className="appointment-note-preview">{app.nota}</span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -732,8 +856,25 @@ const AppointmentsManager = () => {
                   selectedAppointment.estado === 'asistio' ? 'info' :
                   'danger'
                 }`}>{selectedAppointment.estado}</span></p>
-                {selectedAppointment.familiaEmail && (
-                  <p><strong>Familia:</strong> {selectedAppointment.familiaEmail}</p>
+                {selectedFamiliesInfo.length > 0 ? (
+                  <>
+                    <p><strong>Familias:</strong> {selectedFamiliesInfo.map(fam => fam.displayName || fam.email).filter(Boolean).join(', ')}</p>
+                    {selectedFamiliesInfo.some(fam => fam.email) && (
+                      <p><strong>Emails:</strong> {selectedFamiliesInfo.map(fam => fam.email).filter(Boolean).join(', ')}</p>
+                    )}
+                  </>
+                ) : (
+                  selectedAppointment.familiaEmail && (
+                    <>
+                      <p><strong>Familia:</strong> {selectedAppointment.familiaDisplayName || selectedAppointment.familiaEmail}</p>
+                      {selectedAppointment.familiaDisplayName && selectedAppointment.familiaEmail && (
+                        <p><strong>Email:</strong> {selectedAppointment.familiaEmail}</p>
+                      )}
+                    </>
+                  )
+                )}
+                {selectedAppointment.hijoNombre && (
+                  <p><strong>Alumno:</strong> {selectedAppointment.hijoNombre}</p>
                 )}
                 {selectedAppointment.nota && (
                   <p><strong>Nota:</strong> {selectedAppointment.nota}</p>
@@ -742,12 +883,20 @@ const AppointmentsManager = () => {
 
               <div className="modal-actions-grid">
                 {selectedAppointment.estado === 'disponible' && (
-                  <button
-                    onClick={() => handleActionWithClose(() => handleBlockAppointment(selectedAppointment.id))}
-                    className="btn btn--secondary btn--full"
-                  >
-                    🔒 Bloquear Turno
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleActionWithClose(() => handleBlockAppointment(selectedAppointment.id))}
+                      className="btn btn--secondary btn--full"
+                    >
+                      🔒 Bloquear Turno
+                    </button>
+                    <button
+                      onClick={handleOpenAssignModal}
+                      className="btn btn--primary btn--full"
+                    >
+                      ➕ Asignar a familia/s
+                    </button>
+                  </>
                 )}
 
                 {selectedAppointment.estado === 'bloqueado' && (
@@ -792,6 +941,116 @@ const AppointmentsManager = () => {
                   🗑️ Eliminar Permanentemente
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignModal && selectedAppointment && (
+        <div className="modal-overlay" onClick={closeAssignModal}>
+          <div className="modal-content modal-content--actions" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Asignar turno a familia/s</h3>
+              <button onClick={closeAssignModal} className="modal-close">✕</button>
+            </div>
+            <div className="modal-body">
+              {assignError && (
+                <div className="alert alert--error mb-md">
+                  {assignError}
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="assign-child-search">Buscar alumno</label>
+                <input
+                  id="assign-child-search"
+                  type="text"
+                  className="form-input"
+                  placeholder="Buscar por nombre de alumno..."
+                  value={childSearchTerm}
+                  onChange={(e) => setChildSearchTerm(e.target.value.trimStart())}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="assign-child-select">Alumno *</label>
+                <select
+                  id="assign-child-select"
+                  className="form-input"
+                  value={selectedChildId}
+                  onChange={(e) => setSelectedChildId(e.target.value)}
+                >
+                  <option value="">Seleccionar alumno...</option>
+                  {filteredChildren.map(child => (
+                    <option key={child.id} value={child.id}>
+                      {child.nombreCompleto}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedChild && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="assign-family-search">Buscar familia</label>
+                    <input
+                      id="assign-family-search"
+                      type="text"
+                      className="form-input"
+                      placeholder="Buscar por nombre o email..."
+                      value={familySearchTerm}
+                      onChange={(e) => setFamilySearchTerm(e.target.value.trimStart())}
+                    />
+                  </div>
+
+                  <div className="assign-family-list">
+                    {filteredResponsables.length === 0 ? (
+                      <p className="empty-state__text">No hay familias responsables para este alumno.</p>
+                    ) : (
+                      filteredResponsables.map(user => {
+                        const label = user.displayName || user.email || 'Familia';
+                        const secondary = user.displayName && user.email ? user.email : '';
+                        const isSelected = selectedFamilyIds.includes(user.id);
+                        const disableSelection = !isSelected && selectedFamilyIds.length >= 2;
+
+                        return (
+                          <label key={user.id} className={`assign-family-item ${disableSelection ? 'assign-family-item--disabled' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={disableSelection}
+                              onChange={() => toggleFamilySelection(user.id)}
+                            />
+                            <span className="assign-family-label">
+                              <span>{label}</span>
+                              {secondary && <small>{secondary}</small>}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <p className="assign-family-hint">Podés seleccionar hasta 2 familias responsables del alumno.</p>
+                </>
+              )}
+
+              {!selectedChild && (
+                <p className="empty-state__text">Seleccioná un alumno para ver sus responsables.</p>
+              )}
+            </div>
+
+            <div className="flex-row mt-md" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn btn--outline" onClick={closeAssignModal}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={handleAssignFamilies}
+                disabled={assignLoading}
+              >
+                {assignLoading ? 'Asignando...' : 'Asignar turno'}
+              </button>
             </div>
           </div>
         </div>

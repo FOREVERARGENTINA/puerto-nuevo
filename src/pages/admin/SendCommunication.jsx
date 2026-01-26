@@ -9,7 +9,7 @@ import { COMMUNICATION_TYPES, AMBIENTES, ROUTES, ROLES } from '../../config/cons
 import { Modal, ModalBody } from '../../components/common/Modal';
 import Icon from '../../components/ui/Icon';
 
-export function SendCommunication() {
+export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -332,7 +332,11 @@ export function SendCommunication() {
         // Mantener el modal visible 1s y luego redirigir
         setTimeout(() => {
           setModalOpen(false);
-          navigate(ROUTES.ADMIN_DASHBOARD);
+          if (embedded) {
+            if (onSuccess) onSuccess();
+          } else {
+            navigate(ROUTES.ADMIN_DASHBOARD);
+          }
         }, 1000);
       } else {
         setError(result.error);
@@ -343,10 +347,525 @@ export function SendCommunication() {
       setError(err.message);
       setModalStatus('error');
       setModalMessage(err.message || 'Error al enviar');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
+  if (embedded) {
+    return (
+      <>
+        {error && (
+          <div className="alert alert--error mb-md">
+            Error: {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="title" className="required">
+              Título
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              className="form-input"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="body" className="required">
+              Contenido
+            </label>
+            <textarea
+              id="body"
+              name="body"
+              className="form-textarea"
+              value={formData.body}
+              onChange={handleChange}
+              required
+              disabled={loading}
+              rows="8"
+            />
+
+            <div className="form-group">
+              <label>Adjuntos (opcional)</label>
+              <input
+                type="file"
+                multiple
+                onChange={handleFilesChange}
+                disabled={loading}
+                className="form-input"
+              />
+
+              {selectedFiles.length > 0 && (
+                <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {selectedFiles.map((file, i) => (
+                      <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0' }}>
+                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                          <strong style={{ display: 'inline-block', maxWidth: '60ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</strong>
+                          <span style={{ color: 'var(--color-text-light)', marginLeft: '0.5rem' }}>({(file.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                        <div>
+                          <button type="button" className="btn btn--link" onClick={() => removeSelectedFile(i)}>Eliminar</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="type" className="required">
+              Tipo de Comunicado
+            </label>
+            <select
+              id="type"
+              name="type"
+              className="form-select"
+              value={formData.type}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            >
+              <option value={COMMUNICATION_TYPES.GLOBAL}>
+                Global (Toda la comunidad)
+              </option>
+              <option value={COMMUNICATION_TYPES.AMBIENTE}>
+                Ambiente (Taller 1 o 2)
+              </option>
+              <option value={COMMUNICATION_TYPES.INDIVIDUAL}>
+                Individual (Familias específicas)
+              </option>
+            </select>
+          </div>
+
+          {formData.type === COMMUNICATION_TYPES.AMBIENTE && (
+            <div className="form-group">
+              <label htmlFor="ambiente" className="required">
+                Seleccionar Ambiente
+              </label>
+              <select
+                id="ambiente"
+                name="ambiente"
+                className="form-select"
+                value={formData.ambiente}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              >
+                <option value={AMBIENTES.TALLER_1}>Taller 1</option>
+                <option value={AMBIENTES.TALLER_2}>Taller 2</option>
+              </select>
+            </div>
+          )}
+
+          {formData.type === COMMUNICATION_TYPES.INDIVIDUAL && (
+            <div className="form-group">
+              <label className="required">
+                Seleccionar destinatarios
+              </label>
+
+              <div className="recipient-card">
+                <div className="recipient-mode">
+                  <label className={recipientScope === 'families' ? 'recipient-mode-option is-active' : 'recipient-mode-option'}>
+                    <input
+                      type="radio"
+                      name="recipientScope"
+                      value="families"
+                      checked={recipientScope === 'families'}
+                      onChange={() => handleRecipientScopeChange('families')}
+                      disabled={loading}
+                    />
+                    <span>
+                      <span className="recipient-mode-title">Familias</span>
+                      <span className="recipient-mode-subtitle">Enviar a responsables</span>
+                    </span>
+                  </label>
+                  <label className={recipientScope === 'children' ? 'recipient-mode-option is-active' : 'recipient-mode-option'}>
+                    <input
+                      type="radio"
+                      name="recipientScope"
+                      value="children"
+                      checked={recipientScope === 'children'}
+                      onChange={() => handleRecipientScopeChange('children')}
+                      disabled={loading}
+                    />
+                    <span>
+                      <span className="recipient-mode-title">Alumnos</span>
+                      <span className="recipient-mode-subtitle">Se avisa a sus responsables</span>
+                    </span>
+                  </label>
+                </div>
+                <div className="recipient-content">
+                  {recipientScope === 'families' && (
+                    <>
+                      {loadingFamilies ? (
+                        <p className="form-help">Cargando familias...</p>
+                      ) : (
+                        <>
+                          {selectedFamilies.length > 0 && (
+                            <div className="selected-families-chips recipient-chips">
+                              <div className="chips-label">
+                                Seleccionadas ({selectedFamilies.length}):
+                              </div>
+                              <div className="chips-container">
+                                {getSelectedFamiliesInfo().map(family => (
+                                  <div key={family.id} className="recipient-chip">
+                                    <span className="chip-text">
+                                      {family.displayName || family.email}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="chip-remove"
+                                      onClick={() => handleRemoveFamily(family.id)}
+                                      disabled={loading}
+                                      aria-label={`Remover ${family.displayName || family.email}`}
+                                    >
+                                      x
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="family-autocomplete">
+                            <div className="recipient-search-input">
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Buscar familias por nombre o email..."
+                                value={searchTerm}
+                                onChange={(e) => {
+                                  setSearchTerm(e.target.value);
+                                  setShowDropdown(e.target.value.length >= 2);
+                                }}
+                                onFocus={() => searchTerm.length >= 2 && setShowDropdown(true)}
+                                disabled={loading}
+                              />
+                            </div>
+
+                            {showDropdown && filteredFamilies.length > 0 && (
+                              <div className="family-dropdown">
+                                {filteredFamilies.map(family => (
+                                  <div
+                                    key={family.id}
+                                    className="family-dropdown-item"
+                                    onClick={() => handleFamilySelect(family.id)}
+                                  >
+                                    <div className="family-info">
+                                      <span className="family-name">
+                                        {family.displayName || family.email}
+                                      </span>
+                                      <span className="family-email">
+                                        {family.email}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {familyUsers.filter(f => !selectedFamilies.includes(f.id)).length > 10 && (
+                                  <div className="family-dropdown-footer">
+                                    Mostrando 10 de {familyUsers.filter(f => !selectedFamilies.includes(f.id)).filter(f => {
+                                      const searchLower = searchTerm.toLowerCase();
+                                      return (f.displayName || '').toLowerCase().includes(searchLower) ||
+                                             (f.email || '').toLowerCase().includes(searchLower);
+                                    }).length} resultados. Escribí más para filtrar.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {showDropdown && searchTerm.length >= 2 && filteredFamilies.length === 0 && (
+                              <div className="family-dropdown">
+                                <div className="family-dropdown-empty">
+                                  No se encontraron familias con "{searchTerm}"
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="recipient-quick-actions">
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--outline"
+                              onClick={handleSelectAll}
+                              disabled={loading}
+                              title="Seleccionar todas las familias"
+                            >
+                              Seleccionar todas ({familyUsers.length})
+                            </button>
+                            {selectedFamilies.length > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn--sm btn--outline"
+                                onClick={handleDeselectAll}
+                                disabled={loading}
+                              >
+                                Limpiar selección
+                              </button>
+                            )}
+                          </div>
+
+                          {!hasRecipients && (
+                            <p className="form-error mt-sm">
+                              Debes seleccionar al menos una familia
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                  {recipientScope === 'children' && (
+                    <>
+                      {loadingChildren ? (
+                        <p className="form-help">Cargando alumnos...</p>
+                      ) : (
+                        <>
+                          {selectedChildren.length > 0 && (
+                            <div className="selected-families-chips recipient-chips">
+                              <div className="chips-label">
+                                Seleccionados ({selectedChildren.length}):
+                              </div>
+                              <div className="chips-container">
+                                {getSelectedChildrenInfo().map(child => (
+                                  <div key={child.id} className="recipient-chip">
+                                    <span className="chip-text">
+                                      {child.nombreCompleto || "Sin nombre"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="chip-remove"
+                                      onClick={() => handleRemoveChild(child.id)}
+                                      disabled={loading}
+                                      aria-label={`Remover ${child.nombreCompleto || "alumno"}`}
+                                    >
+                                      x
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="family-autocomplete">
+                            <div className="recipient-search-input">
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Buscar alumno por nombre..."
+                                value={childSearchTerm}
+                                onChange={(e) => {
+                                  setChildSearchTerm(e.target.value);
+                                  setShowChildDropdown(e.target.value.length >= 2);
+                                }}
+                                onFocus={() => childSearchTerm.length >= 2 && setShowChildDropdown(true)}
+                                disabled={loading}
+                              />
+                            </div>
+                            {showChildDropdown && filteredChildren.length > 0 && (
+                              <div className="family-dropdown">
+                                {filteredChildren.map(child => (
+                                  <div
+                                    key={child.id}
+                                    className="family-dropdown-item"
+                                    onClick={() => handleChildSelect(child.id)}
+                                  >
+                                    <div className="family-info">
+                                      <span className="family-name">
+                                        {child.nombreCompleto || "Sin nombre"}
+                                      </span>
+                                      <span className="family-email">
+                                        {getAmbienteLabel(child.ambiente)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {childMatches.length > 10 && (
+                                  <div className="family-dropdown-footer">
+                                    Mostrando 10 de {childMatches.length} resultados. Escribí más para filtrar.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {showChildDropdown && childSearchTerm.length >= 2 && filteredChildren.length === 0 && (
+                              <div className="family-dropdown">
+                                <div className="family-dropdown-empty">
+                                  No se encontraron alumnos con "{childSearchTerm}"
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {!hasRecipients && (
+                            <p className="form-error mt-sm">
+                              Debes seleccionar al menos un alumno con responsables
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="form-checkbox">
+            <input
+              type="checkbox"
+              id="requiereLecturaObligatoria"
+              name="requiereLecturaObligatoria"
+              checked={formData.requiereLecturaObligatoria}
+              onChange={handleChange}
+              disabled={loading}
+            />
+            <label htmlFor="requiereLecturaObligatoria">
+              Requiere confirmación de lectura obligatoria
+            </label>
+          </div>
+
+          <div className="form-checkbox">
+            <input
+              type="checkbox"
+              id="sendByEmail"
+              name="sendByEmail"
+              checked={formData.sendByEmail}
+              onChange={handleChange}
+              disabled={loading}
+            />
+            <label htmlFor="sendByEmail">
+              Enviar también por email a los destinatarios
+            </label>
+          </div>
+
+          {/* Sección de Evento Opcional */}
+          <div className="section-warm mt-xl">
+            <div className="form-checkbox mb-md">
+              <input
+                type="checkbox"
+                id="createEvent"
+                name="createEvent"
+                checked={formData.createEvent}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              <label htmlFor="createEvent">
+                Agregar este comunicado al calendario de eventos
+              </label>
+            </div>
+
+            {formData.createEvent && (
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="eventoTitulo" className="required">Título del evento</label>
+                  <input
+                    type="text"
+                    id="eventoTitulo"
+                    name="eventoTitulo"
+                    className="form-input"
+                    value={formData.eventoTitulo}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="eventoFecha" className="required">Fecha</label>
+                  <input
+                    type="date"
+                    id="eventoFecha"
+                    name="eventoFecha"
+                    className="form-input"
+                    value={formData.eventoFecha}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="eventoHora">Hora (opcional)</label>
+                  <input
+                    type="time"
+                    id="eventoHora"
+                    name="eventoHora"
+                    className="form-input"
+                    value={formData.eventoHora}
+                    onChange={handleChange}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="eventoDescripcion">Descripción</label>
+                  <textarea
+                    id="eventoDescripcion"
+                    name="eventoDescripcion"
+                    className="form-textarea"
+                    value={formData.eventoDescripcion}
+                    onChange={handleChange}
+                    disabled={loading}
+                    rows="3"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group" style={{ marginTop: 'var(--spacing-lg)' }}>
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={loading || (formData.type === COMMUNICATION_TYPES.INDIVIDUAL && !hasRecipients)}
+              >
+                {loading ? 'Enviando...' : 'Enviar Comunicado'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--outline"
+                onClick={() => (onCancel ? onCancel() : null)}
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Status Modal */}
+        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="sm">
+          <ModalBody>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexDirection: 'column', textAlign: 'center', padding: 'var(--spacing-md) 0' }}>
+              {modalStatus === 'sending' && (
+                <div className="spinner" aria-hidden="true" style={{ width: 48, height: 48 }} />
+              )}
+
+              {modalStatus === 'success' && (
+                <div>
+                  <Icon name="check-circle" size={48} />
+                </div>
+              )}
+
+              {modalStatus === 'error' && (
+                <div>
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.2"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              )}
+
+              <div style={{ marginTop: 8, fontWeight: 600 }}>{modalMessage}</div>
+            </div>
+          </ModalBody>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <div className="container page-container">

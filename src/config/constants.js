@@ -151,6 +151,33 @@ export const COMMUNICATION_TYPES = {
   INDIVIDUAL: 'individual'
 };
 
+// Áreas escolares para conversaciones privadas
+export const ESCUELA_AREAS = {
+  COORDINACION: 'coordinacion',
+  ADMINISTRACION: 'administracion',
+  DIRECCION: 'direccion'
+};
+
+// Estados de conversaciones privadas
+export const CONVERSATION_STATUS = {
+  PENDIENTE: 'pendiente',
+  RESPONDIDA: 'respondida',
+  ACTIVA: 'activa',
+  CERRADA: 'cerrada'
+};
+
+// Categorías de conversaciones privadas
+export const CONVERSATION_CATEGORIES = [
+  { value: 'entrevista', label: 'Solicitud de entrevista' },
+  { value: 'administrativa', label: 'Consulta administrativa' },
+  { value: 'pedagogica', label: 'Consulta pedagógica' },
+  { value: 'autorizacion', label: 'Autorizaciones' },
+  { value: 'documentacion', label: 'Documentación' },
+  { value: 'medica', label: 'Información médica' },
+  { value: 'pagos', label: 'Consulta sobre pagos' },
+  { value: 'otro', label: 'Otro' }
+];
+
 // Rutas de la aplicación
 export const ROUTES = {
   LOGIN: '/login',
@@ -164,6 +191,8 @@ export const ROUTES = {
   TALLERES_MANAGER: '/admin/talleres',
   ADMIN_DOCUMENTS: '/admin/documentos',
   EVENTS_MANAGER: '/admin/eventos',
+  ADMIN_CONVERSATIONS: '/admin/conversaciones',
+  ADMIN_CONVERSATION_NEW: '/admin/conversaciones/nuevo',
 
   // Family
   FAMILY_DASHBOARD: '/familia',
@@ -171,6 +200,8 @@ export const ROUTES = {
   COMMUNICATIONS: '/familia/comunicados',
   APPOINTMENTS: '/familia/turnos',
   DOCUMENTS: '/familia/documentos',
+  FAMILY_CONVERSATIONS: '/familia/conversaciones',
+  FAMILY_CONVERSATION_NEW: '/familia/conversaciones/nueva',
 
   // Teacher
   TEACHER_DASHBOARD: '/docente',

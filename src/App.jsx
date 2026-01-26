@@ -7,11 +7,11 @@ import { RoleGuard } from './components/auth/RoleGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { ROLES } from './config/constants';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 // Lazy load páginas admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement').then(m => ({ default: m.UserManagement })));
-const SendCommunication = lazy(() => import('./pages/admin/SendCommunication').then(m => ({ default: m.SendCommunication })));
 const ReadReceiptsPanel = lazy(() => import('./pages/admin/ReadReceiptsPanel').then(m => ({ default: m.ReadReceiptsPanel })));
 const ChildrenManager = lazy(() => import('./pages/admin/ChildrenManager'));
 const AppointmentsManager = lazy(() => import('./pages/admin/AppointmentsManager'));
@@ -19,6 +19,9 @@ const TalleresManager = lazy(() => import('./pages/admin/TalleresManager'));
 const SnacksCalendar = lazy(() => import('./pages/admin/SnacksCalendar').then(m => ({ default: m.SnacksCalendar })));
 const DocumentsAdmin = lazy(() => import('./pages/admin/DocumentsAdmin').then(m => ({ default: m.DocumentsAdmin })));
 const EventsManager = lazy(() => import('./pages/admin/EventsManager').then(m => ({ default: m.EventsManager })));
+const AdminConversations = lazy(() => import('./pages/admin/AdminConversations').then(m => ({ default: m.AdminConversations })));
+const AdminNewConversation = lazy(() => import('./pages/admin/AdminNewConversation').then(m => ({ default: m.AdminNewConversation })));
+const AdminConversationDetail = lazy(() => import('./pages/admin/AdminConversationDetail').then(m => ({ default: m.AdminConversationDetail })));
 
 // Lazy load páginas familia
 const FamilyDashboard = lazy(() => import('./pages/family/FamilyDashboard').then(m => ({ default: m.FamilyDashboard })));
@@ -27,6 +30,9 @@ const ChildProfile = lazy(() => import('./pages/family/ChildProfile'));
 const BookAppointment = lazy(() => import('./pages/family/BookAppointment'));
 const TalleresEspeciales = lazy(() => import('./pages/family/TalleresEspeciales').then(m => ({ default: m.TalleresEspeciales })));
 const MySnacks = lazy(() => import('./pages/family/MySnacks').then(m => ({ default: m.MySnacks })));
+const FamilyConversations = lazy(() => import('./pages/family/FamilyConversations').then(m => ({ default: m.FamilyConversations })));
+const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConversation').then(m => ({ default: m.FamilyNewConversation })));
+const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -66,6 +72,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+        <PwaInstallPrompt />
         <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Login */}
@@ -102,7 +109,7 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
-                    <SendCommunication />
+                    <ReadReceiptsPanel />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -193,6 +200,42 @@ function App() {
             }
           />
           <Route
+            path="/admin/conversaciones"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AdminConversations />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/conversaciones/nuevo"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AdminNewConversation />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/conversaciones/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AdminConversationDetail />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/horarios"
             element={
               <ProtectedRoute>
@@ -225,6 +268,42 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.FAMILY]}>
                     <Communications />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/conversaciones"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <FamilyConversations />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/conversaciones/nueva"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <FamilyNewConversation />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/conversaciones/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <FamilyConversationDetail />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

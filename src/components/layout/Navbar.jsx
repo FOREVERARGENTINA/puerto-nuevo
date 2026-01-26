@@ -1,22 +1,28 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { authService } from '../../services/auth.service';
 import { NotificationDropdown } from './NotificationDropdown';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import Icon from '../ui/Icon';
 import { readReceiptsService } from '../../services/readReceipts.service';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
 
 /**
  * Navbar - Barra de navegación global sticky
  * FASE 1: Badge con contador de notificaciones
  * FASE 3: Dropdown con lista de notificaciones
  */
-export function Navbar() {
+export function Navbar({ onToggleSidebar, isSidebarOpen }) {
   const { user } = useAuth();
   const { notifications, totalCount } = useNotifications();
+  const { canInstall, shouldShowIosInstall, promptInstall } = usePwaInstall();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const dropdownRef = useRef(null);
+  const userMenuRef = useRef(null);
   const userLabel = user?.displayName || user?.email;
 
   const handleLogout = async () => {
@@ -29,6 +35,9 @@ export function Navbar() {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -54,20 +63,34 @@ export function Navbar() {
     }
   };
 
+  const handleInstallClick = async () => {
+    if (canInstall) {
+      await promptInstall();
+      setShowUserMenu(false);
+      return;
+    }
+    if (shouldShowIosInstall) {
+      setShowInstallHelp(true);
+    }
+  };
+
   return (
     <nav className="navbar">
-      <div className="navbar__logo">
-        <img src="/logo-login.png" alt="Puerto Nuevo" />
+      <div className="navbar__left">
+        <button
+          className="navbar__menu-toggle"
+          onClick={onToggleSidebar}
+          aria-label="Menu"
+          aria-expanded={isSidebarOpen ? 'true' : 'false'}
+        >
+          <Icon name="menu" size={20} />
+        </button>
+        <div className="navbar__logo">
+          <img src="/logo-login.png" alt="Puerto Nuevo" />
+        </div>
       </div>
       <div className="navbar__actions">
-        {userLabel && (
-          <span className="navbar__user" title={userLabel}>
-            {userLabel}
-          </span>
-        )}
-        {/* Inicio ya está en el sidebar */}
-        <ThemeToggle />
-        <div style={{ position: 'relative' }}>
+        <div ref={dropdownRef} className="notification-wrapper">
           <button
             className="notification-bell"
             onClick={handleToggleDropdown}
@@ -78,7 +101,7 @@ export function Navbar() {
             {totalCount > 0 && <span className="badge badge--danger">{totalCount}</span>}
           </button>
           {showDropdown && (
-            <div ref={dropdownRef} className="notification-dropdown-container">
+            <div className="notification-dropdown-container">
               <NotificationDropdown
                 notifications={notifications}
                 onClose={() => setShowDropdown(false)}
@@ -86,10 +109,55 @@ export function Navbar() {
             </div>
           )}
         </div>
-        <button className="btn btn--outline btn--sm" onClick={handleLogout}>
-          Cerrar Sesión
-        </button>
+        <div ref={userMenuRef} className="user-menu">
+          <button
+            className="user-menu__button"
+            onClick={() => setShowUserMenu((prev) => !prev)}
+            aria-label="Usuario"
+            title={userLabel || 'Usuario'}
+          >
+            <Icon name="user" size={20} />
+          </button>
+          {showUserMenu && (
+            <div className="user-menu__dropdown">
+              {userLabel && (
+                <div className="user-menu__header">
+                  <span className="user-menu__label">Sesión</span>
+                  <strong className="user-menu__user">{userLabel}</strong>
+                </div>
+              )}
+              <div className="user-menu__item">
+                <span>Tema</span>
+                <ThemeToggle />
+              </div>
+              {(canInstall || shouldShowIosInstall) && (
+                <button type="button" className="user-menu__item user-menu__install" onClick={handleInstallClick}>
+                  Instalar app
+                </button>
+              )}
+              <button className="btn btn--outline btn--sm user-menu__logout" onClick={handleLogout}>
+                Cerrar Sesión
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      <Modal isOpen={showInstallHelp} onClose={() => setShowInstallHelp(false)} size="sm">
+        <ModalHeader title="Instalar app" onClose={() => setShowInstallHelp(false)} />
+        <ModalBody>
+          <p>En iPhone o iPad:</p>
+          <ol className="install-help-list">
+            <li>Tap en Compartir (cuadrado con flecha).</li>
+            <li>Elegí "Agregar a inicio".</li>
+          </ol>
+        </ModalBody>
+        <ModalFooter>
+          <button className="btn btn--primary btn--full" onClick={() => setShowInstallHelp(false)}>
+            Entendido
+          </button>
+        </ModalFooter>
+      </Modal>
     </nav>
   );
 }

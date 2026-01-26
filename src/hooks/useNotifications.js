@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, Timestamp, limit } from 'firebase
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { useCommunications } from './useCommunications';
+import { useConversations } from './useConversations';
 import { ROLES, ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
 
 /**
@@ -17,8 +18,10 @@ import { ROLES, ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
 export function useNotifications() {
   const { user, role } = useAuth();
   const { unreadRequired } = useCommunications();
+  const { conversations } = useConversations({ user, role });
   const [upcomingSnacks, setUpcomingSnacks] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [assignedAppointments, setAssignedAppointments] = useState([]);
 
   useEffect(() => {
     if (!user) {
@@ -52,6 +55,16 @@ export function useNotifications() {
     });
 
     // LISTENER 2: Turnos próximos (48hs)
+    let legacyAppointments = [];
+    let arrayAppointments = [];
+
+    const mergeAppointments = () => {
+      const map = new Map();
+      legacyAppointments.forEach(appt => map.set(appt.id, appt));
+      arrayAppointments.forEach(appt => map.set(appt.id, appt));
+      setUpcomingAppointments(Array.from(map.values()));
+    };
+
     const appointmentsQuery = query(
       collection(db, 'appointments'),
       where('familiaUid', '==', user.uid),
@@ -61,15 +74,69 @@ export function useNotifications() {
       limit(10)
     );
 
+    const appointmentsArrayQuery = query(
+      collection(db, 'appointments'),
+      where('familiasUids', 'array-contains', user.uid),
+      where('estado', '==', 'reservado'),
+      where('fechaHora', '>=', Timestamp.fromDate(now)),
+      where('fechaHora', '<=', Timestamp.fromDate(in48Hours)),
+      limit(10)
+    );
+
     const unsubAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
-      setUpcomingAppointments(
-        snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      );
+      legacyAppointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAppointments();
+    });
+
+    const unsubAppointmentsArray = onSnapshot(appointmentsArrayQuery, (snapshot) => {
+      arrayAppointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAppointments();
+    });
+
+    // LISTENER 3: Turnos asignados recientemente (7 días)
+    const assignedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    let assignedLegacy = [];
+    let assignedArray = [];
+
+    const mergeAssigned = () => {
+      const map = new Map();
+      assignedLegacy.forEach(appt => map.set(appt.id, appt));
+      assignedArray.forEach(appt => map.set(appt.id, appt));
+      setAssignedAppointments(Array.from(map.values()));
+    };
+
+    const assignedQuery = query(
+      collection(db, 'appointments'),
+      where('familiaUid', '==', user.uid),
+      where('assignedAt', '>=', Timestamp.fromDate(assignedSince)),
+      where('assignedAt', '<=', Timestamp.fromDate(now)),
+      limit(10)
+    );
+
+    const assignedArrayQuery = query(
+      collection(db, 'appointments'),
+      where('familiasUids', 'array-contains', user.uid),
+      where('assignedAt', '>=', Timestamp.fromDate(assignedSince)),
+      where('assignedAt', '<=', Timestamp.fromDate(now)),
+      limit(10)
+    );
+
+    const unsubAssigned = onSnapshot(assignedQuery, (snapshot) => {
+      assignedLegacy = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAssigned();
+    });
+
+    const unsubAssignedArray = onSnapshot(assignedArrayQuery, (snapshot) => {
+      assignedArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAssigned();
     });
 
     return () => {
       unsubSnacks();
       unsubAppointments();
+      unsubAppointmentsArray();
+      unsubAssigned();
+      unsubAssignedArray();
     };
   }, [user, role]);
 
@@ -103,9 +170,56 @@ export function useNotifications() {
 
   const snacksUrl = '/familia/snacks';
   const appointmentsUrl = '/familia/turnos';
+  const conversationsUrl = role === ROLES.FAMILY
+    ? '/familia/conversaciones'
+    : '/admin/conversaciones';
+
+  const conversationNotifications = conversations
+    .filter(conv => {
+      if (role === ROLES.FAMILY) return (conv.mensajesSinLeerFamilia || 0) > 0;
+      if (ADMIN_ROLES.includes(role)) return (conv.mensajesSinLeerEscuela || 0) > 0;
+      return false;
+    })
+    .slice(0, 10)
+    .map(conv => ({
+      id: `conv-${conv.id}`,
+      type: 'conversacion',
+      title: role === ROLES.FAMILY ? 'Nuevo mensaje de la escuela' : 'Nueva consulta',
+      message: conv.asunto || 'Conversación',
+      timestamp: conv.ultimoMensajeAt?.toDate() || conv.actualizadoAt?.toDate() || new Date(),
+      urgent: conv.estado === 'pendiente',
+      actionUrl: conversationsUrl,
+      metadata: { conversationId: conv.id }
+    }));
+
+  const assignedNotifications = assignedAppointments.map(appt => ({
+    id: `assigned-${appt.id}`,
+    type: 'turno-asignado',
+    title: 'Turno asignado',
+    message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
+    timestamp: appt.assignedAt?.toDate() || appt.updatedAt?.toDate() || appt.createdAt?.toDate() || new Date(),
+    urgent: true,
+    actionUrl: appointmentsUrl,
+    metadata: { appointmentId: appt.id }
+  }));
+
+  const assignedIds = new Set(assignedAppointments.map(appt => appt.id));
+  const upcomingNotifications = upcomingAppointments
+    .filter(appt => !assignedIds.has(appt.id))
+    .map(appt => ({
+      id: `appt-${appt.id}`,
+      type: 'turno',
+      title: 'Turno próximo',
+      message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
+      timestamp: appt.createdAt?.toDate() || new Date(),
+      urgent: false,
+      actionUrl: appointmentsUrl,
+      metadata: { appointmentId: appt.id }
+    }));
 
   // Mapear a formato de notificación unificado
   const notifications = [
+    ...conversationNotifications,
     // Comunicados (solo donde el usuario ES destinatario)
     ...relevantCommunications.map(comm => ({
       id: `comm-${comm.id}`,
@@ -117,6 +231,8 @@ export function useNotifications() {
       actionUrl: communicationsUrl,
       metadata: { commId: comm.id }
     })),
+    // Turnos asignados (solo familias)
+    ...assignedNotifications,
     // Snacks (solo familias)
     ...upcomingSnacks.map(snack => ({
       id: `snack-${snack.id}`,
@@ -129,16 +245,7 @@ export function useNotifications() {
       metadata: { assignmentId: snack.id }
     })),
     // Turnos (solo familias)
-    ...upcomingAppointments.map(appt => ({
-      id: `appt-${appt.id}`,
-      type: 'turno',
-      title: 'Turno próximo',
-      message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
-      timestamp: appt.createdAt?.toDate() || new Date(),
-      urgent: false,
-      actionUrl: appointmentsUrl,
-      metadata: { appointmentId: appt.id }
-    }))
+    ...upcomingNotifications
   ].sort((a, b) => {
     // Ordenar: urgentes primero, luego por fecha
     if (a.urgent && !b.urgent) return -1;
@@ -150,9 +257,11 @@ export function useNotifications() {
     notifications,
     totalCount: notifications.length,
     byType: {
+      conversaciones: conversationNotifications.length,
       comunicados: relevantCommunications.length,
       snacks: upcomingSnacks.length,
-      turnos: upcomingAppointments.length
+      turnos: upcomingAppointments.length,
+      asignados: assignedAppointments.length
     }
   };
 }

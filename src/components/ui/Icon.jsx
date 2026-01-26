@@ -138,6 +138,15 @@ export default function Icon({ name, size = 20, className = '', ariaHidden = tru
         </svg>
       );
 
+    case 'menu':
+      return (
+        <svg {...common}>
+          <path d="M3 6h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M3 12h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M3 18h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+
     default:
       return null;
   }

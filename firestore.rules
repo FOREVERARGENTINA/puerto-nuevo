@@ -63,6 +63,18 @@ service cloud.firestore {
       return canSendCommunications();
     }
 
+    function isConversationFamily(conv) {
+      return isFamily() && request.auth.uid == conv.familiaUid;
+    }
+
+    function isConversationSchool(conv) {
+      return isSuperAdmin() || (isCoordinacion() && conv.destinatarioEscuela == 'coordinacion');
+    }
+
+    function isConversationParticipant(conv) {
+      return isConversationFamily(conv) || isConversationSchool(conv);
+    }
+
     // Colección: /users (perfiles de usuarios)
     match /users/{userId} {
       // Leer: Usuario puede ver su propio perfil, admin puede ver todos, 
@@ -133,6 +145,53 @@ service cloud.firestore {
       }
     }
 
+    // Colección: /conversations (conversaciones privadas)
+    match /conversations/{convId} {
+      allow read: if isAuthenticated() && isConversationParticipant(resource.data);
+
+      // Crear: familia crea su consulta o admin/coordinación crea mensaje
+      allow create: if isAuthenticated() && (
+        (isFamily() && request.resource.data.familiaUid == request.auth.uid) ||
+        (isAdmin() && request.resource.data.iniciadoPor == 'escuela')
+      );
+
+      // Actualizar: admin/coordinación (según área) o familia participante
+      allow update: if (isAdmin() && isConversationSchool(resource.data)) || (
+        isFamily() &&
+        request.auth.uid == resource.data.familiaUid &&
+        resource.data.estado != 'cerrada' &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'familiaUid',
+          'familiaDisplayName',
+          'familiaEmail',
+          'destinatarioEscuela',
+          'categoria',
+          'asunto',
+          'iniciadoPor',
+          'creadoAt',
+          'cerradoAt',
+          'cerradoPor',
+          'reasignadoAt'
+        ])
+      );
+
+      // Eliminar: solo superadmin
+      allow delete: if isSuperAdmin();
+
+      // Subcolección: mensajes
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          isConversationParticipant(get(/databases/$(database)/documents/conversations/$(convId)).data);
+
+        allow create: if isAuthenticated() &&
+          isConversationParticipant(get(/databases/$(database)/documents/conversations/$(convId)).data) &&
+          request.resource.data.autorUid == request.auth.uid &&
+          get(/databases/$(database)/documents/conversations/$(convId)).data.estado != 'cerrada';
+
+        allow update, delete: if false;
+      }
+    }
+
     // Colección: /events (calendario de eventos)
     match /events/{eventId} {
       // Leer: todos los usuarios autenticados (para el calendario del sidebar)
@@ -160,7 +219,7 @@ service cloud.firestore {
       allow update: if canManageAppointments() || (
         isFamily() && (
           (resource.data.estado == 'disponible' && request.resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'reservado') ||
-          (resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'cancelado')
+          ((resource.data.familiaUid == request.auth.uid || request.auth.uid in resource.data.get('familiasUids', [])) && request.resource.data.estado == 'cancelado')
         )
       );
 

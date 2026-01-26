@@ -6,6 +6,8 @@ admin.initializeApp();
 
 // Importar triggers
 const { onCommunicationCreated, onCommunicationUpdated } = require('./src/triggers/onCommunicationCreated');
+const { onConversationMessageCreated } = require('./src/triggers/onConversationMessageCreated');
+const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
 /**
@@ -183,6 +185,8 @@ exports.updateUserAuth = onCall(async (request) => {
 // Exportar triggers
 exports.onCommunicationCreated = onCommunicationCreated;
 exports.onCommunicationUpdated = onCommunicationUpdated;
+exports.onConversationMessageCreated = onConversationMessageCreated;
+exports.onAppointmentAssigned = onAppointmentAssigned;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

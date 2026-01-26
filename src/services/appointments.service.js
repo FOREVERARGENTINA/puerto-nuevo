@@ -58,16 +58,36 @@ export const appointmentsService = {
 
   async getAppointmentsByFamily(familiaUid) {
     try {
-      const q = query(
+      const legacyQuery = query(
         appointmentsCollection,
         where('familiaUid', '==', familiaUid),
         orderBy('fechaHora', 'desc')
       );
-      const snapshot = await getDocs(q);
-      const appointments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+
+      const arrayQuery = query(
+        appointmentsCollection,
+        where('familiasUids', 'array-contains', familiaUid)
+      );
+
+      const [legacySnap, arraySnap] = await Promise.all([
+        getDocs(legacyQuery),
+        getDocs(arrayQuery)
+      ]);
+
+      const map = new Map();
+      legacySnap.docs.forEach(doc => {
+        map.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      arraySnap.docs.forEach(doc => {
+        map.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+
+      const appointments = Array.from(map.values()).sort((a, b) => {
+        const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
+        const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+        return dateB - dateA;
+      });
+
       return { success: true, appointments };
     } catch (error) {
       return { success: false, error: error.message };
@@ -179,6 +199,7 @@ export const appointmentsService = {
       await updateDoc(doc(appointmentsCollection, appointmentId), {
         estado: 'disponible',
         familiaUid: null,
+        familiasUids: [],
         hijoId: null,
         nota: null,
         updatedAt: serverTimestamp()

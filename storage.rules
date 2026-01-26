@@ -70,6 +70,21 @@ service firebase.storage {
       );
     }
 
+    // Conversaciones privadas: adjuntos
+    match /conversations/{convId}/{messageId}/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid ||
+        (request.auth.token.role == 'coordinacion' && firestore.get(/databases/(default)/documents/conversations/$(convId)).data.destinatarioEscuela == 'coordinacion') ||
+        (request.auth.token.role == 'superadmin')
+      );
+
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid
+      );
+    }
+
     // Deny everything else
     match /{allPaths=**} {
       allow read, write: if false;

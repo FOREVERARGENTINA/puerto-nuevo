@@ -7,7 +7,7 @@ import { EventCalendar } from './EventCalendar';
 /**
  * Sidebar - Menú lateral de navegación según rol
  */
-export function Sidebar() {
+export function Sidebar({ isOpen = false, onNavigate }) {
   const { role } = useAuth();
 
   // Definir menús según rol
@@ -15,7 +15,8 @@ export function Sidebar() {
     [ROLES.SUPERADMIN]: [
       { path: '/admin', icon: 'home', label: 'Inicio' },
       { path: '/admin/usuarios', icon: 'users', label: 'Usuarios' },
-      { path: '/admin/comunicar', icon: 'send', label: 'Comunicar' },
+      { path: '/admin/comunicar', icon: 'send', label: 'Comunicados' },
+      { path: '/admin/conversaciones', icon: 'send', label: 'Conversaciones' },
       { path: '/admin/alumnos', icon: 'user', label: 'Alumnos' },
       { path: '/admin/turnos', icon: 'calendar', label: 'Turnos' },
       { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
@@ -26,7 +27,8 @@ export function Sidebar() {
     [ROLES.COORDINACION]: [
       { path: '/admin', icon: 'home', label: 'Inicio' },
       { path: '/admin/usuarios', icon: 'users', label: 'Usuarios' },
-      { path: '/admin/comunicar', icon: 'send', label: 'Comunicar' },
+      { path: '/admin/comunicar', icon: 'send', label: 'Comunicados' },
+      { path: '/admin/conversaciones', icon: 'send', label: 'Conversaciones' },
       { path: '/admin/alumnos', icon: 'user', label: 'Alumnos' },
       { path: '/admin/turnos', icon: 'calendar', label: 'Turnos' },
       { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
@@ -49,6 +51,7 @@ export function Sidebar() {
     [ROLES.FAMILY]: [
       { path: '/familia', icon: 'home', label: 'Inicio' },
       { path: '/familia/comunicados', icon: 'bell', label: 'Comunicados' },
+      { path: '/familia/conversaciones', icon: 'send', label: 'Conversaciones' },
       { path: '/familia/hijos', icon: 'user', label: 'Mis Hijos' },
       { path: '/familia/turnos', icon: 'calendar', label: 'Turnos' },
       { path: '/familia/talleres', icon: 'book', label: 'Talleres' },
@@ -69,7 +72,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
       <nav className="sidebar__nav">
         <ul className="sidebar__menu">
           {items.map((item) => (
@@ -81,6 +84,7 @@ export function Sidebar() {
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
                 title={item.label}
+                onClick={() => onNavigate && onNavigate()}
               >
                 <Icon name={item.icon} size={20} className="sidebar__icon" />
                 <span className="sidebar__label">{item.label}</span>

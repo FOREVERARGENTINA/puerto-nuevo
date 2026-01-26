@@ -3,6 +3,8 @@ import { communicationsService } from '../../services/communications.service';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
 import { ROLES } from '../../config/constants';
+import { Modal, ModalBody, ModalHeader } from '../../components/common/Modal';
+import { SendCommunication } from './SendCommunication';
 
 export function ReadReceiptsPanel() {
   const [communications, setCommunications] = useState([]);
@@ -21,6 +23,7 @@ export function ReadReceiptsPanel() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [communicationsWithStats, setCommunicationsWithStats] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Nuevos estados para filtro por familia
   const [allFamilies, setAllFamilies] = useState([]);
@@ -317,11 +320,20 @@ export function ReadReceiptsPanel() {
   const selectedFamily = allFamilies.find(f => f.id === selectedFamilyId);
 
   return (
+    <>
     <div className="container page-container">
       <div className="card">
         <div className="card__header">
-          <h1 className="card__title">Comunicados y Confirmaciones</h1>
-          <span className="badge badge--info">{communications.length} comunicados</span>
+          <div>
+            <h1 className="card__title">Historial de comunicados</h1>
+            <p className="card__subtitle">Confirmaciones de lectura y detalle por familia</p>
+          </div>
+          <div className="flex gap-sm">
+            <span className="badge badge--info">{communications.length} comunicados</span>
+            <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
+              Crear comunicado
+            </button>
+          </div>
         </div>
 
         <div className="card__body">
@@ -755,5 +767,12 @@ export function ReadReceiptsPanel() {
         </div>
       )}
     </div>
+    <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} size="full">
+      <ModalHeader title="Crear comunicado" onClose={() => setShowCreateModal(false)} />
+      <ModalBody>
+        <SendCommunication embedded onSuccess={() => setShowCreateModal(false)} onCancel={() => setShowCreateModal(false)} />
+      </ModalBody>
+    </Modal>
+    </>
   );
 }
