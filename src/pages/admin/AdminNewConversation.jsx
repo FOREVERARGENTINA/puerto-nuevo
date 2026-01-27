@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { conversationsService } from '../../services/conversations.service';
@@ -118,9 +118,16 @@ export function AdminNewConversation() {
 
   return (
     <div className="container page-container">
-      <div className="mb-md">
-        <h1>Nuevo Mensaje a Familias</h1>
-        <p className="text-muted">Se crearán conversaciones separadas por cada familia seleccionada.</p>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Nuevo mensaje</h1>
+          <p className="dashboard-subtitle">Se crearán conversaciones separadas por cada familia seleccionada.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--outline">
+            Volver
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="card create-form-card">

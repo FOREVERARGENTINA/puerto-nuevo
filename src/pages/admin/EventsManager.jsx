@@ -10,6 +10,7 @@ import Icon from '../../components/ui/Icon';
 export function EventsManager() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [visibleEventsCount, setVisibleEventsCount] = useState(20);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -32,16 +33,19 @@ export function EventsManager() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('upcoming');
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
-    const result = await eventsService.getAllEvents();
+    const result = await eventsService.getEventsByMonth(
+      selectedMonth.getFullYear(),
+      selectedMonth.getMonth()
+    );
     if (result.success) {
       setEvents(result.events);
     }
     setLoading(false);
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => {
     loadEvents();
@@ -245,15 +249,8 @@ export function EventsManager() {
   const selectedMonthIndex = selectedMonth.getMonth();
 
   const eventsForMonth = useMemo(() => {
-    return events.filter(event => {
-      const eventDate = normalizeEventDate(event.fecha);
-      return (
-        eventDate &&
-        eventDate.getFullYear() === selectedMonthYear &&
-        eventDate.getMonth() === selectedMonthIndex
-      );
-    });
-  }, [events, selectedMonthIndex, selectedMonthYear]);
+    return events;
+  }, [events]);
 
   const eventsForCalendar = useMemo(() => {
     let list = eventsForMonth;
@@ -289,8 +286,8 @@ export function EventsManager() {
     });
   }, [eventsForCalendar, selectedDay]);
 
-  const groupedEvents = useMemo(() => {
-    const sorted = [...filteredEvents].sort((a, b) => {
+  const sortedFilteredEvents = useMemo(() => {
+    return [...filteredEvents].sort((a, b) => {
       const dateA = normalizeEventDate(a.fecha) || new Date(0);
       const dateB = normalizeEventDate(b.fecha) || new Date(0);
       const timeA = a.hora || '99:99';
@@ -300,6 +297,14 @@ export function EventsManager() {
       }
       return timeA.localeCompare(timeB);
     });
+  }, [filteredEvents]);
+
+  const visibleEvents = useMemo(() => {
+    return sortedFilteredEvents.slice(0, visibleEventsCount);
+  }, [sortedFilteredEvents, visibleEventsCount]);
+
+  const groupedEvents = useMemo(() => {
+    const sorted = visibleEvents;
 
     const groups = new Map();
     sorted.forEach(event => {
@@ -312,7 +317,7 @@ export function EventsManager() {
     });
 
     return Array.from(groups.values());
-  }, [filteredEvents]);
+  }, [normalizeEventDate, visibleEvents]);
 
   const daysWithEvents = useMemo(() => {
     const set = new Set();
@@ -341,7 +346,11 @@ export function EventsManager() {
       today.getFullYear() === selectedMonthYear
     );
   };
-  const hasFilters = searchTerm.trim() || typeFilter !== 'all' || timeFilter !== 'all';
+  const hasFilters = searchTerm.trim() || typeFilter !== 'all' || timeFilter !== 'upcoming';
+
+  useEffect(() => {
+    setVisibleEventsCount(20);
+  }, [selectedMonthIndex, selectedMonthYear, searchTerm, typeFilter, timeFilter, selectedDay]);
 
   return (
     <div className="container page-container events-manager-page">
@@ -521,7 +530,7 @@ export function EventsManager() {
                         onClick={() => {
                           setSearchTerm('');
                           setTypeFilter('all');
-                          setTimeFilter('all');
+                          setTimeFilter('upcoming');
                         }}
                       >
                         Limpiar
@@ -581,6 +590,17 @@ export function EventsManager() {
                       ))
                     )}
                   </div>
+                  {sortedFilteredEvents.length > visibleEventsCount && (
+                    <div style={{ marginTop: 'var(--spacing-md)', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn btn--outline btn--sm"
+                        onClick={() => setVisibleEventsCount(prev => prev + 20)}
+                      >
+                        Cargar mas
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>

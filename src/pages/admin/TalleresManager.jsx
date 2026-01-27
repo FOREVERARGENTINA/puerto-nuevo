@@ -259,10 +259,29 @@ const TalleresManager = () => {
     { id: '13:30-14:30', label: '13:30 - 14:30' },
     { id: '14:30-15:30', label: '14:30 - 15:30' }
   ];
+  const header = (
+    <div className="dashboard-header dashboard-header--compact">
+      <div>
+        <h1 className="dashboard-title">Talleres</h1>
+        <p className="dashboard-subtitle">Crea talleres y asigna horarios.</p>
+      </div>
+      <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+        {!showForm && (
+          <button onClick={handleCreate} className="btn btn--primary">
+            Crear taller
+          </button>
+        )}
+        <button onClick={() => navigate(-1)} className="btn btn--outline">
+          Volver
+        </button>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+        {header}
         <div className="card">
           <div className="card__body">
             <p>Cargando talleres...</p>
@@ -273,36 +292,12 @@ const TalleresManager = () => {
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
+      {header}
       <div className={showForm ? 'card card--compact' : 'card'}>
-        <div className={showForm ? 'card__header card__header--compact' : 'card__header'}>
-          <div>
-            <h1 className="card__title">Gestión de Talleres</h1>
-            <p className="card__subtitle">Crea talleres y asigna horarios.</p>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-            {!showForm && (
-              <button onClick={handleCreate} className="btn btn--primary">
-                Crear taller
-              </button>
-            )}
-            <button onClick={() => navigate(-1)} className="btn btn--outline">
-              Volver
-            </button>
-          </div>
-        </div>
-
         <div className="card__body">
           {showForm ? (
             <div>
-              <div className="talleres-form__intro">
-                <h2>
-                  {editingTaller ? 'Editar taller' : 'Nuevo taller'}
-                </h2>
-                <p className="card__subtitle">
-                  Define datos, tallerista y horarios.
-                </p>
-              </div>
               <form onSubmit={handleSubmit} className="talleres-form talleres-form--compact">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)' }}>
                   <div className="form-group">
@@ -471,49 +466,63 @@ const TalleresManager = () => {
                   <p>Aún no hay talleres creados. Crea el primero para comenzar.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
+                <div style={{ display: 'grid', gap: 'var(--spacing-xs)' }}>
                   {talleres.map(taller => (
-                    <div key={taller.id} className="card" style={{ padding: 'var(--spacing-md)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                    <div key={taller.id} className="card" style={{ padding: 'var(--spacing-sm) var(--spacing-md)', borderLeft: `3px solid ${taller.estado === 'activo' ? 'var(--color-success)' : 'var(--color-error)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-md)' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                            <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>{taller.nombre}</h3>
-                            <span className={`badge badge--${taller.estado === 'activo' ? 'success' : 'danger'}`}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-xs)' }}>
+                            <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 700 }}>{taller.nombre}</h3>
+                            <span className={`badge badge--${taller.estado === 'activo' ? 'success' : 'danger'}`} style={{ fontSize: 'var(--font-size-xs)' }}>
                               {taller.estado}
+                            </span>
+                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>•</span>
+                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
+                              {taller.ambiente === 'taller1' ? 'Taller 1' : taller.ambiente === 'taller2' ? 'Taller 2' : 'No asignado'}
+                            </span>
+                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>•</span>
+                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                              {getTalleristaName(Array.isArray(taller.talleristaId) ? taller.talleristaId[0] : taller.talleristaId)}
                             </span>
                           </div>
                           {taller.descripcion && (
-                            <p style={{ color: 'var(--color-text-light)', margin: 'var(--spacing-xs) 0', fontSize: 'var(--font-size-sm)' }}>
+                            <p style={{ color: 'var(--color-text-light)', margin: '0 0 var(--spacing-xs) 0', fontSize: 'var(--font-size-sm)', lineHeight: '1.4' }}>
                               {taller.descripcion}
                             </p>
                           )}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--spacing-xs) var(--spacing-md)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>
-                            <div>
-                              <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>Ambiente:</span>{' '}
-                              {taller.ambiente === 'taller1' ? 'Taller 1' : taller.ambiente === 'taller2' ? 'Taller 2' : 'No asignado'}
+                          {taller.horarios?.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-xs)' }}>
+                              {taller.horarios.map((h, idx) => (
+                                <span 
+                                  key={idx} 
+                                  style={{ 
+                                    fontSize: 'var(--font-size-xs)', 
+                                    padding: '2px 8px', 
+                                    backgroundColor: 'var(--color-primary-soft)', 
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--color-primary)',
+                                    fontWeight: 500,
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {h.dia.substring(0, 3)} {h.bloque}
+                                </span>
+                              ))}
                             </div>
-                            <div>
-                              <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>Tallerista:</span>{' '}
-                              {getTalleristaName(Array.isArray(taller.talleristaId) ? taller.talleristaId[0] : taller.talleristaId)}
-                            </div>
-                            {taller.horarios?.length > 0 && (
-                              <div title={taller.horarios.map(h => `${h.dia} ${h.bloque.replace('-', ' - ')}`).join(', ')}>
-                                <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>Horarios:</span>{' '}
-                                {taller.horarios.length} bloque{taller.horarios.length !== 1 ? 's' : ''}
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'flex-start' }}>
                           <button
                             onClick={() => handleEdit(taller)}
                             className="btn btn--sm btn--primary"
+                            style={{ padding: 'var(--spacing-xs) var(--spacing-sm)' }}
                           >
                             Editar
                           </button>
                           <button
                             onClick={() => handleDelete(taller.id)}
                             className="btn btn--sm btn--danger"
+                            style={{ padding: 'var(--spacing-xs) var(--spacing-sm)' }}
                           >
                             Eliminar
                           </button>
@@ -549,3 +558,6 @@ const TalleresManager = () => {
 };
 
 export default TalleresManager;
+
+
+

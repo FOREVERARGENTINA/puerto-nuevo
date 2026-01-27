@@ -30,6 +30,11 @@ export function ReadReceiptsPanel() {
   const [selectedFamilyId, setSelectedFamilyId] = useState('all');
   const [loadingFamilies, setLoadingFamilies] = useState(false);
 
+  // Filtros adicionales
+  const [filterType, setFilterType] = useState('all');
+  const [filterAmbiente, setFilterAmbiente] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
   useEffect(() => {
     loadCommunications();
     loadFamilies();
@@ -182,8 +187,31 @@ export function ReadReceiptsPanel() {
       });
     }
 
+    // Filtrar por tipo
+    if (filterType !== 'all') {
+      filtered = filtered.filter(comm => comm.type === filterType);
+    }
+
+    // Filtrar por ambiente/taller
+    if (filterAmbiente !== 'all') {
+      filtered = filtered.filter(comm => comm.ambiente === filterAmbiente);
+    }
+
+    // Filtrar por estado de lectura
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(comm => {
+        const stats = getStatsForFamily(comm);
+        const percentage = stats?.porcentaje || 0;
+        
+        if (filterStatus === 'complete') return percentage === 100;
+        if (filterStatus === 'progress') return percentage > 0 && percentage < 100;
+        if (filterStatus === 'pending') return percentage === 0;
+        return true;
+      });
+    }
+
     return filtered;
-  }, [communicationsWithStats, searchTerm, selectedFamilyId]);
+  }, [communicationsWithStats, searchTerm, selectedFamilyId, filterType, filterAmbiente, filterStatus]);
 
   // Ordenamiento
   const sortedCommunications = useMemo(() => {
@@ -322,20 +350,20 @@ export function ReadReceiptsPanel() {
   return (
     <>
     <div className="container page-container">
-      <div className="card">
-        <div className="card__header">
-          <div>
-            <h1 className="card__title">Historial de comunicados</h1>
-            <p className="card__subtitle">Confirmaciones de lectura y detalle por familia</p>
-          </div>
-          <div className="flex gap-sm">
-            <span className="badge badge--info">{communications.length} comunicados</span>
-            <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
-              Crear comunicado
-            </button>
-          </div>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Comunicados</h1>
+          <p className="dashboard-subtitle">Confirmaciones de lectura y detalle por familia</p>
         </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+          <span className="badge badge--info">{communications.length} comunicados</span>
+          <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
+            Crear comunicado
+          </button>
+        </div>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           {communications.length === 0 ? (
             <div className="alert alert--info">
@@ -346,18 +374,18 @@ export function ReadReceiptsPanel() {
               {/* Filtros */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: 'var(--spacing-md)',
                 marginBottom: 'var(--spacing-lg)'
               }}>
                 {/* Búsqueda */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="search">Buscar por título</label>
+                  <label htmlFor="search">Buscar</label>
                   <input
                     id="search"
                     type="text"
                     className="form-input"
-                    placeholder="🔍 Buscar..."
+                    placeholder="🔍 Buscar por título..."
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -366,9 +394,65 @@ export function ReadReceiptsPanel() {
                   />
                 </div>
 
+                {/* Filtro por tipo */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="type-filter">Tipo</label>
+                  <select
+                    id="type-filter"
+                    className="form-input"
+                    value={filterType}
+                    onChange={(e) => {
+                      setFilterType(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="all">Todos los tipos</option>
+                    <option value="global">Global</option>
+                    <option value="ambiente">Ambiente</option>
+                    <option value="individual">Individual</option>
+                  </select>
+                </div>
+
+                {/* Filtro por ambiente/taller */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="ambiente-filter">Taller</label>
+                  <select
+                    id="ambiente-filter"
+                    className="form-input"
+                    value={filterAmbiente}
+                    onChange={(e) => {
+                      setFilterAmbiente(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="all">Todos los talleres</option>
+                    <option value="taller1">Taller 1</option>
+                    <option value="taller2">Taller 2</option>
+                  </select>
+                </div>
+
+                {/* Filtro por estado */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="status-filter">Estado</label>
+                  <select
+                    id="status-filter"
+                    className="form-input"
+                    value={filterStatus}
+                    onChange={(e) => {
+                      setFilterStatus(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="all">Todos</option>
+                    <option value="complete">Completo</option>
+                    <option value="progress">En progreso</option>
+                    <option value="pending">Pendiente</option>
+                  </select>
+                </div>
+
                 {/* Filtro por familia */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="family-filter">Filtrar por familia</label>
+                  <label htmlFor="family-filter">Familia</label>
                   <select
                     id="family-filter"
                     className="form-input"

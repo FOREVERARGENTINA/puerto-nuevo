@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { useAdminSummary } from '../../hooks/useAdminSummary';
 import { authService } from '../../services/auth.service';
 import { NotificationDropdown } from './NotificationDropdown';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import Icon from '../ui/Icon';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
+import { ROUTES } from '../../config/constants';
 
 /**
  * Navbar - Barra de navegación global sticky
@@ -15,9 +18,10 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
  * FASE 3: Dropdown con lista de notificaciones
  */
 export function Navbar({ onToggleSidebar, isSidebarOpen }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { notifications, totalCount } = useNotifications();
   const { canInstall, shouldShowIosInstall, promptInstall } = usePwaInstall();
+  const { summary, loading: summaryLoading } = useAdminSummary(isAdmin); // Hook en tiempo real
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
@@ -89,6 +93,28 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
           <img src="/logo-login.png" alt="Puerto Nuevo" />
         </div>
       </div>
+      {isAdmin && (
+        <div className="navbar__summary" aria-label="Resumen diario">
+          <Link to={ROUTES.EVENTS_MANAGER} className="navbar__summary-item">
+            <span className="navbar__summary-label">Próximos 7 días</span>
+            <span className="navbar__summary-value">
+              {summaryLoading ? '...' : `${summary.todayEvents} eventos`}
+            </span>
+          </Link>
+          <Link to="/admin/snacks" className="navbar__summary-item navbar__summary-item--action">
+            <span className="navbar__summary-label">Proxima semana</span>
+            <span className="navbar__summary-value">
+              {summaryLoading ? '...' : `${summary.nextWeekUnassigned} snacks sin asignar`}
+            </span>
+          </Link>
+          <Link to={ROUTES.ADMIN_CONVERSATIONS} className="navbar__summary-item">
+            <span className="navbar__summary-label">Conversaciones</span>
+            <span className="navbar__summary-value">
+              {summaryLoading ? '...' : `${summary.unreadConversations} sin leer`}
+            </span>
+          </Link>
+        </div>
+      )}
       <div className="navbar__actions">
         <div ref={dropdownRef} className="notification-wrapper">
           <button

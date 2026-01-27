@@ -96,7 +96,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
               return await res.json();
             });
           } catch (err) {
-            console.error('Error enviando email de conversaciÃ³n:', err);
+            console.error('Error enviando email de conversación:', err);
           }
         }
 
@@ -116,7 +116,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
           tokens
         });
       } catch (err) {
-        console.error('Error enviando push de conversaciÃ³n:', err);
+        console.error('Error enviando push de conversación:', err);
       }
     }
   }

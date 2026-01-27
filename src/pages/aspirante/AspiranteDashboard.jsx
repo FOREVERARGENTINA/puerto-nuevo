@@ -1,12 +1,13 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function AspiranteDashboard() {
   return (
     <div className="container page-container">
-      <div className="dashboard-header">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Panel Aspirante</h1>
+          <p className="dashboard-subtitle">Seguimiento del proceso de admisión.</p>
         </div>
         <span className="badge badge--info">Aspirante</span>
       </div>

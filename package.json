@@ -10,7 +10,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "migrate:talleristaId": "node scripts/migrateTalleristaId.js",
-    "migrate:talleristaId:apply": "node scripts/migrateTalleristaId.js --apply"
+    "migrate:talleristaId:apply": "node scripts/migrateTalleristaId.js --apply",
+    "migrate:mojibake": "node scripts/fixMojibake.js",
+    "migrate:mojibake:apply": "node scripts/fixMojibake.js --apply",
+    "fix:utf8": "node scripts/fixSourceEncoding.js",
+    "fix:utf8:apply": "node scripts/fixSourceEncoding.js --apply"
   },
   "dependencies": {
     "firebase": "^12.6.0",

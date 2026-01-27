@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
+import { AuthAction } from './pages/AuthAction';
 import { ROLES } from './config/constants';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
@@ -77,6 +78,7 @@ function App() {
         <Routes>
           {/* Login */}
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/accion" element={<AuthAction />} />
 
           {/* Admin Routes */}
           <Route

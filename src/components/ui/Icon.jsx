@@ -80,6 +80,14 @@ export default function Icon({ name, size = 20, className = '', ariaHidden = tru
         </svg>
       );
 
+    case 'chat':
+      return (
+        <svg {...common}>
+          <path d="M21 15a4 4 0 0 1-4 4H9l-5 3V7a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M8 9h8M8 13h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
     case 'book':
       return (
         <svg {...common}>

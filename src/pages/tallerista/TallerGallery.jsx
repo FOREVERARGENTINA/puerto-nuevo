@@ -52,6 +52,18 @@ export function TallerGallery() {
     loadTalleres();
   }, [loadTalleres]);
 
+  const header = (
+    <div className="dashboard-header dashboard-header--compact">
+      <div>
+        <h1 className="dashboard-title">Galería de talleres</h1>
+        <p className="dashboard-subtitle">Subí y administrá fotos y videos del taller.</p>
+      </div>
+      <button onClick={() => navigate(-1)} className="btn btn--outline">
+        Volver
+      </button>
+    </div>
+  );
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !selectedTaller?.id) return;
@@ -143,7 +155,8 @@ export function TallerGallery() {
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+      {header}
         <div className="card">
           <div className="card__body">
             <p>Cargando...</p>
@@ -155,35 +168,23 @@ export function TallerGallery() {
 
   if (talleres.length === 0) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+      {header}
         <div className="card">
-          <div className="card__header">
-            <h1 className="card__title">Galería de Talleres</h1>
-          </div>
           <div className="card__body">
             <div className="alert alert--warning">
               <strong>No tienes talleres asignados</strong>
               <p>Contacta con la dirección para que te asignen uno o más talleres.</p>
-            </div>
-            <button onClick={() => navigate(-1)} className="btn btn--outline" style={{ marginTop: 'var(--spacing-md)' }}>
-              Volver
-            </button>
-          </div>
+            </div></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
+      {header}
       <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Galería de Talleres</h1>
-          <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
-            Volver
-          </button>
-        </div>
-
         <div className="card__body">
           {talleres.length > 1 && (
             <div style={{ marginBottom: 'var(--spacing-lg)' }}>
@@ -293,3 +294,10 @@ export function TallerGallery() {
     </div>
   );
 }
+
+
+
+
+
+
+

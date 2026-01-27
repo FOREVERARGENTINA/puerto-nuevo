@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentsService } from '../../services/appointments.service';
 import { childrenService } from '../../services/children.service';
-import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
@@ -19,10 +18,17 @@ const BookAppointment = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [earliestAllowed, setEarliestAllowed] = useState(null);
 
+  const getMonthRange = (date) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end };
+  };
+
   const alertDialog = useDialog();
 
   const loadAvailableAppointments = async () => {
-    const result = await appointmentsService.getAllAppointments();
+    const { start, end } = getMonthRange(currentMonth);
+    const result = await appointmentsService.getAppointmentsByDateRange(start, end);
     if (result.success) {
       const minLeadTimeMs = 12 * 60 * 60 * 1000;
       const earliestAllowedDate = new Date(Date.now() + minLeadTimeMs);
@@ -68,18 +74,36 @@ const BookAppointment = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (user) {
+      loadAvailableAppointments();
+    }
+  }, [currentMonth, user]);
+
   const handleSelectSlot = (appointment) => {
     setSelectedSlot(appointment);
     setShowBookingForm(true);
   };
 
   const handleBookingSubmit = async (data) => {
+    const selectedChild = userChildren.find(child => child.id === data.hijoId);
+
     const result = await appointmentsService.updateAppointment(data.appointmentId, {
       familiaUid: user.uid,
       familiasUids: [user.uid],
       hijoId: data.hijoId,
       nota: data.nota,
-      estado: 'reservado'
+      estado: 'reservado',
+      familiaEmail: user.email || '',
+      familiaDisplayName: user.displayName || '',
+      familiasInfo: [
+        {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || ''
+        }
+      ],
+      hijoNombre: selectedChild?.nombreCompleto || ''
     });
 
     if (result.success) {
@@ -106,7 +130,7 @@ const BookAppointment = () => {
   };
 
   const handleCancelAppointment = async (appointmentId) => {
-    const result = await appointmentsService.cancelAppointment(appointmentId);
+    const result = await appointmentsService.cancelAppointment(appointmentId, 'familia');
     if (result.success) {
       alertDialog.openDialog({
         title: 'Éxito',
@@ -191,14 +215,32 @@ const BookAppointment = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Cargando turnos disponibles..." />;
+    return (
+      <div className="container page-container">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Turnos y Reuniones</h1>
+            <p className="dashboard-subtitle">Reservá un turno con la escuela.</p>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+            <div className="spinner spinner--lg"></div>
+            <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando turnos disponibles...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (showBookingForm && selectedSlot) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <h1>Reservar Turno</h1>
+      <div className="container page-container">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Reservar Turno</h1>
+            <p className="dashboard-subtitle">Seleccioná la fecha y completá el formulario.</p>
+          </div>
         </div>
         <AppointmentForm
           appointment={selectedSlot}
@@ -246,9 +288,12 @@ const BookAppointment = () => {
   })();
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Turnos y Reuniones</h1>
+    <div className="container page-container">
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Turnos y Reuniones</h1>
+          <p className="dashboard-subtitle">Reservá turnos y consultá tu agenda.</p>
+        </div>
       </div>
 
       <div className="appointments-manager-layout">
@@ -437,4 +482,11 @@ const BookAppointment = () => {
 };
 
 export default BookAppointment;
+
+
+
+
+
+
+
 

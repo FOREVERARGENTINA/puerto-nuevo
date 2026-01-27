@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const documentsCollection = collection(db, 'documents');
 
@@ -23,7 +24,7 @@ export const documentsService = {
       const snapshot = await getDocs(q);
       const documents = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, documents };
     } catch (error) {
@@ -41,7 +42,7 @@ export const documentsService = {
       const snapshot = await getDocs(q);
       const documents = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, documents };
     } catch (error) {
@@ -59,7 +60,7 @@ export const documentsService = {
       const snapshot = await getDocs(q);
       const documents = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, documents };
     } catch (error) {
@@ -71,7 +72,7 @@ export const documentsService = {
     try {
       const docRef = await getDoc(doc(documentsCollection, docId));
       if (docRef.exists()) {
-        return { success: true, document: { id: docRef.id, ...docRef.data() } };
+        return { success: true, document: { id: docRef.id, ...fixMojibakeDeep(docRef.data()) } };
       }
       return { success: false, error: 'Documento no encontrado' };
     } catch (error) {

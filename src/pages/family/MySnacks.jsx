@@ -51,7 +51,7 @@ export function MySnacks() {
   const handleConfirm = async (assignmentId) => {
     const result = await snacksService.confirmFamilyAssignment(assignmentId, user.uid);
     if (result.success) {
-      setSuccess('¡Confirmación registrada! Gracias por avisar.');
+      setSuccess('Â¡ConfirmaciÃ³n registrada! Gracias por avisar.');
       await loadMyAssignments();
     } else {
       setError('Error al confirmar: ' + result.error);
@@ -85,12 +85,12 @@ export function MySnacks() {
     if (actionType === 'edit') {
       result = await snacksService.requestChange(selectedAssignment.id, motivo);
       if (result.success) {
-        setSuccess('Solicitud de cambio enviada. La escuela se pondrá en contacto contigo.');
+        setSuccess('Solicitud de cambio enviada. La escuela se pondrÃ¡ en contacto contigo.');
       }
     } else if (actionType === 'cancel') {
       result = await snacksService.cancelAssignment(selectedAssignment.id, motivo);
       if (result.success) {
-        setSuccess('Turno rechazado. La escuela reasignará esta semana a otra familia.');
+        setSuccess('Turno rechazado. La escuela reasignarÃ¡ esta semana a otra familia.');
       }
     }
 
@@ -117,7 +117,7 @@ export function MySnacks() {
     const inicio = new Date(fechaInicio + 'T00:00:00');
     const today = new Date();
     const diffDays = Math.ceil((inicio - today) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7; // Próxima semana
+    return diffDays >= 0 && diffDays <= 7; // PrÃ³xima semana
   };
 
   const isPast = (fechaFin) => {
@@ -128,14 +128,17 @@ export function MySnacks() {
 
   return (
     <div className="container page-container">
-      <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Mis Turnos de Snacks</h1>
-          <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
-            ← Volver
-          </Link>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Mis turnos de snacks</h1>
+          <p className="dashboard-subtitle">Confirmá o solicitá cambios en tus turnos.</p>
         </div>
+        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
+          ? Volver
+        </Link>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           {error && (
             <div className="alert alert--error mb-md">
@@ -155,7 +158,7 @@ export function MySnacks() {
             <div className="empty-state">
               <p>No tienes turnos asignados para llevar snacks.</p>
               <p className="empty-state__text">
-                Cuando la escuela te asigne un turno, aparecerá aquí.
+                Cuando la escuela te asigne un turno, aparecerÃ¡ aquÃ­.
               </p>
             </div>
           ) : (
@@ -164,7 +167,7 @@ export function MySnacks() {
               {snackList && (
                 <div className="card snack-list-card">
                   <div className="card__body">
-                    <h3 className="mb-md">📋 Lista de Snacks a Traer</h3>
+                    <h3 className="mb-md">ðŸ“‹ Lista de Snacks a Traer</h3>
                     <ul className="snack-list">
                       {snackList.items.map((item, index) => (
                         <li key={index}>{item}</li>
@@ -186,13 +189,13 @@ export function MySnacks() {
                     className={`tabs__tab ${activeTab === 'activos' ? 'tabs__tab--active' : ''}`}
                     onClick={() => setActiveTab('activos')}
                   >
-                    Próximos Turnos
+                    PrÃ³ximos Turnos
                   </button>
                   <button
                     className={`tabs__tab ${activeTab === 'historial' ? 'tabs__tab--active' : ''}`}
                     onClick={() => setActiveTab('historial')}
                   >
-                    📋 Historial
+                    ðŸ“‹ Historial
                   </button>
                 </div>
 
@@ -200,7 +203,7 @@ export function MySnacks() {
                   {activeTab === 'activos' && (
                     <div className="assignments-list">
                       {myAssignments.filter(a => !isPast(a.fechaFin)).length === 0 ? (
-                        <p className="empty-state__text">No tienes turnos próximos.</p>
+                        <p className="empty-state__text">No tienes turnos prÃ³ximos.</p>
                       ) : (
                         myAssignments.filter(a => !isPast(a.fechaFin)).map(assignment => {
                           const upcoming = isUpcoming(assignment.fechaInicio);
@@ -217,7 +220,7 @@ export function MySnacks() {
                         <div className="assignment-header">
                           <div>
                             <h4 className="assignment-title">
-                              {upcoming && '⚠️ '} {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
+                              {upcoming && 'âš ï¸ '} {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
                             </h4>
                           </div>
                           <span className={`badge ${
@@ -232,17 +235,17 @@ export function MySnacks() {
 
                         {upcoming && !assignment.confirmadoPorFamilia && assignment.estado === 'pendiente' && (
                           <div className="assignment-warning">
-                            <strong>¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
+                            <strong>Â¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
                           </div>
                         )}
 
                         <div className="assignment-actions">
                           {(() => {
-                            // Estados finales sin acción
+                            // Estados finales sin acciÃ³n
                             if (assignment.estado === 'cancelado') {
                               return (
                                 <div className="assignment-cancelled">
-                                  <span>✗ Turno rechazado</span>
+                                  <span>âœ— Turno rechazado</span>
                                   {assignment.motivoCancelacion && (
                                     <p className="assignment-cancelled__message">
                                       {assignment.motivoCancelacion}
@@ -256,7 +259,7 @@ export function MySnacks() {
                               return (
                                 <div className="assignment-change-request">
                                   <p>
-                                    <strong>⚠️ Solicitud de cambio enviada</strong>
+                                    <strong>âš ï¸ Solicitud de cambio enviada</strong>
                                   </p>
                                   {assignment.motivoCambio && (
                                     <p className="assignment-change-request__message">
@@ -264,7 +267,7 @@ export function MySnacks() {
                                     </p>
                                   )}
                                   <p className="assignment-change-request__note">
-                                    La escuela confirmará si puede asignarte la fecha que solicitaste.
+                                    La escuela confirmarÃ¡ si puede asignarte la fecha que solicitaste.
                                   </p>
                                 </div>
                               );
@@ -273,7 +276,7 @@ export function MySnacks() {
                             if (past) {
                               return (
                                 <p className="assignment-past-note">
-                                  Esta semana ya pasó
+                                  Esta semana ya pasÃ³
                                 </p>
                               );
                             }
@@ -289,10 +292,10 @@ export function MySnacks() {
                               <>
                                 {alreadyConfirmed && (
                                   <div className="assignment-confirmed mb-sm">
-                                    <span>✓</span>
+                                    <span>âœ“</span>
                                     <span>
                                       {iConfirmed 
-                                        ? 'Ya confirmaste que traerás los snacks'
+                                        ? 'Ya confirmaste que traerÃ¡s los snacks'
                                         : `Ya confirmado por: ${assignment.confirmadoPor}`
                                       }
                                     </span>
@@ -305,7 +308,7 @@ export function MySnacks() {
                                       onClick={() => handleConfirm(assignment.id)}
                                       className="btn btn--primary"
                                     >
-                                      ✓ Confirmar
+                                      âœ“ Confirmar
                                     </button>
                                   )}
                                   <button
@@ -318,7 +321,7 @@ export function MySnacks() {
                                     onClick={() => handleOpenEditModal(assignment, 'cancel')}
                                     className="btn btn--outline btn--danger-outline"
                                   >
-                                    ✗ Rechazar turno
+                                    âœ— Rechazar turno
                                   </button>
                                 </div>
                               </>
@@ -376,7 +379,7 @@ export function MySnacks() {
         </div>
       </div>
 
-      {/* Modal de Edición/Rechazo */}
+      {/* Modal de EdiciÃ³n/Rechazo */}
       <Modal isOpen={showEditModal} onClose={handleCloseEditModal} size="md">
         <ModalHeader
           title={actionType === 'edit' ? 'Solicitar cambio de fecha' : 'Rechazar turno'}
@@ -404,7 +407,7 @@ export function MySnacks() {
                     placeholder="Ejemplo: Estaremos de viaje esa semana. Prefiero la semana del lunes 20 de enero."
                   />
                   <p className="form-help mt-sm">
-                    La escuela revisará tu solicitud y confirmará si puede asignarte la fecha alternativa.
+                    La escuela revisarÃ¡ tu solicitud y confirmarÃ¡ si puede asignarte la fecha alternativa.
                   </p>
                 </div>
               ) : (
@@ -420,7 +423,7 @@ export function MySnacks() {
                     placeholder="Ejemplo: Tenemos un viaje familiar programado esa semana."
                   />
                   <p className="form-help mt-sm">
-                    La escuela reasignará esta semana a otra familia.
+                    La escuela reasignarÃ¡ esta semana a otra familia.
                   </p>
                 </div>
               )}
@@ -447,6 +450,9 @@ export function MySnacks() {
     </div>
   );
 }
+
+
+
 
 
 

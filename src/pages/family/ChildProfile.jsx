@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
-import { LoadingScreen } from '../../components/common/LoadingScreen';
 import ChildCard from '../../components/children/ChildCard';
 
 const ChildProfile = () => {
@@ -53,13 +52,31 @@ const ChildProfile = () => {
   }, [user]);
 
   if (loading) {
-    return <LoadingScreen message="Cargando información de alumnos..." />;
+    return (
+      <div className="container page-container">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Fichas de Alumnos</h1>
+            <p className="dashboard-subtitle">Información completa de cada alumno.</p>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+            <div className="spinner spinner--lg"></div>
+            <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando información...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Fichas de Alumnos</h1>
+    <div className="container page-container">
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Fichas de Alumnos</h1>
+          <p className="dashboard-subtitle">Información y datos médicos de tus hijos.</p>
+        </div>
       </div>
 
       {children.length === 0 ? (
@@ -84,3 +101,6 @@ const ChildProfile = () => {
 };
 
 export default ChildProfile;
+
+
+

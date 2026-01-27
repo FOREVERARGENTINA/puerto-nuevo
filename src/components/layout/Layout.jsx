@@ -20,6 +20,30 @@ export function Layout({ children }) {
         <div className="layout-main">
           <Breadcrumbs />
           <main className="main-content">{children}</main>
+          <footer style={{ 
+            textAlign: 'center', 
+            padding: 'var(--spacing-sm)', 
+            fontSize: 'var(--font-size-xs)', 
+            color: 'var(--color-text-light)',
+            opacity: 0.6,
+            marginTop: 'var(--spacing-xl)'
+          }}>
+            Diseñado por <a 
+              href="https://frandoweb.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ 
+                color: 'var(--color-primary)', 
+                textDecoration: 'none',
+                fontWeight: 500,
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              FrandoWeb.com
+            </a>
+          </footer>
         </div>
       </div>
     </>

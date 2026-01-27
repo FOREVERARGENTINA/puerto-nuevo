@@ -9,12 +9,14 @@
   orderBy,
   limit,
   getDocs,
+  getCountFromServer,
   serverTimestamp,
   increment
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { CONVERSATION_STATUS } from '../config/constants';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const conversationsCollection = collection(db, 'conversations');
 
@@ -109,7 +111,7 @@ export const conversationsService = {
 
       return { success: true, id: convRef.id };
     } catch (error) {
-      console.error('Error creando conversaciÃ³n:', error);
+      console.error('Error creando conversación:', error);
       return { success: false, error: error.message };
     }
   },
@@ -119,12 +121,12 @@ export const conversationsService = {
       const convRef = doc(conversationsCollection, conversationId);
       const convSnap = await getDoc(convRef);
       if (!convSnap.exists()) {
-        return { success: false, error: 'ConversaciÃ³n no encontrada' };
+        return { success: false, error: 'Conversación no encontrada' };
       }
 
       const convData = convSnap.data();
       if (convData.estado === CONVERSATION_STATUS.CERRADA) {
-        return { success: false, error: 'La conversaciÃ³n estÃ¡ cerrada' };
+        return { success: false, error: 'La conversación está cerrada' };
       }
 
       const isFamily = autorRol === 'family';
@@ -172,9 +174,9 @@ export const conversationsService = {
     try {
       const convSnap = await getDoc(doc(conversationsCollection, conversationId));
       if (!convSnap.exists()) {
-        return { success: false, error: 'ConversaciÃ³n no encontrada' };
+        return { success: false, error: 'Conversación no encontrada' };
       }
-      return { success: true, conversation: { id: convSnap.id, ...convSnap.data() } };
+      return { success: true, conversation: { id: convSnap.id, ...fixMojibakeDeep(convSnap.data()) } };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -191,7 +193,7 @@ export const conversationsService = {
       const snap = await getDocs(q);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -209,7 +211,7 @@ export const conversationsService = {
       const snap = await getDocs(q);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -226,10 +228,32 @@ export const conversationsService = {
       const snap = await getDocs(q);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
       };
     } catch (error) {
       return { success: false, error: error.message };
+    }
+  },
+
+  async getUnreadCountForSchool() {
+    try {
+      const q = query(
+        conversationsCollection,
+        where('mensajesSinLeerEscuela', '>', 0)
+      );
+      const snapshot = await getCountFromServer(q);
+      return { success: true, count: snapshot.data().count || 0 };
+    } catch (error) {
+      try {
+        const q = query(
+          conversationsCollection,
+          where('mensajesSinLeerEscuela', '>', 0)
+        );
+        const snap = await getDocs(q);
+        return { success: true, count: snap.size };
+      } catch (fallbackError) {
+        return { success: false, error: fallbackError.message };
+      }
     }
   },
 

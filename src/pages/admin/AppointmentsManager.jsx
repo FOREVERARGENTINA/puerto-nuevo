@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { appointmentsService } from '../../services/appointments.service';
 import { usersService } from '../../services/users.service';
 import { childrenService } from '../../services/children.service';
-import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
@@ -10,14 +9,17 @@ import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { ROLES } from '../../config/constants';
 
 const AppointmentsManager = () => {
+  const initialToday = new Date();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [visibleAppointmentsCount, setVisibleAppointmentsCount] = useState(30);
   const [showCreateSlots, setShowCreateSlots] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [showPastAppointments, setShowPastAppointments] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
   const [assignLoading, setAssignLoading] = useState(false);
@@ -41,70 +43,26 @@ const AppointmentsManager = () => {
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
 
-  const enrichWithUserEmails = async (appointments) => {
-    const userCache = new Map();
-    const childCache = new Map();
-    const enriched = [];
+  const getMonthRange = (date) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end };
+  };
 
-    for (const app of appointments) {
-      const familyIds = Array.isArray(app.familiasUids) && app.familiasUids.length > 0
-        ? app.familiasUids
-        : app.familiaUid
-          ? [app.familiaUid]
-          : [];
-
-      const familiasInfo = [];
-      for (const uid of familyIds) {
-        if (!userCache.has(uid)) {
-          userCache.set(uid, await usersService.getUserById(uid));
-        }
-        const userResult = userCache.get(uid);
-        if (userResult?.success) {
-          familiasInfo.push({
-            uid,
-            email: userResult.user.email || '',
-            displayName: userResult.user.displayName || ''
-          });
-        }
-      }
-
-      let familiaEmail = app.familiaEmail || '';
-      let familiaDisplayName = app.familiaDisplayName || '';
-      if (familiasInfo.length > 0) {
-        familiaEmail = familiasInfo[0].email || familiaEmail;
-        familiaDisplayName = familiasInfo[0].displayName || familiaDisplayName;
-      }
-
-      let hijoNombre = app.hijoNombre || '';
-
-      if (app.hijoId) {
-        if (!childCache.has(app.hijoId)) {
-          childCache.set(app.hijoId, await childrenService.getChildById(app.hijoId));
-        }
-        const childResult = childCache.get(app.hijoId);
-        if (childResult?.success) {
-          hijoNombre = childResult.child.nombreCompleto || hijoNombre;
-        }
-      }
-
-      enriched.push({
-        ...app,
-        familiaEmail,
-        familiaDisplayName,
-        familiasInfo,
-        hijoNombre
-      });
-    }
-
-    return enriched;
+  const isMonthBeforeToday = (date) => {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    return date.getFullYear() < todayYear ||
+      (date.getFullYear() === todayYear && date.getMonth() < todayMonth);
   };
 
   const loadAppointments = async () => {
     setLoading(true);
-    const result = await appointmentsService.getAllAppointments();
+    const { start, end } = getMonthRange(currentMonth);
+    const result = await appointmentsService.getAppointmentsByDateRange(start, end);
     if (result.success) {
-      const appointmentsWithEmails = await enrichWithUserEmails(result.appointments);
-      setAppointments(appointmentsWithEmails);
+      setAppointments(result.appointments);
     }
     setLoading(false);
   };
@@ -112,7 +70,7 @@ const AppointmentsManager = () => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     loadAppointments();
-  }, []);
+  }, [currentMonth]);
 
   useEffect(() => {
     if (!showAssignModal) return;
@@ -148,6 +106,10 @@ const AppointmentsManager = () => {
     setSelectedFamilyIds([]);
     setFamilySearchTerm('');
   }, [selectedChildId, showAssignModal]);
+
+  useEffect(() => {
+    setVisibleAppointmentsCount(30);
+  }, [currentMonth, searchTerm, selectedDay, showPastAppointments]);
 
   const handleSlotFormChange = (e) => {
     const { name, value } = e.target;
@@ -250,7 +212,7 @@ const AppointmentsManager = () => {
   };
 
   const handleCancelAppointment = async (appointmentId) => {
-    const result = await appointmentsService.cancelAppointment(appointmentId);
+    const result = await appointmentsService.cancelAppointment(appointmentId, 'escuela');
     if (result.success) {
       loadAppointments();
     } else {
@@ -317,6 +279,14 @@ const AppointmentsManager = () => {
   };
 
   const handleOpenAssignModal = () => {
+    if (selectedAppointment && isPastAppointment(selectedAppointment)) {
+      alertDialog.openDialog({
+        title: 'No disponible',
+        message: 'No se puede asignar un turno pasado.',
+        type: 'error'
+      });
+      return;
+    }
     setAssignError('');
     setShowAssignModal(true);
   };
@@ -356,11 +326,28 @@ const AppointmentsManager = () => {
 
     setAssignLoading(true);
     setAssignError('');
+    const familiesInfo = selectedFamilyIds
+      .map(uid => {
+        const user = familyUsers.find(item => item.id === uid);
+        return {
+          uid,
+          email: user?.email || '',
+          displayName: user?.displayName || ''
+        };
+      })
+      .filter(info => info.email || info.displayName);
+    const primaryFamily = familiesInfo[0] || {};
+    const childInfo = children.find(child => child.id === selectedChildId);
+
     const result = await appointmentsService.updateAppointment(selectedAppointment.id, {
       estado: 'reservado',
       familiaUid: selectedFamilyIds[0],
       familiasUids: selectedFamilyIds,
       hijoId: selectedChildId,
+      familiaEmail: primaryFamily.email || '',
+      familiaDisplayName: primaryFamily.displayName || '',
+      familiasInfo: familiesInfo,
+      hijoNombre: childInfo?.nombreCompleto || '',
       assignedAt: serverTimestamp()
     });
 
@@ -386,7 +373,8 @@ const AppointmentsManager = () => {
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-    setSelectedDay(today.getDate());
+    setSelectedDay(null);
+    setShowPastAppointments(false);
   };
 
   const formatTime = (timestamp) => {
@@ -402,6 +390,33 @@ const AppointmentsManager = () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const getStatusLabel = (status) => {
+    const map = {
+      disponible: 'Disponible',
+      bloqueado: 'Bloqueado',
+      reservado: 'Reservado',
+      asistio: 'Asistió',
+      cancelado: 'Cancelado'
+    };
+    return map[status] || status || 'Sin estado';
+  };
+
+  const getCancelledByLabel = (value) => {
+    const map = {
+      familia: 'familia',
+      escuela: 'escuela',
+      admin: 'escuela'
+    };
+    return map[value] || '';
+  };
+
+  const isPastAppointment = (appointment) => {
+    const appDate = appointment?.fechaHora?.toDate
+      ? appointment.fechaHora.toDate()
+      : new Date(appointment?.fechaHora);
+    return appDate.getTime() < new Date().getTime();
   };
 
   // Month view helpers
@@ -420,6 +435,9 @@ const AppointmentsManager = () => {
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + offset);
     setCurrentMonth(newMonth);
+    if (isMonthBeforeToday(newMonth)) {
+      setShowPastAppointments(true);
+    }
   };
 
   const getTodayMinDate = () => {
@@ -428,10 +446,50 @@ const AppointmentsManager = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Cargando gestión de turnos..." />;
+    return (
+      <div className="container page-container appointments-manager-page">
+        <div className="dashboard-header dashboard-header--compact appointments-header">
+          <div>
+            <h1 className="dashboard-title">Turnos</h1>
+            <p className="dashboard-subtitle">Calendario y administración</p>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+            <button
+              onClick={() => setShowCreateSlots(!showCreateSlots)}
+              className="btn btn--primary"
+              disabled
+            >
+              + Crear Turnos
+            </button>
+          </div>
+        </div>
+
+        <div className="dashboard-content">
+          <div className="appointments-manager-layout">
+            <div className="appointments-list-panel">
+              <div className="card">
+                <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+                  <div className="spinner spinner--lg"></div>
+                  <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando turnos...</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card events-calendar-panel appointments-calendar-panel">
+              <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+                <div className="spinner spinner--lg"></div>
+                <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando calendario...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const todayDateString = new Date().toISOString().split('T')[0];
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
   const currentMonthYear = currentMonth.getFullYear();
   const currentMonthIndex = currentMonth.getMonth();
 
@@ -445,7 +503,11 @@ const AppointmentsManager = () => {
         const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
         return appDate.getDate() === selectedDay;
       })
-    : appointmentsForMonth;
+    : appointmentsForMonth.filter(app => {
+        if (showPastAppointments) return true;
+        const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+        return appDate.getTime() >= startOfToday.getTime();
+      });
 
   const searchedAppointments = searchTerm.trim()
     ? filteredAppointments.filter(app => {
@@ -458,13 +520,20 @@ const AppointmentsManager = () => {
       })
     : filteredAppointments;
 
-  const grouped = (() => {
-    const map = new Map();
+  const sortedAppointments = (() => {
     const sorted = [...searchedAppointments].sort((a, b) => {
       const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
       const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
       return dateA - dateB;
     });
+    return sorted;
+  })();
+
+  const visibleAppointments = sortedAppointments.slice(0, visibleAppointmentsCount);
+
+  const grouped = (() => {
+    const map = new Map();
+    const sorted = visibleAppointments;
     sorted.forEach(app => {
       const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
       const key = appDate.toISOString().split('T')[0];
@@ -673,6 +742,15 @@ const AppointmentsManager = () => {
                         Ver todo el mes
                       </button>
                     )}
+                    {!selectedDay && (
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--outline"
+                        onClick={() => setShowPastAppointments(prev => !prev)}
+                      >
+                        {showPastAppointments ? 'Ocultar turnos pasados' : 'Mostrar turnos pasados'}
+                      </button>
+                    )}
                     {searchTerm.trim() && (
                       <button
                         type="button"
@@ -684,6 +762,13 @@ const AppointmentsManager = () => {
                     )}
                   </div>
                 </div>
+                <p className="form-help" style={{ marginBottom: 'var(--spacing-md)' }}>
+                  {selectedDay
+                    ? `Mostrando: ${formatFullDate(new Date(currentMonthYear, currentMonthIndex, selectedDay))}`
+                    : showPastAppointments
+                      ? 'Mostrando: todo el mes (incluye pasados)'
+                      : 'Mostrando: desde hoy'}
+                </p>
                 {grouped.length === 0 ? (
                   <div className="empty-state">
                     <p className="empty-state__text">No hay turnos para esta fecha</p>
@@ -725,7 +810,7 @@ const AppointmentsManager = () => {
                                     app.estado === 'asistio' ? 'info' :
                                     'danger'
                                   }`}>
-                                    {app.estado}
+                                    {getStatusLabel(app.estado)}
                                   </span>
                                   {(familyLabels.length > 0 || showSecondaryEmail || childLabel) && (
                                     <div className="appointment-identity">
@@ -747,6 +832,11 @@ const AppointmentsManager = () => {
                                       )}
                                     </div>
                                   )}
+                                  {app.estado === 'cancelado' && (
+                                    <span className="appointment-note-preview">
+                                      {`Turno cancelado${getCancelledByLabel(app.canceladoPor) ? ` por ${getCancelledByLabel(app.canceladoPor)}` : ''}`}
+                                    </span>
+                                  )}
                                   {app.nota && (
                                     <span className="appointment-note-preview">{app.nota}</span>
                                   )}
@@ -760,6 +850,17 @@ const AppointmentsManager = () => {
                   </div>
                 )}
               </div>
+              {sortedAppointments.length > visibleAppointmentsCount && (
+                <div style={{ marginTop: 'var(--spacing-md)', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={() => setVisibleAppointmentsCount(prev => prev + 30)}
+                  >
+                    Cargar mas
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -847,6 +948,11 @@ const AppointmentsManager = () => {
               <button onClick={closeActionsModal} className="modal-close">✕</button>
             </div>
             <div className="modal-body">
+              {isPastAppointment(selectedAppointment) && (
+                <div className="alert alert--error mb-md">
+                  Este turno ya pasó. No se puede asignar.
+                </div>
+              )}
               <div className="appointment-details-summary">
                 <p><strong>Fecha y Hora:</strong> {formatFullDate(selectedAppointment.fechaHora?.toDate ? selectedAppointment.fechaHora.toDate() : new Date(selectedAppointment.fechaHora))} - {formatTime(selectedAppointment.fechaHora)}</p>
                 <p><strong>Estado:</strong> <span className={`badge badge--${
@@ -855,7 +961,7 @@ const AppointmentsManager = () => {
                   selectedAppointment.estado === 'reservado' ? 'warning' :
                   selectedAppointment.estado === 'asistio' ? 'info' :
                   'danger'
-                }`}>{selectedAppointment.estado}</span></p>
+                }`}>{getStatusLabel(selectedAppointment.estado)}</span></p>
                 {selectedFamiliesInfo.length > 0 ? (
                   <>
                     <p><strong>Familias:</strong> {selectedFamiliesInfo.map(fam => fam.displayName || fam.email).filter(Boolean).join(', ')}</p>
@@ -879,6 +985,12 @@ const AppointmentsManager = () => {
                 {selectedAppointment.nota && (
                   <p><strong>Nota:</strong> {selectedAppointment.nota}</p>
                 )}
+                {selectedAppointment.estado === 'cancelado' && (
+                  <p>
+                    <strong>Cancelado por:</strong>{' '}
+                    {getCancelledByLabel(selectedAppointment.canceladoPor) || 'No especificado'}
+                  </p>
+                )}
               </div>
 
               <div className="modal-actions-grid">
@@ -893,6 +1005,7 @@ const AppointmentsManager = () => {
                     <button
                       onClick={handleOpenAssignModal}
                       className="btn btn--primary btn--full"
+                      disabled={isPastAppointment(selectedAppointment)}
                     >
                       ➕ Asignar a familia/s
                     </button>
@@ -1079,3 +1192,18 @@ const AppointmentsManager = () => {
 };
 
 export default AppointmentsManager;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

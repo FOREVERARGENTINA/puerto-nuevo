@@ -138,17 +138,19 @@ export function AdminConversationDetail() {
 
   return (
     <div className="container page-container">
-      <div className="conversation-header">
-        <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--link">← Volver</Link>
-        <div className="conversation-header__main">
-          <h1>{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
-          <div className="conversation-header__meta">
-            <span className={getConversationStatusBadge(conversation.estado)}>
-              {getConversationStatusLabel(conversation.estado, role)}
-            </span>
-            <span className="text-muted">{headerMeta}</span>
+      <div className="dashboard-header dashboard-header--compact">
+        <div className="conversation-header">
+          <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--link">← Volver</Link>
+          <div className="conversation-header__main">
+            <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
+            <div className="conversation-header__meta">
+              <span className={getConversationStatusBadge(conversation.estado)}>
+                {getConversationStatusLabel(conversation.estado, role)}
+              </span>
+              <span className="text-muted">{headerMeta}</span>
+            </div>
+            <div className="text-muted">Asunto: {conversation.asunto || 'Sin asunto'}</div>
           </div>
-          <div className="text-muted">Asunto: {conversation.asunto || 'Sin asunto'}</div>
         </div>
       </div>
 

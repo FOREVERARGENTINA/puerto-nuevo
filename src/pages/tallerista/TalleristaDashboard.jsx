@@ -1,12 +1,13 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function TalleristaDashboard() {
   return (
     <div className="container page-container">
-      <div className="dashboard-header">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Panel Tallerista</h1>
+          <p className="dashboard-subtitle">Gestión y recursos del taller especial.</p>
         </div>
         <span className="badge badge--warning">Tallerista</span>
       </div>

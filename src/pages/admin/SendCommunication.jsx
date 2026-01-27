@@ -840,7 +840,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
         </form>
 
         {/* Status Modal */}
-        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="sm">
+        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="sm" closeOnOverlay={false}>
           <ModalBody>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexDirection: 'column', textAlign: 'center', padding: 'var(--spacing-md) 0' }}>
               {modalStatus === 'sending' && (
@@ -869,11 +869,14 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
 
   return (
     <div className="container page-container">
-      <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Enviar Comunicado</h1>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Enviar comunicado</h1>
+          <p className="dashboard-subtitle">Redactá y enviá comunicados a las familias.</p>
         </div>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           {error && (
             <div className="alert alert--error mb-md">
@@ -1373,7 +1376,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
       </div>
 
       {/* Status Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="sm">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="sm" closeOnOverlay={false}>
         <ModalBody>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexDirection: 'column', textAlign: 'center', padding: 'var(--spacing-md) 0' }}>
             {modalStatus === 'sending' && (

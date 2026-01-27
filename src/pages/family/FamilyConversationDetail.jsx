@@ -117,15 +117,17 @@ export function FamilyConversationDetail() {
 
   return (
     <div className="container page-container">
-      <div className="conversation-header">
-        <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--link">← Volver</Link>
-        <div className="conversation-header__main">
-          <h1>{conversation.asunto || 'Sin asunto'}</h1>
-          <div className="conversation-header__meta">
-            <span className={getConversationStatusBadge(conversation.estado)}>
-              {getConversationStatusLabel(conversation.estado, role)}
-            </span>
-            <span className="text-muted">{headerMeta}</span>
+      <div className="dashboard-header dashboard-header--compact">
+        <div className="conversation-header">
+          <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--link">← Volver</Link>
+          <div className="conversation-header__main">
+            <h1 className="dashboard-title">{conversation.asunto || 'Sin asunto'}</h1>
+            <div className="conversation-header__meta">
+              <span className={getConversationStatusBadge(conversation.estado)}>
+                {getConversationStatusLabel(conversation.estado, role)}
+              </span>
+              <span className="text-muted">{headerMeta}</span>
+            </div>
           </div>
         </div>
       </div>

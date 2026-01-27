@@ -10,12 +10,14 @@ const { onConversationMessageCreated } = require('./src/triggers/onConversationM
 const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
+const onCallWithCors = (handler) => onCall({ cors: true }, handler);
+
 /**
  * Cloud Function: setUserRole
  * Asigna un custom claim (rol) a un usuario
  * Solo puede ser llamada por usuarios con rol admin, direccion o coordinacion
  */
-exports.setUserRole = onCall(async (request) => {
+exports.setUserRole = onCallWithCors(async (request) => {
   // Verificar que el usuario que llama está autenticado
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado para asignar roles');
@@ -72,7 +74,7 @@ exports.setUserRole = onCall(async (request) => {
  * Crea un usuario nuevo con email/password y le asigna un rol
  * Solo para admin/direccion
  */
-exports.createUserWithRole = onCall(async (request) => {
+exports.createUserWithRole = onCallWithCors(async (request) => {
   // Verificar autenticación y permisos
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado');
@@ -138,7 +140,7 @@ exports.createUserWithRole = onCall(async (request) => {
  * Actualiza email y displayName en Firebase Authentication y Firestore
  * Permitido solo para superadmin y coordinacion
  */
-exports.updateUserAuth = onCall(async (request) => {
+exports.updateUserAuth = onCallWithCors(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado');
   }
@@ -179,6 +181,83 @@ exports.updateUserAuth = onCall(async (request) => {
   } catch (error) {
     console.error('Error actualizando usuario en Auth:', error);
     throw new HttpsError('internal', `Error actualizando usuario: ${error.message}`);
+  }
+});
+
+/**
+ * Cloud Function: checkUserEmail
+ * Verifica si un email existe en la colección users (Firestore)
+ * Uso público para recuperar contraseña
+ */
+exports.checkUserEmail = onCallWithCors(async (request) => {
+  const { email } = request.data || {};
+  if (!email) {
+    throw new HttpsError('invalid-argument', 'email es requerido');
+  }
+
+  const rawEmail = String(email).trim();
+  if (!rawEmail) {
+    throw new HttpsError('invalid-argument', 'email es requerido');
+  }
+  const normalizedEmail = rawEmail.toLowerCase();
+  let snapshot = await admin.firestore()
+    .collection('users')
+    .where('email', '==', rawEmail)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty && normalizedEmail !== rawEmail) {
+    snapshot = await admin.firestore()
+      .collection('users')
+      .where('email', '==', normalizedEmail)
+      .limit(1)
+      .get();
+  }
+
+  return { exists: !snapshot.empty };
+});
+
+/**
+ * Cloud Function: deleteUser
+ * Elimina un usuario en Auth y su perfil en Firestore
+ * Permitido solo para superadmin y coordinacion
+ */
+exports.deleteUser = onCallWithCors(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+
+  const callerRole = request.auth.token.role;
+  if (!['superadmin', 'coordinacion'].includes(callerRole)) {
+    throw new HttpsError('permission-denied', 'Solo administradores pueden eliminar usuarios');
+  }
+
+  const { uid } = request.data || {};
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'uid es requerido');
+  }
+
+  if (uid === request.auth.uid) {
+    throw new HttpsError('failed-precondition', 'No puedes eliminar tu propio usuario');
+  }
+
+  try {
+    const targetUser = await admin.auth().getUser(uid);
+    const targetRole = targetUser.customClaims?.role || null;
+
+    if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
+      throw new HttpsError('permission-denied', 'Coordinación no puede eliminar a un superadmin');
+    }
+
+    await admin.auth().deleteUser(uid);
+    await admin.firestore().collection('users').doc(uid).delete();
+
+    console.log(`Usuario ${uid} eliminado por ${request.auth.uid}`);
+
+    return { success: true, message: 'Usuario eliminado correctamente', uid };
+  } catch (error) {
+    console.error('Error eliminando usuario:', error);
+    throw new HttpsError('internal', `Error eliminando usuario: ${error.message}`);
   }
 });
 

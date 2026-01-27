@@ -13,6 +13,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const appointmentsCollection = collection(db, 'appointments');
 
@@ -34,7 +35,7 @@ export const appointmentsService = {
     try {
       const appDoc = await getDoc(doc(appointmentsCollection, appointmentId));
       if (appDoc.exists()) {
-        return { success: true, appointment: { id: appDoc.id, ...appDoc.data() } };
+        return { success: true, appointment: { id: appDoc.id, ...fixMojibakeDeep(appDoc.data()) } };
       }
       return { success: false, error: 'Turno no encontrado' };
     } catch (error) {
@@ -48,7 +49,7 @@ export const appointmentsService = {
       const snapshot = await getDocs(q);
       const appointments = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, appointments };
     } catch (error) {
@@ -76,10 +77,10 @@ export const appointmentsService = {
 
       const map = new Map();
       legacySnap.docs.forEach(doc => {
-        map.set(doc.id, { id: doc.id, ...doc.data() });
+        map.set(doc.id, { id: doc.id, ...fixMojibakeDeep(doc.data()) });
       });
       arraySnap.docs.forEach(doc => {
-        map.set(doc.id, { id: doc.id, ...doc.data() });
+        map.set(doc.id, { id: doc.id, ...fixMojibakeDeep(doc.data()) });
       });
 
       const appointments = Array.from(map.values()).sort((a, b) => {
@@ -105,7 +106,7 @@ export const appointmentsService = {
       const snapshot = await getDocs(q);
       const appointments = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, appointments };
     } catch (error) {
@@ -129,7 +130,7 @@ export const appointmentsService = {
       const snapshot = await getDocs(q);
       const slots = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, slots };
     } catch (error) {
@@ -149,12 +150,17 @@ export const appointmentsService = {
     }
   },
 
-  async cancelAppointment(appointmentId) {
+  async cancelAppointment(appointmentId, canceladoPor = '') {
     try {
-      await updateDoc(doc(appointmentsCollection, appointmentId), {
+      const payload = {
         estado: 'cancelado',
         updatedAt: serverTimestamp()
-      });
+      };
+      if (canceladoPor) {
+        payload.canceladoPor = canceladoPor;
+        payload.canceladoAt = serverTimestamp();
+      }
+      await updateDoc(doc(appointmentsCollection, appointmentId), payload);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

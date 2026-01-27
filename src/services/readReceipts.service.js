@@ -7,6 +7,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 export const readReceiptsService = {
   async markAsRead(commId, userId, userDisplayName) {
@@ -38,7 +39,7 @@ export const readReceiptsService = {
       const snapshot = await getDocs(lecturasRef);
       const lecturas = snapshot.docs.map(doc => ({
         userId: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, lecturas };
     } catch (error) {

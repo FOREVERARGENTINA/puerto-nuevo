@@ -127,8 +127,13 @@ export function Communications() {
         />
       )}
 
-      <div style={{ padding: 'var(--spacing-lg)', maxWidth: '1000px', margin: '0 auto' }}>
-        <h1>Comunicados</h1>
+      <div className="container page-container">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Comunicados</h1>
+            <p className="dashboard-subtitle">Mensajes y avisos de la escuela.</p>
+          </div>
+        </div>
 
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>

@@ -12,6 +12,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const childrenCollection = collection(db, 'children');
 
@@ -37,7 +38,7 @@ export const childrenService = {
     try {
       const childDoc = await getDoc(doc(childrenCollection, childId));
       if (childDoc.exists()) {
-        return { success: true, child: { id: childDoc.id, ...childDoc.data() } };
+        return { success: true, child: { id: childDoc.id, ...fixMojibakeDeep(childDoc.data()) } };
       }
       return { success: false, error: 'Alumno no encontrado' };
     } catch (error) {
@@ -51,7 +52,7 @@ export const childrenService = {
       const snapshot = await getDocs(q);
       const children = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, children };
     } catch (error) {
@@ -69,7 +70,7 @@ export const childrenService = {
       const snapshot = await getDocs(q);
       const children = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, children };
     } catch (error) {
@@ -87,7 +88,7 @@ export const childrenService = {
       const snapshot = await getDocs(q);
       console.log('🔍 DEBUG: Documentos encontrados:', snapshot.size);
       const children = snapshot.docs.map(doc => {
-        const data = doc.data();
+        const data = fixMojibakeDeep(doc.data());
         console.log(`🔍 DEBUG: Alumno ${doc.id}:`, data.nombreCompleto, 'Responsables:', data.responsables);
         return {
           id: doc.id,

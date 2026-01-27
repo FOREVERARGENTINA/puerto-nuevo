@@ -12,6 +12,7 @@ import {
   orderBy,
   serverTimestamp
 } from 'firebase/firestore';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 /**
  * Servicio para gestión de calendario de snacks
@@ -104,12 +105,38 @@ export const snacksService = {
       const snapshot = await getDocs(q);
       const assignments = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
 
       return { success: true, assignments };
     } catch (error) {
       console.error('Error getting snack assignments:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener asignaciones de un ambiente por rango de fechas
+   */
+  async getAssignmentsByAmbienteRange(ambiente, startDate, endDate) {
+    try {
+      const q = query(
+        collection(db, 'snackAssignments'),
+        where('ambiente', '==', ambiente),
+        where('fechaInicio', '>=', startDate),
+        where('fechaInicio', '<=', endDate),
+        orderBy('fechaInicio', 'asc')
+      );
+
+      const snapshot = await getDocs(q);
+      const assignments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...fixMojibakeDeep(doc.data())
+      }));
+
+      return { success: true, assignments };
+    } catch (error) {
+      console.error('Error getting snack assignments by range:', error);
       return { success: false, error: error.message };
     }
   },
@@ -129,7 +156,7 @@ export const snacksService = {
       const snapshot = await getDocs(q);
       const assignments = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
 
       return { success: true, assignments };
@@ -305,7 +332,7 @@ export const snacksService = {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { success: true, snackList: docSnap.data() };
+        return { success: true, snackList: fixMojibakeDeep(docSnap.data()) };
       } else {
         // Si no existe, devolver lista por defecto
         return {

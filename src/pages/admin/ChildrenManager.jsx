@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
-import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
@@ -21,6 +20,7 @@ const ChildrenManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [familyUsers, setFamilyUsers] = useState({});
   const [visibleCount, setVisibleCount] = useState(CHILDREN_PAGE_SIZE);
+  const [selectedChildId, setSelectedChildId] = useState(null);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -135,30 +135,92 @@ const ChildrenManager = () => {
     setEditingChild(null);
   };
 
-  const filteredChildren = children.filter(child => {
-    const matchesAmbiente = filterAmbiente === 'all' || child.ambiente === filterAmbiente;
-    const matchesSearch = child.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesAmbiente && matchesSearch;
-  });
+  const filteredChildren = useMemo(() => (
+    children.filter(child => {
+      const matchesAmbiente = filterAmbiente === 'all' || child.ambiente === filterAmbiente;
+      const matchesSearch = child.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesAmbiente && matchesSearch;
+    })
+  ), [children, filterAmbiente, searchTerm]);
 
-  const visibleChildren = filteredChildren.slice(0, visibleCount);
+  const visibleChildren = useMemo(() => (
+    filteredChildren.slice(0, visibleCount)
+  ), [filteredChildren, visibleCount]);
+
   const hasMoreChildren = filteredChildren.length > visibleChildren.length;
+
+  useEffect(() => {
+    if (!visibleChildren.length) {
+      if (selectedChildId !== null) setSelectedChildId(null);
+      return;
+    }
+    const stillVisible = filteredChildren.some(child => child.id === selectedChildId);
+    if (!selectedChildId || !stillVisible) {
+      setSelectedChildId(visibleChildren[0].id);
+    }
+  }, [filteredChildren, selectedChildId, visibleChildren]);
 
   const handleShowMore = () => {
     setVisibleCount(prev => Math.min(prev + CHILDREN_PAGE_SIZE, filteredChildren.length));
   };
 
+  const getAmbienteLabel = (ambiente) => (
+    ambiente === 'taller1' ? 'Taller 1' : 'Taller 2'
+  );
+
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getFamilyNames = (child) => {
+    if (!child.responsables) return [];
+    return child.responsables
+      .map((id) => familyUsers[id])
+      .filter(Boolean)
+      .map((user) => user.displayName || user.email)
+      .filter(Boolean);
+  };
+
+  const hasMedicalAlerts = (child) => (
+    !!(child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos))
+  );
+
+  const selectedChild = filteredChildren.find(child => child.id === selectedChildId) || null;
+
   if (loading) {
-    return <LoadingScreen message="Cargando información de alumnos..." />;
+    return (
+      <div className="container page-container children-page">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Alumnos</h1>
+            <p className="dashboard-subtitle">Datos principales y responsables.</p>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+            <div className="spinner spinner--lg"></div>
+            <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando alumnos...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (showForm) {
     return (
-      <div className="page-container">
-        <div className="page-header page-header--spaced">
+      <div className="container page-container children-page">
+        <div className="dashboard-header dashboard-header--compact">
           <div>
-            <h1>{editingChild ? 'Editar Alumno' : 'Nuevo Alumno'}</h1>
-            <p className="muted-text">Actualizá la información del alumno y sus responsables.</p>
+            <h1 className="dashboard-title">{editingChild ? 'Editar alumno' : 'Nuevo alumno'}</h1>
+            <p className="dashboard-subtitle">Actualizá la información del alumno y sus responsables.</p>
           </div>
         </div>
         <div className="card new-form-card">
@@ -173,13 +235,13 @@ const ChildrenManager = () => {
   }
 
   return (
-    <div className="page-container">
-      <div className="page-header page-header--spaced">
+    <div className="container page-container children-page">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1>Gestión de Alumnos</h1>
-          <p className="muted-text">Organizá familias, datos médicos y responsables desde un mismo lugar.</p>
+          <h1 className="dashboard-title">Alumnos</h1>
+          <p className="dashboard-subtitle">Organizá familias, datos médicos y responsables desde un mismo lugar.</p>
         </div>
-        <button onClick={handleCreate} className="btn btn--primary btn--lg">
+        <button onClick={handleCreate} className="btn btn--primary">
           + Nuevo Alumno
         </button>
       </div>
@@ -207,8 +269,8 @@ const ChildrenManager = () => {
               className="form-select"
             >
               <option value="all">Todos</option>
-            <option value="taller1">Taller 1</option>
-            <option value="taller2">Taller 2</option>
+              <option value="taller1">Taller 1</option>
+              <option value="taller2">Taller 2</option>
             </select>
           </div>
 
@@ -233,30 +295,117 @@ const ChildrenManager = () => {
           </button>
         </div>
       ) : (
-        <>
-          <div className="children-grid">
-            {visibleChildren.map(child => (
+        <div className="children-layout">
+          <div className="children-table card">
+            <div className="children-table__header">
+              <p className="muted-text">Seleccioná un alumno para ver el detalle completo.</p>
+            </div>
+            <div className="table-container">
+              <table className="table table--compact children-table__table">
+                <thead>
+                  <tr>
+                    <th>Alumno</th>
+                    <th>Ambiente</th>
+                    <th>Responsables</th>
+                    <th>Info médica</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleChildren.map(child => {
+                    const age = calculateAge(child.fechaNacimiento);
+                    const familyNames = getFamilyNames(child);
+                    const familyCount = child.responsables ? child.responsables.length : 0;
+                    const previewNames = familyNames.slice(0, 2).join(' · ');
+                    const extraFamilies = familyCount > 2 ? `+${familyCount - 2}` : '';
+                    const hasAlerts = hasMedicalAlerts(child);
+                    const isSelected = child.id === selectedChildId;
+
+                    return (
+                      <tr
+                        key={child.id}
+                        className={`children-table__row ${isSelected ? 'children-table__row--selected' : ''}`}
+                        onClick={() => setSelectedChildId(child.id)}
+                      >
+                        <td>
+                          <div className="children-table__name">{child.nombreCompleto}</div>
+                          <div className="children-table__meta">
+                            {age !== null ? `${age} años` : 'Edad no indicada'}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge badge--primary">{getAmbienteLabel(child.ambiente)}</span>
+                        </td>
+                        <td>
+                          <div className="children-table__families">
+                            <span className="children-table__families-count">{familyCount} responsables</span>
+                            {previewNames && (
+                              <span className="children-table__families-preview">
+                                {previewNames}{extraFamilies ? ` · ${extraFamilies}` : ''}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {hasAlerts ? (
+                            <span className="badge badge--warning">Info médica</span>
+                          ) : (
+                            <span className="badge badge--success">OK</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="children-table__actions">
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--outline"
+                              onClick={(e) => { e.stopPropagation(); handleEdit(child); }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--text btn--danger"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(child.id); }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {hasMoreChildren && (
+              <div className="children-table__footer">
+                <span className="muted-text">
+                  Mostrando {visibleChildren.length} de {filteredChildren.length} alumnos
+                </span>
+                <button type="button" onClick={handleShowMore} className="btn btn--secondary btn--sm">
+                  Ver más alumnos
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="children-detail">
+            {selectedChild ? (
               <ChildCard
-                key={child.id}
-                child={child}
+                child={selectedChild}
                 familyUsers={familyUsers}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 isAdmin={true}
               />
-            ))}
+            ) : (
+              <div className="empty-state empty-state--card card">
+                <p>Seleccioná un alumno para ver el detalle.</p>
+              </div>
+            )}
           </div>
-          {hasMoreChildren && (
-            <div className="children-grid__footer">
-              <span className="muted-text">
-                Mostrando {visibleChildren.length} de {filteredChildren.length} alumnos
-              </span>
-              <button type="button" onClick={handleShowMore} className="btn btn--secondary btn--sm">
-                Ver más alumnos
-              </button>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       <ConfirmDialog
@@ -285,3 +434,6 @@ const ChildrenManager = () => {
 };
 
 export default ChildrenManager;
+
+
+

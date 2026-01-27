@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const communicationsCollection = collection(db, 'communications');
 
@@ -60,7 +61,7 @@ export const communicationsService = {
     try {
       const commDoc = await getDoc(doc(communicationsCollection, commId));
       if (commDoc.exists()) {
-        return { success: true, communication: { id: commDoc.id, ...commDoc.data() } };
+        return { success: true, communication: { id: commDoc.id, ...fixMojibakeDeep(commDoc.data()) } };
       }
       return { success: false, error: 'Comunicado no encontrado' };
     } catch (error) {
@@ -78,7 +79,7 @@ export const communicationsService = {
       const snapshot = await getDocs(q);
       const communications = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, communications };
     } catch (error) {
@@ -97,7 +98,7 @@ export const communicationsService = {
       const snapshot = await getDocs(q);
       const communications = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, communications };
     } catch (error) {
@@ -116,7 +117,7 @@ export const communicationsService = {
       const snapshot = await getDocs(q);
       const communications = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, communications };
     } catch (error) {

@@ -23,6 +23,10 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
 
   const age = child.fechaNacimiento ? calculateAge(child.fechaNacimiento) : null;
   const hasAlerts = child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos);
+  const medicalBadgeText = isAdmin ? 'Info médica' : '⚠️ Info médica';
+  const familiesTitle = isAdmin ? 'Familias' : '👨‍👩‍👧 Familias';
+  const medicalTitle = isAdmin ? 'Información Médica' : '🏥 Información Médica';
+  const documentsTitle = isAdmin ? 'Documentos' : '📎 Documentos';
 
   return (
     <div className="child-card">
@@ -36,7 +40,7 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
           <div className="child-card__badges">
             <span className="badge badge--primary">{getAmbienteLabel(child.ambiente)}</span>
             {age && <span className="badge badge--outline">{age} años</span>}
-            {hasAlerts && <span className="badge badge--warning">⚠️ Info médica</span>}
+            {hasAlerts && <span className="badge badge--warning">{medicalBadgeText}</span>}
           </div>
         </div>
       </div>
@@ -52,7 +56,7 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
 
         {child.responsables && child.responsables.length > 0 && (
           <div className="child-card__section">
-            <span className="child-card__section-title">👨‍👩‍👧 Familias ({child.responsables.length})</span>
+            <span className="child-card__section-title">{familiesTitle} ({child.responsables.length})</span>
             <div className="child-card__families">
               {child.responsables.map((responsableId) => {
                 const familia = familyUsers[responsableId];
@@ -68,7 +72,7 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
 
         {child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos || child.datosMedicos.indicaciones) && (
           <div className="child-card__section child-card__section--medical">
-            <span className="child-card__section-title">🏥 Información Médica</span>
+            <span className="child-card__section-title">{medicalTitle}</span>
             <div className="child-card__medical-grid">
               {child.datosMedicos.alergias && (
                 <div className="child-card__medical-item child-card__medical-item--alert">
@@ -91,16 +95,57 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
             </div>
           </div>
         )}
+
+        {child.documentos && child.documentos.length > 0 && (
+          <div className="child-card__section">
+            <span className="child-card__section-title">{documentsTitle} ({child.documentos.length})</span>
+            <div style={{ display: 'grid', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-xs)' }}>
+              {child.documentos.map((doc, index) => (
+                <a
+                  key={index}
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)',
+                    padding: 'var(--spacing-xs)',
+                    backgroundColor: 'var(--color-background-alt)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--color-border)',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-soft)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-alt)'}
+                >
+                  {!isAdmin && <span style={{ fontSize: '1.2rem' }}>📄</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {doc.nombre}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--color-text-light)' }}>
+                      {doc.descripcion}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>→</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer con acciones */}
       {isAdmin && (
         <div className="child-card__footer">
           <button onClick={() => onEdit(child)} className="btn btn--sm btn--outline">
-            ✏️ Editar
+            Editar
           </button>
           <button onClick={() => onDelete(child.id)} className="btn btn--sm btn--text btn--danger">
-            🗑️ Eliminar
+            Eliminar
           </button>
         </div>
       )}

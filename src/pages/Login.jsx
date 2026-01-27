@@ -33,7 +33,7 @@ export function Login() {
         </div>
         <div className="login-split__right">
           <div className="login-card">
-            <h2 className="login-card__title">Bienvenido</h2>
+            <h2 className="login-card__title">Acceso al portal</h2>
             <p className="login-card__subtitle">Ingresa a tu cuenta</p>
             <LoginForm />
           </div>

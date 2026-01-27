@@ -1,5 +1,5 @@
-﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { conversationsService } from '../../services/conversations.service';
 import { CONVERSATION_CATEGORIES, ESCUELA_AREAS, ROUTES } from '../../config/constants';
@@ -54,9 +54,16 @@ export function FamilyNewConversation() {
 
   return (
     <div className="container page-container">
-      <div className="mb-md">
-        <h1>Nueva Consulta</h1>
-        <p className="text-muted">Escribí tu consulta y la escuela te responderá en este hilo.</p>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Nueva Consulta</h1>
+          <p className="dashboard-subtitle">Escribí tu consulta y la escuela te responderá en este hilo.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline">
+            Volver
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="card create-form-card">

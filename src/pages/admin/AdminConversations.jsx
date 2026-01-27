@@ -11,6 +11,8 @@ import {
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
 
+const ITEMS_PER_PAGE = 20;
+
 export function AdminConversations() {
   const { user, role } = useAuth();
   const { conversations, loading, error, unreadCount } = useConversations({ user, role });
@@ -18,6 +20,7 @@ export function AdminConversations() {
   const [categoryFilter, setCategoryFilter] = useState('todas');
   const [initiatedFilter, setInitiatedFilter] = useState('todas');
   const [searchTerm, setSearchTerm] = useState('');
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
   const counts = useMemo(() => {
     return {
@@ -28,7 +31,7 @@ export function AdminConversations() {
   }, [conversations]);
 
   const filtered = useMemo(() => {
-    return conversations.filter(conv => {
+    const result = conversations.filter(conv => {
       if (statusFilter !== 'todas' && conv.estado !== statusFilter) return false;
       if (categoryFilter !== 'todas' && conv.categoria !== categoryFilter) return false;
       if (initiatedFilter !== 'todas' && conv.iniciadoPor !== initiatedFilter) return false;
@@ -39,7 +42,20 @@ export function AdminConversations() {
       }
       return true;
     });
+    // Reset visible count when filters change
+    setVisibleCount(ITEMS_PER_PAGE);
+    return result;
   }, [conversations, statusFilter, categoryFilter, initiatedFilter, searchTerm]);
+
+  const visible = useMemo(() => {
+    return filtered.slice(0, visibleCount);
+  }, [filtered, visibleCount]);
+
+  const hasMore = filtered.length > visibleCount;
+
+  const loadMore = () => {
+    setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+  };
 
   if (loading) {
     return (
@@ -59,12 +75,12 @@ export function AdminConversations() {
 
   return (
     <div className="container page-container">
-      <div className="flex-between mb-md">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1>Conversaciones con Familias</h1>
-          <p className="text-muted">Mensajes privados y consultas individuales</p>
+          <h1 className="dashboard-title">Conversaciones</h1>
+          <p className="dashboard-subtitle">Mensajes privados y consultas individuales</p>
         </div>
-        <div className="flex gap-sm">
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           {unreadCount > 0 && (
             <span className="badge badge--warning">{unreadCount} sin leer</span>
           )}
@@ -74,16 +90,21 @@ export function AdminConversations() {
         </div>
       </div>
 
-      <div className="flex gap-sm mb-md">
+      <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
         <span className="badge badge--error">{counts.pendientes} sin responder</span>
         <span className="badge badge--success">{counts.activas} activas</span>
         <span className="badge badge--info">{counts.cerradas} cerradas</span>
       </div>
 
-      <div className="card filters-card mb-md">
-        <div className="filters-grid">
-          <div className="form-group">
-            <label className="form-label">Estado</label>
+      <div className="card mb-md" style={{ padding: 'var(--spacing-sm) var(--spacing-md)' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: 'var(--spacing-sm)',
+          alignItems: 'end'
+        }}>
+          <div style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>Estado</label>
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="todas">Todas</option>
               <option value={CONVERSATION_STATUS.PENDIENTE}>Sin responder</option>
@@ -92,8 +113,8 @@ export function AdminConversations() {
               <option value={CONVERSATION_STATUS.CERRADA}>Cerrada</option>
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Categoría</label>
+          <div style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>Categoría</label>
             <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               <option value="todas">Todas</option>
               {CONVERSATION_CATEGORIES.map(cat => (
@@ -101,19 +122,19 @@ export function AdminConversations() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Iniciada por</label>
+          <div style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>Iniciada por</label>
             <select className="form-select" value={initiatedFilter} onChange={(e) => setInitiatedFilter(e.target.value)}>
               <option value="todas">Todas</option>
               <option value="familia">Familia</option>
               <option value="escuela">Escuela</option>
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Buscar familia</label>
+          <div style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>Buscar</label>
             <input
               className="form-input"
-              placeholder="Nombre o email"
+              placeholder="Nombre o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -126,38 +147,59 @@ export function AdminConversations() {
           <p>No hay conversaciones que coincidan con los filtros.</p>
         </div>
       ) : (
-        <div className="conversation-list">
-          {filtered.map(conv => (
-            <Link
-              key={conv.id}
-              to={`${ROUTES.ADMIN_CONVERSATIONS}/${conv.id}`}
-              className="card card--list conversation-item link-unstyled"
-            >
-              <div className="conversation-item__main">
-                <div className="conversation-item__header">
-                  <span className={getConversationStatusBadge(conv.estado)}>
-                    {getConversationStatusLabel(conv.estado, ROLES.SUPERADMIN)}
-                  </span>
-                  {conv.mensajesSinLeerEscuela > 0 && (
-                    <span className="badge badge--error">{conv.mensajesSinLeerEscuela} nuevos</span>
-                  )}
+        <>
+          <div style={{ marginBottom: 'var(--spacing-sm)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>
+            Mostrando {visible.length} de {filtered.length} conversaciones
+          </div>
+          <div className="conversation-list">
+            {visible.map(conv => (
+              <Link
+                key={conv.id}
+                to={`${ROUTES.ADMIN_CONVERSATIONS}/${conv.id}`}
+                className="card card--list conversation-item conversation-item--compact link-unstyled"
+              >
+                <div className="conversation-item__main">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600 }}>
+                      {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
+                    </h3>
+                    <span className={getConversationStatusBadge(conv.estado)} style={{ fontSize: 'var(--font-size-xs)' }}>
+                      {getConversationStatusLabel(conv.estado, ROLES.SUPERADMIN)}
+                    </span>
+                    {conv.mensajesSinLeerEscuela > 0 && (
+                      <span className="badge badge--error" style={{ fontSize: 'var(--font-size-xs)' }}>{conv.mensajesSinLeerEscuela} nuevos</span>
+                    )}
+                    <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
+                      {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
+                    <span>{conv.asunto || 'Sin asunto'}</span>
+                    <span> • {getCategoryLabel(conv.categoria)}</span>
+                    <span> • {getAreaLabel(conv.destinatarioEscuela)}</span>
+                  </div>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: 'var(--font-size-sm)', 
+                    color: 'var(--color-text-light)', 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {conv.ultimoMensajeTexto || 'Sin mensajes'}
+                  </p>
                 </div>
-                <h3 className="conversation-item__title">{conv.familiaDisplayName || conv.familiaEmail || 'Familia'}</h3>
-                <div className="conversation-item__meta">
-                  <span>{conv.asunto || 'Sin asunto'}</span>
-                  <span>• {getCategoryLabel(conv.categoria)}</span>
-                  <span>• {getAreaLabel(conv.destinatarioEscuela)}</span>
-                </div>
-                <p className="conversation-item__preview">
-                  {conv.ultimoMensajeTexto || 'Sin mensajes'}
-                </p>
-              </div>
-              <div className="conversation-item__time">
-                {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
+              <button onClick={loadMore} className="btn btn--outline">
+                Cargar más ({filtered.length - visibleCount} restantes)
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

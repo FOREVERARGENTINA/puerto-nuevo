@@ -8,15 +8,20 @@ export function DocumentsAdmin() {
   const [activeTab, setActiveTab] = useState('ver');
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
-      <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Gestión de Documentos Institucionales</h1>
-          <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
+    <div className="container page-container">
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Documentos</h1>
+          <p className="dashboard-subtitle">Gestión de documentos institucionales</p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <button onClick={() => navigate(-1)} className="btn btn--outline">
             Volver
           </button>
         </div>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)', borderBottom: '1px solid var(--border-color)' }}>
             <button

@@ -13,6 +13,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const eventsCollection = collection(db, 'events');
 
@@ -62,7 +63,7 @@ export const eventsService = {
       if (eventDoc.exists()) {
         return {
           success: true,
-          event: { id: eventDoc.id, ...eventDoc.data() }
+          event: { id: eventDoc.id, ...fixMojibakeDeep(eventDoc.data()) }
         };
       }
       return { success: false, error: 'Evento no encontrado' };
@@ -81,7 +82,7 @@ export const eventsService = {
       const snapshot = await getDocs(q);
       const events = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, events };
     } catch (error) {
@@ -108,7 +109,7 @@ export const eventsService = {
       const snapshot = await getDocs(q);
       const events = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, events };
     } catch (error) {
@@ -134,7 +135,7 @@ export const eventsService = {
         .slice(0, limit)
         .map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...fixMojibakeDeep(doc.data())
         }));
       return { success: true, events };
     } catch (error) {
@@ -161,6 +162,33 @@ export const eventsService = {
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtener eventos en un rango de fechas
+   */
+  async getEventsByRange(startDate, endDate) {
+    try {
+      const start = startDate instanceof Date ? startDate : new Date(startDate);
+      const end = endDate instanceof Date ? endDate : new Date(endDate);
+
+      const q = query(
+        eventsCollection,
+        where('fecha', '>=', Timestamp.fromDate(start)),
+        where('fecha', '<=', Timestamp.fromDate(end)),
+        orderBy('fecha', 'asc')
+      );
+
+      const snapshot = await getDocs(q);
+      const events = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...fixMojibakeDeep(doc.data())
+      }));
+      return { success: true, events };
+    } catch (error) {
+      console.error('Error al obtener eventos por rango:', error);
       return { success: false, error: error.message };
     }
   },
@@ -197,7 +225,7 @@ export const eventsService = {
       const eventDoc = snapshot.docs[0];
       return {
         success: true,
-        event: { id: eventDoc.id, ...eventDoc.data() }
+        event: { id: eventDoc.id, ...fixMojibakeDeep(eventDoc.data()) }
       };
     } catch (error) {
       console.error('Error al obtener evento por comunicado:', error);

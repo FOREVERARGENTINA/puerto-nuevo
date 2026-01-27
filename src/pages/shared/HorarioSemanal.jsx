@@ -41,6 +41,18 @@ export const HorarioSemanal = () => {
   }, []);
 
   
+  const header = (
+    <div className="dashboard-header dashboard-header--compact">
+      <div>
+        <h1 className="dashboard-title">Horario semanal</h1>
+        <p className="dashboard-subtitle">Talleres y ambientes organizados por día y horario.</p>
+      </div>
+      <button onClick={() => navigate(-1)} className="btn btn--outline">
+        Volver
+      </button>
+    </div>
+  );
+
 
   const getTalleristaName = (talleristaId) => {
     const id = Array.isArray(talleristaId) ? talleristaId[0] : talleristaId;
@@ -177,7 +189,8 @@ export const HorarioSemanal = () => {
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+        {header}
         <div className="card">
           <div className="card__body">
             <p>Cargando horarios...</p>
@@ -188,15 +201,9 @@ export const HorarioSemanal = () => {
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
+      {header}
       <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Horario Semanal</h1>
-          <button onClick={() => navigate(-1)} className="btn btn--outline">
-            Volver
-          </button>
-        </div>
-
         <div className="card__body">
           {renderCalendar('taller1', 'Taller 1')}
           {renderCalendar('taller2', 'Taller 2')}

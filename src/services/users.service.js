@@ -5,13 +5,13 @@ import {
   getDocs,
   setDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   serverTimestamp
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const usersCollection = collection(db, 'users');
 
@@ -36,7 +36,7 @@ export const usersService = {
     try {
       const userDoc = await getDoc(doc(usersCollection, uid));
       if (userDoc.exists()) {
-        return { success: true, user: { id: userDoc.id, ...userDoc.data() } };
+        return { success: true, user: { id: userDoc.id, ...fixMojibakeDeep(userDoc.data()) } };
       }
       return { success: false, error: 'Usuario no encontrado' };
     } catch (error) {
@@ -50,7 +50,7 @@ export const usersService = {
       const snapshot = await getDocs(usersCollection);
       const users = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, users };
     } catch (error) {
@@ -65,7 +65,7 @@ export const usersService = {
       const snapshot = await getDocs(q);
       const users = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, users };
     } catch (error) {
@@ -93,11 +93,12 @@ export const usersService = {
     }
   },
 
-  // Hard delete (solo para casos extremos)
+  // Hard delete (Auth + Firestore) via callable
   async deleteUser(uid) {
     try {
-      await deleteDoc(doc(usersCollection, uid));
-      return { success: true };
+      const deleteUserCallable = httpsCallable(functions, 'deleteUser');
+      const result = await deleteUserCallable({ uid });
+      return { success: true, data: result.data };
     } catch (error) {
       return { success: false, error: error.message };
     }

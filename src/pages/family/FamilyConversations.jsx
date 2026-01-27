@@ -44,12 +44,12 @@ export function FamilyConversations() {
 
   return (
     <div className="container page-container">
-      <div className="flex-between mb-md">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1>Mis Conversaciones</h1>
-          <p className="text-muted">Mensajes privados con la escuela</p>
+          <h1 className="dashboard-title">Mis Conversaciones</h1>
+          <p className="dashboard-subtitle">Mensajes privados con la escuela</p>
         </div>
-        <div className="flex gap-sm">
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           {unreadCount > 0 && (
             <span className="badge badge--warning">{unreadCount} sin leer</span>
           )}

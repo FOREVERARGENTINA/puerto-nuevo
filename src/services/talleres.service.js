@@ -12,6 +12,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const talleresCollection = collection(db, 'talleres');
 
@@ -22,7 +23,7 @@ export const talleresService = {
       const snapshot = await getDocs(q);
       const talleres = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, talleres };
     } catch (error) {
@@ -34,7 +35,7 @@ export const talleresService = {
     try {
       const tallerDoc = await getDoc(doc(talleresCollection, tallerId));
       if (tallerDoc.exists()) {
-        return { success: true, taller: { id: tallerDoc.id, ...tallerDoc.data() } };
+        return { success: true, taller: { id: tallerDoc.id, ...fixMojibakeDeep(tallerDoc.data()) } };
       }
       return { success: false, error: 'Taller no encontrado' };
     } catch (error) {
@@ -61,7 +62,7 @@ export const talleresService = {
       // Unir resultados sin duplicados (por id)
       const map = new Map();
       [...snapArray.docs, ...snapString.docs].forEach(d => {
-        map.set(d.id, { id: d.id, ...d.data() });
+        map.set(d.id, { id: d.id, ...fixMojibakeDeep(d.data()) });
       });
 
       const talleres = Array.from(map.values()).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
@@ -123,7 +124,7 @@ export const talleresService = {
       const snapshot = await getDocs(q);
       const items = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...fixMojibakeDeep(doc.data())
       }));
       return { success: true, items };
     } catch (error) {

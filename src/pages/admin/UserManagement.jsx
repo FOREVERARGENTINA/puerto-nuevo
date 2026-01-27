@@ -25,6 +25,7 @@ export function UserManagement() {
   // Update: allow coordinacion (isAdmin) to edit users
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Actualizando usuario...');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -135,6 +136,7 @@ export function UserManagement() {
     if (!editingUser) return;
     setError('');
     setSuccess('');
+    setLoadingMessage('Actualizando usuario...');
     setUpdating(true);
 
     try {
@@ -178,6 +180,31 @@ export function UserManagement() {
     }
   };
 
+  const handleDeleteUser = (u) => {
+    if (!u?.id) return;
+    confirmDialog.openDialog({
+      title: 'Eliminar usuario',
+      message: `¿Seguro que deseas eliminar a ${u.email}? Esta acción eliminará su acceso y su perfil.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: async () => {
+        setError('');
+        setSuccess('');
+        setLoadingMessage('Eliminando usuario...');
+        setUpdating(true);
+        const result = await usersService.deleteUser(u.id);
+        if (result.success) {
+          setSuccess(`Usuario ${u.email} eliminado correctamente.`);
+          await loadUsers();
+        } else {
+          setError('Error al eliminar usuario: ' + result.error);
+        }
+        setUpdating(false);
+      }
+    });
+  };
+
   const getRoleLabel = (role) => {
     const labels = {
       [ROLES.SUPERADMIN]: 'SuperAdmin',
@@ -205,14 +232,19 @@ export function UserManagement() {
 
   return (
     <div className="container page-container">
-      <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Gestión de Usuarios</h1>
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">Usuarios</h1>
+          <p className="dashboard-subtitle">Crear usuarios y roles</p>
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
           <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline">
             ← Volver al Dashboard
           </Link>
         </div>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           {error && (
             <div className="alert alert--error mb-md">
@@ -487,15 +519,24 @@ export function UserManagement() {
                         {u.disabled ? 'Deshabilitado' : 'Activo'}
                       </span>
                     </td>
-                    <td style={{ width: 100 }}>
+                    <td style={{ width: 180 }}>
                       {isAdmin ? (
-                        <button
-                          className="btn btn--sm btn--outline"
-                          onClick={() => openEditUser(u)}
-                          disabled={u.id === user.uid}
-                        >
-                          Editar
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn--sm btn--outline"
+                            onClick={() => openEditUser(u)}
+                            disabled={u.id === user?.uid}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="btn btn--sm btn--danger"
+                            onClick={() => handleDeleteUser(u)}
+                            disabled={u.id === user?.uid}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       ) : (
                         <span>-</span>
                       )}
@@ -515,11 +556,13 @@ export function UserManagement() {
         title={confirmDialog.dialogData.title}
         message={confirmDialog.dialogData.message}
         type={confirmDialog.dialogData.type}
+        confirmText={confirmDialog.dialogData.confirmText}
+        cancelText={confirmDialog.dialogData.cancelText}
       />
 
       <LoadingModal
         isOpen={updating}
-        message="Actualizando usuario..."
+        message={loadingMessage}
       />
     </div>
   );

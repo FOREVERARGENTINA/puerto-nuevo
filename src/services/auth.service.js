@@ -4,7 +4,9 @@ import {
   sendPasswordResetEmail,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { auth } from '../config/firebase';
+import { functions } from '../config/firebase';
 
 export const authService = {
   // Login
@@ -32,6 +34,17 @@ export const authService = {
     try {
       await sendPasswordResetEmail(auth, email);
       return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Verificar si un email existe en la lista de usuarios (Firestore)
+  async checkUserEmail(email) {
+    try {
+      const checkUserEmail = httpsCallable(functions, 'checkUserEmail');
+      const result = await checkUserEmail({ email });
+      return { success: true, exists: !!result.data?.exists };
     } catch (error) {
       return { success: false, error: error.message };
     }

@@ -1,12 +1,13 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 
 export function TeacherDashboard() {
   return (
     <div className="container page-container">
-      <div className="dashboard-header">
+      <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Panel Guía de Taller</h1>
+          <p className="dashboard-subtitle">Herramientas y accesos del taller.</p>
         </div>
         <span className="badge badge--primary">Guía</span>
       </div>

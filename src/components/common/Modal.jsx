@@ -1,8 +1,13 @@
-export function Modal({ isOpen, onClose, children, size = 'md' }) {
+export function Modal({ isOpen, onClose, children, size = 'md', closeOnOverlay = true }) {
   if (!isOpen) return null;
 
+  const handleOverlayClick = () => {
+    if (!closeOnOverlay) return;
+    onClose?.();
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleOverlayClick}>
       <div
         className={`modal-content modal-content--${size}`}
         onClick={(e) => e.stopPropagation()}

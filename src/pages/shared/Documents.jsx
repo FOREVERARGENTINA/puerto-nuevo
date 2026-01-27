@@ -33,15 +33,18 @@ export function Documents() {
   };
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
-      <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">{getTitle()}</h1>
-          <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
-            Volver
-          </button>
+    <div className="container page-container">
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">{getTitle()}</h1>
+          <p className="dashboard-subtitle">Accedé a la documentación disponible para tu rol.</p>
         </div>
+        <button onClick={() => navigate(-1)} className="btn btn--outline">
+          Volver
+        </button>
+      </div>
 
+      <div className="card">
         <div className="card__body">
           <div className="alert alert--info" style={{ marginBottom: 'var(--spacing-lg)' }}>
             <p>{getDescription()}</p>

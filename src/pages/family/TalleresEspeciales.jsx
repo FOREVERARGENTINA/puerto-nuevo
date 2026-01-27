@@ -12,7 +12,21 @@ export function TalleresEspeciales() {
   const [selectedTaller, setSelectedTaller] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingGallery, setLoadingGallery] = useState(false);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+
+  const header = (
+    <div className="dashboard-header dashboard-header--compact">
+      <div>
+        <h1 className="dashboard-title">Talleres</h1>
+        <p className="dashboard-subtitle">Información y materiales de los talleres.</p>
+      </div>
+      <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+        <button onClick={() => navigate(-1)} className="btn btn--outline">
+          Volver
+        </button>
+      </div>
+    </div>
+  );
   const selectTaller = async (taller) => {
     // Normalización de horarios igual que en MyTallerEspecial
     const dayOrder = { Lunes: 1, Martes: 2, 'Miércoles': 3, Miercoles: 3, Jueves: 4, Viernes: 5 };
@@ -92,7 +106,8 @@ export function TalleresEspeciales() {
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+      {header}
         <div className="card">
           <div className="card__body">
             <p>Cargando...</p>
@@ -104,14 +119,9 @@ export function TalleresEspeciales() {
 
   if (children.length === 0) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+      {header}
         <div className="card">
-          <div className="card__header">
-            <h1 className="card__title">Talleres</h1>
-            <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
-              Volver
-            </button>
-          </div>
           <div className="card__body">
             <div className="alert alert--info">
               <p>No hay hijos registrados en su cuenta.</p>
@@ -124,14 +134,9 @@ export function TalleresEspeciales() {
 
   if (talleres.length === 0) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container">
+      {header}
         <div className="card">
-          <div className="card__header">
-            <h1 className="card__title">Talleres</h1>
-            <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
-              Volver
-            </button>
-          </div>
           <div className="card__body">
             <div className="alert alert--info">
               <p>Aún no hay talleres asignados para el ambiente de sus hijos.</p>
@@ -143,14 +148,9 @@ export function TalleresEspeciales() {
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container">
+      {header}
       <div className="card">
-        <div className="card__header">
-          <h1 className="card__title">Talleres</h1>
-          <button onClick={() => navigate(-1)} className="btn btn--sm btn--outline">
-            Volver
-          </button>
-        </div>
 
         <div className="card__body">
           <div style={{ marginBottom: 'var(--spacing-lg)' }}>
