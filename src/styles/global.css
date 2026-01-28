@@ -68,7 +68,6 @@ a {
 a:hover,
 a:focus {
   color: var(--color-primary-dark);
-  text-decoration: underline;
 }
 
 /* ACCESIBILIDAD - Focus visible obligatorio */

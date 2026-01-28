@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
 
@@ -85,8 +85,11 @@ export function PwaInstallPrompt() {
       <Modal isOpen={showPrompt} onClose={handleLater} size="sm">
         <ModalHeader title="Instalar app" onClose={handleLater} />
         <ModalBody>
+          <div className="pwa-install-header">
+            <img src="/logo-login.png" alt="Puerto Nuevo Montessori" className="pwa-install-logo" />
+          </div>
           <p>¿Querés instalar la app de Puerto Nuevo en tu teléfono?</p>
-          <p className="pwa-install-hint">Se instala rápido y funciona como una app normal.</p>
+          <p className="pwa-install-hint">Se instala rápido y no ocupa espacio extra.</p>
         </ModalBody>
         <ModalFooter>
           <button className="btn btn--outline" onClick={handleLater}>
@@ -101,8 +104,11 @@ export function PwaInstallPrompt() {
       {showIosBanner && (
         <div className="pwa-install-banner">
           <div className="pwa-install-banner__content">
-            <strong>Instalá la app</strong>
-            <span>Compartir → Agregar a inicio</span>
+            <img src="/logo-login.png" alt="Puerto Nuevo Montessori" className="pwa-install-banner__logo" />
+            <div>
+              <strong>Instalá la app</strong>
+              <span>Compartir → Agregar a inicio</span>
+            </div>
           </div>
           <button className="pwa-install-banner__button" onClick={handleDismissIos}>
             Entendido
@@ -112,3 +118,4 @@ export function PwaInstallPrompt() {
     </>
   );
 }
+

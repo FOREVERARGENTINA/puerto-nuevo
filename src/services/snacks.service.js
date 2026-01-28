@@ -4,6 +4,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  setDoc,
   deleteDoc,
   getDocs,
   getDoc,
@@ -363,11 +364,11 @@ export const snacksService = {
   async updateSnackList(ambiente, items, observaciones) {
     try {
       const docRef = doc(db, 'snackLists', ambiente);
-      await updateDoc(docRef, {
+      await setDoc(docRef, {
         items,
         observaciones,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
 
       return { success: true };
     } catch (error) {

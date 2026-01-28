@@ -206,8 +206,13 @@ export const appointmentsService = {
         estado: 'disponible',
         familiaUid: null,
         familiasUids: [],
+        familiaEmail: null,
+        familiaDisplayName: null,
         hijoId: null,
+        hijoNombre: null,
         nota: null,
+        canceladoPor: null,
+        canceladoAt: null,
         updatedAt: serverTimestamp()
       });
       return { success: true };

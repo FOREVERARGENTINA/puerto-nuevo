@@ -16,13 +16,19 @@ const ROUTE_NAMES = {
   'alumnos': 'Alumnos',
   'hijos': 'Mis Hijos',
   'usuarios': 'Usuarios',
-  'turnos': 'Turnos y Reuniones',
+  'turnos': 'Reuniones',
   'talleres': 'Talleres',
   'snacks': 'Snacks',
   'documentos': 'Documentos',
   'horarios': 'Horario Semanal',
   'mi-taller': 'Mi Taller',
-  'galeria': 'Galería'
+  'galeria': 'Galería',
+  'eventos': 'Eventos'
+};
+
+// Detecta si un segmento parece ser un ID de documento (Firebase genera IDs alfanuméricos de 20 chars)
+const isDocumentId = (segment) => {
+  return /^[a-zA-Z0-9]{15,}$/.test(segment);
 };
 
 /**
@@ -41,18 +47,22 @@ export function Breadcrumbs() {
     return null;
   }
 
-  // Construir breadcrumbs
-  const breadcrumbs = pathSegments.map((segment, index) => {
-    const path = '/' + pathSegments.slice(0, index + 1).join('/');
-    const isLast = index === pathSegments.length - 1;
-    const name = ROUTE_NAMES[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
+  // Construir breadcrumbs, omitiendo IDs de documentos del texto visible
+  const breadcrumbs = pathSegments
+    .filter(segment => !isDocumentId(segment)) // No mostrar IDs en breadcrumbs
+    .map((segment, index, filtered) => {
+      // Reconstruir el path hasta este segmento
+      const originalIndex = pathSegments.indexOf(segment);
+      const path = '/' + pathSegments.slice(0, originalIndex + 1).join('/');
+      const isLast = index === filtered.length - 1;
+      const name = ROUTE_NAMES[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
 
-    return {
-      name,
-      path,
-      isLast
-    };
-  });
+      return {
+        name,
+        path,
+        isLast
+      };
+    });
 
   return (
     <nav className="breadcrumbs" aria-label="Breadcrumb">

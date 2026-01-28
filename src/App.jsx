@@ -14,10 +14,12 @@ import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement').then(m => ({ default: m.UserManagement })));
 const ReadReceiptsPanel = lazy(() => import('./pages/admin/ReadReceiptsPanel').then(m => ({ default: m.ReadReceiptsPanel })));
+const SendCommunication = lazy(() => import('./pages/admin/SendCommunication').then(m => ({ default: m.SendCommunication })));
 const ChildrenManager = lazy(() => import('./pages/admin/ChildrenManager'));
 const AppointmentsManager = lazy(() => import('./pages/admin/AppointmentsManager'));
 const TalleresManager = lazy(() => import('./pages/admin/TalleresManager'));
 const SnacksCalendar = lazy(() => import('./pages/admin/SnacksCalendar').then(m => ({ default: m.SnacksCalendar })));
+const SnacksLists = lazy(() => import('./pages/admin/SnacksLists').then(m => ({ default: m.SnacksLists })));
 const DocumentsAdmin = lazy(() => import('./pages/admin/DocumentsAdmin').then(m => ({ default: m.DocumentsAdmin })));
 const EventsManager = lazy(() => import('./pages/admin/EventsManager').then(m => ({ default: m.EventsManager })));
 const AdminConversations = lazy(() => import('./pages/admin/AdminConversations').then(m => ({ default: m.AdminConversations })));
@@ -31,6 +33,7 @@ const ChildProfile = lazy(() => import('./pages/family/ChildProfile'));
 const BookAppointment = lazy(() => import('./pages/family/BookAppointment'));
 const TalleresEspeciales = lazy(() => import('./pages/family/TalleresEspeciales').then(m => ({ default: m.TalleresEspeciales })));
 const MySnacks = lazy(() => import('./pages/family/MySnacks').then(m => ({ default: m.MySnacks })));
+const EventsCalendar = lazy(() => import('./pages/family/EventsCalendar').then(m => ({ default: m.EventsCalendar })));
 const FamilyConversations = lazy(() => import('./pages/family/FamilyConversations').then(m => ({ default: m.FamilyConversations })));
 const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConversation').then(m => ({ default: m.FamilyNewConversation })));
 const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
@@ -118,6 +121,18 @@ function App() {
             }
           />
           <Route
+            path="/admin/comunicar/nuevo"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
+                    <SendCommunication />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/confirmaciones"
             element={
               <ProtectedRoute>
@@ -172,6 +187,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
                     <SnacksCalendar />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/snacks/listas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <SnacksLists />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -330,6 +357,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.FAMILY]}>
                     <BookAppointment />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/eventos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <EventsCalendar />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

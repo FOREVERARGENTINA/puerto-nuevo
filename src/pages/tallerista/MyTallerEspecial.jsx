@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { talleresService } from '../../services/talleres.service';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +17,7 @@ export function MyTallerEspecial() {
   const alertDialog = useDialog();
 
   function selectTaller(taller) {
-    const dayOrder = { Lunes: 1, Martes: 2, 'MiÃ©rcoles': 3, Miercoles: 3, Jueves: 4, Viernes: 5 };
+    const dayOrder = { Lunes: 1, Martes: 2, 'Miércoles': 3, Miercoles: 3, Jueves: 4, Viernes: 5 };
     let normalizedHorarios = [];
     if (Array.isArray(taller.horarios)) {
       const map = new Map();
@@ -83,9 +83,9 @@ export function MyTallerEspecial() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTaller?.id) return;
-    if (!isAdmin) { alertDialog.openDialog({ title: 'Permisos', message: 'Solo admin/coordinaciÃ³n puede editar', type: 'warning' }); return; }
+    if (!isAdmin) { alertDialog.openDialog({ title: 'Permisos', message: 'Solo admin/coordinación puede editar', type: 'warning' }); return; }
     const result = await talleresService.updateTaller(selectedTaller.id, formData);
-    if (result.success) { alertDialog.openDialog({ title: 'Ã‰xito', message: 'Taller actualizado correctamente', type: 'success' }); setEditing(false); loadTalleres(); }
+    if (result.success) { alertDialog.openDialog({ title: 'Éxito', message: 'Taller actualizado correctamente', type: 'success' }); setEditing(false); loadTalleres(); }
     else { alertDialog.openDialog({ title: 'Error', message: 'Error al actualizar: ' + result.error, type: 'error' }); }
   };
 
@@ -123,14 +123,14 @@ export function MyTallerEspecial() {
           <div className="card__body">
             <div className="alert alert--warning">
               <strong>No tienes talleres asignados</strong>
-              <p>Contacta con la direcciÃ³n para que te asignen uno o mÃ¡s talleres.</p>
+              <p>Contacta con la dirección para que te asignen uno o más talleres.</p>
             </div></div>
         </div>
       </div>
     );
   }
 
-  const diasSemanaOptions = ['Lunes', 'Martes', 'MiÃ©rcoles', 'Jueves', 'Viernes'];
+  const diasSemanaOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
   return (
     <div className="container page-container">
@@ -152,18 +152,18 @@ export function MyTallerEspecial() {
 
               {!editing ? (
                 <div>
-                  <h3>DescripciÃ³n</h3>
-                  <p style={{ lineHeight: 1.6, color: 'var(--color-text)' }}>{selectedTaller.descripcion || 'Sin descripciÃ³n'}</p>
-                  <h3>DÃ­as y Horarios</h3>
-                  {selectedTaller.horarios?.length > 0 ? (<div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>{selectedTaller.horarios.map((h, idx) => <span key={idx} className="chip">{h.dia} â€¢ {h.bloque}</span>)}</div>) : selectedTaller.horario ? (<div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>{selectedTaller.horario.split(',').map((s,i) => <span key={i} className="chip">{s.trim()}</span>)}</div>) : <p>No especificado</p>}
+                  <h3>Descripción</h3>
+                  <p style={{ lineHeight: 1.6, color: 'var(--color-text)' }}>{selectedTaller.descripcion || 'Sin descripción'}</p>
+                  <h3>Días y Horarios</h3>
+                  {selectedTaller.horarios?.length > 0 ? (<div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>{selectedTaller.horarios.map((h, idx) => <span key={idx} className="chip">{h.dia} • {h.bloque}</span>)}</div>) : selectedTaller.horario ? (<div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>{selectedTaller.horario.split(',').map((s,i) => <span key={i} className="chip">{s.trim()}</span>)}</div>) : <p>No especificado</p>}
                   <h3>Calendario</h3>
                   {selectedTaller.calendario ? (<div><a href={selectedTaller.calendario} target="_blank" rel="noopener noreferrer" className="btn btn--sm btn--primary" style={{ marginRight: 'var(--spacing-sm)' }}>Descargar Calendario</a><p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)', wordBreak: 'break-all' }}>{selectedTaller.calendario}</p></div>) : <p>No hay calendario disponible</p>}
                 </div>
               ) : (
                 <form onSubmit={handleSubmit}>
-                  <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label htmlFor="descripcion">DescripciÃ³n</label><textarea id="descripcion" name="descripcion" value={formData.descripcion} onChange={handleInputChange} rows={4} className="form-control" /></div>
+                  <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label htmlFor="descripcion">Descripción</label><textarea id="descripcion" name="descripcion" value={formData.descripcion} onChange={handleInputChange} rows={4} className="form-control" /></div>
                   <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label htmlFor="horario">Horario</label><input type="text" id="horario" name="horario" value={formData.horario} onChange={handleInputChange} placeholder="Ej: 14:00 - 16:00" className="form-control" /></div>
-                  <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label>DÃ­as de la semana</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>{diasSemanaOptions.map(day => <label key={day} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}><input type="checkbox" checked={formData.diasSemana.includes(day)} onChange={() => handleDaysChange(day)} />{day}</label>)}</div></div>
+                  <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label>Días de la semana</label><div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>{diasSemanaOptions.map(day => <label key={day} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}><input type="checkbox" checked={formData.diasSemana.includes(day)} onChange={() => handleDaysChange(day)} />{day}</label>)}</div></div>
                   <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}><label htmlFor="calendario">URL del Calendario</label><input type="url" id="calendario" name="calendario" value={formData.calendario} onChange={handleInputChange} placeholder="https://ejemplo.com/calendario.ics" className="form-control" /><p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)' }}>URL de descarga del calendario (.ics, Google Calendar, etc.)</p></div>
                   <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}><button type="submit" className="btn btn--primary">Guardar cambios</button><button type="button" onClick={handleCancel} className="btn btn--outline">Cancelar</button></div>
                 </form>
@@ -176,6 +176,9 @@ export function MyTallerEspecial() {
     </div>
   );
 }
+
+
+
 
 
 

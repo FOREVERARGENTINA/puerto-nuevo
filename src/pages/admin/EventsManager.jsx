@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { eventsService } from '../../services/events.service';
+import { communicationsService } from '../../services/communications.service';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
@@ -13,8 +14,13 @@ export function EventsManager() {
   const [visibleEventsCount, setVisibleEventsCount] = useState(20);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [commAttachments, setCommAttachments] = useState([]);
+  const [commLoading, setCommLoading] = useState(false);
+  const [commError, setCommError] = useState('');
   const [alertDialog, setAlertDialog] = useState({
     isOpen: false,
     title: '',
@@ -29,11 +35,15 @@ export function EventsManager() {
     hora: '',
     tipo: 'general' // general, reuniones, talleres, snacks
   });
+  const [selectedMediaFiles, setSelectedMediaFiles] = useState([]);
+  const [existingMedia, setExistingMedia] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('upcoming');
+  const maxMediaSizeBytes = 50 * 1024 * 1024;
+  const maxMediaSizeLabel = '50MB';
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -50,6 +60,45 @@ export function EventsManager() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCommunicationAttachments = async () => {
+      if (!showModal || !editingEvent?.communicationId) {
+        setCommAttachments([]);
+        setCommError('');
+        setCommLoading(false);
+        return;
+      }
+
+      setCommLoading(true);
+      setCommError('');
+
+      const result = await communicationsService.getCommunicationById(
+        editingEvent.communicationId
+      );
+
+      if (!active) return;
+
+      if (result.success) {
+        const attachments = Array.isArray(result.communication?.attachments)
+          ? result.communication.attachments
+          : [];
+        setCommAttachments(attachments);
+      } else {
+        setCommAttachments([]);
+        setCommError(result.error || 'Adjuntos no disponibles');
+      }
+      setCommLoading(false);
+    };
+
+    loadCommunicationAttachments();
+
+    return () => {
+      active = false;
+    };
+  }, [editingEvent?.communicationId, showModal]);
 
   const normalizeEventDate = (timestamp) => {
     if (!timestamp) return null;
@@ -117,6 +166,7 @@ export function EventsManager() {
         hora: event.hora || '',
         tipo: event.tipo || 'general'
       });
+      setExistingMedia(Array.isArray(event.media) ? event.media : []);
     } else {
       setEditingEvent(null);
       setFormData({
@@ -126,11 +176,14 @@ export function EventsManager() {
         hora: '',
         tipo: 'general'
       });
+      setExistingMedia([]);
     }
+    setSelectedMediaFiles([]);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
+    if (saving || uploadingMedia) return;
     setShowModal(false);
     setEditingEvent(null);
     setFormData({
@@ -140,11 +193,76 @@ export function EventsManager() {
       hora: '',
       tipo: 'general'
     });
+    setSelectedMediaFiles([]);
+    setExistingMedia([]);
+    setCommAttachments([]);
+    setCommError('');
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMediaFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles = [];
+    let hasInvalidType = false;
+    let hasOversize = false;
+
+    files.forEach((file) => {
+      const isMedia = file.type && (file.type.startsWith('image/') || file.type.startsWith('video/'));
+      if (!isMedia) {
+        hasInvalidType = true;
+        return;
+      }
+      if (file.size > maxMediaSizeBytes) {
+        hasOversize = true;
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if (hasInvalidType || hasOversize) {
+      let message = '';
+      if (hasInvalidType) {
+        message = 'Solo se permiten imagenes o videos.';
+      }
+      if (hasOversize) {
+        message = `${message ? `${message} ` : ''}Algunos archivos superan el limite de ${maxMediaSizeLabel}.`;
+      }
+      setAlertDialog({
+        isOpen: true,
+        title: 'Archivo no valido',
+        message,
+        type: 'warning'
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedMediaFiles(prev => [...prev, ...validFiles]);
+    }
+
+    e.target.value = null;
+  };
+
+  const removeSelectedMediaFile = (index) => {
+    setSelectedMediaFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (size = 0) => {
+    if (!size) return '';
+    const kb = size / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  };
+
+  const getMediaTypeLabel = (type = '') => {
+    if (type.startsWith('image/')) return 'imagen';
+    if (type.startsWith('video/')) return 'video';
+    return 'archivo';
   };
 
   const handleSubmit = async (e) => {
@@ -160,6 +278,7 @@ export function EventsManager() {
       return;
     }
 
+    setSaving(true);
     const eventData = {
       titulo: formData.titulo.trim(),
       descripcion: formData.descripcion.trim(),
@@ -176,11 +295,25 @@ export function EventsManager() {
     }
 
     if (result.success) {
+      let mediaResult = { success: true };
+      const eventId = editingEvent ? editingEvent.id : result.id;
+      if (selectedMediaFiles.length > 0) {
+        setUploadingMedia(true);
+        mediaResult = await eventsService.uploadEventMedia(
+          eventId,
+          selectedMediaFiles,
+          editingEvent ? existingMedia : []
+        );
+        setUploadingMedia(false);
+      }
+
       setAlertDialog({
         isOpen: true,
         title: 'Listo',
-        message: editingEvent ? 'Evento actualizado correctamente.' : 'Evento creado correctamente.',
-        type: 'success'
+        message: mediaResult.success
+          ? (editingEvent ? 'Evento actualizado correctamente.' : 'Evento creado correctamente.')
+          : 'El evento se guardo, pero hubo un error al subir la media.',
+        type: mediaResult.success ? 'success' : 'warning'
       });
       handleCloseModal();
       loadEvents();
@@ -192,6 +325,7 @@ export function EventsManager() {
         type: 'error'
       });
     }
+    setSaving(false);
   };
 
   const handleDelete = async () => {
@@ -578,9 +712,35 @@ export function EventsManager() {
                                     </button>
                                   </div>
                                 </div>
-                                {event.descripcion && (
+                                {(event.descripcion || (Array.isArray(event.media) && event.media.length > 0)) && (
                                   <div className="card__body">
-                                    <p>{event.descripcion}</p>
+                                    {event.descripcion && <p>{event.descripcion}</p>}
+                                    {Array.isArray(event.media) && event.media.length > 0 && (
+                                      <div className="event-media-list">
+                                        <strong>Media:</strong>
+                                        <ul className="event-media-list__items">
+                                          {event.media.map((item, idx) => {
+                                            const metaParts = [];
+                                            if (item?.type) metaParts.push(getMediaTypeLabel(item.type));
+                                            const sizeLabel = formatFileSize(item?.size || 0);
+                                            if (sizeLabel) metaParts.push(sizeLabel);
+                                            const meta = metaParts.join(' - ');
+                                            return (
+                                              <li key={`${event.id}-media-${idx}`}>
+                                                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                                  {item.name || 'Archivo'}
+                                                </a>
+                                                {meta && (
+                                                  <span className="event-media-list__meta">
+                                                    ({meta})
+                                                  </span>
+                                                )}
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -609,7 +769,7 @@ export function EventsManager() {
       </div>
 
       {/* Modal Crear/Editar Evento */}
-      <Modal isOpen={showModal} onClose={handleCloseModal} size="md">
+      <Modal isOpen={showModal} onClose={handleCloseModal} size="md" closeOnOverlay={false}>
         <ModalHeader
           title={editingEvent ? 'Editar Evento' : 'Crear Nuevo Evento'}
           onClose={handleCloseModal}
@@ -687,6 +847,100 @@ export function EventsManager() {
             </div>
 
             <div className="form-group">
+              <label htmlFor="event-media" className="form-label">
+                Media (opcional)
+              </label>
+              <input
+                id="event-media"
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                onChange={handleMediaFilesChange}
+                className="form-input form-input--sm"
+                disabled={saving || uploadingMedia}
+              />
+              <p className="form-help">
+                Formatos: imagen o video. Maximo {maxMediaSizeLabel} por archivo.
+              </p>
+
+              {selectedMediaFiles.length > 0 && (
+                <div className="event-media-list">
+                  <strong>Archivos a subir:</strong>
+                  <ul className="event-media-list__items">
+                    {selectedMediaFiles.map((file, i) => (
+                      <li key={`${file.name}-${i}`}>
+                        <span>{file.name}</span>
+                        {formatFileSize(file.size) && (
+                          <span className="event-media-list__meta">
+                            ({formatFileSize(file.size)})
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn--link"
+                          onClick={() => removeSelectedMediaFile(i)}
+                          disabled={saving || uploadingMedia}
+                        >
+                          Quitar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {existingMedia.length > 0 && (
+                <div className="event-media-list">
+                  <strong>Media actual:</strong>
+                  <ul className="event-media-list__items">
+                    {existingMedia.map((item, idx) => {
+                      const metaParts = [];
+                      if (item?.type) metaParts.push(getMediaTypeLabel(item.type));
+                      const sizeLabel = formatFileSize(item?.size || 0);
+                      if (sizeLabel) metaParts.push(sizeLabel);
+                      const meta = metaParts.join(' - ');
+                      return (
+                        <li key={`${item?.path || item?.url || idx}`}>
+                          <a href={item.url} target="_blank" rel="noopener noreferrer">
+                            {item.name || 'Archivo'}
+                          </a>
+                          {meta && (
+                            <span className="event-media-list__meta">
+                              ({meta})
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {editingEvent?.communicationId && (
+              <div className="form-group">
+                <label className="form-label">Adjuntos del comunicado</label>
+                {commLoading ? (
+                  <p className="form-help">Cargando adjuntos...</p>
+                ) : commError ? (
+                  <p className="form-help">Adjuntos no disponibles.</p>
+                ) : commAttachments.length === 0 ? (
+                  <p className="form-help">Sin adjuntos.</p>
+                ) : (
+                  <ul className="event-media-list__items">
+                    {commAttachments.map((attachment, idx) => (
+                      <li key={`${attachment.path || attachment.url || idx}`}>
+                        <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                          {attachment.name || 'Archivo'}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="form-group">
               <label htmlFor="descripcion" className="form-label">
                 Descripción (opcional)
               </label>
@@ -702,11 +956,11 @@ export function EventsManager() {
             </div>
           </ModalBody>
           <ModalFooter>
-            <button type="button" onClick={handleCloseModal} className="btn btn--outline">
+            <button type="button" onClick={handleCloseModal} className="btn btn--outline" disabled={saving || uploadingMedia}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn--primary">
-              {editingEvent ? 'Actualizar' : 'Crear'} Evento
+            <button type="submit" className="btn btn--primary" disabled={saving || uploadingMedia}>
+              {saving || uploadingMedia ? 'Guardando...' : `${editingEvent ? 'Actualizar' : 'Crear'} Evento`}
             </button>
           </ModalFooter>
         </form>

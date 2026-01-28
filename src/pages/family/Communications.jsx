@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useCommunications } from '../../hooks/useCommunications';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { useAuth } from '../../hooks/useAuth';
@@ -127,53 +127,72 @@ export function Communications() {
         />
       )}
 
-      <div className="container page-container">
-        <div className="dashboard-header dashboard-header--compact">
+      <div className="container page-container communications-page">
+        <div className="dashboard-header dashboard-header--compact communications-header">
           <div>
             <h1 className="dashboard-title">Comunicados</h1>
             <p className="dashboard-subtitle">Mensajes y avisos de la escuela.</p>
           </div>
+          <div className="communications-summary">
+            <span className="badge badge--info">
+              {filteredCommunications.length} {filteredCommunications.length === 1 ? 'mensaje' : 'mensajes'}
+            </span>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-            <label style={{ color: 'var(--color-text-light)', marginRight: '0.5rem' }}>Buscar</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-background-warm)', padding: '0.25rem 0.5rem', borderRadius: '6px' }}>
-                <Icon name="search" size={16} className="icon icon--muted" />
-                <input
-                  className="form-input"
-                  placeholder="Buscar por título..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ marginLeft: '0.5rem', minWidth: '220px' }}
-                />
+        <div className="card communications-filters">
+          <div className="card__body">
+            <div className="communications-filters__row">
+              <div className="communications-search">
+                <label className="form-label" htmlFor="comm-search">Buscar</label>
+                <div className="communications-search__field">
+                  <Icon name="search" size={16} className="icon icon--muted" />
+                  <input
+                    id="comm-search"
+                    className="form-input"
+                    placeholder="Buscar por título..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <select value={senderFilter} onChange={(e) => setSenderFilter(e.target.value)} className="form-input">
-                <option value="all">Todos los remitentes</option>
-                {senders.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <div className="communications-select">
+                <label className="form-label" htmlFor="comm-sender">Remitente</label>
+                <select id="comm-sender" value={senderFilter} onChange={(e) => setSenderFilter(e.target.value)} className="form-input">
+                  <option value="all">Todos los remitentes</option>
+                  {senders.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
 
-              <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="form-input">
-                <option value="all">Todas las fechas</option>
-                <option value="this_month">Este mes</option>
-                <option value="last_3_months">Últimos 3 meses</option>
-              </select>
+              <div className="communications-select">
+                <label className="form-label" htmlFor="comm-date">Fecha</label>
+                <select id="comm-date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="form-input">
+                  <option value="all">Todas las fechas</option>
+                  <option value="this_month">Este mes</option>
+                  <option value="last_3_months">Últimos 3 meses</option>
+                </select>
+              </div>
+
+              <div className="communications-filters__actions">
+                <button
+                  className="btn btn--outline btn--sm"
+                  onClick={() => { setSenderFilter('all'); setDateFilter('all'); setSearchTerm(''); }}
+                >
+                  Limpiar
+                </button>
+              </div>
             </div>
           </div>
-
-          <div style={{ marginLeft: 'auto' }}>
-            <button className="btn btn--link" onClick={() => { setSenderFilter('all'); setDateFilter('all'); setSearchTerm(''); }}>Limpiar filtros</button>
-          </div>
         </div>
-
         {filteredCommunications.length === 0 ? (
-          <div className="alert alert--info">No hay comunicados que coincidan con los filtros.</div>
+          <div className="empty-state communications-empty">
+            <p>No hay comunicados que coincidan con los filtros.</p>
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+          <div className="communications-list">
             {filteredCommunications.map(comm => (
               <CommunicationCard
                 key={comm.id}
@@ -199,3 +218,5 @@ export function Communications() {
     </>
   );
 }
+
+

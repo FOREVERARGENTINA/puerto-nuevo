@@ -3,17 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    // Leer tema guardado o usar preferencia del sistema
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) return savedTheme;
-    
-    // Detectar preferencia del sistema
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
     // Aplicar el tema al documento

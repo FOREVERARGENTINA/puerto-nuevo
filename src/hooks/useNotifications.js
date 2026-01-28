@@ -188,7 +188,7 @@ export function useNotifications() {
       message: conv.asunto || 'Conversación',
       timestamp: conv.ultimoMensajeAt?.toDate() || conv.actualizadoAt?.toDate() || new Date(),
       urgent: conv.estado === 'pendiente',
-      actionUrl: conversationsUrl,
+      actionUrl: `${conversationsUrl}/${conv.id}`,
       metadata: { conversationId: conv.id }
     }));
 

@@ -3,12 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
+import { useDialog } from '../../hooks/useDialog';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { conversationsService } from '../../services/conversations.service';
 import { ROUTES, CONVERSATION_STATUS, ROLES } from '../../config/constants';
 import {
   getAreaLabel,
   getCategoryLabel,
-  getConversationStatusBadge,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
 
@@ -16,10 +17,12 @@ export function FamilyConversationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { isOpen, openDialog, closeDialog } = useDialog();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [error, setError] = useState(null);
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
@@ -90,6 +93,25 @@ export function FamilyConversationDetail() {
     setSending(false);
   };
 
+  const handleCloseConversation = () => {
+    openDialog();
+  };
+
+  const confirmClose = async () => {
+    if (!conversation || !user || closing) return;
+    
+    setClosing(true);
+    setError(null);
+    
+    const result = await conversationsService.closeConversation(conversation.id, user.uid);
+    
+    if (!result.success) {
+      setError(result.error || 'No se pudo cerrar la conversación');
+    }
+    
+    setClosing(false);
+  };
+
   const headerMeta = useMemo(() => {
     if (!conversation) return '';
     const status = getConversationStatusLabel(conversation.estado, ROLES.FAMILY);
@@ -116,25 +138,41 @@ export function FamilyConversationDetail() {
   }
 
   return (
-    <div className="container page-container">
-      <div className="dashboard-header dashboard-header--compact">
-        <div className="conversation-header">
-          <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--link">← Volver</Link>
-          <div className="conversation-header__main">
-            <h1 className="dashboard-title">{conversation.asunto || 'Sin asunto'}</h1>
-            <div className="conversation-header__meta">
-              <span className={getConversationStatusBadge(conversation.estado)}>
+    <div className="family-conversations-page">
+      <div className="conversations-header">
+        <div className="conversations-header__content">
+          <div>
+            <h1 className="conversations-title">{conversation.asunto || 'Sin asunto'}</h1>
+            <div className="conversation-detail-meta">
+              <span className={`conversation-status-tag conversation-status-tag--${conversation.estado}`}>
                 {getConversationStatusLabel(conversation.estado, role)}
               </span>
-              <span className="text-muted">{headerMeta}</span>
+              <span className="conversation-meta-item">{getAreaLabel(conversation.destinatarioEscuela)}</span>
+              <span className="conversation-meta-divider">·</span>
+              <span className="conversation-meta-item">{getCategoryLabel(conversation.categoria)}</span>
             </div>
+          </div>
+          <div className="conversations-header__actions">
+            {!isClosed && (
+              <button 
+                type="button" 
+                className="btn btn--outline-danger btn--sm"
+                onClick={handleCloseConversation}
+                disabled={closing}
+              >
+                {closing ? 'Cerrando...' : 'Cerrar conversación'}
+              </button>
+            )}
+            <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline btn--sm">
+              ← Volver
+            </Link>
           </div>
         </div>
       </div>
 
-      <div className="conversation-thread">
+      <div className="conversation-messages">
         {messages.length === 0 ? (
-          <div className="empty-state--card">
+          <div className="conversation-empty">
             <p>No hay mensajes en esta conversación.</p>
           </div>
         ) : (
@@ -142,47 +180,86 @@ export function FamilyConversationDetail() {
             const isOwn = msg.autorUid === user?.uid;
             const createdAt = msg.creadoAt?.toDate?.() || new Date();
             return (
-              <div key={msg.id} className={`message-bubble ${isOwn ? 'message-bubble--own' : ''}`}>
-                <div className="message-bubble__header">
-                  <strong>{msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}</strong>
-                  <span>{createdAt.toLocaleString('es-AR')}</span>
-                </div>
-                {msg.texto && <p>{msg.texto}</p>}
-                {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (
-                  <div className="message-bubble__attachments">
-                    {msg.adjuntos.map((a, idx) => (
-                      <a key={idx} href={a.url} target="_blank" rel="noreferrer">{a.name}</a>
-                    ))}
+              <div key={msg.id} className={`chat-message ${isOwn ? 'chat-message--sent' : 'chat-message--received'}`}>
+                <div className="chat-message__content">
+                  <div className="chat-message__header">
+                    <span className="chat-message__author">
+                      {msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}
+                    </span>
+                    <span className="chat-message__time">
+                      {createdAt.toLocaleString('es-AR', { 
+                        day: 'numeric', 
+                        month: 'short',
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </span>
                   </div>
-                )}
+                  {msg.texto && <p className="chat-message__text">{msg.texto}</p>}
+                  {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (
+                    <div className="chat-message__attachments">
+                      {msg.adjuntos.map((a, idx) => (
+                        <a key={idx} href={a.url} target="_blank" rel="noreferrer" className="chat-attachment">
+                          {a.name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })
         )}
       </div>
 
-      <form className="conversation-compose" onSubmit={handleSend}>
-        <textarea
-          className="form-textarea"
-          placeholder={isClosed ? 'Conversación cerrada' : 'Escribí tu respuesta...'}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          disabled={sending || isClosed}
-        />
-        <div className="conversation-compose__actions">
-          <input
-            type="file"
-            className="form-input"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            disabled={sending || isClosed}
+      {!isClosed && (
+        <form className="conversation-reply" onSubmit={handleSend}>
+          <textarea
+            className="conversation-reply__input"
+            placeholder="Escribí tu mensaje..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            disabled={sending}
           />
-          <button className="btn btn--primary" type="submit" disabled={sending || isClosed}>
-            {sending ? 'Enviando...' : 'Enviar mensaje'}
-          </button>
+          <div className="conversation-reply__footer">
+            <label className="conversation-reply__file">
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                disabled={sending}
+              />
+              <span className="conversation-reply__file-text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                {file ? file.name : 'Adjuntar archivo'}
+              </span>
+            </label>
+            <button className="btn btn--primary" type="submit" disabled={sending || (!text.trim() && !file)}>
+              {sending ? 'Enviando...' : 'Enviar'}
+            </button>
+          </div>
+          {error && <div className="alert alert--error mt-sm">{error}</div>}
+        </form>
+      )}
+
+      {isClosed && (
+        <div className="conversation-closed-notice">
+          Esta conversación está cerrada
         </div>
-        {error && <div className="alert alert--error mt-sm">{error}</div>}
-      </form>
+      )}
+
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={closeDialog}
+        onConfirm={confirmClose}
+        title="Cerrar conversación"
+        message="¿Estás seguro de que querés cerrar esta conversación? No podrás enviar más mensajes."
+        confirmText="Cerrar"
+        cancelText="Cancelar"
+        type="danger"
+      />
     </div>
   );
 }

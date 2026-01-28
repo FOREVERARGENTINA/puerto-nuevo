@@ -193,6 +193,7 @@ export const ROUTES = {
   EVENTS_MANAGER: '/admin/eventos',
   ADMIN_CONVERSATIONS: '/admin/conversaciones',
   ADMIN_CONVERSATION_NEW: '/admin/conversaciones/nuevo',
+  ADMIN_SNACKS_LISTS: '/admin/snacks/listas',
 
   // Family
   FAMILY_DASHBOARD: '/familia',

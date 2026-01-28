@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { communicationsService } from '../../services/communications.service';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
 import { ROLES } from '../../config/constants';
-import { Modal, ModalBody, ModalHeader } from '../../components/common/Modal';
-import { SendCommunication } from './SendCommunication';
 
 export function ReadReceiptsPanel() {
+  const navigate = useNavigate();
   const [communications, setCommunications] = useState([]);
   const [selectedComm, setSelectedComm] = useState(null);
   const [stats, setStats] = useState(null);
@@ -23,7 +23,6 @@ export function ReadReceiptsPanel() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [communicationsWithStats, setCommunicationsWithStats] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Nuevos estados para filtro por familia
   const [allFamilies, setAllFamilies] = useState([]);
@@ -357,7 +356,7 @@ export function ReadReceiptsPanel() {
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           <span className="badge badge--info">{communications.length} comunicados</span>
-          <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
+          <button className="btn btn--primary" onClick={() => navigate('/admin/comunicar/nuevo')}>
             Crear comunicado
           </button>
         </div>
@@ -851,12 +850,6 @@ export function ReadReceiptsPanel() {
         </div>
       )}
     </div>
-    <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} size="full">
-      <ModalHeader title="Crear comunicado" onClose={() => setShowCreateModal(false)} />
-      <ModalBody>
-        <SendCommunication embedded onSuccess={() => setShowCreateModal(false)} onCancel={() => setShowCreateModal(false)} />
-      </ModalBody>
-    </Modal>
     </>
   );
 }

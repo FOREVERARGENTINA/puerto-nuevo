@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { formatRelativeTime } from '../../utils/dateHelpers';
 import { readReceiptsService } from '../../services/readReceipts.service';
+import { conversationsService } from '../../services/conversations.service';
 import { useAuth } from '../../hooks/useAuth';
+import { ROLES, ADMIN_ROLES } from '../../config/constants';
 import Icon from '../ui/Icon';
 
 export function NotificationDropdown({ notifications, onClose }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   const handleNotificationClick = async (notification) => {
     // Si es un comunicado, marcarlo como leído antes de navegar
@@ -15,6 +17,19 @@ export function NotificationDropdown({ notifications, onClose }) {
         await readReceiptsService.markAsRead(notification.metadata.commId, user.uid, user.displayName || user.email);
       } catch (err) {
         console.error('Error marking notification as read', err);
+      }
+    }
+
+    // Si es una conversación, marcar mensajes como leídos
+    if (notification.type === 'conversacion' && notification.metadata?.conversationId && user) {
+      try {
+        const isFamily = role === ROLES.FAMILY;
+        await conversationsService.markMessagesAsRead(
+          notification.metadata.conversationId,
+          isFamily ? 'familia' : 'escuela'
+        );
+      } catch (err) {
+        console.error('Error marking conversation as read', err);
       }
     }
 

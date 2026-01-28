@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentUploader } from '../../components/documents/DocumentUploader';
 import { DocumentViewer } from '../../components/documents/DocumentViewer';
@@ -43,7 +43,7 @@ export function DocumentManager() {
           ) : (
             <div>
               <div className="alert alert--info" style={{ marginBottom: 'var(--spacing-md)' }}>
-                <strong>Nota:</strong> Los documentos que subas serÃ¡n visibles Ãºnicamente para los roles que selecciones.
+                <strong>Nota:</strong> Los documentos que subas serán visibles únicamente para los roles que selecciones.
               </div>
               <DocumentUploader onUploadSuccess={() => setActiveTab('ver')} />
             </div>
@@ -53,4 +53,5 @@ export function DocumentManager() {
     </div>
   );
 }
+
 

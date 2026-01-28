@@ -333,6 +333,83 @@ Antes de proponer `firebase deploy`, verificar:
 
 ---
 
+## 📝 Codificación de Caracteres (UTF-8)
+
+Este proyecto está en **español** y usa emojis. SIEMPRE mantener codificación UTF-8.
+
+### ⚠️ REGLAS OBLIGATORIAS
+
+```javascript
+// ✅ SIEMPRE usar caracteres UTF-8 correctos
+"¡Tu turno!"          // ¡ correcto
+"← Volver"            // ← flecha correcta
+"✓ Confirmar"         // ✓ check mark correcto
+"✗ Rechazar"          // ✗ X mark correcto
+"⚠️ Advertencia"      // ⚠️ emoji correcto
+"📋 Historial"        // 📋 emoji correcto
+
+// ❌ NUNCA permitir mojibake (caracteres corruptos)
+"Â¡Tu turno!"         // ❌ corrupto
+"? Volver"            // ❌ corrupto
+"âœ" Confirmar"       // ❌ corrupto
+"âš ï¸ Advertencia"   // ❌ corrupto
+```
+
+### Caracteres comunes en español
+
+| Correcto | Descripción | NUNCA usar |
+|----------|-------------|------------|
+| `¡` | Exclamación apertura | `Â¡` |
+| `¿` | Interrogación apertura | `Â¿` |
+| `á é í ó ú` | Vocales acentuadas | `Ã¡ Ã© Ã­ Ã³ Ãº` |
+| `ñ` | Eñe | `Ã±` |
+| `←` | Flecha izquierda | `?` o `â†` |
+| `✓` | Check mark | `âœ"` |
+| `✗` | X mark | `âœ—` |
+| `⚠️` | Advertencia | `âš ï¸` |
+| `📋` | Clipboard | corrupciones |
+
+### Cómo detectar problemas
+
+```bash
+# Buscar mojibake en archivos
+grep -r "â\|Ã\|Â" src/
+
+# Buscar caracteres problemáticos
+grep -r "âœ\|âš\|â†" src/
+```
+
+### Cuando edites o crees archivos
+
+1. **SIEMPRE verificar** que emojis y caracteres especiales se vean correctos
+2. **NUNCA copiar** texto de fuentes con codificación diferente sin revisar
+3. **SI ves** `â`, `Ã`, `Â` → es mojibake, corregir inmediatamente
+4. **ANTES de commit** revisar que no hay caracteres corruptos
+
+### Archivos más sensibles
+
+- `src/pages/family/*` → interfaz en español para familias
+- `src/pages/teacher/*` → mensajes a docentes
+- `src/components/communications/*` → comunicados oficiales
+- `src/pages/admin/*` → cualquier texto user-facing
+
+### En caso de encontrar mojibake
+
+```javascript
+// 1. Identificar el carácter corrupto
+"âš ï¸" // ← esto está mal
+
+// 2. Buscar todas las ocurrencias
+grep -n "âš ï¸" src/pages/family/MySnacks.jsx
+
+// 3. Reemplazar con UTF-8 correcto
+"⚠️" // ← esto está bien
+
+// 4. Verificar en navegador que se ve correcto
+```
+
+---
+
 ## ⏰ Meta-Límite Temporal
 
 > **Si este archivo tiene más de 3 meses desde su última actualización, el agente debe:**

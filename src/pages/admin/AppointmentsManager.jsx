@@ -7,6 +7,7 @@ import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { ROLES } from '../../config/constants';
+import Icon from '../../components/ui/Icon';
 
 const AppointmentsManager = () => {
   const initialToday = new Date();
@@ -24,6 +25,7 @@ const AppointmentsManager = () => {
   const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   const [familyUsers, setFamilyUsers] = useState([]);
   const [children, setChildren] = useState([]);
   const [childSearchTerm, setChildSearchTerm] = useState('');
@@ -199,68 +201,138 @@ const AppointmentsManager = () => {
   };
 
   const handleMarkAttended = async (appointmentId) => {
-    const result = await appointmentsService.markAsAttended(appointmentId);
-    if (result.success) {
-      loadAppointments();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: result.error,
-        type: 'error'
-      });
+    setActionLoading(true);
+    try {
+      const result = await appointmentsService.markAsAttended(appointmentId);
+      if (result.success) {
+        await loadAppointments();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const confirmMarkAttended = (appointmentId) => {
+    confirmDialog.openDialog({
+      title: 'Marcar como Asistió',
+      message: '¿Confirmas que la familia asistió a este turno?',
+      type: 'info',
+      onConfirm: () => handleActionWithClose(() => handleMarkAttended(appointmentId))
+    });
   };
 
   const handleCancelAppointment = async (appointmentId) => {
-    const result = await appointmentsService.cancelAppointment(appointmentId, 'escuela');
-    if (result.success) {
-      loadAppointments();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: result.error,
-        type: 'error'
-      });
+    setActionLoading(true);
+    try {
+      const result = await appointmentsService.cancelAppointment(appointmentId, 'escuela');
+      if (result.success) {
+        await loadAppointments();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const confirmCancelAppointment = (appointmentId) => {
+    confirmDialog.openDialog({
+      title: 'Cancelar Turno',
+      message: '¿Estás seguro de que deseas cancelar este turno? La familia será notificada.',
+      type: 'warning',
+      onConfirm: () => handleActionWithClose(() => handleCancelAppointment(appointmentId))
+    });
   };
 
   const handleDeleteAppointment = async (appointmentId) => {
-    const result = await appointmentsService.deleteAppointment(appointmentId);
-    if (result.success) {
-      loadAppointments();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: result.error,
-        type: 'error'
-      });
+    setActionLoading(true);
+    try {
+      const result = await appointmentsService.deleteAppointment(appointmentId);
+      if (result.success) {
+        await loadAppointments();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const confirmDeleteAppointment = (appointmentId) => {
+    confirmDialog.openDialog({
+      title: 'Eliminar Permanentemente',
+      message: '¿Estás seguro de que deseas eliminar este turno? Esta acción no se puede deshacer.',
+      type: 'danger',
+      onConfirm: () => handleActionWithClose(() => handleDeleteAppointment(appointmentId))
+    });
   };
 
   const handleBlockAppointment = async (appointmentId) => {
-    const result = await appointmentsService.blockAppointment(appointmentId);
-    if (result.success) {
-      loadAppointments();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: result.error,
-        type: 'error'
-      });
+    setActionLoading(true);
+    try {
+      const result = await appointmentsService.blockAppointment(appointmentId);
+      if (result.success) {
+        await loadAppointments();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
+  const confirmBlockAppointment = (appointmentId) => {
+    confirmDialog.openDialog({
+      title: 'Bloquear Turno',
+      message: '¿Estás seguro de que deseas bloquear este turno? No estará disponible para asignación.',
+      type: 'warning',
+      onConfirm: () => handleActionWithClose(() => handleBlockAppointment(appointmentId))
+    });
+  };
+
   const handleUnblockAppointment = async (appointmentId) => {
-    const result = await appointmentsService.unblockAppointment(appointmentId);
-    if (result.success) {
-      loadAppointments();
-    } else {
-      alertDialog.openDialog({
-        title: 'Error',
-        message: result.error,
-        type: 'error'
-      });
+    setActionLoading(true);
+    try {
+      const result = await appointmentsService.unblockAppointment(appointmentId);
+      if (result.success) {
+        await loadAppointments();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: result.error,
+          type: 'error'
+        });
+      }
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const confirmUnblockAppointment = (appointmentId) => {
+    confirmDialog.openDialog({
+      title: 'Liberar Turno',
+      message: '¿Estás seguro de que deseas liberar este turno? Quedará disponible para asignación.',
+      type: 'warning',
+      onConfirm: () => handleActionWithClose(() => handleUnblockAppointment(appointmentId))
+    });
   };
 
   const handleSelectSlot = (appointment) => {
@@ -595,8 +667,8 @@ const AppointmentsManager = () => {
     <div className="container page-container appointments-manager-page">
       <div className="dashboard-header dashboard-header--compact appointments-header">
         <div>
-          <h1 className="dashboard-title">Turnos</h1>
-          <p className="dashboard-subtitle">Calendario y administración</p>
+          <h1 className="dashboard-title">Reuniones</h1>
+          <p className="dashboard-subtitle">Calendario y administración de turnos para reuniones</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
           <button
@@ -812,7 +884,7 @@ const AppointmentsManager = () => {
                                   }`}>
                                     {getStatusLabel(app.estado)}
                                   </span>
-                                  {(familyLabels.length > 0 || showSecondaryEmail || childLabel) && (
+                                  {app.estado !== 'disponible' && (familyLabels.length > 0 || showSecondaryEmail || childLabel) && (
                                     <div className="appointment-identity">
                                       {familyLabels.map((label, index) => (
                                         <span
@@ -837,7 +909,7 @@ const AppointmentsManager = () => {
                                       {`Turno cancelado${getCancelledByLabel(app.canceladoPor) ? ` por ${getCancelledByLabel(app.canceladoPor)}` : ''}`}
                                     </span>
                                   )}
-                                  {app.nota && (
+                                  {app.estado !== 'disponible' && app.nota && (
                                     <span className="appointment-note-preview">{app.nota}</span>
                                   )}
                                 </div>
@@ -883,7 +955,7 @@ const AppointmentsManager = () => {
                     className="event-calendar__nav-btn"
                     aria-label="Mes anterior"
                   >
-                    <span>‹</span>
+                    <Icon name="chevron-left" size={16} className="event-calendar__nav-icon" />
                   </button>
                   <div className="event-calendar__month">
                     {monthNames[currentMonthIndex]} {currentMonthYear}
@@ -894,7 +966,7 @@ const AppointmentsManager = () => {
                       className="event-calendar__nav-btn"
                       aria-label="Siguiente mes"
                     >
-                      <span>›</span>
+                      <Icon name="chevron-right" size={16} className="event-calendar__nav-icon" />
                     </button>
                     <button
                       onClick={goToToday}
@@ -934,6 +1006,15 @@ const AppointmentsManager = () => {
                   })}
                 </div>
               </div>
+
+              {selectedDay && (
+                <button
+                  className="btn btn--sm btn--outline events-calendar-clear"
+                  onClick={() => setSelectedDay(null)}
+                >
+                  Ver todo el mes
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -943,9 +1024,15 @@ const AppointmentsManager = () => {
       {showActionsModal && selectedAppointment && (
         <div className="modal-overlay" onClick={closeActionsModal}>
           <div className="modal-content modal-content--actions" onClick={(e) => e.stopPropagation()}>
+            {actionLoading && (
+              <div className="modal-loading-overlay">
+                <div className="spinner"></div>
+                <p>Procesando...</p>
+              </div>
+            )}
             <div className="modal-header">
               <h3>Acciones del Turno</h3>
-              <button onClick={closeActionsModal} className="modal-close">✕</button>
+              <button onClick={closeActionsModal} className="modal-close" disabled={actionLoading}>✕</button>
             </div>
             <div className="modal-body">
               {isPastAppointment(selectedAppointment) && (
@@ -962,28 +1049,32 @@ const AppointmentsManager = () => {
                   selectedAppointment.estado === 'asistio' ? 'info' :
                   'danger'
                 }`}>{getStatusLabel(selectedAppointment.estado)}</span></p>
-                {selectedFamiliesInfo.length > 0 ? (
+                {selectedAppointment.estado !== 'disponible' && (
                   <>
-                    <p><strong>Familias:</strong> {selectedFamiliesInfo.map(fam => fam.displayName || fam.email).filter(Boolean).join(', ')}</p>
-                    {selectedFamiliesInfo.some(fam => fam.email) && (
-                      <p><strong>Emails:</strong> {selectedFamiliesInfo.map(fam => fam.email).filter(Boolean).join(', ')}</p>
+                    {selectedFamiliesInfo.length > 0 ? (
+                      <>
+                        <p><strong>Familias:</strong> {selectedFamiliesInfo.map(fam => fam.displayName || fam.email).filter(Boolean).join(', ')}</p>
+                        {selectedFamiliesInfo.some(fam => fam.email) && (
+                          <p><strong>Emails:</strong> {selectedFamiliesInfo.map(fam => fam.email).filter(Boolean).join(', ')}</p>
+                        )}
+                      </>
+                    ) : (
+                      selectedAppointment.familiaEmail && (
+                        <>
+                          <p><strong>Familia:</strong> {selectedAppointment.familiaDisplayName || selectedAppointment.familiaEmail}</p>
+                          {selectedAppointment.familiaDisplayName && selectedAppointment.familiaEmail && (
+                            <p><strong>Email:</strong> {selectedAppointment.familiaEmail}</p>
+                          )}
+                        </>
+                      )
+                    )}
+                    {selectedAppointment.hijoNombre && (
+                      <p><strong>Alumno:</strong> {selectedAppointment.hijoNombre}</p>
+                    )}
+                    {selectedAppointment.nota && (
+                      <p><strong>Nota:</strong> {selectedAppointment.nota}</p>
                     )}
                   </>
-                ) : (
-                  selectedAppointment.familiaEmail && (
-                    <>
-                      <p><strong>Familia:</strong> {selectedAppointment.familiaDisplayName || selectedAppointment.familiaEmail}</p>
-                      {selectedAppointment.familiaDisplayName && selectedAppointment.familiaEmail && (
-                        <p><strong>Email:</strong> {selectedAppointment.familiaEmail}</p>
-                      )}
-                    </>
-                  )
-                )}
-                {selectedAppointment.hijoNombre && (
-                  <p><strong>Alumno:</strong> {selectedAppointment.hijoNombre}</p>
-                )}
-                {selectedAppointment.nota && (
-                  <p><strong>Nota:</strong> {selectedAppointment.nota}</p>
                 )}
                 {selectedAppointment.estado === 'cancelado' && (
                   <p>
@@ -997,15 +1088,16 @@ const AppointmentsManager = () => {
                 {selectedAppointment.estado === 'disponible' && (
                   <>
                     <button
-                      onClick={() => handleActionWithClose(() => handleBlockAppointment(selectedAppointment.id))}
+                      onClick={() => confirmBlockAppointment(selectedAppointment.id)}
                       className="btn btn--secondary btn--full"
+                      disabled={actionLoading}
                     >
                       🔒 Bloquear Turno
                     </button>
                     <button
                       onClick={handleOpenAssignModal}
                       className="btn btn--primary btn--full"
-                      disabled={isPastAppointment(selectedAppointment)}
+                      disabled={isPastAppointment(selectedAppointment) || actionLoading}
                     >
                       ➕ Asignar a familia/s
                     </button>
@@ -1014,8 +1106,9 @@ const AppointmentsManager = () => {
 
                 {selectedAppointment.estado === 'bloqueado' && (
                   <button
-                    onClick={() => handleActionWithClose(() => handleUnblockAppointment(selectedAppointment.id))}
+                    onClick={() => confirmUnblockAppointment(selectedAppointment.id)}
                     className="btn btn--primary btn--full"
+                    disabled={actionLoading}
                   >
                     🔓 Desbloquear Turno
                   </button>
@@ -1024,14 +1117,16 @@ const AppointmentsManager = () => {
                 {selectedAppointment.estado === 'reservado' && (
                   <>
                     <button
-                      onClick={() => handleActionWithClose(() => handleMarkAttended(selectedAppointment.id))}
+                      onClick={() => confirmMarkAttended(selectedAppointment.id)}
                       className="btn btn--primary btn--full"
+                      disabled={actionLoading}
                     >
                       Marcar como Asistió
                     </button>
                     <button
-                      onClick={() => handleActionWithClose(() => handleCancelAppointment(selectedAppointment.id))}
+                      onClick={() => confirmCancelAppointment(selectedAppointment.id)}
                       className="btn btn--danger btn--full"
+                      disabled={actionLoading}
                     >
                       Cancelar Turno
                     </button>
@@ -1040,16 +1135,18 @@ const AppointmentsManager = () => {
 
                 {selectedAppointment.estado === 'cancelado' && (
                   <button
-                    onClick={() => handleActionWithClose(() => handleUnblockAppointment(selectedAppointment.id))}
+                    onClick={() => confirmUnblockAppointment(selectedAppointment.id)}
                     className="btn btn--primary btn--full"
+                    disabled={actionLoading}
                   >
                     🔄 Liberar Turno (Dejar Disponible)
                   </button>
                 )}
 
                 <button
-                  onClick={() => handleActionWithClose(() => handleDeleteAppointment(selectedAppointment.id))}
+                  onClick={() => confirmDeleteAppointment(selectedAppointment.id)}
                   className="btn btn--danger btn--outline btn--full"
+                  disabled={actionLoading}
                 >
                   🗑️ Eliminar Permanentemente
                 </button>
@@ -1062,9 +1159,15 @@ const AppointmentsManager = () => {
       {showAssignModal && selectedAppointment && (
         <div className="modal-overlay" onClick={closeAssignModal}>
           <div className="modal-content modal-content--actions" onClick={(e) => e.stopPropagation()}>
+            {assignLoading && (
+              <div className="modal-loading-overlay">
+                <div className="spinner"></div>
+                <p>Asignando turno...</p>
+              </div>
+            )}
             <div className="modal-header">
               <h3>Asignar turno a familia/s</h3>
-              <button onClick={closeAssignModal} className="modal-close">✕</button>
+              <button onClick={closeAssignModal} className="modal-close" disabled={assignLoading}>✕</button>
             </div>
             <div className="modal-body">
               {assignError && (

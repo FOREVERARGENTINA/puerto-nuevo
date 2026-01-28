@@ -535,6 +535,9 @@ export function SnacksCalendar() {
           <p className="dashboard-subtitle">Vista unificada de ambos talleres - Año escolar {new Date().getFullYear()}</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <Link to={ROUTES.ADMIN_SNACKS_LISTS} className="btn btn--outline">
+            Listas de snacks
+          </Link>
           <button
             className="btn btn--outline"
             onClick={() => setShowPastWeeks((prev) => !prev)}
@@ -1134,6 +1137,7 @@ export function SnacksCalendar() {
     </div>
   );
 }
+
 
 
 

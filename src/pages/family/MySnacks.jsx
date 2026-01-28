@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { snacksService } from '../../services/snacks.service';
-import { ROUTES } from '../../config/constants';
+import { AMBIENTES, ROUTES } from '../../config/constants';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
 
 export function MySnacks() {
   const { user } = useAuth();
   const [myAssignments, setMyAssignments] = useState([]);
-  const [snackList, setSnackList] = useState(null);
+  const [snackLists, setSnackLists] = useState({});
+  const [snackAmbientes, setSnackAmbientes] = useState([]);
+  const [snackView, setSnackView] = useState('all');
+  const [snackListError, setSnackListError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -30,13 +33,46 @@ export function MySnacks() {
       );
       setMyAssignments(sorted);
 
-      // Si tiene asignaciones, cargar lista de snacks del ambiente
+      // Si tiene asignaciones, cargar listas de snacks por ambiente
       if (sorted.length > 0) {
-        const ambiente = sorted[0].ambiente;
-        const listResult = await snacksService.getSnackList(ambiente);
-        if (listResult.success) {
-          setSnackList(listResult.snackList);
+        const ambientes = Array.from(
+          new Set(sorted.map(assignment => assignment.ambiente).filter(Boolean))
+        );
+        setSnackAmbientes(ambientes);
+
+        if (ambientes.length === 0) {
+          setSnackLists({});
+          setSnackView('all');
+          setSnackListError('');
+        } else {
+          const listResults = await Promise.all(
+            ambientes.map(ambiente => snacksService.getSnackList(ambiente))
+          );
+
+          const lists = {};
+          let hasError = false;
+          listResults.forEach((listResult, idx) => {
+            const ambienteKey = ambientes[idx];
+            if (listResult.success && listResult.snackList) {
+              lists[ambienteKey] = listResult.snackList;
+            } else {
+              hasError = true;
+            }
+          });
+
+          setSnackLists(lists);
+          setSnackListError(hasError ? 'No pudimos cargar todas las listas.' : '');
+          setSnackView(prev => {
+            if (ambientes.length === 1) return ambientes[0];
+            if (prev !== 'all' && ambientes.includes(prev)) return prev;
+            return 'all';
+          });
         }
+      } else {
+        setSnackLists({});
+        setSnackAmbientes([]);
+        setSnackView('all');
+        setSnackListError('');
       }
     } else {
       setError('Error al cargar asignaciones: ' + result.error);
@@ -51,7 +87,7 @@ export function MySnacks() {
   const handleConfirm = async (assignmentId) => {
     const result = await snacksService.confirmFamilyAssignment(assignmentId, user.uid);
     if (result.success) {
-      setSuccess('Â¡ConfirmaciÃ³n registrada! Gracias por avisar.');
+      setSuccess('¡Confirmación registrada! Gracias por avisar.');
       await loadMyAssignments();
     } else {
       setError('Error al confirmar: ' + result.error);
@@ -85,12 +121,12 @@ export function MySnacks() {
     if (actionType === 'edit') {
       result = await snacksService.requestChange(selectedAssignment.id, motivo);
       if (result.success) {
-        setSuccess('Solicitud de cambio enviada. La escuela se pondrÃ¡ en contacto contigo.');
+        setSuccess('Solicitud de cambio enviada. La escuela se pondrá en contacto contigo.');
       }
     } else if (actionType === 'cancel') {
       result = await snacksService.cancelAssignment(selectedAssignment.id, motivo);
       if (result.success) {
-        setSuccess('Turno rechazado. La escuela reasignarÃ¡ esta semana a otra familia.');
+        setSuccess('Turno rechazado. La escuela reasignará esta semana a otra familia.');
       }
     }
 
@@ -117,13 +153,46 @@ export function MySnacks() {
     const inicio = new Date(fechaInicio + 'T00:00:00');
     const today = new Date();
     const diffDays = Math.ceil((inicio - today) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7; // PrÃ³xima semana
+    return diffDays >= 0 && diffDays <= 7; // Próxima semana
   };
 
   const isPast = (fechaFin) => {
     const fin = new Date(fechaFin + 'T00:00:00');
     const today = new Date();
     return fin < today;
+  };
+
+  const getAmbienteLabel = (ambiente) => {
+    if (ambiente === AMBIENTES.TALLER_1) return 'Taller 1';
+    if (ambiente === AMBIENTES.TALLER_2) return 'Taller 2';
+    return 'Sin taller';
+  };
+
+  const renderSnackList = (ambiente, showHeading) => {
+    const list = snackLists[ambiente];
+    return (
+      <div key={ambiente} className="snack-list-block">
+        {showHeading && (
+          <h4 className="snack-list-title">{getAmbienteLabel(ambiente)}</h4>
+        )}
+        {list && Array.isArray(list.items) ? (
+          <>
+            <ul className="snack-list">
+              {list.items.map((item, index) => (
+                <li key={`${ambiente}-${index}`}>{item}</li>
+              ))}
+            </ul>
+            {list.observaciones && (
+              <p className="snack-note">
+                <strong>Nota:</strong> {list.observaciones}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="form-help">Lista no disponible.</p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -134,7 +203,7 @@ export function MySnacks() {
           <p className="dashboard-subtitle">Confirmá o solicitá cambios en tus turnos.</p>
         </div>
         <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
-          ? Volver
+          ← Volver
         </Link>
       </div>
 
@@ -158,26 +227,45 @@ export function MySnacks() {
             <div className="empty-state">
               <p>No tienes turnos asignados para llevar snacks.</p>
               <p className="empty-state__text">
-                Cuando la escuela te asigne un turno, aparecerÃ¡ aquÃ­.
+                Cuando la escuela te asigne un turno, aparecerá aquí.
               </p>
             </div>
           ) : (
             <>
               {/* Lista de Snacks */}
-              {snackList && (
+              {snackAmbientes.length > 0 && (
                 <div className="card snack-list-card">
                   <div className="card__body">
-                    <h3 className="mb-md">ðŸ“‹ Lista de Snacks a Traer</h3>
-                    <ul className="snack-list">
-                      {snackList.items.map((item, index) => (
-                        <li key={index}>{item}</li>
-                      ))}
-                    </ul>
-                    {snackList.observaciones && (
-                      <p className="snack-note">
-                        <strong>Nota:</strong> {snackList.observaciones}
-                      </p>
+                    <div className="snack-list-header">
+                      <h3 className="mb-md">Lista de snacks a traer</h3>
+                      {snackAmbientes.length > 1 && (
+                        <div className="snack-list-toggle">
+                          <button
+                            type="button"
+                            className={snackView === 'all' ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
+                            onClick={() => setSnackView('all')}
+                          >
+                            Todos
+                          </button>
+                          {snackAmbientes.map(ambiente => (
+                            <button
+                              key={ambiente}
+                              type="button"
+                              className={snackView === ambiente ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
+                              onClick={() => setSnackView(ambiente)}
+                            >
+                              {getAmbienteLabel(ambiente)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {snackListError && (
+                      <p className="form-help">{snackListError}</p>
                     )}
+                    {snackView === 'all'
+                      ? snackAmbientes.map(ambiente => renderSnackList(ambiente, snackAmbientes.length > 1))
+                      : renderSnackList(snackView, snackAmbientes.length > 1)}
                   </div>
                 </div>
               )}
@@ -189,13 +277,13 @@ export function MySnacks() {
                     className={`tabs__tab ${activeTab === 'activos' ? 'tabs__tab--active' : ''}`}
                     onClick={() => setActiveTab('activos')}
                   >
-                    PrÃ³ximos Turnos
+                    Próximos Turnos
                   </button>
                   <button
                     className={`tabs__tab ${activeTab === 'historial' ? 'tabs__tab--active' : ''}`}
                     onClick={() => setActiveTab('historial')}
                   >
-                    ðŸ“‹ Historial
+                    📋 Historial
                   </button>
                 </div>
 
@@ -203,7 +291,7 @@ export function MySnacks() {
                   {activeTab === 'activos' && (
                     <div className="assignments-list">
                       {myAssignments.filter(a => !isPast(a.fechaFin)).length === 0 ? (
-                        <p className="empty-state__text">No tienes turnos prÃ³ximos.</p>
+                        <p className="empty-state__text">No tienes turnos próximos.</p>
                       ) : (
                         myAssignments.filter(a => !isPast(a.fechaFin)).map(assignment => {
                           const upcoming = isUpcoming(assignment.fechaInicio);
@@ -220,7 +308,7 @@ export function MySnacks() {
                         <div className="assignment-header">
                           <div>
                             <h4 className="assignment-title">
-                              {upcoming && 'âš ï¸ '} {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
+                              {upcoming && '⚠️ '} {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
                             </h4>
                           </div>
                           <span className={`badge ${
@@ -235,17 +323,17 @@ export function MySnacks() {
 
                         {upcoming && !assignment.confirmadoPorFamilia && assignment.estado === 'pendiente' && (
                           <div className="assignment-warning">
-                            <strong>Â¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
+                            <strong>¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
                           </div>
                         )}
 
                         <div className="assignment-actions">
                           {(() => {
-                            // Estados finales sin acciÃ³n
+                            // Estados finales sin acción
                             if (assignment.estado === 'cancelado') {
                               return (
                                 <div className="assignment-cancelled">
-                                  <span>âœ— Turno rechazado</span>
+                                  <span>✗ Turno rechazado</span>
                                   {assignment.motivoCancelacion && (
                                     <p className="assignment-cancelled__message">
                                       {assignment.motivoCancelacion}
@@ -259,7 +347,7 @@ export function MySnacks() {
                               return (
                                 <div className="assignment-change-request">
                                   <p>
-                                    <strong>âš ï¸ Solicitud de cambio enviada</strong>
+                                    <strong>⚠️ Solicitud de cambio enviada</strong>
                                   </p>
                                   {assignment.motivoCambio && (
                                     <p className="assignment-change-request__message">
@@ -267,7 +355,7 @@ export function MySnacks() {
                                     </p>
                                   )}
                                   <p className="assignment-change-request__note">
-                                    La escuela confirmarÃ¡ si puede asignarte la fecha que solicitaste.
+                                    La escuela confirmará si puede asignarte la fecha que solicitaste.
                                   </p>
                                 </div>
                               );
@@ -276,7 +364,7 @@ export function MySnacks() {
                             if (past) {
                               return (
                                 <p className="assignment-past-note">
-                                  Esta semana ya pasÃ³
+                                  Esta semana ya pasó
                                 </p>
                               );
                             }
@@ -292,10 +380,10 @@ export function MySnacks() {
                               <>
                                 {alreadyConfirmed && (
                                   <div className="assignment-confirmed mb-sm">
-                                    <span>âœ“</span>
+                                    <span>✓</span>
                                     <span>
                                       {iConfirmed 
-                                        ? 'Ya confirmaste que traerÃ¡s los snacks'
+                                        ? 'Ya confirmaste que traerás los snacks'
                                         : `Ya confirmado por: ${assignment.confirmadoPor}`
                                       }
                                     </span>
@@ -308,7 +396,7 @@ export function MySnacks() {
                                       onClick={() => handleConfirm(assignment.id)}
                                       className="btn btn--primary"
                                     >
-                                      âœ“ Confirmar
+                                      ✓ Confirmar
                                     </button>
                                   )}
                                   <button
@@ -321,7 +409,7 @@ export function MySnacks() {
                                     onClick={() => handleOpenEditModal(assignment, 'cancel')}
                                     className="btn btn--outline btn--danger-outline"
                                   >
-                                    âœ— Rechazar turno
+                                    ✗ Rechazar turno
                                   </button>
                                 </div>
                               </>
@@ -379,7 +467,7 @@ export function MySnacks() {
         </div>
       </div>
 
-      {/* Modal de EdiciÃ³n/Rechazo */}
+      {/* Modal de Edición/Rechazo */}
       <Modal isOpen={showEditModal} onClose={handleCloseEditModal} size="md">
         <ModalHeader
           title={actionType === 'edit' ? 'Solicitar cambio de fecha' : 'Rechazar turno'}
@@ -407,7 +495,7 @@ export function MySnacks() {
                     placeholder="Ejemplo: Estaremos de viaje esa semana. Prefiero la semana del lunes 20 de enero."
                   />
                   <p className="form-help mt-sm">
-                    La escuela revisarÃ¡ tu solicitud y confirmarÃ¡ si puede asignarte la fecha alternativa.
+                    La escuela revisará tu solicitud y confirmará si puede asignarte la fecha alternativa.
                   </p>
                 </div>
               ) : (
@@ -423,7 +511,7 @@ export function MySnacks() {
                     placeholder="Ejemplo: Tenemos un viaje familiar programado esa semana."
                   />
                   <p className="form-help mt-sm">
-                    La escuela reasignarÃ¡ esta semana a otra familia.
+                    La escuela reasignará esta semana a otra familia.
                   </p>
                 </div>
               )}
@@ -450,6 +538,13 @@ export function MySnacks() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

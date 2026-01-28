@@ -7,7 +7,6 @@ import { formatRelativeTime } from '../../utils/dateHelpers';
 import {
   getAreaLabel,
   getCategoryLabel,
-  getConversationStatusBadge,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
 
@@ -43,78 +42,118 @@ export function FamilyConversations() {
   }
 
   return (
-    <div className="container page-container">
+    <div className="page-container family-conversations-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">Mis Conversaciones</h1>
-          <p className="dashboard-subtitle">Mensajes privados con la escuela</p>
+          <h1 className="dashboard-title">Conversaciones</h1>
+          <p className="dashboard-subtitle">Mensajes con la escuela</p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-          {unreadCount > 0 && (
-            <span className="badge badge--warning">{unreadCount} sin leer</span>
-          )}
-          <Link to={ROUTES.FAMILY_CONVERSATION_NEW} className="btn btn--primary">
-            + Nueva Consulta
-          </Link>
-        </div>
+        <Link to={ROUTES.FAMILY_CONVERSATION_NEW} className="btn btn--primary">
+          + Nueva Consulta
+        </Link>
       </div>
 
-      <div className="tabs mb-md">
-        <button
-          className={`tabs__tab ${tab === 'activas' ? 'tabs__tab--active' : ''}`}
-          onClick={() => setTab('activas')}
-        >
-          Activas
-        </button>
-        <button
-          className={`tabs__tab ${tab === 'cerradas' ? 'tabs__tab--active' : ''}`}
-          onClick={() => setTab('cerradas')}
-        >
-          Cerradas
-        </button>
-        <button
-          className={`tabs__tab ${tab === 'todas' ? 'tabs__tab--active' : ''}`}
-          onClick={() => setTab('todas')}
-        >
-          Todas
-        </button>
+      <div className="conversations-toolbar">
+        <div className="conversations-filters">
+          <button
+            className={`filter-tab ${tab === 'activas' ? 'filter-tab--active' : ''}`}
+            onClick={() => setTab('activas')}
+          >
+            Activas
+            {tab !== 'activas' && conversations.filter(c => c.estado !== CONVERSATION_STATUS.CERRADA).length > 0 && (
+              <span className="filter-tab__count">
+                {conversations.filter(c => c.estado !== CONVERSATION_STATUS.CERRADA).length}
+              </span>
+            )}
+          </button>
+          <button
+            className={`filter-tab ${tab === 'cerradas' ? 'filter-tab--active' : ''}`}
+            onClick={() => setTab('cerradas')}
+          >
+            Cerradas
+          </button>
+          <button
+            className={`filter-tab ${tab === 'todas' ? 'filter-tab--active' : ''}`}
+            onClick={() => setTab('todas')}
+          >
+            Todas
+          </button>
+        </div>
+        {unreadCount > 0 && (
+          <span className="conversations-unread-pill">
+            {unreadCount} sin leer
+          </span>
+        )}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="empty-state--card">
-          <p>No tenés conversaciones en esta sección.</p>
+        <div className="conversations-empty">
+          <p className="conversations-empty__text">
+            {tab === 'cerradas' 
+              ? 'No tenés conversaciones cerradas'
+              : tab === 'activas'
+              ? 'No tenés conversaciones activas'
+              : 'Aún no tenés conversaciones'}
+          </p>
+          <Link to={ROUTES.FAMILY_CONVERSATION_NEW} className="btn btn--primary btn--sm">
+            Iniciar consulta
+          </Link>
         </div>
       ) : (
-        <div className="conversation-list">
-          {filtered.map(conv => (
-            <Link
-              key={conv.id}
-              to={`${ROUTES.FAMILY_CONVERSATIONS}/${conv.id}`}
-              className="card card--list conversation-item link-unstyled"
-            >
-              <div className="conversation-item__main">
-                <div className="conversation-item__header">
-                  <span className={getConversationStatusBadge(conv.estado)}>
-                    {getConversationStatusLabel(conv.estado, ROLES.FAMILY)}
-                  </span>
-                  {conv.mensajesSinLeerFamilia > 0 && (
-                    <span className="badge badge--error">{conv.mensajesSinLeerFamilia} nuevos</span>
-                  )}
+        <div className="conversations-list">
+          {filtered.map(conv => {
+            const hasUnread = conv.mensajesSinLeerFamilia > 0;
+            const initial = getAreaLabel(conv.destinatarioEscuela)?.charAt(0)?.toUpperCase() || '?';
+            
+            return (
+              <Link
+                key={conv.id}
+                to={`${ROUTES.FAMILY_CONVERSATIONS}/${conv.id}`}
+                className={`conversation-row ${hasUnread ? 'conversation-row--unread' : ''}`}
+              >
+                <div className="conversation-row__avatar">
+                  {initial}
                 </div>
-                <h3 className="conversation-item__title">{conv.asunto || 'Sin asunto'}</h3>
-                <div className="conversation-item__meta">
-                  <span>Con: {getAreaLabel(conv.destinatarioEscuela)}</span>
-                  <span>• {getCategoryLabel(conv.categoria)}</span>
+                
+                <div className="conversation-row__content">
+                  <div className="conversation-row__top">
+                    <span className="conversation-row__subject">
+                      {conv.asunto || 'Sin asunto'}
+                    </span>
+                    <span className="conversation-row__time">
+                      {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
+                    </span>
+                  </div>
+                  
+                  <div className="conversation-row__middle">
+                    <span className="conversation-row__area">
+                      {getAreaLabel(conv.destinatarioEscuela)}
+                    </span>
+                    <span className="conversation-row__separator">·</span>
+                    <span className="conversation-row__category">
+                      {getCategoryLabel(conv.categoria)}
+                    </span>
+                  </div>
+                  
+                  <div className="conversation-row__bottom">
+                    <p className="conversation-row__preview">
+                      {conv.ultimoMensajeTexto || 'Sin mensajes'}
+                    </p>
+                    <div className="conversation-row__indicators">
+                      {hasUnread && (
+                        <span className="conversation-row__badge">
+                          {conv.mensajesSinLeerFamilia}
+                        </span>
+                      )}
+                      <span className={`conversation-row__status conversation-row__status--${conv.estado}`}>
+                        {getConversationStatusLabel(conv.estado, ROLES.FAMILY)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <p className="conversation-item__preview">
-                  {conv.ultimoMensajeTexto || 'Sin mensajes'}
-                </p>
-              </div>
-              <div className="conversation-item__time">
-                {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

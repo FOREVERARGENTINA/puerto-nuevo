@@ -12,7 +12,8 @@ import {
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const eventsCollection = collection(db, 'events');
@@ -162,6 +163,48 @@ export const eventsService = {
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Subir media (imagenes/videos) asociada a un evento
+   */
+  async uploadEventMedia(eventId, files, existingMedia = []) {
+    try {
+      const baseMedia = Array.isArray(existingMedia) ? existingMedia : [];
+      const uploads = [];
+      const timestamp = Date.now();
+
+      for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        const safeName = String(file.name || 'archivo')
+          .replace(/\s+/g, '_')
+          .replace(/[^\w.\-]/g, '');
+        const fileName = `${timestamp}_${i}_${safeName}`;
+        const storagePath = `public/events/${eventId}/${fileName}`;
+        const storageRef = ref(storage, storagePath);
+
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        uploads.push({
+          name: file.name || fileName,
+          url: downloadURL,
+          path: storagePath,
+          type: file.type || '',
+          size: file.size || 0
+        });
+      }
+
+      await updateDoc(doc(eventsCollection, eventId), {
+        media: [...baseMedia, ...uploads],
+        updatedAt: serverTimestamp()
+      });
+
+      window.dispatchEvent(new CustomEvent('events:updated'));
+      return { success: true, media: uploads };
+    } catch (error) {
+      console.error('Error al subir media del evento:', error);
       return { success: false, error: error.message };
     }
   },
