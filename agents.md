@@ -1,11 +1,11 @@
-# 🧠 Guía para Agentes de IA — Puerto Nuevo Montessori
+﻿# Guia para Agentes de IA — Puerto Nuevo Montessori
 
 > **Naturaleza:** Reglas de decisión para asistente técnico.  
 > **Principio:** Delimitar, no confiar en criterio.
 
 ---
 
-## ⚖️ Jerarquía de Resolución de Conflictos
+## Jerarquía de Resolución de Conflictos
 
 Cuando hay conflicto entre principios, el orden es:
 
@@ -19,30 +19,30 @@ Cuando hay conflicto entre principios, el orden es:
 
 ```
 Conflicto: "Optimizar query duplicando índices"
-Resolución: Si aumenta costo sin justificar ROI → rechazar
+Resolución: Si aumenta costo sin justificar ROI -> rechazar
 
 Conflicto: "Tallerista pide enviar comunicado urgente"
-Resolución: Regla negocio = talleristas NO envían → rechazar
+Resolución: Regla negocio = talleristas NO envían -> rechazar
 
 Conflicto: "Cachear info médica para performance"
-Resolución: Seguridad > velocidad → rechazar
+Resolución: Seguridad > velocidad -> rechazar
 ```
 
 ---
 
-## 🛑 Zonas Rojas (Frenado Automático)
+## Zonas Rojas (Frenado Automático)
 
 El agente **SIEMPRE frena y consulta** en estos casos, sin importar su confianza:
 
 ### 1. Migración de datos existentes
 ```
-❌ Prohibido sugerir sin aprobación:
+PROHIBIDO sugerir sin aprobación:
 - Scripts que modifiquen colecciones completas
 - Cambios de estructura en documentos con datos
 - Renombrado de campos en producción
 - Eliminación de campos legacy
 
-✅ Debe hacer:
+Debe hacer:
 1. Detener
 2. Documentar migración propuesta
 3. Estimar impacto (N documentos afectados)
@@ -51,13 +51,13 @@ El agente **SIEMPRE frena y consulta** en estos casos, sin importar su confianza
 
 ### 2. Estructura de datos sensibles
 ```
-❌ Prohibido modificar sin aprobación:
+PROHIBIDO modificar sin aprobación:
 - Schema de /children (especialmente info médica)
 - Estructura de custom claims
 - Campos de responsables/contactos emergencia
 - Documentos médicos en Storage
 
-✅ Debe hacer:
+Debe hacer:
 1. Detener
 2. Explicar por qué el cambio es necesario
 3. Mostrar impacto en seguridad/privacidad
@@ -66,13 +66,13 @@ El agente **SIEMPRE frena y consulta** en estos casos, sin importar su confianza
 
 ### 3. Cambios con impacto en costo
 ```
-❌ Prohibido sin análisis de costo:
+PROHIBIDO sin análisis de costo:
 - Agregar triggers que escalen (onWrite global)
 - Queries sin límite que multipliquen reads
 - Funciones scheduled de alta frecuencia (< 1 hora)
 - Duplicación de datos sin justificar
 
-✅ Debe hacer:
+Debe hacer:
 1. Detener
 2. Calcular costo estimado mensual
 3. Comparar con alternativa más económica
@@ -81,28 +81,28 @@ El agente **SIEMPRE frena y consulta** en estos casos, sin importar su confianza
 
 ### 4. Permisos y autenticación
 ```
-❌ Prohibido sin revisión:
+PROHIBIDO sin revisión:
 - Agregar/modificar custom claims
 - Cambiar matriz de permisos en constants.js
 - Modificar firestore.rules o storage.rules
 - Crear nuevos roles
 
-✅ Debe hacer:
+Debe hacer:
 1. Detener
-2. Mostrar tabla "antes → después" de permisos
+2. Mostrar tabla "antes -> después" de permisos
 3. Listar casos de uso afectados
 4. Esperar revisión de seguridad
 ```
 
 ### 5. Cuestiones legales o de compliance
 ```
-❌ Prohibido opinar sobre:
+PROHIBIDO opinar sobre:
 - Retención de datos de menores
 - Consentimiento parental
 - GDPR / Protección de datos personales
 - Contratos con proveedores
 
-✅ Debe hacer:
+Debe hacer:
 1. Detener inmediatamente
 2. Flaggear como "requiere asesoría legal"
 3. No sugerir workarounds
@@ -110,7 +110,7 @@ El agente **SIEMPRE frena y consulta** en estos casos, sin importar su confianza
 
 ---
 
-## 💰 Criterios de Costo Operativo
+## Criterios de Costo Operativo
 
 Firebase cobra por:
 - **Reads/Writes** de Firestore
@@ -121,12 +121,12 @@ Firebase cobra por:
 ### Reglas de optimización
 
 ```javascript
-// ❌ MAL: Lee toda la colección cada vez
+// MAL: Lee toda la colección cada vez
 const allChildren = await db.collection('children').get();
 const taller1 = allChildren.docs.filter(d => d.data().ambiente === 'taller1');
 // Costo: N reads siempre
 
-// ✅ BIEN: Query con índice
+// BIEN: Query con índice
 const taller1 = await db.collection('children')
   .where('ambiente', '==', 'taller1')
   .get();
@@ -136,14 +136,14 @@ const taller1 = await db.collection('children')
 ### Triggers: evitar cascadas
 
 ```javascript
-// ❌ MAL: Trigger que escribe → dispara otro trigger → ...
+// MAL: Trigger que escribe -> dispara otro trigger -> ...
 exports.onChildUpdate = functions.firestore
   .document('children/{id}')
   .onWrite(async (change) => {
     await db.collection('audit').add({ ... }); // Dispara onAuditCreate
   });
 
-// ✅ BIEN: Batch write o consolidar lógica
+// BIEN: Batch write o consolidar lógica
 ```
 
 ### Decisión: nueva funcionalidad
@@ -154,11 +154,11 @@ Antes de sugerir algo que aumente costo, responder:
 2. **¿Hay alternativa con menos reads/writes?**
 3. **¿El valor justifica el costo?**
 
-Si la respuesta 3 no es clara → frenar y consultar.
+Si la respuesta 3 no es clara -> frenar y consultar.
 
 ---
 
-## 🎯 Rol y Límites del Agente
+## Rol y Límites del Agente
 
 ### Puede hacer (sin confirmar)
 - Generar código en `/src` siguiendo patrones
@@ -182,7 +182,7 @@ Si la respuesta 3 no es clara → frenar y consultar.
 
 ---
 
-## 🔒 Seguridad y Privacidad
+## Seguridad y Privacidad
 
 Este sistema maneja datos de menores. Reglas estrictas:
 
@@ -200,7 +200,7 @@ Este sistema maneja datos de menores. Reglas estrictas:
 
 ### Siempre verificar
 ```javascript
-// ✅ BIEN: Verificar permisos antes de exponer
+// BIEN: Verificar permisos antes de exponer
 if (!hasPermission(PERMISSIONS.VIEW_MEDICAL_INFO)) {
   return { ...child, alergias: undefined, tratamientos: undefined };
 }
@@ -208,7 +208,7 @@ if (!hasPermission(PERMISSIONS.VIEW_MEDICAL_INFO)) {
 
 ---
 
-## 📦 Stack Técnico (referencia)
+## Stack Técnico (referencia)
 
 | Capa | Tecnología |
 |------|------------|
@@ -223,16 +223,16 @@ if (!hasPermission(PERMISSIONS.VIEW_MEDICAL_INFO)) {
 
 ---
 
-## 👥 Roles y Permisos
+## Roles y Permisos
 
 | Rol | Envía comunicados | Ve info médica | Gestiona turnos |
 |-----|-------------------|----------------|-----------------|
-| `superadmin` | ✅ | ✅ | ✅ |
-| `coordinacion` | ✅ | ✅ | ✅ |
-| `docente` | ✅ | ⚠️ Parcial | ❌ |
-| `tallerista` | ❌ | ❌ | ❌ |
-| `family` | ❌ | ✅ (solo sus hijos) | ❌ |
-| `aspirante` | ❌ | ❌ | ❌ |
+| `superadmin` | SI | SI | SI |
+| `coordinacion` | SI | SI | SI |
+| `docente` | SI | Parcial | NO |
+| `tallerista` | NO | NO | NO |
+| `family` | NO | SI (solo sus hijos) | NO |
+| `aspirante` | NO | NO | NO |
 
 ### Reglas de negocio críticas
 
@@ -243,24 +243,24 @@ if (!hasPermission(PERMISSIONS.VIEW_MEDICAL_INFO)) {
 
 ---
 
-## 🗄️ Colecciones Firestore
+## Colecciones Firestore
 
 ```
-/users              → Perfil + rol
-/children           → Ficha alumno + responsables + info médica
-/communications     → Comunicados (draft → pending → approved → sent)
-/readReceipts       → Confirmaciones lectura
-/documents          → Documentos institucionales
-/appointments       → Turnos coordinación
-/talleres           → Talleres especiales
-/snacks             → Sistema snacks por taller
-/aspirantes         → Familias en admisión
-/conversations      → Mensajería familia ↔ escuela
+/users              -> Perfil + rol
+/children           -> Ficha alumno + responsables + info médica
+/communications     -> Comunicados (draft -> pending -> approved -> sent)
+/readReceipts       -> Confirmaciones lectura
+/documents          -> Documentos institucionales
+/appointments       -> Turnos coordinación
+/talleres           -> Talleres especiales
+/snacks             -> Sistema snacks por taller
+/aspirantes         -> Familias en admisión
+/conversations      -> Mensajería familia <-> escuela
 ```
 
 ---
 
-## 🗂️ Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 src/
@@ -287,7 +287,7 @@ functions/
 
 ---
 
-## 🚀 Comandos (preparar, NO ejecutar)
+## Comandos (preparar, NO ejecutar)
 
 ```bash
 # Desarrollo
@@ -306,11 +306,11 @@ cd functions && npm install && firebase deploy --only functions
 firebase deploy --only firestore:rules,storage
 ```
 
-> ⚠️ El agente **prepara** estos comandos, el humano **los ejecuta**.
+> El agente **prepara** estos comandos, el humano **los ejecuta**.
 
 ---
 
-## 🎯 Contexto de Dominio Montessori
+## Contexto de Dominio Montessori
 
 - **Taller 1 y 2**: Ambientes (aulas)
 - **Guías**: Así se llama a los docentes
@@ -320,7 +320,7 @@ firebase deploy --only firestore:rules,storage
 
 ---
 
-## ✅ Checklist Pre-Sugerencia de Deploy
+## Checklist Pre-Sugerencia de Deploy
 
 Antes de proponer `firebase deploy`, verificar:
 
@@ -333,27 +333,15 @@ Antes de proponer `firebase deploy`, verificar:
 
 ---
 
-## 📝 Codificación de Caracteres (UTF-8)
+## Codificación de Caracteres (UTF-8)
 
-Este proyecto está en **español** y usa emojis. SIEMPRE mantener codificación UTF-8.
+Regla general: **NO usar emojis nunca**.
 
-### ⚠️ REGLAS OBLIGATORIAS
+### Reglas obligatorias
 
-```javascript
-// ✅ SIEMPRE usar caracteres UTF-8 correctos
-"¡Tu turno!"          // ¡ correcto
-"← Volver"            // ← flecha correcta
-"✓ Confirmar"         // ✓ check mark correcto
-"✗ Rechazar"          // ✗ X mark correcto
-"⚠️ Advertencia"      // ⚠️ emoji correcto
-"📋 Historial"        // 📋 emoji correcto
-
-// ❌ NUNCA permitir mojibake (caracteres corruptos)
-"Â¡Tu turno!"         // ❌ corrupto
-"? Volver"            // ❌ corrupto
-"âœ" Confirmar"       // ❌ corrupto
-"âš ï¸ Advertencia"   // ❌ corrupto
-```
+1. Usar caracteres UTF-8 correctos para texto en español.
+2. Nunca permitir mojibake (caracteres corruptos).
+3. Si ves secuencias como `Ã`, `Â` o `â`, es mojibake: corregir inmediatamente.
 
 ### Caracteres comunes en español
 
@@ -364,10 +352,6 @@ Este proyecto está en **español** y usa emojis. SIEMPRE mantener codificación
 | `á é í ó ú` | Vocales acentuadas | `Ã¡ Ã© Ã­ Ã³ Ãº` |
 | `ñ` | Eñe | `Ã±` |
 | `←` | Flecha izquierda | `?` o `â†` |
-| `✓` | Check mark | `âœ"` |
-| `✗` | X mark | `âœ—` |
-| `⚠️` | Advertencia | `âš ï¸` |
-| `📋` | Clipboard | corrupciones |
 
 ### Cómo detectar problemas
 
@@ -381,36 +365,36 @@ grep -r "âœ\|âš\|â†" src/
 
 ### Cuando edites o crees archivos
 
-1. **SIEMPRE verificar** que emojis y caracteres especiales se vean correctos
-2. **NUNCA copiar** texto de fuentes con codificación diferente sin revisar
-3. **SI ves** `â`, `Ã`, `Â` → es mojibake, corregir inmediatamente
-4. **ANTES de commit** revisar que no hay caracteres corruptos
+1. Verificar que tildes y signos se vean correctos.
+2. No copiar texto de fuentes con codificación diferente sin revisar.
+3. Si ves `â`, `Ã`, `Â` -> es mojibake, corregir inmediatamente.
+4. Antes de commit revisar que no hay caracteres corruptos.
 
 ### Archivos más sensibles
 
-- `src/pages/family/*` → interfaz en español para familias
-- `src/pages/teacher/*` → mensajes a docentes
-- `src/components/communications/*` → comunicados oficiales
-- `src/pages/admin/*` → cualquier texto user-facing
+- `src/pages/family/*` -> interfaz en español para familias
+- `src/pages/teacher/*` -> mensajes a docentes
+- `src/components/communications/*` -> comunicados oficiales
+- `src/pages/admin/*` -> cualquier texto user-facing
 
 ### En caso de encontrar mojibake
 
 ```javascript
 // 1. Identificar el carácter corrupto
-"âš ï¸" // ← esto está mal
+"Ã¢â€“" // esto está mal
 
 // 2. Buscar todas las ocurrencias
-grep -n "âš ï¸" src/pages/family/MySnacks.jsx
+grep -n "Ã¢â€“" src/pages/family/MySnacks.jsx
 
 // 3. Reemplazar con UTF-8 correcto
-"⚠️" // ← esto está bien
+"–" // esto está bien
 
 // 4. Verificar en navegador que se ve correcto
 ```
 
 ---
 
-## ⏰ Meta-Límite Temporal
+## Meta-Límite Temporal
 
 > **Si este archivo tiene más de 3 meses desde su última actualización, el agente debe:**
 

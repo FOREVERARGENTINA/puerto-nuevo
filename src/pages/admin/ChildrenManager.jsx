@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
+import { appointmentsService } from '../../services/appointments.service';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
@@ -21,6 +22,8 @@ const ChildrenManager = () => {
   const [familyUsers, setFamilyUsers] = useState({});
   const [visibleCount, setVisibleCount] = useState(CHILDREN_PAGE_SIZE);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [notesByChildId, setNotesByChildId] = useState({});
+  const [notesLoadingByChildId, setNotesLoadingByChildId] = useState({});
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -194,6 +197,51 @@ const ChildrenManager = () => {
   );
 
   const selectedChild = filteredChildren.find(child => child.id === selectedChildId) || null;
+  const selectedChildNotes = selectedChildId ? (notesByChildId[selectedChildId] || []) : [];
+  const selectedChildNotesLoading = selectedChildId ? !!notesLoadingByChildId[selectedChildId] : false;
+  const selectedChildNotesLoaded = selectedChildId
+    ? Object.prototype.hasOwnProperty.call(notesByChildId, selectedChildId)
+    : false;
+
+  const loadNotesForChild = async (childId) => {
+    if (!childId) return;
+    setNotesLoadingByChildId(prev => ({ ...prev, [childId]: true }));
+
+    const appointmentsResult = await appointmentsService.getAppointmentsByChild(childId);
+    if (!appointmentsResult.success) {
+      setNotesByChildId(prev => ({ ...prev, [childId]: [] }));
+      setNotesLoadingByChildId(prev => ({ ...prev, [childId]: false }));
+      return;
+    }
+
+    const attended = appointmentsResult.appointments.filter(app => app.estado === 'asistio');
+    if (attended.length === 0) {
+      setNotesByChildId(prev => ({ ...prev, [childId]: [] }));
+      setNotesLoadingByChildId(prev => ({ ...prev, [childId]: false }));
+      return;
+    }
+
+    const noteResults = await Promise.all(
+      attended.map(app => appointmentsService.getAppointmentNote(app.id))
+    );
+    const notes = [];
+    attended.forEach((app, index) => {
+      const result = noteResults[index];
+      if (result.success && result.note) {
+        notes.push({ appointment: app, note: result.note });
+      }
+    });
+
+    setNotesByChildId(prev => ({ ...prev, [childId]: notes }));
+    setNotesLoadingByChildId(prev => ({ ...prev, [childId]: false }));
+  };
+
+  useEffect(() => {
+    if (!selectedChildId) return;
+    if (notesByChildId[selectedChildId] !== undefined) return;
+    loadNotesForChild(selectedChildId);
+  }, [selectedChildId, notesByChildId]);
+
 
   if (loading) {
     return (
@@ -398,6 +446,9 @@ const ChildrenManager = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 isAdmin={true}
+                meetingNotes={selectedChildNotes}
+                meetingNotesLoading={selectedChildNotesLoading}
+                meetingNotesLoaded={selectedChildNotesLoaded}
               />
             ) : (
               <div className="empty-state empty-state--card card">

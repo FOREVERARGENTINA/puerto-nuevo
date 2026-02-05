@@ -5,6 +5,7 @@ import { communicationsService } from '../../services/communications.service';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { EventDetailModal } from '../../components/common/EventDetailModal';
 import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 
@@ -42,8 +43,34 @@ export function EventsManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('upcoming');
+  const [selectedEventForView, setSelectedEventForView] = useState(null);
+  const [showEventDetail, setShowEventDetail] = useState(false);
   const maxMediaSizeBytes = 50 * 1024 * 1024;
   const maxMediaSizeLabel = '50MB';
+  const allowedMediaExtensions = new Set([
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+    'mp4', 'mov', 'webm', 'ogv',
+    'mp3', 'wav', 'm4a', 'ogg',
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'txt', 'csv'
+  ]);
+  const blockedMediaExtensions = new Set(['zip', 'exe', 'bat']);
+  const allowedMediaMimePrefixes = ['image/', 'video/', 'audio/'];
+  const allowedMediaMimeTypes = new Set([
+    'application/pdf',
+    'text/plain',
+    'text/csv',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'image/heic',
+    'image/heif',
+    'image/heic-sequence',
+    'image/heif-sequence'
+  ]);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -199,6 +226,16 @@ export function EventsManager() {
     setCommError('');
   };
 
+  const handleViewEvent = (event) => {
+    setSelectedEventForView(event);
+    setShowEventDetail(true);
+  };
+
+  const handleCloseEventDetail = () => {
+    setShowEventDetail(false);
+    setSelectedEventForView(null);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -210,11 +247,24 @@ export function EventsManager() {
 
     const validFiles = [];
     let hasInvalidType = false;
+    let hasBlockedType = false;
     let hasOversize = false;
 
     files.forEach((file) => {
-      const isMedia = file.type && (file.type.startsWith('image/') || file.type.startsWith('video/'));
-      if (!isMedia) {
+      const name = (file.name || '').toLowerCase();
+      const ext = name.includes('.') ? name.split('.').pop() : '';
+      const type = (file.type || '').toLowerCase();
+      const isBlocked = ext && blockedMediaExtensions.has(ext);
+      const isAllowedExt = ext && allowedMediaExtensions.has(ext);
+      const isAllowedMime = type
+        ? (allowedMediaMimePrefixes.some(prefix => type.startsWith(prefix)) || allowedMediaMimeTypes.has(type))
+        : false;
+
+      if (isBlocked) {
+        hasBlockedType = true;
+        return;
+      }
+      if (!isAllowedExt && !isAllowedMime) {
         hasInvalidType = true;
         return;
       }
@@ -225,13 +275,13 @@ export function EventsManager() {
       validFiles.push(file);
     });
 
-    if (hasInvalidType || hasOversize) {
+    if (hasInvalidType || hasOversize || hasBlockedType) {
       let message = '';
-      if (hasInvalidType) {
-        message = 'Solo se permiten imagenes o videos.';
+      if (hasInvalidType || hasBlockedType) {
+        message = 'Solo se permiten imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat.';
       }
       if (hasOversize) {
-        message = `${message ? `${message} ` : ''}Algunos archivos superan el limite de ${maxMediaSizeLabel}.`;
+        message = `${message ? `${message} ` : ''}Algunos archivos superan el límite de ${maxMediaSizeLabel}.`;
       }
       setAlertDialog({
         isOpen: true,
@@ -262,6 +312,13 @@ export function EventsManager() {
   const getMediaTypeLabel = (type = '') => {
     if (type.startsWith('image/')) return 'imagen';
     if (type.startsWith('video/')) return 'video';
+    if (type.startsWith('audio/')) return 'audio';
+    if (type === 'application/pdf') return 'documento';
+    if (type.includes('wordprocessingml') || type.includes('msword')) return 'documento';
+    if (type.includes('spreadsheetml') || type.includes('ms-excel')) return 'documento';
+    if (type.includes('presentationml') || type.includes('ms-powerpoint')) return 'documento';
+    if (type === 'text/plain') return 'texto';
+    if (type === 'text/csv') return 'texto';
     return 'archivo';
   };
 
@@ -686,64 +743,26 @@ export function EventsManager() {
                           <div className="events-day-heading">{formatDayHeading(group.date)}</div>
                           <div className="events-day-items">
                           {group.events.map(event => (
-                            <div key={event.id} className="card card--compact">
+                            <div 
+                              key={event.id} 
+                              className="card card--compact card--clickable"
+                              onClick={() => handleViewEvent(event)}
+                            >
                               <div className="card__header card__header--compact">
-                                <div>
+                                <div className="event-card-main">
                                   <h3 className="card__title">{event.titulo}</h3>
                                   <p className="card__subtitle">
                                     {getEventMeta(event)}
                                   </p>
+                                  {Array.isArray(event.media) && event.media.length > 0 && (
+                                    <div className="event-card-indicator">
+                                      <Icon name="paperclip" size={14} />
+                                      <span>{event.media.length} {event.media.length === 1 ? 'adjunto' : 'adjuntos'}</span>
+                                    </div>
+                                  )}
                                 </div>
-                                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                                    <button
-                                      onClick={() => handleOpenModal(event)}
-                                      className="btn btn--sm btn--outline"
-                                    >
-                                      Editar
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEventToDelete(event);
-                                        setShowDeleteConfirm(true);
-                                      }}
-                                      className="btn btn--sm btn--outline btn--danger-outline"
-                                    >
-                                      Eliminar
-                                    </button>
-                                  </div>
-                                </div>
-                                {(event.descripcion || (Array.isArray(event.media) && event.media.length > 0)) && (
-                                  <div className="card__body">
-                                    {event.descripcion && <p>{event.descripcion}</p>}
-                                    {Array.isArray(event.media) && event.media.length > 0 && (
-                                      <div className="event-media-list">
-                                        <strong>Media:</strong>
-                                        <ul className="event-media-list__items">
-                                          {event.media.map((item, idx) => {
-                                            const metaParts = [];
-                                            if (item?.type) metaParts.push(getMediaTypeLabel(item.type));
-                                            const sizeLabel = formatFileSize(item?.size || 0);
-                                            if (sizeLabel) metaParts.push(sizeLabel);
-                                            const meta = metaParts.join(' - ');
-                                            return (
-                                              <li key={`${event.id}-media-${idx}`}>
-                                                <a href={item.url} target="_blank" rel="noopener noreferrer">
-                                                  {item.name || 'Archivo'}
-                                                </a>
-                                                {meta && (
-                                                  <span className="event-media-list__meta">
-                                                    ({meta})
-                                                  </span>
-                                                )}
-                                              </li>
-                                            );
-                                          })}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
                               </div>
+                            </div>
                             ))}
                           </div>
                         </div>
@@ -854,13 +873,13 @@ export function EventsManager() {
                 id="event-media"
                 type="file"
                 multiple
-                accept="image/*,video/*"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
                 onChange={handleMediaFilesChange}
                 className="form-input form-input--sm"
                 disabled={saving || uploadingMedia}
               />
               <p className="form-help">
-                Formatos: imagen o video. Maximo {maxMediaSizeLabel} por archivo.
+                Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {maxMediaSizeLabel} por archivo.
               </p>
 
               {selectedMediaFiles.length > 0 && (
@@ -987,7 +1006,37 @@ export function EventsManager() {
         message={alertDialog.message}
         type={alertDialog.type}
       />
+
+      <EventDetailModal
+        event={selectedEventForView}
+        isOpen={showEventDetail}
+        onClose={handleCloseEventDetail}
+        adminActions={
+          selectedEventForView && (
+            <>
+              <button
+                onClick={() => {
+                  handleCloseEventDetail();
+                  handleOpenModal(selectedEventForView);
+                }}
+                className="btn btn--sm btn--primary"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => {
+                  handleCloseEventDetail();
+                  setEventToDelete(selectedEventForView);
+                  setShowDeleteConfirm(true);
+                }}
+                className="btn btn--sm btn--danger"
+              >
+                Eliminar
+              </button>
+            </>
+          )
+        }
+      />
     </div>
   );
 }
-

@@ -3,8 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
-import { useDialog } from '../../hooks/useDialog';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { conversationsService } from '../../services/conversations.service';
 import { ROUTES, CONVERSATION_STATUS, ROLES } from '../../config/constants';
 import {
@@ -17,12 +15,10 @@ export function FamilyConversationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { isOpen, openDialog, closeDialog } = useDialog();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [error, setError] = useState(null);
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
@@ -93,29 +89,9 @@ export function FamilyConversationDetail() {
     setSending(false);
   };
 
-  const handleCloseConversation = () => {
-    openDialog();
-  };
-
-  const confirmClose = async () => {
-    if (!conversation || !user || closing) return;
-    
-    setClosing(true);
-    setError(null);
-    
-    const result = await conversationsService.closeConversation(conversation.id, user.uid);
-    
-    if (!result.success) {
-      setError(result.error || 'No se pudo cerrar la conversación');
-    }
-    
-    setClosing(false);
-  };
-
   const headerMeta = useMemo(() => {
     if (!conversation) return '';
-    const status = getConversationStatusLabel(conversation.estado, ROLES.FAMILY);
-    return `${getAreaLabel(conversation.destinatarioEscuela)} · ${getCategoryLabel(conversation.categoria)} · ${status}`;
+    return `${getAreaLabel(conversation.destinatarioEscuela)} · ${getCategoryLabel(conversation.categoria)}`;
   }, [conversation]);
 
   if (loading) {
@@ -144,25 +120,17 @@ export function FamilyConversationDetail() {
           <div>
             <h1 className="conversations-title">{conversation.asunto || 'Sin asunto'}</h1>
             <div className="conversation-detail-meta">
-              <span className={`conversation-status-tag conversation-status-tag--${conversation.estado}`}>
-                {getConversationStatusLabel(conversation.estado, role)}
-              </span>
+              {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
+                <span className={`conversation-status-tag conversation-status-tag--${conversation.estado}`}>
+                  {getConversationStatusLabel(conversation.estado, role)}
+                </span>
+              )}
               <span className="conversation-meta-item">{getAreaLabel(conversation.destinatarioEscuela)}</span>
               <span className="conversation-meta-divider">·</span>
               <span className="conversation-meta-item">{getCategoryLabel(conversation.categoria)}</span>
             </div>
           </div>
           <div className="conversations-header__actions">
-            {!isClosed && (
-              <button 
-                type="button" 
-                className="btn btn--outline-danger btn--sm"
-                onClick={handleCloseConversation}
-                disabled={closing}
-              >
-                {closing ? 'Cerrando...' : 'Cerrar conversación'}
-              </button>
-            )}
             <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline btn--sm">
               ← Volver
             </Link>
@@ -250,16 +218,6 @@ export function FamilyConversationDetail() {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={isOpen}
-        onClose={closeDialog}
-        onConfirm={confirmClose}
-        title="Cerrar conversación"
-        message="¿Estás seguro de que querés cerrar esta conversación? No podrás enviar más mensajes."
-        confirmText="Cerrar"
-        cancelText="Cancelar"
-        type="danger"
-      />
     </div>
   );
 }

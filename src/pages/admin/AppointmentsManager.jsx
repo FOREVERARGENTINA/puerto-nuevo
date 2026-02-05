@@ -1,13 +1,42 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { appointmentsService } from '../../services/appointments.service';
 import { usersService } from '../../services/users.service';
 import { childrenService } from '../../services/children.service';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
 import { useDialog } from '../../hooks/useDialog';
+import { useAuth } from '../../hooks/useAuth';
 import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { ROLES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
+
+const NOTES_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const NOTES_MAX_FILE_SIZE_LABEL = '50MB';
+const NOTES_ALLOWED_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+  'mp4', 'mov', 'webm', 'ogv',
+  'mp3', 'wav', 'm4a', 'ogg',
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+  'txt', 'csv'
+]);
+const NOTES_BLOCKED_EXTENSIONS = new Set(['zip', 'exe', 'bat']);
+const NOTES_ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/'];
+const NOTES_ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence'
+]);
 
 const AppointmentsManager = () => {
   const initialToday = new Date();
@@ -41,7 +70,20 @@ const AppointmentsManager = () => {
     duracionMinutos: 30,
     intervaloMinutos: 0
   });
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesForm, setNotesForm] = useState({
+    resumen: '',
+    acuerdos: '',
+    proximosPasos: '',
+    visibilidad: 'familia'
+  });
+  const [notesFiles, setNotesFiles] = useState([]);
+  const [notesExistingAttachments, setNotesExistingAttachments] = useState([]);
+  const [notesHasExisting, setNotesHasExisting] = useState(false);
 
+  const { user } = useAuth();
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
 
@@ -119,6 +161,180 @@ const AppointmentsManager = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleNotesChange = (e) => {
+    const { name, value } = e.target;
+    setNotesForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateNotesFiles = (files) => {
+    const validFiles = [];
+    let hasInvalidType = false;
+    let hasBlockedType = false;
+    let hasOversize = false;
+
+    files.forEach((file) => {
+      const name = (file.name || '').toLowerCase();
+      const ext = name.includes('.') ? name.split('.').pop() : '';
+      const type = (file.type || '').toLowerCase();
+      const isBlocked = ext && NOTES_BLOCKED_EXTENSIONS.has(ext);
+      const isAllowedExt = ext && NOTES_ALLOWED_EXTENSIONS.has(ext);
+      const isAllowedMime = type
+        ? (NOTES_ALLOWED_MIME_PREFIXES.some(prefix => type.startsWith(prefix)) || NOTES_ALLOWED_MIME_TYPES.has(type))
+        : false;
+
+      if (isBlocked) {
+        hasBlockedType = true;
+        return;
+      }
+      if (!isAllowedExt && !isAllowedMime) {
+        hasInvalidType = true;
+        return;
+      }
+      if (file.size > NOTES_MAX_FILE_SIZE_BYTES) {
+        hasOversize = true;
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
+  };
+
+  const handleNotesFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateNotesFiles(files);
+
+    if (hasInvalidType || hasBlockedType || hasOversize) {
+      let message = '';
+      if (hasInvalidType || hasBlockedType) {
+        message = 'Solo se permiten imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat.';
+      }
+      if (hasOversize) {
+        message = `${message ? `${message} ` : ''}Algunos archivos superan el límite de ${NOTES_MAX_FILE_SIZE_LABEL}.`;
+      }
+      alertDialog.openDialog({
+        title: 'Archivo no válido',
+        message,
+        type: 'warning'
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setNotesFiles(prev => [...prev, ...validFiles]);
+    }
+
+    e.target.value = null;
+  };
+
+  const removeNotesFile = (index) => {
+    setNotesFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const openNotesModal = async (appointment) => {
+    if (!appointment || appointment.estado !== 'asistio') {
+      alertDialog.openDialog({
+        title: 'No permitido',
+        message: 'Las notas solo se pueden cargar cuando el turno está marcado como asistió.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setShowActionsModal(false);
+    setNotesLoading(true);
+    setNotesFiles([]);
+    setNotesExistingAttachments([]);
+    setNotesHasExisting(false);
+    setNotesForm({
+      resumen: '',
+      acuerdos: '',
+      proximosPasos: '',
+      visibilidad: 'familia'
+    });
+    setShowNotesModal(true);
+
+    const noteResult = await appointmentsService.getAppointmentNote(appointment.id);
+    if (noteResult.success && noteResult.note) {
+      const note = noteResult.note;
+      setNotesHasExisting(true);
+      setNotesForm({
+        resumen: note.resumen || '',
+        acuerdos: note.acuerdos || '',
+        proximosPasos: note.proximosPasos || '',
+        visibilidad: note.visibilidad || 'familia'
+      });
+      setNotesExistingAttachments(Array.isArray(note.attachments) ? note.attachments : []);
+    }
+
+    setNotesLoading(false);
+  };
+
+  const closeNotesModal = () => {
+    if (notesSaving) return;
+    setShowNotesModal(false);
+    setNotesFiles([]);
+    setNotesExistingAttachments([]);
+    setNotesHasExisting(false);
+  };
+
+  const handleSaveNotes = async (appointment) => {
+    if (!appointment || appointment.estado !== 'asistio') return;
+    if (!notesForm.resumen.trim()) {
+      alertDialog.openDialog({
+        title: 'Campos incompletos',
+        message: 'El resumen es obligatorio.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setNotesSaving(true);
+    const payload = {
+      resumen: notesForm.resumen.trim(),
+      acuerdos: notesForm.acuerdos.trim(),
+      proximosPasos: notesForm.proximosPasos.trim(),
+      visibilidad: notesForm.visibilidad,
+      updatedBy: user?.uid || '',
+      updatedByDisplayName: user?.displayName || user?.email || ''
+    };
+
+    if (!notesHasExisting) {
+      payload.createdBy = user?.uid || '';
+      payload.createdByDisplayName = user?.displayName || user?.email || '';
+    }
+
+    const saveResult = await appointmentsService.saveAppointmentNote(appointment.id, payload);
+    if (!saveResult.success) {
+      alertDialog.openDialog({
+        title: 'Error',
+        message: saveResult.error || 'No se pudieron guardar las notas.',
+        type: 'error'
+      });
+      setNotesSaving(false);
+      return;
+    }
+
+    if (notesFiles.length > 0) {
+      const uploadResult = await appointmentsService.uploadAppointmentNoteAttachments(
+        appointment.id,
+        notesFiles,
+        notesHasExisting ? notesExistingAttachments : []
+      );
+      if (!uploadResult.success) {
+        alertDialog.openDialog({
+        title: 'Atención',
+          message: 'Las notas se guardaron, pero hubo un error al subir adjuntos.',
+          type: 'warning'
+        });
+      }
+    }
+
+    setNotesSaving(false);
+    closeNotesModal();
   };
 
   const generateTimeSlots = () => {
@@ -1032,10 +1248,10 @@ const AppointmentsManager = () => {
             )}
             <div className="modal-header">
               <h3>Acciones del Turno</h3>
-              <button onClick={closeActionsModal} className="modal-close" disabled={actionLoading}>✕</button>
+              <button onClick={closeActionsModal} className="modal-close" disabled={actionLoading}>X</button>
             </div>
             <div className="modal-body">
-              {isPastAppointment(selectedAppointment) && (
+              {isPastAppointment(selectedAppointment) && selectedAppointment.estado === 'disponible' && (
                 <div className="alert alert--error mb-md">
                   Este turno ya pasó. No se puede asignar.
                 </div>
@@ -1092,14 +1308,14 @@ const AppointmentsManager = () => {
                       className="btn btn--secondary btn--full"
                       disabled={actionLoading}
                     >
-                      🔒 Bloquear Turno
+                      Bloquear turno
                     </button>
                     <button
                       onClick={handleOpenAssignModal}
                       className="btn btn--primary btn--full"
                       disabled={isPastAppointment(selectedAppointment) || actionLoading}
                     >
-                      ➕ Asignar a familia/s
+                      Asignar a familia/s
                     </button>
                   </>
                 )}
@@ -1110,7 +1326,7 @@ const AppointmentsManager = () => {
                     className="btn btn--primary btn--full"
                     disabled={actionLoading}
                   >
-                    🔓 Desbloquear Turno
+                    Desbloquear turno
                   </button>
                 )}
 
@@ -1139,7 +1355,16 @@ const AppointmentsManager = () => {
                     className="btn btn--primary btn--full"
                     disabled={actionLoading}
                   >
-                    🔄 Liberar Turno (Dejar Disponible)
+                    Liberar turno (dejar disponible)
+                  </button>
+                )}
+                {selectedAppointment.estado === 'asistio' && (
+                  <button
+                    onClick={() => openNotesModal(selectedAppointment)}
+                    className="btn btn--primary btn--full"
+                    disabled={actionLoading}
+                  >
+                    Notas de la reunión
                   </button>
                 )}
 
@@ -1148,12 +1373,130 @@ const AppointmentsManager = () => {
                   className="btn btn--danger btn--outline btn--full"
                   disabled={actionLoading}
                 >
-                  🗑️ Eliminar Permanentemente
+                  Eliminar permanentemente
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {showNotesModal && selectedAppointment && (
+        <Modal isOpen={showNotesModal} onClose={closeNotesModal} size="md">
+          <ModalHeader title="Notas de la reunión" onClose={closeNotesModal} />
+          <ModalBody>
+            {notesLoading ? (
+              <div style={{ textAlign: 'center', padding: 'var(--spacing-lg)' }}>
+                <div className="spinner spinner--lg"></div>
+                <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando notas...</p>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveNotes(selectedAppointment); }} className="form-grid">
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="resumen" className="required">Resumen</label>
+                  <textarea
+                    id="resumen"
+                    name="resumen"
+                    className="form-textarea"
+                    rows="4"
+                    value={notesForm.resumen}
+                    onChange={handleNotesChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="acuerdos">Acuerdos</label>
+                  <textarea
+                    id="acuerdos"
+                    name="acuerdos"
+                    className="form-textarea"
+                    rows="3"
+                    value={notesForm.acuerdos}
+                    onChange={handleNotesChange}
+                  />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="proximosPasos">Próximos pasos</label>
+                  <textarea
+                    id="proximosPasos"
+                    name="proximosPasos"
+                    className="form-textarea"
+                    rows="3"
+                    value={notesForm.proximosPasos}
+                    onChange={handleNotesChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="visibilidad">Visibilidad</label>
+                  <select
+                    id="visibilidad"
+                    name="visibilidad"
+                    className="form-input"
+                    value={notesForm.visibilidad}
+                    onChange={handleNotesChange}
+                  >
+                    <option value="familia">Visible para familia</option>
+                    <option value="escuela">Solo escuela</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>Adjuntos</label>
+                  <input
+                    type="file"
+                    multiple
+                    className="form-input"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
+                    onChange={handleNotesFilesChange}
+                  />
+                  <p className="form-help">
+                    Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {NOTES_MAX_FILE_SIZE_LABEL} por archivo.
+                  </p>
+
+                  {notesFiles.length > 0 && (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 'var(--spacing-sm) 0 0' }}>
+                      {notesFiles.map((file, index) => (
+                        <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>{file.name}</span>
+                          <button type="button" className="btn btn--link" onClick={() => removeNotesFile(index)}>
+                            Quitar
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {notesExistingAttachments.length > 0 && (
+                    <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                      <strong>Adjuntos existentes:</strong>
+                      <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                        {notesExistingAttachments.map((file, index) => (
+                          <li key={`existing-note-${index}`}>
+                            <a href={file.url} target="_blank" rel="noreferrer">{file.name || 'Archivo'}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <ModalFooter>
+                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end', width: '100%' }}>
+                    <button type="button" className="btn btn--outline" onClick={closeNotesModal} disabled={notesSaving}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="btn btn--primary" disabled={notesSaving}>
+                      {notesSaving ? 'Guardando...' : 'Guardar notas'}
+                    </button>
+                  </div>
+                </ModalFooter>
+              </form>
+            )}
+          </ModalBody>
+        </Modal>
       )}
 
       {showAssignModal && selectedAppointment && (
@@ -1167,7 +1510,7 @@ const AppointmentsManager = () => {
             )}
             <div className="modal-header">
               <h3>Asignar turno a familia/s</h3>
-              <button onClick={closeAssignModal} className="modal-close" disabled={assignLoading}>✕</button>
+              <button onClick={closeAssignModal} className="modal-close" disabled={assignLoading}>X</button>
             </div>
             <div className="modal-body">
               {assignError && (
@@ -1295,9 +1638,6 @@ const AppointmentsManager = () => {
 };
 
 export default AppointmentsManager;
-
-
-
 
 
 

@@ -1,18 +1,18 @@
-/* Sistema de Diseño - Montessori Puerto Nuevo */
+﻿/* Sistema de DiseÃ±o - Montessori Puerto Nuevo */
 /* Variables CSS centralizadas */
 
 :root {
   /* COLORES PRINCIPALES - Paleta del Logo Montessori Puerto Nuevo */
-  --color-primary: #2C6B6F;           /* Azul petróleo - texto del logo */
-  --color-primary-dark: #1E4D50;      /* Azul petróleo oscuro */
-  --color-primary-light: #5BA5A8;     /* Azul petróleo claro */
+  --color-primary: #2C6B6F;           /* Azul petrÃ³leo - texto del logo */
+  --color-primary-dark: #1E4D50;      /* Azul petrÃ³leo oscuro */
+  --color-primary-light: #5BA5A8;     /* Azul petrÃ³leo claro */
   --color-primary-soft: #E5F2F3;      /* Muy suave para fondos */
 
   --color-secondary: #A89074;         /* Tierra/taupe - colinas del logo */
   --color-secondary-dark: #8A7559;
   --color-secondary-light: #C4B5A0;
 
-  --color-accent: #E67E5E;            /* Coral/salmón - sol del logo (CTAs) */
+  --color-accent: #E67E5E;            /* Coral/salmÃ³n - sol del logo (CTAs) */
   --color-accent-dark: #D45A3B;       /* Coral oscuro */
   --color-accent-light: #F5A088;      /* Coral claro */
 
@@ -20,17 +20,17 @@
   --color-success: #27AE60;
   --color-warning: #F39C12;
   --color-error: #E74C3C;
-  --color-info: #5BA5A8;              /* Azul petróleo claro para info */
+  --color-info: #5BA5A8;              /* Azul petrÃ³leo claro para info */
 
   /* NEUTRALES */
-  --color-text: #1E4D50;              /* Azul petróleo oscuro */
-  --color-text-light: #6B7C7D;        /* Gris cálido */
+  --color-text: #1E4D50;              /* Azul petrÃ³leo oscuro */
+  --color-text-light: #6B7C7D;        /* Gris cÃ¡lido */
   --color-background: #F5F2ED;        /* Crema/beige suave - cielo del logo */
   --color-background-alt: #FFFFFF;    /* Blanco hueso */
-  --color-background-warm: #FFF9F0;   /* Crema cálido */
+  --color-background-warm: #FFF9F0;   /* Crema cÃ¡lido */
   --color-border: #D4C4B5;            /* Borde suave tierra/taupe */
 
-  /* TIPOGRAFÍA */
+  /* TIPOGRAFÃA */
   --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-family-headings: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
@@ -98,31 +98,31 @@
 
 /* DARK MODE - Activado con data-theme="dark" */
 [data-theme="dark"] {
-  /* Backgrounds - Azul petróleo profundo */
-  --color-background: #1A2627;        /* Azul petróleo muy profundo */
-  --color-background-alt: #2C3E3F;    /* Azul petróleo medio */
-  --color-background-warm: #2A2621;   /* Cálido oscuro */
+  /* Backgrounds - Azul petrÃ³leo profundo */
+  --color-background: #1A2627;        /* Azul petrÃ³leo muy profundo */
+  --color-background-alt: #2C3E3F;    /* Azul petrÃ³leo medio */
+  --color-background-warm: #2A2621;   /* CÃ¡lido oscuro */
 
   /* Textos - Crema/beige suave */
   --color-text: #F5F2ED;              /* Crema/beige suave del logo */
   --color-text-light: #A89074;        /* Taupe para texto secundario */
 
   /* Bordes sutiles */
-  --color-border: #3C4F50;            /* Borde azul petróleo sutil */
+  --color-border: #3C4F50;            /* Borde azul petrÃ³leo sutil */
 
-  /* Colores invertidos - Coral/salmón como primario en oscuro */
-  --color-primary: #E67E5E;           /* Coral/salmón - punto focal */
+  /* Colores invertidos - Coral/salmÃ³n como primario en oscuro */
+  --color-primary: #E67E5E;           /* Coral/salmÃ³n - punto focal */
   --color-primary-dark: #D45A3B;      /* Coral oscuro */
   --color-primary-light: #F5A088;     /* Coral claro */
   --color-primary-soft: #3A2520;      /* Coral muy oscuro para fondos */
 
-  /* Secundarios - Taupe más claro */
+  /* Secundarios - Taupe mÃ¡s claro */
   --color-secondary: #C4B5A0;         /* Taupe claro */
   --color-secondary-dark: #A89074;    /* Taupe medio */
   --color-secondary-light: #D9CFC0;   /* Taupe muy claro */
 
-  /* Accent - Azul petróleo claro */
-  --color-accent: #5BA5A8;            /* Azul petróleo claro como acento */
+  /* Accent - Azul petrÃ³leo claro */
+  --color-accent: #5BA5A8;            /* Azul petrÃ³leo claro como acento */
   --color-accent-dark: #3D7E81;
   --color-accent-light: #7DBEC1;
 
@@ -130,11 +130,12 @@
   --color-success: #34C759;
   --color-warning: #FF9F0A;
   --color-error: #FF453A;
-  --color-info: #5BA5A8;              /* Azul petróleo claro */
+  --color-info: #5BA5A8;              /* Azul petrÃ³leo claro */
 
-  /* Sombras más pronunciadas en oscuro */
+  /* Sombras mÃ¡s pronunciadas en oscuro */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
 }
+

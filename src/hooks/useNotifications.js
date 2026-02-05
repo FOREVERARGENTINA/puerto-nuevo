@@ -22,6 +22,7 @@ export function useNotifications() {
   const [upcomingSnacks, setUpcomingSnacks] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [assignedAppointments, setAssignedAppointments] = useState([]);
+  const [pendingDocuments, setPendingDocuments] = useState([]);
 
   useEffect(() => {
     if (!user) {
@@ -131,12 +132,26 @@ export function useNotifications() {
       mergeAssigned();
     });
 
+    // LISTENER 4: Documentos pendientes de lectura (solo familias)
+    const documentsQuery = query(
+      collection(db, 'documentReadReceipts'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'pending'),
+      limit(20)
+    );
+
+    const unsubDocuments = onSnapshot(documentsQuery, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPendingDocuments(docs);
+    });
+
     return () => {
       unsubSnacks();
       unsubAppointments();
       unsubAppointmentsArray();
       unsubAssigned();
       unsubAssignedArray();
+      unsubDocuments();
     };
   }, [user, role]);
 
@@ -231,6 +246,17 @@ export function useNotifications() {
       actionUrl: communicationsUrl,
       metadata: { commId: comm.id }
     })),
+    // Documentos pendientes (solo familias)
+    ...pendingDocuments.map(doc => ({
+      id: `doc-${doc.id}`,
+      type: 'documento',
+      title: 'Documento para leer',
+      message: doc.documentId ? 'Documento de lectura obligatoria' : 'Confirmá tu lectura',
+      timestamp: doc.createdAt?.toDate() || new Date(),
+      urgent: true,
+      actionUrl: role === ROLES.FAMILY ? '/family/documentos' : '/shared/documentos',
+      metadata: { documentId: doc.documentId, receiptId: doc.id }
+    })),
     // Turnos asignados (solo familias)
     ...assignedNotifications,
     // Snacks (solo familias)
@@ -259,6 +285,7 @@ export function useNotifications() {
     byType: {
       conversaciones: conversationNotifications.length,
       comunicados: relevantCommunications.length,
+      documentos: pendingDocuments.length,
       snacks: upcomingSnacks.length,
       turnos: upcomingAppointments.length,
       asignados: assignedAppointments.length

@@ -38,6 +38,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
     ],
     [ROLES.DOCENTE]: [
       { path: '/docente', icon: 'home', label: 'Inicio' },
+      { path: '/docente/eventos', icon: 'event', label: 'Eventos' },
       { path: '/docente/documentos', icon: 'file', label: 'Documentos' },
       { path: '/docente/horarios', icon: 'calendar', label: 'Horarios' }
     ],
@@ -45,6 +46,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/tallerista', icon: 'home', label: 'Inicio' },
       { path: '/tallerista/mi-taller', icon: 'book', label: 'Mi Taller' },
       { path: '/tallerista/galeria', icon: 'image', label: 'Galería' },
+      { path: '/tallerista/eventos', icon: 'event', label: 'Eventos' },
       { path: '/tallerista/documentos', icon: 'file', label: 'Documentos' },
       { path: '/tallerista/horarios', icon: 'calendar', label: 'Horarios' }
     ],

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export function ReadConfirmationModal({ communication, onConfirm, blocking = true }) {
+export function ReadConfirmationModal({ communication, onConfirm, onClose, blocking = true }) {
   const [hasRead, setHasRead] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -18,8 +18,8 @@ export function ReadConfirmationModal({ communication, onConfirm, blocking = tru
   };
 
   const handleOverlayClick = (e) => {
-    if (!blocking && e.target === e.currentTarget) {
-      return;
+    if (!blocking && e.target === e.currentTarget && onClose) {
+      onClose();
     }
   };
 
@@ -28,6 +28,9 @@ export function ReadConfirmationModal({ communication, onConfirm, blocking = tru
       <div className="modal-content">
         <div className="modal-header">
           <h2>Lectura Obligatoria</h2>
+          {!blocking && onClose && (
+            <button className="modal-close" onClick={onClose} aria-label="Cerrar">×</button>
+          )}
         </div>
 
         <div className="modal-body">

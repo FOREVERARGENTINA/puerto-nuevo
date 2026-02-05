@@ -1,15 +1,22 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { eventsService } from '../../services/events.service';
+import { childrenService } from '../../services/children.service';
+import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
+import { EventDetailModal } from '../../components/common/EventDetailModal';
 
 export function EventsCalendar() {
+  const { user, isFamily } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [familyAmbientes, setFamilyAmbientes] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventDetail, setShowEventDetail] = useState(false);
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -35,6 +42,20 @@ export function EventsCalendar() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  useEffect(() => {
+    const loadFamilyAmbientes = async () => {
+      if (!isFamily || !user?.uid) return;
+      const result = await childrenService.getChildrenByResponsable(user.uid);
+      if (result.success) {
+        const ambientes = Array.from(new Set(
+          (result.children || []).map(child => child.ambiente).filter(Boolean)
+        ));
+        setFamilyAmbientes(ambientes);
+      }
+    };
+    loadFamilyAmbientes();
+  }, [user, isFamily]);
 
   const normalizeEventDate = (timestamp) => {
     if (!timestamp) return null;
@@ -78,6 +99,16 @@ export function EventsCalendar() {
     setSelectedDay(today.getDate());
   };
 
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setShowEventDetail(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowEventDetail(false);
+    setSelectedEvent(null);
+  };
+
   const getEventTypeLabel = (tipo) => {
     const labels = {
       general: 'General',
@@ -110,8 +141,20 @@ export function EventsCalendar() {
   const selectedMonthYear = selectedMonth.getFullYear();
   const selectedMonthIndex = selectedMonth.getMonth();
 
+  const isEventVisibleForFamily = (event) => {
+    if (!isFamily) return true;
+    if (event.scope !== 'taller') return true;
+    if (!familyAmbientes.length) return false;
+    if (event.ambiente && familyAmbientes.includes(event.ambiente)) return true;
+    return false;
+  };
+
+  const visibleEvents = useMemo(() => (
+    events.filter(isEventVisibleForFamily)
+  ), [events, familyAmbientes]);
+
   const filteredEvents = useMemo(() => {
-    let list = events;
+    let list = visibleEvents;
     if (typeFilter !== 'all') {
       list = list.filter(event => event.tipo === typeFilter);
     }
@@ -126,16 +169,16 @@ export function EventsCalendar() {
       const dateB = normalizeEventDate(b.fecha);
       return dateA - dateB;
     });
-  }, [events, typeFilter, selectedDay]);
+  }, [visibleEvents, typeFilter, selectedDay]);
 
   const daysWithEvents = useMemo(() => {
     const set = new Set();
-    events.forEach(event => {
+    visibleEvents.forEach(event => {
       const eventDate = normalizeEventDate(event.fecha);
       if (eventDate) set.add(eventDate.getDate());
     });
     return set;
-  }, [events]);
+  }, [visibleEvents]);
 
   const days = useMemo(() => getDaysInMonth(), [selectedMonth]);
   const today = new Date();
@@ -156,7 +199,7 @@ export function EventsCalendar() {
           <p className="dashboard-subtitle">Actividades y fechas importantes de la escuela</p>
         </div>
         <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
-          ← Volver
+          Volver
         </Link>
       </div>
 
@@ -176,7 +219,7 @@ export function EventsCalendar() {
                     {monthNames[selectedMonthIndex]} {selectedMonthYear}
                   </p>
                 </div>
-                <span className="badge badge--info">{events.length} este mes</span>
+                <span className="badge badge--info">{visibleEvents.length} este mes</span>
               </div>
               <div className="card__body">
                 <div className="event-calendar">
@@ -294,7 +337,11 @@ export function EventsCalendar() {
                   ) : (
                     <div className="events-list">
                       {filteredEvents.map(event => (
-                        <div key={event.id} className="event-item">
+                        <div 
+                          key={event.id} 
+                          className="event-item event-item--clickable"
+                          onClick={() => handleEventClick(event)}
+                        >
                           <div className="event-item__date">
                             <span className="event-item__day">
                               {normalizeEventDate(event.fecha)?.getDate()}
@@ -316,10 +363,14 @@ export function EventsCalendar() {
                                 <span>{event.hora}</span>
                               </div>
                             )}
-                            {event.descripcion && (
-                              <p className="event-item__description">{event.descripcion}</p>
+                            {event.media && event.media.length > 0 && (
+                              <div className="event-item__indicator">
+                                <Icon name="paperclip" size={14} />
+                                <span>{event.media.length} {event.media.length === 1 ? 'adjunto' : 'adjuntos'}</span>
+                              </div>
                             )}
                           </div>
+                          <Icon name="chevron-right" size={16} className="event-item__arrow" />
                         </div>
                       ))}
                     </div>
@@ -330,6 +381,12 @@ export function EventsCalendar() {
           </div>
         )}
       </div>
+
+      <EventDetailModal
+        event={selectedEvent}
+        isOpen={showEventDetail}
+        onClose={handleCloseDetail}
+      />
     </div>
   );
 }

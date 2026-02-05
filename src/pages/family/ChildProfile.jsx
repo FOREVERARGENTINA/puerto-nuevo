@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
+import { appointmentsService } from '../../services/appointments.service';
 import ChildCard from '../../components/children/ChildCard';
 
 const ChildProfile = () => {
@@ -9,6 +10,8 @@ const ChildProfile = () => {
   const [children, setChildren] = useState([]);
   const [familyUsers, setFamilyUsers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [meetingNotesByChildId, setMeetingNotesByChildId] = useState({});
+  const [meetingNotesLoading, setMeetingNotesLoading] = useState(false);
 
   const loadChildren = async () => {
     if (!user) return;
@@ -51,6 +54,58 @@ const ChildProfile = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!children.length) {
+      setMeetingNotesByChildId({});
+      return;
+    }
+
+    let isActive = true;
+
+    const loadMeetingNotes = async () => {
+      setMeetingNotesLoading(true);
+      const entries = await Promise.all(children.map(async (child) => {
+        const appointmentsResult = await appointmentsService.getAppointmentsByChild(child.id);
+        if (!appointmentsResult.success) {
+          return [child.id, []];
+        }
+
+        const attended = appointmentsResult.appointments.filter(app => app.estado === 'asistio');
+        if (attended.length === 0) {
+          return [child.id, []];
+        }
+
+        const noteResults = await Promise.all(
+          attended.map(app => appointmentsService.getAppointmentNote(app.id))
+        );
+
+        const notes = [];
+        attended.forEach((app, index) => {
+          const result = noteResults[index];
+          if (result.success && result.note && result.note.visibilidad === 'familia') {
+            notes.push({ appointment: app, note: result.note });
+          }
+        });
+
+        return [child.id, notes];
+      }));
+
+      if (!isActive) return;
+      const map = {};
+      entries.forEach(([childId, notes]) => {
+        map[childId] = notes;
+      });
+      setMeetingNotesByChildId(map);
+      setMeetingNotesLoading(false);
+    };
+
+    loadMeetingNotes();
+
+    return () => {
+      isActive = false;
+    };
+  }, [children]);
+
   if (loading) {
     return (
       <div className="container page-container">
@@ -92,6 +147,9 @@ const ChildProfile = () => {
               child={child}
               isAdmin={false}
               familyUsers={familyUsers}
+              meetingNotes={meetingNotesByChildId[child.id] || []}
+              meetingNotesLoading={meetingNotesLoading}
+              meetingNotesLoaded={Object.prototype.hasOwnProperty.call(meetingNotesByChildId, child.id)}
             />
           ))}
         </div>

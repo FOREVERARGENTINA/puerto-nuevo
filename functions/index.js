@@ -8,6 +8,7 @@ admin.initializeApp();
 const { onCommunicationCreated, onCommunicationUpdated } = require('./src/triggers/onCommunicationCreated');
 const { onConversationMessageCreated } = require('./src/triggers/onConversationMessageCreated');
 const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned');
+const { onDocumentWithMandatoryReading } = require('./src/triggers/onDocumentCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
@@ -266,6 +267,7 @@ exports.onCommunicationCreated = onCommunicationCreated;
 exports.onCommunicationUpdated = onCommunicationUpdated;
 exports.onConversationMessageCreated = onConversationMessageCreated;
 exports.onAppointmentAssigned = onAppointmentAssigned;
+exports.onDocumentWithMandatoryReading = onDocumentWithMandatoryReading;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

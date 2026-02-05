@@ -11,7 +11,10 @@ export function DocumentUploader({ onUploadSuccess }) {
     titulo: '',
     descripcion: '',
     categoria: 'institucional',
-    roles: []
+    roles: [],
+    requiereLectura: false,
+    ambiente: 'todos',
+    fechaLimite: ''
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const alertDialog = useDialog();
@@ -31,6 +34,12 @@ export function DocumentUploader({ onUploadSuccess }) {
     { value: 'tallerista', label: 'Talleristas' },
     { value: 'family', label: 'Familias' },
     { value: 'aspirante', label: 'Aspirantes' }
+  ];
+
+  const ambienteOptions = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'taller1', label: 'Solo Taller 1' },
+    { value: 'taller2', label: 'Solo Taller 2' }
   ];
 
   const handleInputChange = (e) => {
@@ -136,7 +145,10 @@ export function DocumentUploader({ onUploadSuccess }) {
           titulo: '',
           descripcion: '',
           categoria: 'institucional',
-          roles: []
+          roles: [],
+          requiereLectura: false,
+          ambiente: 'todos',
+          fechaLimite: ''
         });
         setSelectedFile(null);
         if (onUploadSuccess) {
@@ -221,6 +233,66 @@ export function DocumentUploader({ onUploadSuccess }) {
           ))}
         </div>
       </div>
+
+      {/* Lectura obligatoria para familias */}
+      {formData.roles.includes('family') && (
+        <div className="card" style={{ padding: 'var(--spacing-md)', backgroundColor: 'rgba(var(--color-primary-rgb, 72, 130, 132), 0.05)', marginBottom: 'var(--spacing-md)', border: '1px solid var(--color-border)' }}>
+          <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={formData.requiereLectura}
+                onChange={(e) => setFormData(prev => ({ ...prev, requiereLectura: e.target.checked }))}
+              />
+              Requiere confirmación de lectura por familias
+            </label>
+            <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+              Las familias deberán confirmar que leyeron este documento
+            </p>
+          </div>
+
+          {formData.requiereLectura && (
+            <>
+              <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <label htmlFor="ambiente">Destinatarios *</label>
+                <select
+                  id="ambiente"
+                  name="ambiente"
+                  value={formData.ambiente}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  required
+                >
+                  {ambienteOptions.map(amb => (
+                    <option key={amb.value} value={amb.value}>
+                      {amb.label}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+                  Selecciona qué familias deben leer este documento
+                </p>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label htmlFor="fechaLimite">Fecha límite de lectura (opcional)</label>
+                <input
+                  type="date"
+                  id="fechaLimite"
+                  name="fechaLimite"
+                  value={formData.fechaLimite}
+                  onChange={handleInputChange}
+                  className="form-control"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+                  Si se especifica, se enviará recordatorio a quienes no hayan leído
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
         <label htmlFor="file">Archivo *</label>

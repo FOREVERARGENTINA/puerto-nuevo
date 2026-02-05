@@ -404,6 +404,10 @@ export function SnacksCalendar() {
     const t1Status = getTallerStatus(week.taller1);
     const t2Status = getTallerStatus(week.taller2);
 
+    if (t1Status.style === 'suspended' || t2Status.style === 'suspended') {
+      return { style: 'suspended', label: 'Suspendido' };
+    }
+
     if (t1Status.style === 'alert' || t2Status.style === 'alert') {
       return { style: 'alert', label: 'Requiere atención' };
     }
@@ -426,6 +430,14 @@ export function SnacksCalendar() {
       case 'suspended': return 'snack-status snack-status--suspended';
       default: return 'snack-status';
     }
+  };
+
+  const isSuspensionPlaceholder = (assignment) => {
+    if (!assignment) return false;
+    if (assignment.familiaUid === 'SUSPENDED') return true;
+    const hasFamilies = Array.isArray(assignment.familiasUids) && assignment.familiasUids.length > 0;
+    const hasChild = Boolean(assignment.childId);
+    return !hasFamilies && !hasChild && assignment.estado === 'suspendido';
   };
 
   const toggleStatusFilter = (value) => {
@@ -474,14 +486,23 @@ export function SnacksCalendar() {
 
   const handleRemoveWeekSuspension = async (week) => {
     setSaving(true);
-    const deletions = [];
-    if (week?.taller1?.suspendido) {
-      deletions.push(snacksService.deleteAssignment(week.taller1.id));
-    }
-    if (week?.taller2?.suspendido) {
-      deletions.push(snacksService.deleteAssignment(week.taller2.id));
-    }
-    const results = await Promise.all(deletions);
+    const operations = [];
+    const clearSuspension = (assignment) => {
+      if (!assignment?.suspendido) return;
+      if (isSuspensionPlaceholder(assignment)) {
+        operations.push(snacksService.deleteAssignment(assignment.id));
+      } else {
+        operations.push(snacksService.updateAssignment(assignment.id, {
+          suspendido: false,
+          motivoSuspension: null
+        }));
+      }
+    };
+
+    clearSuspension(week?.taller1);
+    clearSuspension(week?.taller2);
+
+    const results = await Promise.all(operations);
     setSaving(false);
 
     if (results.length > 0 && results.every(r => r.success)) {
@@ -534,7 +555,7 @@ export function SnacksCalendar() {
           <h1 className="dashboard-title">Snacks</h1>
           <p className="dashboard-subtitle">Vista unificada de ambos talleres - Año escolar {new Date().getFullYear()}</p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+        <div className="snacks-header-actions">
           <Link to={ROUTES.ADMIN_SNACKS_LISTS} className="btn btn--outline">
             Listas de snacks
           </Link>
@@ -579,15 +600,7 @@ export function SnacksCalendar() {
                 </div>
 
                 {/* Filtros */}
-                <div style={{
-                  display: 'flex',
-                  gap: 'var(--spacing-md)',
-                  marginBottom: 'var(--spacing-lg)',
-                  flexWrap: 'wrap',
-                  padding: 'var(--spacing-md)',
-                  background: 'var(--color-background-alt)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
+                <div className="snack-filters">
                   <button
                     type="button"
                     className={`snack-status snack-status--empty snack-filter-chip ${isStatusFilterActive('empty') ? 'snack-filter-chip--active' : ''}`}
@@ -638,7 +651,7 @@ export function SnacksCalendar() {
                   </div>
                 ) : (
                   <>
-                    <div className="table-container">
+                    <div className="table-container snacks-week-table-wrap">
                       <table className="table table--hover snacks-week-table">
                         <thead>
                           <tr>
@@ -681,9 +694,9 @@ export function SnacksCalendar() {
                                             </span>
                                             <button
                                               onClick={() => handleDeleteAssignment(week.taller1.id)}
-                                              className="btn btn--sm btn--ghost"
+                                              className="btn btn--sm snack-action-button"
                                               title="Quitar suspensión"
-                                              style={{ fontSize: '0.875rem', padding: '4px 8px', color: 'var(--color-text-light)' }}
+                                              style={{ fontSize: '0.875rem', padding: '4px 8px' }}
                                             >
                                               Quitar
                                             </button>
@@ -757,9 +770,9 @@ export function SnacksCalendar() {
                                             </span>
                                             <button
                                               onClick={() => handleDeleteAssignment(week.taller2.id)}
-                                              className="btn btn--sm btn--ghost"
+                                              className="btn btn--sm snack-action-button"
                                               title="Quitar suspensión"
-                                              style={{ fontSize: '0.875rem', padding: '4px 8px', color: 'var(--color-text-light)' }}>
+                                              style={{ fontSize: '0.875rem', padding: '4px 8px' }}>
                                               Quitar
                                             </button>
                                           </div>
@@ -821,8 +834,8 @@ export function SnacksCalendar() {
                                     {week.taller1?.suspendido || week.taller2?.suspendido ? (
                                       <button
                                         onClick={() => handleRemoveWeekSuspension(week)}
-                                        className="btn btn--ghost btn--sm"
-                                        style={{ fontSize: '0.75rem', color: 'var(--color-text-light)', padding: '2px 8px' }}>
+                                        className="btn btn--sm snack-action-button"
+                                        style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
                                         Quitar suspensión
                                       </button>
                                     ) : (
@@ -840,6 +853,182 @@ export function SnacksCalendar() {
                           })}
                         </tbody>
                       </table>
+                    </div>
+
+                    <div className="snacks-week-cards">
+                      {filteredWeeks.map((week) => {
+                        const weekStatus = getWeekStatus(week);
+                        const t1Status = getTallerStatus(week.taller1);
+                        const t2Status = getTallerStatus(week.taller2);
+
+                        return (
+                          <div key={week.fechaInicio} className="card snack-week-card">
+                            <div className="card__body">
+                              <div className="snack-week-card__header">
+                                <div>
+                                  <strong>{formatWeek(week.monday, week.friday)}</strong>
+                                  <div className="muted-text">
+                                    {week.monday.toLocaleDateString('es-AR', { year: 'numeric' })}
+                                  </div>
+                                </div>
+                                <span className={getStatusBadgeClass(weekStatus.style)}>
+                                  {weekStatus.label}
+                                </span>
+                              </div>
+
+                              <div className="snack-week-card__section">
+                                <div className="snack-week-card__label">Taller 1</div>
+                                {week.taller1 ? (
+                                  t1Status.isSuspended ? (
+                                    <div>
+                                      <div className="snack-week-card__title muted-text">
+                                        {week.taller1.motivoSuspension || 'No hay snacks'}
+                                      </div>
+                                      <div className="snack-week-card__row">
+                                        <span className={getStatusBadgeClass(t1Status.style)}>
+                                          {t1Status.label}
+                                        </span>
+                                        <button
+                                          onClick={() => handleDeleteAssignment(week.taller1.id)}
+                                          className="btn btn--sm snack-action-button"
+                                          title="Quitar suspensión"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <div className="snack-week-card__title">
+                                        {week.taller1.childName || week.taller1.familiaNombre}
+                                      </div>
+                                      {week.taller1.confirmadoPor ? (
+                                        <div className="muted-text" style={{ color: 'var(--color-success)' }}>
+                                          Confirmado por: {week.taller1.confirmadoPor}
+                                        </div>
+                                      ) : (
+                                        <div className="muted-text">{week.taller1.familiaEmail || ''}</div>
+                                      )}
+                                      <div className="snack-week-card__row">
+                                        <span className={getStatusBadgeClass(t1Status.style)}>
+                                          {t1Status.label}
+                                        </span>
+                                        {week.taller1.solicitudCambio && (
+                                          <button
+                                            onClick={() => openChangeModal(week.taller1)}
+                                            className="btn btn--sm btn--outline"
+                                          >
+                                            Ver solicitud
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => handleDeleteAssignment(week.taller1.id)}
+                                          className="btn btn--sm snack-action-button"
+                                          title="Eliminar asignación"
+                                        >
+                                          Eliminar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                ) : (
+                                  <button
+                                    onClick={() => openAssignModal(week, AMBIENTES.TALLER_1)}
+                                    className="btn btn--outline btn--sm"
+                                    disabled={isPastWeek(week)}
+                                    title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}
+                                  >
+                                    + Asignar alumno
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="snack-week-card__section">
+                                <div className="snack-week-card__label">Taller 2</div>
+                                {week.taller2 ? (
+                                  t2Status.isSuspended ? (
+                                    <div>
+                                      <div className="snack-week-card__title muted-text">
+                                        {week.taller2.motivoSuspension || 'No hay snacks'}
+                                      </div>
+                                      <div className="snack-week-card__row">
+                                        <span className={getStatusBadgeClass(t2Status.style)}>
+                                          {t2Status.label}
+                                        </span>
+                                        <button
+                                          onClick={() => handleDeleteAssignment(week.taller2.id)}
+                                          className="btn btn--sm snack-action-button"
+                                          title="Quitar suspensión"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <div className="snack-week-card__title">
+                                        {week.taller2.childName || week.taller2.familiaNombre}
+                                      </div>
+                                      {week.taller2.confirmadoPor ? (
+                                        <div className="muted-text" style={{ color: 'var(--color-success)' }}>
+                                          Confirmado por: {week.taller2.confirmadoPor}
+                                        </div>
+                                      ) : (
+                                        <div className="muted-text">{week.taller2.familiaEmail || ''}</div>
+                                      )}
+                                      <div className="snack-week-card__row">
+                                        <span className={getStatusBadgeClass(t2Status.style)}>
+                                          {t2Status.label}
+                                        </span>
+                                        {week.taller2.solicitudCambio && (
+                                          <button
+                                            onClick={() => openChangeModal(week.taller2)}
+                                            className="btn btn--sm btn--outline"
+                                          >
+                                            Ver solicitud
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => handleDeleteAssignment(week.taller2.id)}
+                                          className="btn btn--sm snack-action-button"
+                                          title="Eliminar asignación"
+                                        >
+                                          Eliminar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                ) : (
+                                  <button
+                                    onClick={() => openAssignModal(week, AMBIENTES.TALLER_2)}
+                                    className="btn btn--outline btn--sm"
+                                    disabled={isPastWeek(week)}
+                                    title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}
+                                  >
+                                    + Asignar alumno
+                                  </button>
+                                )}
+                              </div>
+
+                              {week.taller1?.suspendido || week.taller2?.suspendido ? (
+                                <button
+                                  onClick={() => handleRemoveWeekSuspension(week)}
+                                  className="btn btn--sm snack-action-button snack-week-card__suspend"
+                                >
+                                  Quitar suspensión
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openSuspendWeekModal(week)}
+                                  className="btn btn--outline btn--sm snack-week-card__suspend"
+                                >
+                                  Suspender semana
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--spacing-lg)' }}>

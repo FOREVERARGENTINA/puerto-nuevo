@@ -1,4 +1,13 @@
-const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false }) => {
+﻿const ChildCard = ({
+  child,
+  familyUsers = {},
+  onEdit,
+  onDelete,
+  isAdmin = false,
+  meetingNotes = [],
+  meetingNotesLoading = false,
+  meetingNotesLoaded = false
+}) => {
   const getAmbienteLabel = (ambiente) => {
     return ambiente === 'taller1' ? 'Taller 1' : 'Taller 2';
   };
@@ -7,6 +16,15 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-AR');
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return 'Fecha no disponible';
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
+    const dateLabel = date.toLocaleDateString('es-AR');
+    const timeLabel = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    return `${dateLabel} ${timeLabel}`;
   };
 
   const calculateAge = (birthDate) => {
@@ -23,10 +41,12 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
 
   const age = child.fechaNacimiento ? calculateAge(child.fechaNacimiento) : null;
   const hasAlerts = child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos);
-  const medicalBadgeText = isAdmin ? 'Info médica' : '⚠️ Info médica';
-  const familiesTitle = isAdmin ? 'Familias' : '👨‍👩‍👧 Familias';
-  const medicalTitle = isAdmin ? 'Información Médica' : '🏥 Información Médica';
-  const documentsTitle = isAdmin ? 'Documentos' : '📎 Documentos';
+  const medicalBadgeText = 'Info médica';
+  const familiesTitle = 'Familias';
+  const medicalTitle = 'Información médica';
+  const documentsTitle = 'Documentos';
+  const hasMeetingNotes = Array.isArray(meetingNotes) && meetingNotes.length > 0;
+  const shouldShowMeetingNotes = meetingNotesLoading || hasMeetingNotes || meetingNotesLoaded;
 
   return (
     <div className="child-card">
@@ -96,6 +116,65 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
           </div>
         )}
 
+        {shouldShowMeetingNotes && (
+          <div className="child-card__section">
+            <span className="child-card__section-title">Reuniones</span>
+            {meetingNotesLoading && (
+              <p className="muted-text" style={{ marginTop: 'var(--spacing-xs)' }}>
+                Cargando notas de reuniones...
+              </p>
+            )}
+            {!meetingNotesLoading && !hasMeetingNotes && (
+              <p className="muted-text" style={{ marginTop: 'var(--spacing-xs)' }}>
+                Sin notas registradas.
+              </p>
+            )}
+            {!meetingNotesLoading && hasMeetingNotes && (
+              <div style={{ display: 'grid', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>
+                {meetingNotes.map((entry, index) => (
+                  <div
+                    key={`${child.id}-meeting-${index}`}
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: 'var(--spacing-sm)',
+                      backgroundColor: 'var(--color-background-alt)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+                      <span className="badge badge--outline">{formatDateTime(entry?.appointment?.fechaHora)}</span>
+                      {isAdmin && entry?.note?.visibilidad && (
+                        <span className="badge badge--secondary">
+                          {entry.note.visibilidad === 'familia' ? 'Visible para familia' : 'Solo escuela'}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 'var(--spacing-xs)', display: 'grid', gap: '2px' }}>
+                      <div><strong>Resumen:</strong> {entry?.note?.resumen}</div>
+                      {entry?.note?.acuerdos && <div><strong>Acuerdos:</strong> {entry.note.acuerdos}</div>}
+                      {entry?.note?.proximosPasos && <div><strong>Próximos pasos:</strong> {entry.note.proximosPasos}</div>}
+                    </div>
+                    {Array.isArray(entry?.note?.attachments) && entry.note.attachments.length > 0 && (
+                      <div style={{ marginTop: 'var(--spacing-xs)' }}>
+                        <strong>Adjuntos:</strong>
+                        <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                          {entry.note.attachments.map((file, fileIndex) => (
+                            <li key={`${child.id}-meeting-file-${index}-${fileIndex}`}>
+                              <a href={file.url} target="_blank" rel="noreferrer">
+                                {file.name || 'Archivo'}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {child.documentos && child.documentos.length > 0 && (
           <div className="child-card__section">
             <span className="child-card__section-title">{documentsTitle} ({child.documentos.length})</span>
@@ -121,7 +200,7 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-soft)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-alt)'}
                 >
-                  {!isAdmin && <span style={{ fontSize: '1.2rem' }}>📄</span>}
+                  {!isAdmin && <span style={{ fontSize: '1.2rem' }}>Doc</span>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {doc.nombre}
@@ -130,12 +209,13 @@ const ChildCard = ({ child, familyUsers = {}, onEdit, onDelete, isAdmin = false 
                       {doc.descripcion}
                     </div>
                   </div>
-                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>→</span>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>Ver</span>
                 </a>
               ))}
             </div>
           </div>
         )}
+
       </div>
 
       {/* Footer con acciones */}

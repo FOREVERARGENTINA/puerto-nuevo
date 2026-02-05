@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { useTheme } from '../../hooks/useTheme';
 import { useAdminSummary } from '../../hooks/useAdminSummary';
 import { authService } from '../../services/auth.service';
 import { NotificationDropdown } from './NotificationDropdown';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import Icon from '../ui/Icon';
-import { readReceiptsService } from '../../services/readReceipts.service';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
 import { ROUTES } from '../../config/constants';
 
@@ -21,6 +21,7 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
   const { user, isAdmin } = useAuth();
   const { notifications, totalCount } = useNotifications();
   const { canInstall, shouldShowIosInstall, promptInstall } = usePwaInstall();
+  const { theme } = useTheme();
   const { summary, loading: summaryLoading } = useAdminSummary(isAdmin); // Hook en tiempo real
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -48,23 +49,11 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Al abrir el dropdown, marcar comunicados como leídos para quitar el badge
-  const handleToggleDropdown = async () => {
-    const willOpen = !showDropdown;
-    setShowDropdown(willOpen);
-    if (willOpen && user) {
-      // Marcar solo comunicados (type: 'comunicado') como leídos
-      const commNotifs = notifications.filter(n => n.type === 'comunicado' && n.metadata && n.metadata.commId);
-      if (commNotifs.length === 0) return;
-      try {
-        await Promise.all(commNotifs.map(n =>
-          readReceiptsService.markAsRead(n.metadata.commId, user.uid, user.displayName || user.email)
-        ));
-      } catch (err) {
-        // no bloquear la UI si falla
-        console.error('Error marking notifications read:', err);
-      }
-    }
+  // Toggle dropdown de notificaciones
+  const handleToggleDropdown = () => {
+    setShowDropdown(!showDropdown);
+    // NO marcar como leído aquí - los comunicados se marcan como leídos
+    // cuando el usuario realmente los abre en la página de detalle
   };
 
   const handleInstallClick = async () => {
@@ -98,19 +87,25 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
           <Link to={ROUTES.EVENTS_MANAGER} className="navbar__summary-item">
             <span className="navbar__summary-label">Próximos 7 días</span>
             <span className="navbar__summary-value">
-              {summaryLoading ? '...' : `${summary.todayEvents} eventos`}
+              {summaryLoading
+                ? '...'
+                : `${summary.todayEvents} ${summary.todayEvents === 1 ? 'evento' : 'eventos'}`}
             </span>
           </Link>
           <Link to="/admin/snacks" className="navbar__summary-item navbar__summary-item--action">
             <span className="navbar__summary-label">Proxima semana</span>
             <span className="navbar__summary-value">
-              {summaryLoading ? '...' : `${summary.nextWeekUnassigned} snacks sin asignar`}
+              {summaryLoading
+                ? '...'
+                : `${summary.nextWeekUnassigned} ${summary.nextWeekUnassigned === 1 ? 'snack sin asignar' : 'snacks sin asignar'}`}
             </span>
           </Link>
           <Link to={ROUTES.ADMIN_CONVERSATIONS} className="navbar__summary-item">
             <span className="navbar__summary-label">Conversaciones</span>
             <span className="navbar__summary-value">
-              {summaryLoading ? '...' : `${summary.unreadConversations} sin leer`}
+              {summaryLoading
+                ? '...'
+                : `${summary.unreadConversations} ${summary.unreadConversations === 1 ? 'sin leer' : 'sin leer'}`}
             </span>
           </Link>
         </div>
@@ -143,6 +138,7 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
             title={userLabel || 'Usuario'}
           >
             <Icon name="user" size={20} />
+            {userLabel && <span className="user-menu__name">{userLabel}</span>}
           </button>
           {showUserMenu && (
             <div className="user-menu__dropdown">
@@ -153,7 +149,12 @@ export function Navbar({ onToggleSidebar, isSidebarOpen }) {
                 </div>
               )}
               <div className="user-menu__item">
-                <span>Tema</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>{theme === 'dark' ? 'Tema oscuro' : 'Tema claro'}</span>
+                  <span className="muted-text" style={{ fontSize: 'var(--font-size-xs)' }}>
+                    {theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                  </span>
+                </div>
                 <ThemeToggle />
               </div>
               {(canInstall || shouldShowIosInstall) && (

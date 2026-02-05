@@ -29,7 +29,7 @@ export function useCommunications(limitCount = 50) {
     setError(null);
 
     let q;
-    
+
     if (ADMIN_ROLES.includes(role)) {
       q = query(
         collection(db, 'communications'),
@@ -45,6 +45,23 @@ export function useCommunications(limitCount = 50) {
       );
     }
 
+    let currentComms = [];
+
+    // Función para verificar lecturas
+    const checkUnreadCommunications = async (comms) => {
+      const unreadPromises = comms
+        .filter(comm => comm.requiereLecturaObligatoria)
+        .map(async (comm) => {
+          const result = await readReceiptsService.hasUserRead(comm.id, user.uid);
+          return result.success && !result.hasRead ? comm : null;
+        });
+
+      const unreadResults = await Promise.all(unreadPromises);
+      const unread = unreadResults.filter(comm => comm !== null);
+
+      setUnreadRequired(unread);
+    };
+
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
@@ -54,19 +71,9 @@ export function useCommunications(limitCount = 50) {
             ...doc.data()
           }));
 
+          currentComms = comms;
           setCommunications(comms);
-
-          const unreadPromises = comms
-            .filter(comm => comm.requiereLecturaObligatoria)
-            .map(async (comm) => {
-              const result = await readReceiptsService.hasUserRead(comm.id, user.uid);
-              return result.success && !result.hasRead ? comm : null;
-            });
-
-          const unreadResults = await Promise.all(unreadPromises);
-          const unread = unreadResults.filter(comm => comm !== null);
-          
-          setUnreadRequired(unread);
+          await checkUnreadCommunications(comms);
           setLoading(false);
         } catch (err) {
           console.error('Error procesando comunicados:', err);
@@ -81,7 +88,18 @@ export function useCommunications(limitCount = 50) {
       }
     );
 
-    return () => unsubscribe();
+    // Listener adicional: detectar cuando se agregan lecturas del usuario
+    // Verificar cada 5 segundos si hay cambios en las lecturas
+    const intervalId = setInterval(async () => {
+      if (currentComms.length > 0) {
+        await checkUnreadCommunications(currentComms);
+      }
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(intervalId);
+    };
   }, [user, role, limitCount]);
 
   const markAsRead = async (commId) => {

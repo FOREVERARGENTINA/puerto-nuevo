@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { communicationsService } from '../../services/communications.service';
 import { readReceiptsService } from '../../services/readReceipts.service';
@@ -140,9 +140,9 @@ export function ReadReceiptsPanel() {
       try {
         const senderRes = await usersService.getUserById(comm.sentBy);
         if (senderRes.success) {
-          setSelectedComm(prev => ({ ...prev, sentByDisplayName: senderRes.user.displayName || senderRes.user.email || '—' }));
+          setSelectedComm(prev => ({ ...prev, sentByDisplayName: senderRes.user.displayName || senderRes.user.email || '-' }));
         } else {
-          setSelectedComm(prev => ({ ...prev, sentByDisplayName: '—' }));
+          setSelectedComm(prev => ({ ...prev, sentByDisplayName: '-' }));
         }
       } catch (err) {
         console.error('Error cargando remitente:', err);
@@ -310,7 +310,7 @@ export function ReadReceiptsPanel() {
   };
 
   // Obtener estadísticas para familia seleccionada
-  const getStatsForFamily = (comm) => {
+  function getStatsForFamily(comm) {
     if (selectedFamilyId === 'all') {
       return comm.statsData;
     }
@@ -323,7 +323,7 @@ export function ReadReceiptsPanel() {
       pendientes: hasRead ? 0 : 1,
       porcentaje: hasRead ? 100 : 0
     };
-  };
+  }
 
   if (loading) {
     return (
@@ -343,6 +343,17 @@ export function ReadReceiptsPanel() {
       </div>
     );
   }
+
+  const hasFilters = searchTerm !== '' || filterType !== 'all' || filterAmbiente !== 'all' || filterStatus !== 'all' || selectedFamilyId !== 'all';
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setFilterType('all');
+    setFilterAmbiente('all');
+    setFilterStatus('all');
+    setSelectedFamilyId('all');
+    setCurrentPage(1);
+  };
 
   const selectedFamily = allFamilies.find(f => f.id === selectedFamilyId);
 
@@ -370,112 +381,119 @@ export function ReadReceiptsPanel() {
             </div>
           ) : (
             <>
-              {/* Filtros */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 'var(--spacing-md)',
-                marginBottom: 'var(--spacing-lg)'
-              }}>
-                {/* Búsqueda */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="search">Buscar</label>
-                  <input
-                    id="search"
-                    type="text"
-                    className="form-input"
-                    placeholder="🔍 Buscar por título..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </div>
+              {/* Filtros Toolbar */}
+              <div className="user-toolbar">
+                <div className="user-toolbar__left">
+                  <div className="user-toolbar__summary">
+                    <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', flexWrap: 'wrap' }}>
+                      <strong>Total:</strong> {filteredCommunications.length}
+                      {filteredCommunications.length === 1 ? ' resultado' : ' resultados'}
+                      {selectedFamilyId !== 'all' && selectedFamily && (
+                        <>
+                          <span style={{ color: 'var(--color-text-light)' }}>·</span>
+                          <span>Mostrando para <strong>{selectedFamily.displayName || selectedFamily.email}</strong></span>
+                        </>
+                      )}
+                      {loadingStats && (
+                        <>
+                          <span style={{ color: 'var(--color-text-light)' }}>·</span>
+                          <span className="text-spin" style={{ color: 'var(--color-text-light)' }}>Cargando estadísticas...</span>
+                        </>
+                      )}
+                    </p>
+                    <input
+                      id="search"
+                      type="text"
+                      className="form-input form-input--sm"
+                      placeholder="Buscar por título..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      style={{ width: 240 }}
+                    />
+                  </div>
 
-                {/* Filtro por tipo */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="type-filter">Tipo</label>
-                  <select
-                    id="type-filter"
-                    className="form-input"
-                    value={filterType}
-                    onChange={(e) => {
-                      setFilterType(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="all">Todos los tipos</option>
-                    <option value="global">Global</option>
-                    <option value="ambiente">Ambiente</option>
-                    <option value="individual">Individual</option>
-                  </select>
-                </div>
+                  <div className="user-filter">
+                    <label htmlFor="type-filter">Tipo</label>
+                    <select
+                      id="type-filter"
+                      className="form-input form-input--sm"
+                      value={filterType}
+                      onChange={(e) => {
+                        setFilterType(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="all">Todos</option>
+                      <option value="global">Global</option>
+                      <option value="ambiente">Ambiente</option>
+                      <option value="individual">Individual</option>
+                    </select>
+                  </div>
 
-                {/* Filtro por ambiente/taller */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="ambiente-filter">Taller</label>
-                  <select
-                    id="ambiente-filter"
-                    className="form-input"
-                    value={filterAmbiente}
-                    onChange={(e) => {
-                      setFilterAmbiente(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="all">Todos los talleres</option>
-                    <option value="taller1">Taller 1</option>
-                    <option value="taller2">Taller 2</option>
-                  </select>
-                </div>
+                  <div className="user-filter">
+                    <label htmlFor="ambiente-filter">Taller</label>
+                    <select
+                      id="ambiente-filter"
+                      className="form-input form-input--sm"
+                      value={filterAmbiente}
+                      onChange={(e) => {
+                        setFilterAmbiente(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="all">Todos</option>
+                      <option value="taller1">Taller 1</option>
+                      <option value="taller2">Taller 2</option>
+                    </select>
+                  </div>
 
-                {/* Filtro por estado */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="status-filter">Estado</label>
-                  <select
-                    id="status-filter"
-                    className="form-input"
-                    value={filterStatus}
-                    onChange={(e) => {
-                      setFilterStatus(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <option value="all">Todos</option>
-                    <option value="complete">Completo</option>
-                    <option value="progress">En progreso</option>
-                    <option value="pending">Pendiente</option>
-                  </select>
-                </div>
+                  <div className="user-filter">
+                    <label htmlFor="status-filter">Estado</label>
+                    <select
+                      id="status-filter"
+                      className="form-input form-input--sm"
+                      value={filterStatus}
+                      onChange={(e) => {
+                        setFilterStatus(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="all">Todos</option>
+                      <option value="complete">Completo</option>
+                      <option value="progress">En progreso</option>
+                      <option value="pending">Pendiente</option>
+                    </select>
+                  </div>
 
-                {/* Filtro por familia */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="family-filter">Familia</label>
-                  <select
-                    id="family-filter"
-                    className="form-input"
-                    value={selectedFamilyId}
-                    onChange={handleFamilyChange}
-                    disabled={loadingFamilies}
-                  >
-                    <option value="all">Todas las familias</option>
-                    {allFamilies.map(family => (
-                      <option key={family.id} value={family.id}>
-                        {family.displayName || family.email}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="user-filter">
+                    <label htmlFor="family-filter">Familia</label>
+                    <select
+                      id="family-filter"
+                      className="form-input form-input--sm"
+                      value={selectedFamilyId}
+                      onChange={handleFamilyChange}
+                      disabled={loadingFamilies}
+                      style={{ maxWidth: 180 }}
+                    >
+                      <option value="all">Todas</option>
+                      {allFamilies.map(family => (
+                        <option key={family.id} value={family.id}>
+                          {family.displayName || family.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {hasFilters && (
+                    <button type="button" className="btn btn--sm btn--outline" onClick={handleClearFilters}>
+                      Limpiar filtros
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <p style={{ marginBottom: 'var(--spacing-lg)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>
-                {filteredCommunications.length} {filteredCommunications.length === 1 ? 'resultado' : 'resultados'}
-                {selectedFamilyId !== 'all' && selectedFamily && (
-                  <span> · Mostrando comunicados para <strong>{selectedFamily.displayName || selectedFamily.email}</strong></span>
-                )}
-                {loadingStats && <span> · Cargando estadísticas...</span>}
-              </p>
 
               {/* Tabla */}
               <div style={{ overflowX: 'auto' }}>
@@ -486,19 +504,19 @@ export function ReadReceiptsPanel() {
                         onClick={() => handleSort('title')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Título {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        Título {sortBy === 'title' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
                       </th>
                       <th
                         onClick={() => handleSort('createdAt')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Fecha {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        Fecha {sortBy === 'createdAt' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
                       </th>
                       <th
                         onClick={() => handleSort('type')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Tipo {sortBy === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        Tipo {sortBy === 'type' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
                       </th>
                       {selectedFamilyId === 'all' && (
                         <>
@@ -508,7 +526,7 @@ export function ReadReceiptsPanel() {
                             onClick={() => handleSort('pendientes')}
                             style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                           >
-                            Pendientes {sortBy === 'pendientes' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            Pendientes {sortBy === 'pendientes' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
                           </th>
                         </>
                       )}
@@ -516,7 +534,7 @@ export function ReadReceiptsPanel() {
                         onClick={() => handleSort('percentage')}
                         style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                       >
-                        {selectedFamilyId === 'all' ? 'Progreso' : 'Estado'} {sortBy === 'percentage' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        {selectedFamilyId === 'all' ? 'Progreso' : 'Estado'} {sortBy === 'percentage' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
                       </th>
                       {selectedFamilyId === 'all' && <th style={{ textAlign: 'center' }}>Estado</th>}
                     </tr>
@@ -589,8 +607,8 @@ export function ReadReceiptsPanel() {
                                 </div>
                               ) : (
                                 displayStats.porcentaje === 100
-                                  ? <span className="badge badge--success">✓ Leído</span>
-                                  : <span className="badge badge--error">✗ Pendiente</span>
+                                  ? <span className="badge badge--success">Leído</span>
+                                  : <span className="badge badge--error">Pendiente</span>
                               )}
                             </td>
                             {selectedFamilyId === 'all' && (
@@ -621,7 +639,7 @@ export function ReadReceiptsPanel() {
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
-                    ← Anterior
+                    Anterior
                   </button>
 
                   <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
@@ -652,7 +670,7 @@ export function ReadReceiptsPanel() {
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                   >
-                    Siguiente →
+                    Siguiente
                   </button>
                 </div>
               )}
@@ -672,7 +690,7 @@ export function ReadReceiptsPanel() {
                 onClick={() => setShowDetailModal(false)}
                 aria-label="Cerrar"
               >
-                ×
+                X
               </button>
             </div>
 
@@ -730,7 +748,7 @@ export function ReadReceiptsPanel() {
                         year: 'numeric'
                       })}
                       <span style={{ marginLeft: '0.5rem', fontWeight: 500, color: 'var(--color-text-light)' }}>
-                        • Enviado por {selectedComm.sentByDisplayName || selectedComm.sentBy || '—' }
+                        - Enviado por {selectedComm.sentByDisplayName || selectedComm.sentBy || '-' }
                       </span>
                     </span>
                   )}
@@ -853,3 +871,4 @@ export function ReadReceiptsPanel() {
     </>
   );
 }
+

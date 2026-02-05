@@ -17,6 +17,7 @@ const ReadReceiptsPanel = lazy(() => import('./pages/admin/ReadReceiptsPanel').t
 const SendCommunication = lazy(() => import('./pages/admin/SendCommunication').then(m => ({ default: m.SendCommunication })));
 const ChildrenManager = lazy(() => import('./pages/admin/ChildrenManager'));
 const AppointmentsManager = lazy(() => import('./pages/admin/AppointmentsManager'));
+const TalleresList = lazy(() => import('./pages/admin/TalleresList'));
 const TalleresManager = lazy(() => import('./pages/admin/TalleresManager'));
 const SnacksCalendar = lazy(() => import('./pages/admin/SnacksCalendar').then(m => ({ default: m.SnacksCalendar })));
 const SnacksLists = lazy(() => import('./pages/admin/SnacksLists').then(m => ({ default: m.SnacksLists })));
@@ -29,6 +30,7 @@ const AdminConversationDetail = lazy(() => import('./pages/admin/AdminConversati
 // Lazy load páginas familia
 const FamilyDashboard = lazy(() => import('./pages/family/FamilyDashboard').then(m => ({ default: m.FamilyDashboard })));
 const Communications = lazy(() => import('./pages/family/Communications').then(m => ({ default: m.Communications })));
+const CommunicationDetail = lazy(() => import('./pages/family/CommunicationDetail').then(m => ({ default: m.CommunicationDetail })));
 const ChildProfile = lazy(() => import('./pages/family/ChildProfile'));
 const BookAppointment = lazy(() => import('./pages/family/BookAppointment'));
 const TalleresEspeciales = lazy(() => import('./pages/family/TalleresEspeciales').then(m => ({ default: m.TalleresEspeciales })));
@@ -89,7 +91,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
                     <AdminDashboard />
                   </RoleGuard>
                 </Layout>
@@ -113,7 +115,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE, ROLES.FACTURACION]}>
                     <ReadReceiptsPanel />
                   </RoleGuard>
                 </Layout>
@@ -125,7 +127,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE, ROLES.FACTURACION]}>
                     <SendCommunication />
                   </RoleGuard>
                 </Layout>
@@ -170,6 +172,18 @@ function App() {
           />
           <Route
             path="/admin/talleres"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <TalleresList />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/talleres/:tallerId"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -233,7 +247,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
                     <AdminConversations />
                   </RoleGuard>
                 </Layout>
@@ -245,7 +259,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
                     <AdminNewConversation />
                   </RoleGuard>
                 </Layout>
@@ -257,7 +271,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
                     <AdminConversationDetail />
                   </RoleGuard>
                 </Layout>
@@ -297,6 +311,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.FAMILY]}>
                     <Communications />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/familia/comunicados/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <CommunicationDetail />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -451,6 +477,18 @@ function App() {
             }
           />
           <Route
+            path="/docente/eventos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <EventsCalendar />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/docente/horarios"
             element={
               <ProtectedRoute>
@@ -507,6 +545,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
                     <DocumentManager />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tallerista/eventos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <EventsCalendar />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

@@ -5,7 +5,7 @@ export const getAreaLabel = (area) => {
     case ESCUELA_AREAS.COORDINACION:
       return 'Coordinación';
     case ESCUELA_AREAS.ADMINISTRACION:
-      return 'Administración';
+      return 'Facturación';
     case ESCUELA_AREAS.DIRECCION:
       return 'Dirección';
     default:
@@ -20,7 +20,7 @@ export const getCategoryLabel = (value) => {
 
 export const getConversationStatusLabel = (status, role) => {
   if (role === ROLES.FAMILY) {
-    if (status === CONVERSATION_STATUS.PENDIENTE) return 'Pendiente respuesta';
+    if (status === CONVERSATION_STATUS.PENDIENTE) return 'Respuesta pendiente';
     if (status === CONVERSATION_STATUS.RESPONDIDA) return 'Respondida';
     if (status === CONVERSATION_STATUS.ACTIVA) return 'Activa';
     if (status === CONVERSATION_STATUS.CERRADA) return 'Cerrada';

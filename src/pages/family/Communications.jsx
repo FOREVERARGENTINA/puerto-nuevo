@@ -1,18 +1,16 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCommunications } from '../../hooks/useCommunications';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { useAuth } from '../../hooks/useAuth';
-import { ReadConfirmationModal } from '../../components/communications/ReadConfirmationModal';
 import { CommunicationCard } from '../../components/communications/CommunicationCard';
-import { ViewCommunicationModal } from '../../components/communications/ViewCommunicationModal';
 import Icon from '../../components/ui/Icon';
 
 export function Communications() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { communications, unreadRequired, loading, error, markAsRead, hasUnreadRequired } = useCommunications();
   const [readStatus, setReadStatus] = useState({});
-  const [selectedComm, setSelectedComm] = useState(null);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [senderFilter, setSenderFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,23 +79,12 @@ export function Communications() {
   }, [communications, user]);
 
   const openCommunication = (comm) => {
-    setSelectedComm(comm);
-    setShowViewModal(true);
+    navigate(`/familia/comunicados/${comm.id}`);
   };
 
-  const closeCommunication = () => {
-    setShowViewModal(false);
-    setSelectedComm(null);
-  };
-
-  const handleMarkAsRead = async (commId) => {
-    const result = await markAsRead(commId);
-    if (result.success) {
-      setReadStatus(prev => ({ ...prev, [commId]: true }));
-      if (selectedComm && selectedComm.id === commId) {
-        // update selectedComm read state
-        setSelectedComm(prev => ({ ...prev }));
-      }
+  const handleOpenFirstUnread = () => {
+    if (unreadRequired.length > 0) {
+      navigate(`/familia/comunicados/${unreadRequired[0].id}`);
     }
   };
 
@@ -118,104 +105,104 @@ export function Communications() {
   }
 
   return (
-    <>
-      {hasUnreadRequired && (
-        <ReadConfirmationModal
-          communication={unreadRequired[0]}
-          onConfirm={handleMarkAsRead}
-          blocking={true}
-        />
-      )}
+    <div className="container page-container communications-page">
+      <div className="dashboard-header dashboard-header--compact communications-header">
+        <div>
+          <h1 className="dashboard-title">Comunicados</h1>
+          <p className="dashboard-subtitle">Mensajes y avisos de la escuela.</p>
+        </div>
+        <div className="communications-summary">
+          <span className="badge badge--info">
+            {filteredCommunications.length} {filteredCommunications.length === 1 ? 'mensaje' : 'mensajes'}
+          </span>
+        </div>
+      </div>
 
-      <div className="container page-container communications-page">
-        <div className="dashboard-header dashboard-header--compact communications-header">
-          <div>
-            <h1 className="dashboard-title">Comunicados</h1>
-            <p className="dashboard-subtitle">Mensajes y avisos de la escuela.</p>
-          </div>
-          <div className="communications-summary">
-            <span className="badge badge--info">
-              {filteredCommunications.length} {filteredCommunications.length === 1 ? 'mensaje' : 'mensajes'}
-            </span>
+      {hasUnreadRequired && (
+        <div className="alert alert--warning" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)' }}>
+            <div>
+              <strong>Comunicado pendiente de lectura obligatoria</strong>
+              <p style={{ margin: '0.25rem 0 0 0' }}>
+                Tenés {unreadRequired.length} {unreadRequired.length === 1 ? 'comunicado que requiere' : 'comunicados que requieren'} tu confirmación de lectura.
+              </p>
+            </div>
+            <button
+              className="btn btn--primary btn--sm"
+              onClick={handleOpenFirstUnread}
+              style={{ flexShrink: 0 }}
+            >
+              Leer ahora
+            </button>
           </div>
         </div>
+      )}
 
-        <div className="card communications-filters">
-          <div className="card__body">
-            <div className="communications-filters__row">
-              <div className="communications-search">
-                <label className="form-label" htmlFor="comm-search">Buscar</label>
-                <div className="communications-search__field">
-                  <Icon name="search" size={16} className="icon icon--muted" />
-                  <input
-                    id="comm-search"
-                    className="form-input"
-                    placeholder="Buscar por título..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+      <div className="card communications-filters">
+        <div className="card__body">
+          <div className="communications-filters__row">
+            <div className="communications-search">
+              <label className="form-label" htmlFor="comm-search">Buscar</label>
+              <div className="communications-search__field">
+                <Icon name="search" size={16} className="icon icon--muted" />
+                <input
+                  id="comm-search"
+                  className="form-input"
+                  placeholder="Buscar por título..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
+            </div>
 
-              <div className="communications-select">
-                <label className="form-label" htmlFor="comm-sender">Remitente</label>
-                <select id="comm-sender" value={senderFilter} onChange={(e) => setSenderFilter(e.target.value)} className="form-input">
-                  <option value="all">Todos los remitentes</option>
-                  {senders.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="communications-select">
+              <label className="form-label" htmlFor="comm-sender">Remitente</label>
+              <select id="comm-sender" value={senderFilter} onChange={(e) => setSenderFilter(e.target.value)} className="form-input">
+                <option value="all">Todos los remitentes</option>
+                {senders.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
 
-              <div className="communications-select">
-                <label className="form-label" htmlFor="comm-date">Fecha</label>
-                <select id="comm-date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="form-input">
-                  <option value="all">Todas las fechas</option>
-                  <option value="this_month">Este mes</option>
-                  <option value="last_3_months">Últimos 3 meses</option>
-                </select>
-              </div>
+            <div className="communications-select">
+              <label className="form-label" htmlFor="comm-date">Fecha</label>
+              <select id="comm-date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="form-input">
+                <option value="all">Todas las fechas</option>
+                <option value="this_month">Este mes</option>
+                <option value="last_3_months">Últimos 3 meses</option>
+              </select>
+            </div>
 
-              <div className="communications-filters__actions">
-                <button
-                  className="btn btn--outline btn--sm"
-                  onClick={() => { setSenderFilter('all'); setDateFilter('all'); setSearchTerm(''); }}
-                >
-                  Limpiar
-                </button>
-              </div>
+            <div className="communications-filters__actions">
+              <button
+                className="btn btn--outline btn--sm"
+                onClick={() => { setSenderFilter('all'); setDateFilter('all'); setSearchTerm(''); }}
+              >
+                Limpiar
+              </button>
             </div>
           </div>
         </div>
-        {filteredCommunications.length === 0 ? (
-          <div className="empty-state communications-empty">
-            <p>No hay comunicados que coincidan con los filtros.</p>
-          </div>
-        ) : (
-          <div className="communications-list">
-            {filteredCommunications.map(comm => (
-              <CommunicationCard
-                key={comm.id}
-                communication={comm}
-                hasRead={readStatus[comm.id]}
-                onMarkAsRead={handleMarkAsRead}
-                onView={openCommunication}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Modal de visualización */}
-        {showViewModal && selectedComm && (
-          <ViewCommunicationModal
-            communication={selectedComm}
-            onClose={closeCommunication}
-            onMarkAsRead={handleMarkAsRead}
-            hasRead={readStatus[selectedComm.id]}
-          />
-        )}
       </div>
-    </>
+
+      {filteredCommunications.length === 0 ? (
+        <div className="empty-state communications-empty">
+          <p>No hay comunicados que coincidan con los filtros.</p>
+        </div>
+      ) : (
+        <div className="communications-list">
+          {filteredCommunications.map(comm => (
+            <CommunicationCard
+              key={comm.id}
+              communication={comm}
+              hasRead={readStatus[comm.id]}
+              onView={openCommunication}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

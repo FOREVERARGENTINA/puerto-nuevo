@@ -5,6 +5,7 @@ import { ROLES } from '../config/constants';
 
 const resolveAreaForRole = (role) => {
   if (role === ROLES.COORDINACION) return 'coordinacion';
+  if (role === ROLES.FACTURACION) return 'administracion';
   if (role === ROLES.SUPERADMIN) return null;
   return null;
 };
@@ -27,8 +28,18 @@ export function useConversations({ user, role, limitCount = 200 }) {
     if (role === ROLES.FAMILY) {
       q = query(collectionRef, where('familiaUid', '==', user.uid), orderBy('actualizadoAt', 'desc'));
     } else if (role === ROLES.SUPERADMIN) {
+      // SUPERADMIN ve TODO (nivel 6)
       q = query(collectionRef, orderBy('actualizadoAt', 'desc'));
+    } else if (role === ROLES.COORDINACION) {
+      // COORDINACION ve coordinacion + administracion (nivel 5)
+      // Ve todo menos "direccion"
+      q = query(
+        collectionRef,
+        where('destinatarioEscuela', 'in', ['coordinacion', 'administracion']),
+        orderBy('actualizadoAt', 'desc')
+      );
     } else {
+      // FACTURACION y otros roles con área específica
       const area = resolveAreaForRole(role);
       if (!area) {
         setConversations([]);

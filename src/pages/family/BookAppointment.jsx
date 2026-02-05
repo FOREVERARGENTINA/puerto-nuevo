@@ -10,6 +10,7 @@ const BookAppointment = () => {
   const { user } = useAuth();
   const [availableAppointments, setAvailableAppointments] = useState([]);
   const [myAppointments, setMyAppointments] = useState([]);
+  const [appointmentNotes, setAppointmentNotes] = useState({});
   const [userChildren, setUserChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -73,6 +74,28 @@ const BookAppointment = () => {
       loadData();
     }
   }, [user]);
+
+  useEffect(() => {
+    const loadNotes = async () => {
+      const attended = myAppointments.filter(app => app.estado === 'asistio');
+      if (attended.length === 0) {
+        setAppointmentNotes({});
+        return;
+      }
+
+      const results = await Promise.all(attended.map(app => appointmentsService.getAppointmentNote(app.id)));
+      const notesMap = {};
+      attended.forEach((app, index) => {
+        const result = results[index];
+        if (result.success && result.note && result.note.visibilidad === 'familia') {
+          notesMap[app.id] = result.note;
+        }
+      });
+      setAppointmentNotes(notesMap);
+    };
+
+    loadNotes();
+  }, [myAppointments]);
 
   useEffect(() => {
     if (user) {
@@ -365,6 +388,7 @@ const BookAppointment = () => {
                     {myAppointments.map(app => {
                       const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
                       const isPast = appDate < new Date();
+                      const note = appointmentNotes[app.id];
 
                       return (
                         <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
@@ -381,6 +405,25 @@ const BookAppointment = () => {
                             </span>
                             {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
                           </div>
+                          {app.estado === 'asistio' && note && (
+                            <div style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
+                              <div><strong>Resumen:</strong> {note.resumen}</div>
+                              {note.acuerdos && <div><strong>Acuerdos:</strong> {note.acuerdos}</div>}
+                              {note.proximosPasos && <div><strong>Próximos pasos:</strong> {note.proximosPasos}</div>}
+                              {Array.isArray(note.attachments) && note.attachments.length > 0 && (
+                                <div style={{ marginTop: 'var(--spacing-xs)' }}>
+                                  <strong>Adjuntos:</strong>
+                                  <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                                    {note.attachments.map((file, index) => (
+                                      <li key={`${app.id}-note-${index}`}>
+                                        <a href={file.url} target="_blank" rel="noreferrer">{file.name || 'Archivo'}</a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {app.estado === 'reservado' && !isPast && (
                             <button
                               onClick={() => handleCancelAppointment(app.id)}

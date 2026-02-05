@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { fixMojibakeDeep } from '../utils/textEncoding';
 
@@ -205,6 +205,42 @@ export const eventsService = {
       return { success: true, media: uploads };
     } catch (error) {
       console.error('Error al subir media del evento:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Eliminar media asociada a un evento
+   */
+  async deleteEventMedia(eventId, mediaItem, existingMedia = []) {
+    try {
+      const media = Array.isArray(existingMedia) ? existingMedia : [];
+      const path = mediaItem?.path || null;
+      const filtered = media.filter(item =>
+        (path && item.path !== path) ||
+        (!path && item.url !== mediaItem?.url && item.name !== mediaItem?.name)
+      );
+
+      if (path) {
+        const storageRef = ref(storage, path);
+        try {
+          await deleteObject(storageRef);
+        } catch (storageError) {
+          if (storageError?.code !== 'storage/object-not-found') {
+            throw storageError;
+          }
+        }
+      }
+
+      await updateDoc(doc(eventsCollection, eventId), {
+        media: filtered,
+        updatedAt: serverTimestamp()
+      });
+
+      window.dispatchEvent(new CustomEvent('events:updated'));
+      return { success: true, media: filtered };
+    } catch (error) {
+      console.error('Error al eliminar media del evento:', error);
       return { success: false, error: error.message };
     }
   },

@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -12,10 +13,14 @@ import {
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const appointmentsCollection = collection(db, 'appointments');
+const getNotesDocRef = (appointmentId) => (
+  doc(db, 'appointments', appointmentId, 'notes', 'summary')
+);
 
 export const appointmentsService = {
   async createAppointment(data) {
@@ -26,6 +31,77 @@ export const appointmentsService = {
         createdAt: serverTimestamp()
       });
       return { success: true, id: docRef.id };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async getAppointmentNote(appointmentId) {
+    try {
+      const noteDoc = await getDoc(getNotesDocRef(appointmentId));
+      if (noteDoc.exists()) {
+        return { success: true, note: { id: noteDoc.id, ...fixMojibakeDeep(noteDoc.data()) } };
+      }
+      return { success: true, note: null };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async saveAppointmentNote(appointmentId, data) {
+    try {
+      const noteRef = getNotesDocRef(appointmentId);
+      const existing = await getDoc(noteRef);
+      if (existing.exists()) {
+        await updateDoc(noteRef, {
+          ...data,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(noteRef, {
+          ...data,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async uploadAppointmentNoteAttachments(appointmentId, files, existingAttachments = []) {
+    try {
+      const baseAttachments = Array.isArray(existingAttachments) ? existingAttachments : [];
+      const uploads = [];
+      const timestamp = Date.now();
+
+      for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        const safeName = String(file.name || 'archivo')
+          .replace(/\s+/g, '_')
+          .replace(/[^\w.\-]/g, '');
+        const fileName = `${timestamp}_${i}_${safeName}`;
+        const storagePath = `private/appointments/${appointmentId}/notes/${fileName}`;
+        const storageRef = ref(storage, storagePath);
+
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        uploads.push({
+          name: file.name || fileName,
+          url: downloadURL,
+          path: storagePath,
+          type: file.type || '',
+          size: file.size || 0
+        });
+      }
+
+      await updateDoc(getNotesDocRef(appointmentId), {
+        attachments: [...baseAttachments, ...uploads],
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true, attachments: uploads };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -89,6 +165,27 @@ export const appointmentsService = {
         return dateB - dateA;
       });
 
+      return { success: true, appointments };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async getAppointmentsByChild(childId) {
+    try {
+      const q = query(
+        appointmentsCollection,
+        where('hijoId', '==', childId)
+      );
+      const snapshot = await getDocs(q);
+      const appointments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...fixMojibakeDeep(doc.data())
+      })).sort((a, b) => {
+        const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
+        const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+        return dateB - dateA;
+      });
       return { success: true, appointments };
     } catch (error) {
       return { success: false, error: error.message };

@@ -30,8 +30,34 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Private: adjuntos de notas de reuniones en turnos
+    match /private/appointments/{appointmentId}/notes/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          (
+            request.auth.uid == firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.familiaUid ||
+            request.auth.uid in firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.get('familiasUids', [])
+          ) &&
+          firestore.get(/databases/(default)/documents/appointments/$(appointmentId)/notes/summary).data.visibilidad == 'familia'
+        )
+      );
+      allow write: if isAdmin();
+    }
+
     // Talleres: galerías de fotos/videos (Fase 5)
     match /talleres/{tallerId}/gallery/{fileName} {
+      // Leer: Todos los autenticados
+      allow read: if isAuthenticated();
+
+      // Escribir: Admin o tallerista del taller
+      allow write: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId
+      );
+    }
+    // Talleres: albums (carpetas reales)
+    match /talleres/{tallerId}/albums/{albumId}/{fileName} {
       // Leer: Todos los autenticados
       allow read: if isAuthenticated();
 
@@ -91,3 +117,4 @@ service firebase.storage {
     }
   }
 }
+

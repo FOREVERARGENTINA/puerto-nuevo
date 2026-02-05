@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { conversationsService } from '../../services/conversations.service';
-import { CONVERSATION_CATEGORIES, ESCUELA_AREAS, ROUTES } from '../../config/constants';
+import { CATEGORIES_BY_AREA, ESCUELA_AREAS, ROUTES } from '../../config/constants';
 
 export function FamilyNewConversation() {
   const { user } = useAuth();
@@ -17,9 +17,26 @@ export function FamilyNewConversation() {
   });
   const [file, setFile] = useState(null);
 
+  // Obtener categorías disponibles según destinatario
+  const availableCategories = useMemo(() => {
+    return CATEGORIES_BY_AREA[form.destinatarioEscuela] || [];
+  }, [form.destinatarioEscuela]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+
+    // Si cambia el destinatario, resetear la categoría a la primera disponible
+    if (name === 'destinatarioEscuela') {
+      const newCategories = CATEGORIES_BY_AREA[value] || [];
+      const firstCategory = newCategories[0]?.value || 'otro';
+      setForm(prev => ({
+        ...prev,
+        [name]: value,
+        categoria: firstCategory
+      }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -80,7 +97,7 @@ export function FamilyNewConversation() {
               required
             >
               <option value={ESCUELA_AREAS.COORDINACION}>Coordinación</option>
-              <option value={ESCUELA_AREAS.ADMINISTRACION}>Administración</option>
+              <option value={ESCUELA_AREAS.ADMINISTRACION}>Facturación</option>
               <option value={ESCUELA_AREAS.DIRECCION}>Dirección</option>
             </select>
           </div>
@@ -96,7 +113,7 @@ export function FamilyNewConversation() {
               disabled={loading}
               required
             >
-              {CONVERSATION_CATEGORIES.map(cat => (
+              {availableCategories.map(cat => (
                 <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
             </select>

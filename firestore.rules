@@ -197,8 +197,13 @@ service cloud.firestore {
       // Leer: todos los usuarios autenticados (para el calendario del sidebar)
       allow read: if isAuthenticated();
 
-      // Crear: roles que pueden enviar comunicados
-      allow create: if canCreateEvents();
+      // Crear: roles que pueden enviar comunicados o tallerista del taller
+      allow create: if canCreateEvents() || (
+        isTallerista() &&
+        request.resource.data.source == 'taller' &&
+        request.resource.data.tallerId != null &&
+        request.auth.uid in get(/databases/$(database)/documents/talleres/$(request.resource.data.tallerId)).data.talleristaId
+      );
 
       // Actualizar/Eliminar: solo admin
       allow update, delete: if isAdmin();
@@ -225,6 +230,23 @@ service cloud.firestore {
 
       // Eliminar: Solo SuperAdmin y Coordinación
       allow delete: if canManageAppointments();
+
+      // Subcolección: /appointments/{appointmentId}/notes (notas de reunión)
+      match /notes/{noteId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          (isFamily() &&
+            resource.data.visibilidad == 'familia' &&
+            (
+              request.auth.uid == get(/databases/$(database)/documents/appointments/$(appointmentId)).data.familiaUid ||
+              request.auth.uid in get(/databases/$(database)/documents/appointments/$(appointmentId)).data.get('familiasUids', [])
+            )
+          )
+        );
+
+        allow create, update, delete: if isAdmin() &&
+          get(/databases/$(database)/documents/appointments/$(appointmentId)).data.estado == 'asistio';
+      }
     }
 
     // Colección: /documents (documentos institucionales - Fase 5)
@@ -282,6 +304,36 @@ service cloud.firestore {
           resource.data.uploadedBy == request.auth.uid
         );
       }
+
+      // Subcoleccion: /talleres/{tallerId}/albums (carpetas de galeria)
+      match /albums/{albumId} {
+        // Leer: Todos los autenticados
+        allow read: if isAuthenticated();
+
+        // Crear/Actualizar/Eliminar: Admin o tallerista del taller
+        allow create, update, delete: if isAdmin() || (
+          isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+        );
+
+        // Subcoleccion: /talleres/{tallerId}/albums/{albumId}/media
+        match /media/{mediaId} {
+          // Leer: Todos los autenticados
+          allow read: if isAuthenticated();
+
+          // Crear/Actualizar: Admin o tallerista del taller
+          allow create, update: if isAdmin() || (
+            isAuthenticated() &&
+            request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+          );
+
+          // Eliminar: Admin o quien lo subio
+          allow delete: if isAdmin() || (
+            isAuthenticated() &&
+            resource.data.uploadedBy == request.auth.uid
+          );
+        }
+      }
     }
 
     // Colección: /aspirantes (aspirantes - Fase 5)
@@ -335,6 +387,33 @@ service cloud.firestore {
 
       // Crear/Actualizar: Solo SuperAdmin y Coordinación
       allow create, update: if isAdmin();
+
+      // Eliminar: Solo SuperAdmin
+      allow delete: if isSuperAdmin();
+    }
+
+    // Colección: /documentReadReceipts (confirmaciones de lectura de documentos)
+    match /documentReadReceipts/{receiptId} {
+      // Leer: Usuario puede leer sus propios receipts, admin puede leer todos
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      // Crear: Cloud Functions/admin crean receipts pendientes, 
+      // o usuarios pueden crear su propio receipt al confirmar lectura
+      allow create: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'read'
+      );
+
+      // Actualizar: Usuario puede marcar como leído su propio receipt, admin puede todo
+      allow update: if isAuthenticated() && (
+        (resource.data.userId == request.auth.uid && 
+         request.resource.data.status == 'read' &&
+         resource.data.status == 'pending') 
+        || isAdmin()
+      );
 
       // Eliminar: Solo SuperAdmin
       allow delete: if isSuperAdmin();

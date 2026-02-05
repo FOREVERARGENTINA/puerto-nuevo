@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { communicationsService } from '../../services/communications.service';
@@ -14,6 +14,32 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const maxEventMediaSizeBytes = 50 * 1024 * 1024;
+  const maxEventMediaSizeLabel = '50MB';
+  const allowedEventMediaExtensions = new Set([
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+    'mp4', 'mov', 'webm', 'ogv',
+    'mp3', 'wav', 'm4a', 'ogg',
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'txt', 'csv'
+  ]);
+  const blockedEventMediaExtensions = new Set(['zip', 'exe', 'bat']);
+  const allowedEventMediaMimePrefixes = ['image/', 'video/', 'audio/'];
+  const allowedEventMediaMimeTypes = new Set([
+    'application/pdf',
+    'text/plain',
+    'text/csv',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'image/heic',
+    'image/heif',
+    'image/heic-sequence',
+    'image/heif-sequence'
+  ]);
   const [familyUsers, setFamilyUsers] = useState([]);
   const [loadingFamilies, setLoadingFamilies] = useState(false);
   const [selectedFamilies, setSelectedFamilies] = useState([]);
@@ -250,6 +276,8 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
 
   // Adjuntos antes del envío
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedEventMediaFiles, setSelectedEventMediaFiles] = useState([]);
+  const [eventMediaError, setEventMediaError] = useState('');
 
   const handleFilesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -263,6 +291,78 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleEventMediaFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles = [];
+    let hasInvalidType = false;
+    let hasBlockedType = false;
+    let hasOversize = false;
+
+    files.forEach((file) => {
+      const name = (file.name || '').toLowerCase();
+      const ext = name.includes('.') ? name.split('.').pop() : '';
+      const type = (file.type || '').toLowerCase();
+      const isBlocked = ext && blockedEventMediaExtensions.has(ext);
+      const isAllowedExt = ext && allowedEventMediaExtensions.has(ext);
+      const isAllowedMime = type
+        ? (allowedEventMediaMimePrefixes.some(prefix => type.startsWith(prefix)) || allowedEventMediaMimeTypes.has(type))
+        : false;
+
+      if (isBlocked) {
+        hasBlockedType = true;
+        return;
+      }
+      if (!isAllowedExt && !isAllowedMime) {
+        hasInvalidType = true;
+        return;
+      }
+      if (file.size > maxEventMediaSizeBytes) {
+        hasOversize = true;
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if (hasInvalidType || hasOversize || hasBlockedType) {
+      let message = '';
+      if (hasInvalidType || hasBlockedType) {
+        message = 'Solo se permiten imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat.';
+      }
+      if (hasOversize) {
+        message = `${message ? `${message} ` : ''}Algunos archivos superan el límite de ${maxEventMediaSizeLabel}.`;
+      }
+      setEventMediaError(message);
+    } else {
+      setEventMediaError('');
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedEventMediaFiles(prev => [...prev, ...validFiles]);
+    }
+
+    e.target.value = null;
+  };
+
+  const removeSelectedEventMediaFile = (index) => {
+    setSelectedEventMediaFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (size = 0) => {
+    if (!size) return '';
+    const kb = size / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  };
+
+  useEffect(() => {
+    if (!formData.createEvent) {
+      setSelectedEventMediaFiles([]);
+      setEventMediaError('');
+    }
+  }, [formData.createEvent]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -274,6 +374,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     setModalMessage('Enviando...');
 
     try {
+      let eventMediaUploadFailed = false;
       const communicationData = {
         title: formData.title,
         body: formData.body,
@@ -322,13 +423,30 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
             tipo: 'general',
             communicationId: result.id
           };
-          await eventsService.createEvent(eventData);
+          const eventResult = await eventsService.createEvent(eventData);
+          if (eventResult?.success && selectedEventMediaFiles.length > 0) {
+            setModalStatus('sending');
+            setModalMessage('Subiendo archivos del evento...');
+            const mediaResult = await eventsService.uploadEventMedia(
+              eventResult.id,
+              selectedEventMediaFiles,
+              []
+            );
+            if (!mediaResult.success) {
+              eventMediaUploadFailed = true;
+            }
+          }
         }
 
         setModalStatus('success');
-        setModalMessage('Enviado correctamente');
+        setModalMessage(
+          eventMediaUploadFailed
+            ? 'Enviado correctamente, pero no se pudieron subir los archivos del evento.'
+            : 'Enviado correctamente'
+        );
         // Limpiar adjuntos
         setSelectedFiles([]);
+        setSelectedEventMediaFiles([]);
         // Mantener el modal visible 1s y luego redirigir
         setTimeout(() => {
           setModalOpen(false);
@@ -813,6 +931,40 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
                     disabled={loading}
                     rows="3"
                   />
+                </div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>Archivos del evento (imágenes, videos, audio, documentos o texto)</label>
+                  <input
+                    type="file"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
+                    multiple
+                    onChange={handleEventMediaFilesChange}
+                    disabled={loading}
+                    className="form-input"
+                  />
+                  <p className="form-help">
+                    Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {maxEventMediaSizeLabel} por archivo.
+                  </p>
+                  {eventMediaError && (
+                    <p className="form-error mt-sm">{eventMediaError}</p>
+                  )}
+                  {selectedEventMediaFiles.length > 0 && (
+                    <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        {selectedEventMediaFiles.map((file, i) => (
+                          <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0' }}>
+                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                              <strong style={{ display: 'inline-block', maxWidth: '60ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</strong>
+                              <span style={{ color: 'var(--color-text-light)', marginLeft: '0.5rem' }}>({formatFileSize(file.size)})</span>
+                            </div>
+                            <div>
+                              <button type="button" className="btn btn--link" onClick={() => removeSelectedEventMediaFile(i)}>Eliminar</button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1350,6 +1502,40 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
                       disabled={loading}
                     />
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">Archivos del evento (imágenes, videos, audio, documentos o texto)</label>
+                    <input
+                      type="file"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
+                      multiple
+                      onChange={handleEventMediaFilesChange}
+                      disabled={loading}
+                      className="form-input"
+                    />
+                    <p className="form-help">
+                      Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {maxEventMediaSizeLabel} por archivo.
+                    </p>
+                    {eventMediaError && (
+                      <p className="form-error mt-sm">{eventMediaError}</p>
+                    )}
+                    {selectedEventMediaFiles.length > 0 && (
+                      <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                          {selectedEventMediaFiles.map((file, i) => (
+                            <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0' }}>
+                              <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                                <strong style={{ display: 'inline-block', maxWidth: '60ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</strong>
+                                <span style={{ color: 'var(--color-text-light)', marginLeft: '0.5rem' }}>({formatFileSize(file.size)})</span>
+                              </div>
+                              <div>
+                                <button type="button" className="btn btn--link" onClick={() => removeSelectedEventMediaFile(i)}>Eliminar</button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1402,3 +1588,6 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     </div>
   );
 }
+
+
+

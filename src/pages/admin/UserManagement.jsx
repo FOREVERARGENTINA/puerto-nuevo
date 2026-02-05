@@ -26,6 +26,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Actualizando usuario...');
+  const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -43,15 +44,31 @@ export function UserManagement() {
   // Search / filter
   const [searchTerm, setSearchTerm] = useState('');
   const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [tallerFilter, setTallerFilter] = useState('');
+  const hasFilters = Boolean(searchTerm || roleFilter || statusFilter || tallerFilter);
 
-  const filteredUsers = searchTerm
-    ? users.filter(u => {
-        const q = searchTerm.toLowerCase();
-        return (u.email || '').toLowerCase().includes(q) ||
-               (u.displayName || '').toLowerCase().includes(q) ||
-               (u.role || '').toLowerCase().includes(q);
-      })
-    : users;
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('');
+    setStatusFilter('');
+    setTallerFilter('');
+  };
+
+  const filteredUsers = users.filter(u => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.displayName || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q);
+    const matchesRole = !roleFilter || u.role === roleFilter;
+    const matchesStatus = !statusFilter ||
+      (statusFilter === 'active' ? !u.disabled : !!u.disabled);
+    const matchesTaller = !tallerFilter || u.tallerAsignado === tallerFilter;
+
+    return matchesSearch && matchesRole && matchesStatus && matchesTaller;
+  });
 
   const loadUsers = async () => {
     setLoading(true);
@@ -89,6 +106,8 @@ export function UserManagement() {
       return;
     }
 
+    setLoadingMessage('Creando usuario...');
+    setCreating(true);
     const result = await usersService.createUserWithRole({
       email: formData.email,
       password: formData.password,
@@ -96,9 +115,11 @@ export function UserManagement() {
       role: formData.role,
       tallerAsignado: formData.role === ROLES.DOCENTE ? formData.tallerAsignado : null
     });
+    setCreating(false);
 
     if (result.success) {
       setSuccess(`Usuario ${formData.email} creado exitosamente con rol ${formData.role}`);
+      setTimeout(() => setSuccess(''), 2500);
       setFormData({
         email: '',
         password: '',
@@ -210,6 +231,7 @@ export function UserManagement() {
       [ROLES.SUPERADMIN]: 'SuperAdmin',
       [ROLES.COORDINACION]: 'Coordinación',
       [ROLES.DOCENTE]: 'Docente',
+      [ROLES.FACTURACION]: 'Facturación',
       [ROLES.TALLERISTA]: 'Tallerista',
       [ROLES.FAMILY]: 'Familia',
       [ROLES.ASPIRANTE]: 'Aspirante'
@@ -258,26 +280,76 @@ export function UserManagement() {
             </div>
           )}
 
-          <div className="user-stats user-stats--compact">
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <p style={{ margin: 0 }}><strong>Total:</strong> {users.length} {searchTerm ? `· Mostrando ${filteredUsers.length}` : ''}</p>
-              <input
-                type="text"
-                className="form-input form-input--sm"
-                placeholder="Buscar por email, nombre o rol..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                aria-label="Buscar usuarios"
-                style={{ width: 260 }}
-              />
-              {searchTerm && (
-                <button type="button" className="btn btn--sm btn--outline" onClick={() => setSearchTerm('')}>
-                  Limpiar
+          <div className="user-toolbar">
+            <div className="user-toolbar__left">
+              <div className="user-toolbar__summary">
+                <p style={{ margin: 0 }}><strong>Total:</strong> {users.length} {hasFilters ? `· Mostrando ${filteredUsers.length}` : ''}</p>
+                <input
+                  type="text"
+                  className="form-input form-input--sm"
+                  placeholder="Buscar por email, nombre o rol..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  aria-label="Buscar usuarios"
+                  style={{ width: 240 }}
+                />
+              </div>
+
+              <div className="user-filter">
+                <label htmlFor="filterRole">Rol</label>
+                <select
+                  id="filterRole"
+                  className="form-input form-input--sm"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="">Todos los roles</option>
+                  <option value={ROLES.FAMILY}>Familia</option>
+                  <option value={ROLES.DOCENTE}>Docente</option>
+                  <option value={ROLES.FACTURACION}>Facturación</option>
+                  <option value={ROLES.TALLERISTA}>Tallerista</option>
+                  <option value={ROLES.COORDINACION}>Coordinación</option>
+                  <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
+                  <option value={ROLES.ASPIRANTE}>Aspirante</option>
+                </select>
+              </div>
+
+              <div className="user-filter">
+                <label htmlFor="filterStatus">Estado</label>
+                <select
+                  id="filterStatus"
+                  className="form-input form-input--sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  <option value="active">Activo</option>
+                  <option value="disabled">Deshabilitado</option>
+                </select>
+              </div>
+
+              <div className="user-filter">
+                <label htmlFor="filterTaller">Taller</label>
+                <select
+                  id="filterTaller"
+                  className="form-input form-input--sm"
+                  value={tallerFilter}
+                  onChange={(e) => setTallerFilter(e.target.value)}
+                >
+                  <option value="">Todos los talleres</option>
+                  <option value={AMBIENTES.TALLER_1}>Taller 1</option>
+                  <option value={AMBIENTES.TALLER_2}>Taller 2</option>
+                </select>
+              </div>
+
+              {hasFilters && (
+                <button type="button" className="btn btn--sm btn--outline" onClick={handleClearFilters}>
+                  Limpiar filtros
                 </button>
               )}
             </div>
 
-            <div>
+            <div className="user-toolbar__actions">
               <button
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 className="btn btn--primary"
@@ -347,6 +419,7 @@ export function UserManagement() {
                       >
                         <option value={ROLES.FAMILY}>Familia</option>
                         <option value={ROLES.DOCENTE}>Docente</option>
+                        <option value={ROLES.FACTURACION}>Facturación</option>
                         <option value={ROLES.TALLERISTA}>Tallerista</option>
                         <option value={ROLES.COORDINACION}>Coordinación</option>
                         <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
@@ -432,6 +505,7 @@ export function UserManagement() {
                       >
                         <option value={ROLES.FAMILY}>Familia</option>
                         <option value={ROLES.DOCENTE}>Docente</option>
+                        <option value={ROLES.FACTURACION}>Facturación</option>
                         <option value={ROLES.TALLERISTA}>Tallerista</option>
                         <option value={ROLES.COORDINACION}>Coordinación</option>
                         <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
@@ -561,7 +635,7 @@ export function UserManagement() {
       />
 
       <LoadingModal
-        isOpen={updating}
+        isOpen={updating || creating}
         message={loadingMessage}
       />
     </div>

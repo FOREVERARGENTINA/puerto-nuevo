@@ -113,8 +113,7 @@ export function AdminConversationDetail() {
 
   const headerMeta = useMemo(() => {
     if (!conversation) return '';
-    const status = getConversationStatusLabel(conversation.estado, ROLES.SUPERADMIN);
-    return `${getAreaLabel(conversation.destinatarioEscuela)} · ${getCategoryLabel(conversation.categoria)} · ${status}`;
+    return `${getAreaLabel(conversation.destinatarioEscuela)} · ${getCategoryLabel(conversation.categoria)}`;
   }, [conversation]);
 
   if (loading) {
@@ -144,9 +143,11 @@ export function AdminConversationDetail() {
           <div className="conversation-header__main">
             <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
             <div className="conversation-header__meta">
-              <span className={getConversationStatusBadge(conversation.estado)}>
-                {getConversationStatusLabel(conversation.estado, role)}
-              </span>
+              {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
+                <span className={getConversationStatusBadge(conversation.estado)}>
+                  {getConversationStatusLabel(conversation.estado, role)}
+                </span>
+              )}
               <span className="text-muted">{headerMeta}</span>
             </div>
             <div className="text-muted">Asunto: {conversation.asunto || 'Sin asunto'}</div>

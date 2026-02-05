@@ -1,37 +1,17 @@
 import { useNavigate } from 'react-router-dom';
 import { formatRelativeTime } from '../../utils/dateHelpers';
-import { readReceiptsService } from '../../services/readReceipts.service';
-import { conversationsService } from '../../services/conversations.service';
-import { useAuth } from '../../hooks/useAuth';
-import { ROLES, ADMIN_ROLES } from '../../config/constants';
 import Icon from '../ui/Icon';
 
 export function NotificationDropdown({ notifications, onClose }) {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
 
-  const handleNotificationClick = async (notification) => {
-    // Si es un comunicado, marcarlo como leído antes de navegar
-    if (notification.type === 'comunicado' && notification.metadata?.commId && user) {
-      try {
-        await readReceiptsService.markAsRead(notification.metadata.commId, user.uid, user.displayName || user.email);
-      } catch (err) {
-        console.error('Error marking notification as read', err);
-      }
-    }
-
-    // Si es una conversación, marcar mensajes como leídos
-    if (notification.type === 'conversacion' && notification.metadata?.conversationId && user) {
-      try {
-        const isFamily = role === ROLES.FAMILY;
-        await conversationsService.markMessagesAsRead(
-          notification.metadata.conversationId,
-          isFamily ? 'familia' : 'escuela'
-        );
-      } catch (err) {
-        console.error('Error marking conversation as read', err);
-      }
-    }
+  const handleNotificationClick = (notification) => {
+    // NO marcar como leído aquí para ningún tipo de notificación
+    // Las notificaciones se marcan como leídas cuando se abren:
+    // - Comunicados: al confirmar lectura en la página de detalle
+    // - Conversaciones: al abrir la página de detalle (ver FamilyConversationDetail.jsx)
+    // - Snacks: al confirmar la asignación
+    // - Turnos: al visualizar en la página de turnos
 
     navigate(notification.actionUrl);
     onClose();

@@ -24,7 +24,7 @@ export function ModalHeader({ title, onClose }) {
       <h3 className="modal-title">{title}</h3>
       {onClose && (
         <button onClick={onClose} className="modal-close" aria-label="Cerrar">
-          ✕
+          X
         </button>
       )}
     </div>

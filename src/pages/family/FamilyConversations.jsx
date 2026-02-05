@@ -145,9 +145,11 @@ export function FamilyConversations() {
                           {conv.mensajesSinLeerFamilia}
                         </span>
                       )}
-                      <span className={`conversation-row__status conversation-row__status--${conv.estado}`}>
-                        {getConversationStatusLabel(conv.estado, ROLES.FAMILY)}
-                      </span>
+                      {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conv.estado) && (
+                        <span className={`conversation-row__status conversation-row__status--${conv.estado}`}>
+                          {getConversationStatusLabel(conv.estado, ROLES.FAMILY)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

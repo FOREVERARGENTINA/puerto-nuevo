@@ -168,6 +168,22 @@ export function MySnacks() {
     return 'Sin taller';
   };
 
+  const getAssignmentBadge = (assignment) => {
+    if (assignment?.suspendido) {
+      return { className: 'badge--warning', label: 'suspendido' };
+    }
+    if (assignment?.estado === 'confirmado') {
+      return { className: 'badge--success', label: 'confirmado' };
+    }
+    if (assignment?.estado === 'cancelado') {
+      return { className: 'badge--error', label: 'cancelado' };
+    }
+    if (assignment?.estado === 'cambio_solicitado') {
+      return { className: 'badge--warning', label: 'cambio solicitado' };
+    }
+    return { className: 'badge--info', label: assignment?.estado || 'pendiente' };
+  };
+
   const renderSnackList = (ambiente, showHeading) => {
     const list = snackLists[ambiente];
     return (
@@ -232,44 +248,6 @@ export function MySnacks() {
             </div>
           ) : (
             <>
-              {/* Lista de Snacks */}
-              {snackAmbientes.length > 0 && (
-                <div className="card snack-list-card">
-                  <div className="card__body">
-                    <div className="snack-list-header">
-                      <h3 className="mb-md">Lista de snacks a traer</h3>
-                      {snackAmbientes.length > 1 && (
-                        <div className="snack-list-toggle">
-                          <button
-                            type="button"
-                            className={snackView === 'all' ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
-                            onClick={() => setSnackView('all')}
-                          >
-                            Todos
-                          </button>
-                          {snackAmbientes.map(ambiente => (
-                            <button
-                              key={ambiente}
-                              type="button"
-                              className={snackView === ambiente ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
-                              onClick={() => setSnackView(ambiente)}
-                            >
-                              {getAmbienteLabel(ambiente)}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {snackListError && (
-                      <p className="form-help">{snackListError}</p>
-                    )}
-                    {snackView === 'all'
-                      ? snackAmbientes.map(ambiente => renderSnackList(ambiente, snackAmbientes.length > 1))
-                      : renderSnackList(snackView, snackAmbientes.length > 1)}
-                  </div>
-                </div>
-              )}
-
               {/* Mis Asignaciones */}
               <div className="tabs">
                 <div className="tabs__header">
@@ -296,6 +274,7 @@ export function MySnacks() {
                         myAssignments.filter(a => !isPast(a.fechaFin)).map(assignment => {
                           const upcoming = isUpcoming(assignment.fechaInicio);
                           const past = isPast(assignment.fechaFin);
+                          const badge = getAssignmentBadge(assignment);
 
                           return (
                             <div
@@ -312,16 +291,13 @@ export function MySnacks() {
                             </h4>
                           </div>
                           <span className={`badge ${
-                            assignment.estado === 'confirmado' ? 'badge--success' :
-                            assignment.estado === 'cancelado' ? 'badge--error' :
-                            assignment.estado === 'cambio_solicitado' ? 'badge--warning' :
-                            'badge--info'
+                            badge.className
                           }`}>
-                            {assignment.estado === 'cambio_solicitado' ? 'cambio solicitado' : assignment.estado}
+                            {badge.label}
                           </span>
                         </div>
 
-                        {upcoming && !assignment.confirmadoPorFamilia && assignment.estado === 'pendiente' && (
+                        {upcoming && !assignment.confirmadoPorFamilia && assignment.estado === 'pendiente' && !assignment.suspendido && (
                           <div className="assignment-warning">
                             <strong>¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
                           </div>
@@ -329,6 +305,19 @@ export function MySnacks() {
 
                         <div className="assignment-actions">
                           {(() => {
+                            if (assignment.suspendido) {
+                              return (
+                                <div className="assignment-suspended">
+                                  <span>⏸ Semana suspendida</span>
+                                  {assignment.motivoSuspension && (
+                                    <p className="assignment-suspended__message">
+                                      {assignment.motivoSuspension}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+
                             // Estados finales sin acción
                             if (assignment.estado === 'cancelado') {
                               return (
@@ -430,7 +419,9 @@ export function MySnacks() {
                       {myAssignments.filter(a => isPast(a.fechaFin)).length === 0 ? (
                         <p className="empty-state__text">No tienes turnos anteriores.</p>
                       ) : (
-                        myAssignments.filter(a => isPast(a.fechaFin)).map(assignment => (
+                        myAssignments.filter(a => isPast(a.fechaFin)).map(assignment => {
+                          const badge = getAssignmentBadge(assignment);
+                          return (
                           <div
                             key={assignment.id}
                             className="card assignment-card assignment-card--past"
@@ -442,13 +433,8 @@ export function MySnacks() {
                                     {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
                                   </h4>
                                 </div>
-                                <span className={`badge ${
-                                  assignment.estado === 'confirmado' ? 'badge--success' :
-                                  assignment.estado === 'cancelado' ? 'badge--error' :
-                                  assignment.estado === 'cambio_solicitado' ? 'badge--warning' :
-                                  'badge--info'
-                                }`}>
-                                  {assignment.estado === 'cambio_solicitado' ? 'cambio solicitado' : assignment.estado}
+                                <span className={`badge ${badge.className}`}>
+                                  {badge.label}
                                 </span>
                               </div>
                               <p className="assignment-past-note">
@@ -456,12 +442,51 @@ export function MySnacks() {
                               </p>
                             </div>
                           </div>
-                        ))
+                        );
+                        })
                       )}
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Lista de Snacks */}
+              {snackAmbientes.length > 0 && (
+                <div className="card snack-list-card">
+                  <div className="card__body">
+                    <div className="snack-list-header">
+                      <h3 className="mb-md">Lista de snacks a traer</h3>
+                      {snackAmbientes.length > 1 && (
+                        <div className="snack-list-toggle">
+                          <button
+                            type="button"
+                            className={snackView === 'all' ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
+                            onClick={() => setSnackView('all')}
+                          >
+                            Todos
+                          </button>
+                          {snackAmbientes.map(ambiente => (
+                            <button
+                              key={ambiente}
+                              type="button"
+                              className={snackView === ambiente ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
+                              onClick={() => setSnackView(ambiente)}
+                            >
+                              {getAmbienteLabel(ambiente)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {snackListError && (
+                      <p className="form-help">{snackListError}</p>
+                    )}
+                    {snackView === 'all'
+                      ? snackAmbientes.map(ambiente => renderSnackList(ambiente, snackAmbientes.length > 1))
+                      : renderSnackList(snackView, snackAmbientes.length > 1)}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

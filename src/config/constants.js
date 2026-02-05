@@ -3,6 +3,7 @@ export const ROLES = {
   SUPERADMIN: 'superadmin',      // Emilse + otra persona
   COORDINACION: 'coordinacion',  // Emilse, Camila, Rosana
   DOCENTE: 'docente',            // Emilse, Camila, Rosana, Vanesa, Gise, Javi
+  FACTURACION: 'facturacion',    // Rol administrativo - gestiona comunicados y conversaciones
   TALLERISTA: 'tallerista',      // Camila como nexo, NO envían mensajes
   FAMILY: 'family',
   ASPIRANTE: 'aspirante'
@@ -80,6 +81,13 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.EDIT_TALLER_INFO
   ],
 
+  [ROLES.FACTURACION]: [
+    // Rol administrativo - gestiona comunicados y conversaciones
+    PERMISSIONS.SEND_COMMUNICATIONS,      // Puede enviar comunicados
+    PERMISSIONS.UPLOAD_DOCUMENTS          // Puede subir documentos
+    // Más permisos se agregarán según necesidad
+  ],
+
   [ROLES.TALLERISTA]: [
     // Camila como nexo - NO ENVÍAN MENSAJES (esto es clave)
     PERMISSIONS.UPLOAD_DOCUMENTS,
@@ -100,6 +108,7 @@ export const ROLE_HIERARCHY = {
   [ROLES.SUPERADMIN]: 6,
   [ROLES.COORDINACION]: 5,
   [ROLES.DOCENTE]: 4,
+  [ROLES.FACTURACION]: 4,
   [ROLES.TALLERISTA]: 3,
   [ROLES.FAMILY]: 2,
   [ROLES.ASPIRANTE]: 1
@@ -115,7 +124,8 @@ export const ADMIN_ROLES = [
 export const CAN_SEND_COMMUNICATIONS = [
   ROLES.SUPERADMIN,
   ROLES.COORDINACION,
-  ROLES.DOCENTE
+  ROLES.DOCENTE,
+  ROLES.FACTURACION
 ];
 
 // Roles que pueden aprobar comunicaciones (Emilse, Camila, Rosana)
@@ -154,7 +164,7 @@ export const COMMUNICATION_TYPES = {
 // Áreas escolares para conversaciones privadas
 export const ESCUELA_AREAS = {
   COORDINACION: 'coordinacion',
-  ADMINISTRACION: 'administracion',
+  ADMINISTRACION: 'administracion',  // Gestionada por rol FACTURACION
   DIRECCION: 'direccion'
 };
 
@@ -166,7 +176,7 @@ export const CONVERSATION_STATUS = {
   CERRADA: 'cerrada'
 };
 
-// Categorías de conversaciones privadas
+// Categorías de conversaciones privadas (todas)
 export const CONVERSATION_CATEGORIES = [
   { value: 'entrevista', label: 'Solicitud de entrevista' },
   { value: 'administrativa', label: 'Consulta administrativa' },
@@ -177,6 +187,32 @@ export const CONVERSATION_CATEGORIES = [
   { value: 'pagos', label: 'Consulta sobre pagos' },
   { value: 'otro', label: 'Otro' }
 ];
+
+// Categorías por área (filtradas según destinatario)
+export const CATEGORIES_BY_AREA = {
+  [ESCUELA_AREAS.DIRECCION]: [
+    { value: 'entrevista', label: 'Solicitud de entrevista' },
+    { value: 'administrativa', label: 'Consulta administrativa' },
+    { value: 'pedagogica', label: 'Consulta pedagógica' },
+    { value: 'autorizacion', label: 'Autorizaciones' },
+    { value: 'medica', label: 'Información médica' },
+    { value: 'otro', label: 'Otro' }
+  ],
+  [ESCUELA_AREAS.COORDINACION]: [
+    { value: 'entrevista', label: 'Solicitud de entrevista' },
+    { value: 'pedagogica', label: 'Consulta pedagógica' },
+    { value: 'administrativa', label: 'Consulta administrativa' },
+    { value: 'autorizacion', label: 'Autorizaciones' },
+    { value: 'medica', label: 'Información médica' },
+    { value: 'otro', label: 'Otro' }
+  ],
+  [ESCUELA_AREAS.ADMINISTRACION]: [
+    { value: 'administrativa', label: 'Consulta administrativa' },
+    { value: 'pagos', label: 'Consulta sobre pagos' },
+    { value: 'documentacion', label: 'Documentación' },
+    { value: 'otro', label: 'Otro' }
+  ]
+};
 
 // Rutas de la aplicación
 export const ROUTES = {
@@ -225,6 +261,7 @@ export const ROLE_DASHBOARDS = {
   [ROLES.SUPERADMIN]: ROUTES.ADMIN_DASHBOARD,
   [ROLES.COORDINACION]: ROUTES.ADMIN_DASHBOARD,
   [ROLES.DOCENTE]: ROUTES.TEACHER_DASHBOARD,
+  [ROLES.FACTURACION]: ROUTES.ADMIN_DASHBOARD,
   [ROLES.TALLERISTA]: ROUTES.TALLERISTA_DASHBOARD,
   [ROLES.FAMILY]: ROUTES.FAMILY_DASHBOARD,
   [ROLES.ASPIRANTE]: ROUTES.ASPIRANTE_DASHBOARD

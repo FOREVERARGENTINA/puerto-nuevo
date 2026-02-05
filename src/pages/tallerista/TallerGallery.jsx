@@ -1,35 +1,67 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { talleresService } from '../../services/talleres.service';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../../config/firebase';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = '50MB';
+const ALLOWED_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+  'mp4', 'mov', 'webm', 'ogv'
+]);
+const BLOCKED_EXTENSIONS = new Set(['zip', 'exe', 'bat']);
+const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
 
 export function TallerGallery() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [talleres, setTalleres] = useState([]);
   const [selectedTaller, setSelectedTaller] = useState(null);
+  const [albums, setAlbums] = useState([]);
+  const [selectedAlbum, setSelectedAlbum] = useState(null);
+  const [albumName, setAlbumName] = useState('');
+  const [albumSaving, setAlbumSaving] = useState(false);
   const [gallery, setGallery] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [albumsLoading, setAlbumsLoading] = useState(false);
+  const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [deletingId, setDeletingId] = useState(null);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
 
-  const loadGallery = async (tallerId) => {
-    const result = await talleresService.getGallery(tallerId);
+  const loadAlbums = async (tallerId) => {
+    setAlbumsLoading(true);
+    const result = await talleresService.getAlbums(tallerId);
     if (result.success) {
-      setGallery(result.items);
+      setAlbums(result.albums || []);
+    } else {
+      setAlbums([]);
     }
+    setAlbumsLoading(false);
+  };
+
+  const loadAlbumMedia = async (tallerId, albumId) => {
+    setGalleryLoading(true);
+    const result = await talleresService.getAlbumMedia(tallerId, albumId);
+    if (result.success) {
+      setGallery(result.items || []);
+    } else {
+      setGallery([]);
+    }
+    setGalleryLoading(false);
   };
 
   const selectTaller = async (taller) => {
     setSelectedTaller(taller);
-    await loadGallery(taller.id);
+    setSelectedAlbum(null);
+    setGallery([]);
+    await loadAlbums(taller.id);
   };
 
   const loadTalleres = useCallback(async () => {
@@ -55,8 +87,8 @@ export function TallerGallery() {
   const header = (
     <div className="dashboard-header dashboard-header--compact">
       <div>
-        <h1 className="dashboard-title">Galería de talleres</h1>
-        <p className="dashboard-subtitle">Subí y administrá fotos y videos del taller.</p>
+        <h1 className="dashboard-title">Galeria de talleres</h1>
+        <p className="dashboard-subtitle">Administra los albums y sus archivos.</p>
       </div>
       <button onClick={() => navigate(-1)} className="btn btn--outline">
         Volver
@@ -64,91 +96,158 @@ export function TallerGallery() {
     </div>
   );
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedTaller?.id) return;
+  const validateFiles = (selectedFiles) => {
+    const validFiles = [];
+    let hasInvalidType = false;
+    let hasBlockedType = false;
+    let hasOversize = false;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/quicktime'];
-    if (!validTypes.includes(file.type)) {
+    selectedFiles.forEach((file) => {
+      const name = (file.name || '').toLowerCase();
+      const ext = name.includes('.') ? name.split('.').pop() : '';
+      const type = (file.type || '').toLowerCase();
+      const isBlocked = ext && BLOCKED_EXTENSIONS.has(ext);
+      const isAllowedExt = ext && ALLOWED_EXTENSIONS.has(ext);
+      const isAllowedMime = type
+        ? ALLOWED_MIME_PREFIXES.some(prefix => type.startsWith(prefix))
+        : false;
+
+      if (isBlocked) {
+        hasBlockedType = true;
+        return;
+      }
+      if (!isAllowedExt && !isAllowedMime) {
+        hasInvalidType = true;
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        hasOversize = true;
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
+  };
+
+  const handleFilesChange = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(selectedFiles);
+
+    if (hasInvalidType || hasBlockedType || hasOversize) {
+      let message = '';
+      if (hasInvalidType || hasBlockedType) {
+        message = 'Solo se permiten imagenes o videos. Bloqueados: .zip, .exe, .bat.';
+      }
+      if (hasOversize) {
+        message = `${message ? `${message} ` : ''}Algunos archivos superan el limite de ${MAX_FILE_SIZE_LABEL}.`;
+      }
       alertDialog.openDialog({
-        title: 'Formato No Válido',
-        message: 'Solo se permiten imágenes (JPG, PNG, GIF) y videos (MP4, MOV)',
-        type: 'error'
+        title: 'Archivo no valido',
+        message,
+        type: 'warning'
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setFiles(prev => [...prev, ...validFiles]);
+    }
+
+    e.target.value = null;
+  };
+
+  const handleCreateAlbum = async () => {
+    if (!selectedTaller?.id) return;
+    if (!albumName.trim()) {
+      alertDialog.openDialog({
+        title: 'Nombre requerido',
+        message: 'El nombre del album es obligatorio.',
+        type: 'warning'
       });
       return;
     }
 
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
+    setAlbumSaving(true);
+    const result = await talleresService.createAlbum(selectedTaller.id, albumName, user?.uid);
+    if (result.success) {
+      setAlbumName('');
+      await loadAlbums(selectedTaller.id);
+    } else {
       alertDialog.openDialog({
-        title: 'Archivo Muy Grande',
-        message: 'El archivo es muy grande. Máximo 50MB',
+        title: 'Error',
+        message: result.error || 'No se pudo crear el album.',
         type: 'error'
+      });
+    }
+    setAlbumSaving(false);
+  };
+
+  const handleSelectAlbum = async (album) => {
+    if (!selectedTaller?.id || !album?.id) return;
+    setSelectedAlbum(album);
+    setFiles([]);
+    await loadAlbumMedia(selectedTaller.id, album.id);
+  };
+
+  const handleBackToAlbums = () => {
+    setSelectedAlbum(null);
+    setGallery([]);
+    setFiles([]);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedTaller?.id || !selectedAlbum?.id) return;
+    if (files.length === 0) {
+      alertDialog.openDialog({
+        title: 'Archivos requeridos',
+        message: 'Selecciona al menos un archivo para subir.',
+        type: 'warning'
       });
       return;
     }
 
     setUploading(true);
-    try {
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name}`;
-      const storageRef = ref(storage, `talleres/${selectedTaller.id}/gallery/${fileName}`);
-
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      const metadata = {
-        fileName,
-        tipo: file.type.startsWith('image/') ? 'imagen' : 'video',
-        url: downloadURL,
-        uploadedBy: user.uid,
-        uploadedByEmail: user.email
-      };
-
-      await talleresService.addGalleryItem(selectedTaller.id, metadata);
-      loadGallery(selectedTaller.id);
+    const result = await talleresService.uploadAlbumMedia(selectedTaller.id, selectedAlbum.id, files, user?.uid);
+    if (result.success) {
+      setFiles([]);
+      await loadAlbumMedia(selectedTaller.id, selectedAlbum.id);
+      await loadAlbums(selectedTaller.id);
       alertDialog.openDialog({
-        title: 'Éxito',
-        message: 'Archivo subido correctamente',
+        title: 'Exito',
+        message: 'Archivos subidos correctamente',
         type: 'success'
       });
-    } catch (error) {
-      console.error('Error al subir archivo:', error);
+    } else {
       alertDialog.openDialog({
         title: 'Error',
-        message: 'Error al subir el archivo: ' + error.message,
+        message: result.error || 'No se pudo subir el archivo.',
         type: 'error'
       });
-    } finally {
-      setUploading(false);
-      e.target.value = '';
     }
+    setUploading(false);
   };
 
-  const handleDelete = async (item) => {
+  const handleDelete = (item) => {
+    if (!selectedTaller?.id || !selectedAlbum?.id) return;
     confirmDialog.openDialog({
-      title: 'Eliminar Elemento',
-      message: '¿Estás seguro de eliminar este elemento?',
+      title: 'Eliminar elemento',
+      message: '¿Estas seguro de eliminar este elemento?',
       type: 'danger',
       onConfirm: async () => {
-        try {
-          const storageRef = ref(storage, `talleres/${selectedTaller.id}/gallery/${item.fileName}`);
-          await deleteObject(storageRef);
-          await talleresService.deleteGalleryItem(selectedTaller.id, item.id);
-          loadGallery(selectedTaller.id);
-          alertDialog.openDialog({
-            title: 'Éxito',
-            message: 'Elemento eliminado correctamente',
-            type: 'success'
-          });
-        } catch (error) {
-          console.error('Error al eliminar:', error);
+        setDeletingId(item.id || item.fileName || 'deleting');
+        const result = await talleresService.deleteAlbumMedia(selectedTaller.id, selectedAlbum.id, item);
+        if (!result.success) {
           alertDialog.openDialog({
             title: 'Error',
-            message: 'Error al eliminar: ' + error.message,
+            message: result.error || 'No se pudo eliminar el elemento.',
             type: 'error'
           });
+        } else {
+          await loadAlbumMedia(selectedTaller.id, selectedAlbum.id);
         }
+        setDeletingId(null);
       }
     });
   };
@@ -156,7 +255,7 @@ export function TallerGallery() {
   if (loading) {
     return (
       <div className="container page-container">
-      {header}
+        {header}
         <div className="card">
           <div className="card__body">
             <p>Cargando...</p>
@@ -169,13 +268,14 @@ export function TallerGallery() {
   if (talleres.length === 0) {
     return (
       <div className="container page-container">
-      {header}
+        {header}
         <div className="card">
           <div className="card__body">
             <div className="alert alert--warning">
               <strong>No tienes talleres asignados</strong>
-              <p>Contacta con la dirección para que te asignen uno o más talleres.</p>
-            </div></div>
+              <p>Contacta con la direccion para que te asignen uno o mas talleres.</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -198,7 +298,7 @@ export function TallerGallery() {
                   const taller = talleres.find(t => t.id === e.target.value);
                   if (taller) selectTaller(taller);
                 }}
-                className="form-control"
+                className="form-select"
                 style={{ maxWidth: '400px' }}
               >
                 {talleres.map(t => (
@@ -213,63 +313,158 @@ export function TallerGallery() {
           {selectedTaller && (
             <div>
               <h2 style={{ marginBottom: 'var(--spacing-md)' }}>{selectedTaller.nombre}</h2>
-          <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-            <label htmlFor="file-upload" className="btn btn--primary" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
-              {uploading ? 'Subiendo...' : 'Subir foto/video'}
-            </label>
-            <input
-              id="file-upload"
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileUpload}
-              disabled={uploading}
-              style={{ display: 'none' }}
-            />
-            <p style={{ marginTop: 'var(--spacing-sm)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Formatos: JPG, PNG, GIF, MP4, MOV • Máximo 50MB
-            </p>
-          </div>
 
-          {gallery.length === 0 ? (
-            <div className="alert alert--info">
-              <p>No hay elementos en la galería. ¡Sube tu primera foto o video!</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
-              {gallery.map(item => (
-                <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                  {item.tipo === 'imagen' ? (
-                    <img
-                      src={item.url}
-                      alt="Galería"
-                      style={{ width: '100%', height: '200px', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <video
-                      src={item.url}
-                      controls
-                      style={{ width: '100%', height: '200px', objectFit: 'cover' }}
-                    />
-                  )}
-                  <div style={{ padding: 'var(--spacing-sm)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 'var(--spacing-xs)' }}>
-                      Subido por: {item.uploadedByEmail}
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 'var(--spacing-sm)' }}>
-                      {item.createdAt?.toDate?.().toLocaleDateString?.('es-AR') || 'Fecha desconocida'}
-                    </p>
-                    <button
-                      onClick={() => handleDelete(item)}
-                      className="btn btn--sm btn--danger"
-                      style={{ width: '100%' }}
-                    >
-                      Eliminar
-                    </button>
+              <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <div className="card__body">
+                  <div className="form-group">
+                    <label>Nuevo album *</label>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={albumName}
+                        onChange={(e) => setAlbumName(e.target.value)}
+                        placeholder="Nombre del album"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={handleCreateAlbum}
+                        disabled={albumSaving || !albumName.trim()}
+                      >
+                        {albumSaving ? 'Creando...' : 'Crear album'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+
+              {selectedAlbum ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+                    <div>
+                      <strong>{selectedAlbum.name}</strong>
+                      <p style={{ margin: 0, color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>
+                        Archivos del album seleccionado.
+                      </p>
+                    </div>
+                    <button type="button" className="btn btn--outline btn--sm" onClick={handleBackToAlbums}>
+                      Volver a albumes
+                    </button>
+                  </div>
+
+                  <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                    <div className="card__body">
+                      <div className="form-group">
+                        <label>Subir archivos</label>
+                        <input
+                          type="file"
+                          multiple
+                          className="form-input"
+                          accept="image/*,video/*,.heic,.heif,.webp,.webm,.mov"
+                          onChange={handleFilesChange}
+                          disabled={uploading}
+                        />
+                      </div>
+                      {files.length > 0 && (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                          {files.map((file, index) => (
+                            <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>{file.name}</span>
+                              <button type="button" className="btn btn--link" onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}>
+                                Quitar
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={handleUpload}
+                        disabled={uploading || files.length === 0}
+                      >
+                        {uploading ? 'Subiendo...' : 'Subir al album'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {galleryLoading ? (
+                    <p>Cargando album...</p>
+                  ) : gallery.length === 0 ? (
+                    <div className="alert alert--info">
+                      <p>No hay elementos en este album.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--spacing-md)' }}>
+                      {gallery.map(item => (
+                        <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                          {item.tipo === 'imagen' ? (
+                            <img
+                              src={item.url}
+                              alt="Galeria"
+                              style={{ width: '100%', height: '200px', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <video
+                              src={item.url}
+                              controls
+                              style={{ width: '100%', height: '200px', objectFit: 'cover' }}
+                            />
+                          )}
+                          <div style={{ padding: 'var(--spacing-sm)' }}>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
+                              {item.createdAt?.toDate?.().toLocaleDateString?.('es-AR') || 'Fecha desconocida'}
+                            </p>
+                            <button
+                              onClick={() => handleDelete(item)}
+                              className="btn btn--sm btn--danger"
+                              style={{ width: '100%' }}
+                              disabled={deletingId === item.id}
+                            >
+                              {deletingId === item.id ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {albumsLoading ? (
+                    <p>Cargando albums...</p>
+                  ) : albums.length === 0 ? (
+                    <div className="alert alert--info">
+                      <p>No hay albums creados todavia.</p>
+                    </div>
+                  ) : (
+                    <div className="talleres-albums-grid">
+                      {albums.map(album => {
+                        const createdAt = album.createdAt?.toDate ? album.createdAt.toDate() : new Date(album.createdAt);
+                        const createdLabel = Number.isNaN(createdAt.getTime()) ? '' : createdAt.toLocaleDateString('es-AR');
+                        return (
+                        <button
+                          key={album.id}
+                          type="button"
+                          className="talleres-album-card"
+                          onClick={() => handleSelectAlbum(album)}
+                        >
+                          <div
+                            className="talleres-album-card__thumb"
+                            style={album.thumbUrl ? { backgroundImage: `url(${album.thumbUrl})` } : undefined}
+                          />
+                          <div className="talleres-album-card__title">{album.name}</div>
+                          {createdLabel && (
+                            <div className="talleres-album-card__meta">{createdLabel}</div>
+                          )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -294,10 +489,3 @@ export function TallerGallery() {
     </div>
   );
 }
-
-
-
-
-
-
-

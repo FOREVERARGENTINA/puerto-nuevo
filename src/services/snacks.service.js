@@ -382,13 +382,33 @@ export const snacksService = {
    */
   async createSuspendedWeek(ambiente, fechaInicio, fechaFin, motivo = 'Vacaciones') {
     try {
+      const q = query(
+        collection(db, 'snackAssignments'),
+        where('ambiente', '==', ambiente),
+        where('fechaInicio', '==', fechaInicio)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const updates = snapshot.docs.map(docSnap =>
+          updateDoc(doc(db, 'snackAssignments', docSnap.id), {
+            suspendido: true,
+            motivoSuspension: motivo,
+            updatedAt: serverTimestamp()
+          })
+        );
+        await Promise.all(updates);
+        return { success: true, updated: true, ids: snapshot.docs.map(d => d.id) };
+      }
+
       const suspendedData = {
         ambiente,
         fechaInicio,
         fechaFin,
         familiaUid: 'SUSPENDED',
         familiaEmail: '',
-        familiaNombre: `⛔ ${motivo}`,
+        familiaNombre: `Pausa: ${motivo}`,
+        familiasUids: [],
         estado: 'suspendido',
         suspendido: true,
         motivoSuspension: motivo,
