@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { talleresService } from '../../services/talleres.service';
 import { usersService } from '../../services/users.service';
 import Icon from '../../components/ui/Icon';
@@ -14,15 +16,6 @@ const BLOQUES_HORARIOS = [
   { id: '14:30-15:30', label: '14:30 - 15:30' }
 ];
 
-function escapeHtml(value = '') {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function buildFileName(label) {
   const normalized = label
     .toLowerCase()
@@ -35,6 +28,28 @@ function buildFileName(label) {
   return `horarios-${normalized || 'taller'}-${today}.pdf`;
 }
 
+function hexToRgb(hexColor = '') {
+  const cleanHex = hexColor.trim().replace(/^#/, '');
+
+  if (!/^[0-9a-fA-F]{6}$/.test(cleanHex)) {
+    return [25, 118, 210];
+  }
+
+  return [
+    parseInt(cleanHex.slice(0, 2), 16),
+    parseInt(cleanHex.slice(2, 4), 16),
+    parseInt(cleanHex.slice(4, 6), 16)
+  ];
+}
+
+function toSoftBackground([r, g, b], mixRatio = 0.88) {
+  return [
+    Math.round(r + (255 - r) * mixRatio),
+    Math.round(g + (255 - g) * mixRatio),
+    Math.round(b + (255 - b) * mixRatio)
+  ];
+}
+
 export const HorarioSemanal = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -42,8 +57,6 @@ export const HorarioSemanal = () => {
   const [talleres, setTalleres] = useState([]);
   const [talleristas, setTalleristas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const printFrameRef = useRef(null);
-  const printCleanupTimerRef = useRef(null);
 
   const canExportPdf = pathname.startsWith('/admin/') || pathname.startsWith('/familia/');
 
@@ -104,8 +117,44 @@ export const HorarioSemanal = () => {
     [talleres]
   );
 
-  const buildPrintableTable = useCallback(
+  const buildPdfRows = useCallback(
+    (ambiente) => {
+      const rows = [];
+      const slotMeta = [];
+
+      BLOQUES_HORARIOS.forEach((bloque) => {
+        const row = [bloque.label];
+        const metaByDay = [];
+
+        DIAS_SEMANA.forEach((dia) => {
+          const taller = getTallerForSlot(ambiente, dia, bloque.id);
+
+          if (!taller) {
+            row.push('Ambiente');
+            metaByDay.push({ occupied: false });
+            return;
+          }
+
+          const slotColor = getTallerColor(taller.nombre);
+          row.push(`${taller.nombre}\n${getTalleristaName(taller.talleristaId)}`);
+          metaByDay.push({
+            occupied: true,
+            fillColor: toSoftBackground(hexToRgb(slotColor))
+          });
+        });
+
+        rows.push(row);
+        slotMeta.push(metaByDay);
+      });
+
+      return { rows, slotMeta };
+    },
+    [getTallerColor, getTallerForSlot, getTalleristaName]
+  );
+
+  const handleExportPdf = useCallback(
     (ambiente, titulo) => {
+      const filename = buildFileName(titulo);
       const generatedAt = new Date().toLocaleString('es-AR', {
         day: '2-digit',
         month: '2-digit',
@@ -114,263 +163,130 @@ export const HorarioSemanal = () => {
         minute: '2-digit'
       });
 
-      const headerCells = DIAS_SEMANA.map((dia) => `<th>${escapeHtml(dia)}</th>`).join('');
+      try {
+        const { rows, slotMeta } = buildPdfRows(ambiente);
+        const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4',
+          compress: true
+        });
 
-      const rows = BLOQUES_HORARIOS.map((bloque) => {
-        const cells = DIAS_SEMANA.map((dia) => {
-          const taller = getTallerForSlot(ambiente, dia, bloque.id);
+        const title = `${titulo} - Horario semanal`;
+        const tableLeft = 12;
+        const tableRight = 12;
+        const availableWidth = 297 - tableLeft - tableRight;
+        const timeColumnWidth = 30;
+        const dayColumnWidth = (availableWidth - timeColumnWidth) / DIAS_SEMANA.length;
 
-          if (!taller) {
-            return '<td class="is-empty">Ambiente</td>';
+        const columnStyles = {
+          0: {
+            cellWidth: timeColumnWidth,
+            halign: 'left',
+            fontStyle: 'bold'
           }
+        };
 
-          const color = getTallerColor(taller.nombre);
-          const bgColor = `${color}1a`;
+        DIAS_SEMANA.forEach((_, index) => {
+          columnStyles[index + 1] = { cellWidth: dayColumnWidth };
+        });
 
-          return `
-            <td class="is-occupied" style="--slot-color:${color}; --slot-bg:${bgColor};">
-              <div class="slot-name">${escapeHtml(taller.nombre)}</div>
-              <div class="slot-teacher">${escapeHtml(getTalleristaName(taller.talleristaId))}</div>
-            </td>
-          `;
-        }).join('');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(30, 77, 80);
+        doc.text(title, tableLeft, 14);
 
-        return `
-          <tr>
-            <td class="time-cell">${escapeHtml(bloque.label)}</td>
-            ${cells}
-          </tr>
-        `;
-      }).join('');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(107, 124, 125);
+        doc.text(`Generado el ${generatedAt}`, tableLeft, 20);
 
-      return `
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(buildFileName(titulo).replace(/\.pdf$/i, ''))}</title>
-  <style>
-    :root {
-      --primary: #2C6B6F;
-      --primary-dark: #1E4D50;
-      --border: #D4C4B5;
-      --bg: #F5F2ED;
-      --bg-alt: #FFFFFF;
-      --text: #1E4D50;
-      --text-light: #6B7C7D;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      color: var(--text);
-      background: var(--bg);
-    }
-    .report {
-      background: var(--bg-alt);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .report__header {
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(135deg, #ffffff 0%, #fff9f0 100%);
-    }
-    .report__title {
-      margin: 0;
-      font-size: 22px;
-      color: var(--primary-dark);
-    }
-    .report__subtitle {
-      margin: 6px 0 0;
-      font-size: 13px;
-      color: var(--text-light);
-    }
-    .report__table-wrap {
-      padding: 16px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      font-size: 13px;
-    }
-    th, td {
-      border: 1px solid var(--border);
-      padding: 10px 8px;
-      text-align: center;
-      vertical-align: middle;
-      height: 82px;
-    }
-    th {
-      background: #e5f2f3;
-      color: var(--text);
-      font-weight: 600;
-      height: 44px;
-    }
-    .time-head, .time-cell {
-      width: 128px;
-      text-align: left;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .time-cell {
-      background: #fff;
-      color: var(--text);
-      border-right: 2px solid var(--border);
-      height: 82px;
-    }
-    .is-empty {
-      color: #8d98a0;
-      background: #fff;
-      font-weight: 500;
-    }
-    .is-occupied {
-      background: var(--slot-bg, #eef6f5);
-      border-left: 4px solid var(--slot-color, var(--primary));
-    }
-    .slot-name {
-      font-weight: 600;
-      color: var(--slot-color, var(--primary));
-      margin-bottom: 4px;
-      line-height: 1.2;
-    }
-    .slot-teacher {
-      color: var(--text-light);
-      font-size: 12px;
-      line-height: 1.2;
-      font-weight: 500;
-    }
-    .report__footer {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border);
-      color: var(--text-light);
-      font-size: 12px;
-    }
-    @page {
-      size: landscape;
-      margin: 12mm;
-    }
-    @media print {
-      body {
-        padding: 0;
-        background: #fff;
-      }
-      .report {
-        border: none;
-        border-radius: 0;
-      }
-      th, td {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-    }
-  </style>
-</head>
-<body>
-  <article class="report">
-    <header class="report__header">
-      <h1 class="report__title">${escapeHtml(titulo)} - Horario semanal</h1>
-      <p class="report__subtitle">Generado el ${escapeHtml(generatedAt)}</p>
-    </header>
-    <div class="report__table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th class="time-head">Horario</th>
-            ${headerCells}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-    <footer class="report__footer">Puerto Nuevo Montessori - Agenda semanal vigente</footer>
-  </article>
-</body>
-</html>
-      `;
-    },
-    [getTallerColor, getTallerForSlot, getTalleristaName]
-  );
+        autoTable(doc, {
+          startY: 24,
+          margin: {
+            left: tableLeft,
+            right: tableRight,
+            bottom: 12
+          },
+          head: [['Horario', ...DIAS_SEMANA]],
+          body: rows,
+          theme: 'grid',
+          styles: {
+            font: 'helvetica',
+            fontSize: 9,
+            textColor: [30, 77, 80],
+            lineWidth: 0.2,
+            lineColor: [212, 196, 181],
+            cellPadding: {
+              top: 1.7,
+              right: 1.6,
+              bottom: 1.7,
+              left: 1.6
+            },
+            halign: 'center',
+            valign: 'middle',
+            overflow: 'linebreak'
+          },
+          headStyles: {
+            fillColor: [229, 242, 243],
+            textColor: [30, 77, 80],
+            fontStyle: 'bold',
+            lineWidth: 0.2,
+            lineColor: [212, 196, 181]
+          },
+          bodyStyles: {
+            minCellHeight: 14
+          },
+          columnStyles,
+          didParseCell: (hookData) => {
+            const { section, row, column, cell } = hookData;
 
-  const cleanupPrintFrame = useCallback(() => {
-    if (printCleanupTimerRef.current) {
-      window.clearTimeout(printCleanupTimerRef.current);
-      printCleanupTimerRef.current = null;
-    }
+            if (section === 'head' && column.index === 0) {
+              cell.styles.halign = 'left';
+            }
 
-    if (printFrameRef.current) {
-      printFrameRef.current.remove();
-      printFrameRef.current = null;
-    }
-  }, []);
+            if (section !== 'body') {
+              return;
+            }
 
-  const handleExportPdf = useCallback(
-    (ambiente, titulo) => {
-      cleanupPrintFrame();
+            if (column.index === 0) {
+              cell.styles.fillColor = [255, 255, 255];
+              cell.styles.textColor = [30, 77, 80];
+              cell.styles.fontStyle = 'bold';
+              return;
+            }
 
-      const printableHtml = buildPrintableTable(ambiente, titulo);
-      const filename = buildFileName(titulo);
+            const dayMeta = slotMeta[row.index]?.[column.index - 1];
+            if (!dayMeta?.occupied) {
+              cell.styles.fillColor = [255, 255, 255];
+              cell.styles.textColor = [141, 152, 160];
+              return;
+            }
 
-      const frame = document.createElement('iframe');
-      frame.setAttribute('title', `Exportar ${titulo}`);
-      frame.setAttribute('aria-hidden', 'true');
-      frame.style.position = 'fixed';
-      frame.style.right = '0';
-      frame.style.bottom = '0';
-      frame.style.width = '0';
-      frame.style.height = '0';
-      frame.style.border = '0';
-      frame.style.opacity = '0';
-      frame.style.pointerEvents = 'none';
-      frame.style.visibility = 'hidden';
+            cell.styles.fillColor = dayMeta.fillColor;
+            cell.styles.textColor = [30, 77, 80];
+          }
+        });
 
-      document.body.appendChild(frame);
-      printFrameRef.current = frame;
-
-      const printWindow = frame.contentWindow;
-      if (!printWindow) {
-        cleanupPrintFrame();
-        window.alert('No se pudo iniciar la exportación en este navegador.');
-        return;
-      }
-
-      let started = false;
-
-      const triggerPrint = () => {
-        if (started) {
-          return;
+        const totalPages = doc.getNumberOfPages();
+        for (let page = 1; page <= totalPages; page += 1) {
+          doc.setPage(page);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(107, 124, 125);
+          doc.text(
+            'Puerto Nuevo Montessori - Agenda semanal vigente',
+            tableLeft,
+            doc.internal.pageSize.getHeight() - 6
+          );
         }
 
-        started = true;
-
-        try {
-          if (printWindow.document) {
-            printWindow.document.title = filename.replace(/\.pdf$/i, '');
-          }
-
-          printWindow.focus();
-          printWindow.onafterprint = cleanupPrintFrame;
-          printWindow.print();
-          printCleanupTimerRef.current = window.setTimeout(cleanupPrintFrame, 60000);
-        } catch (error) {
-          cleanupPrintFrame();
-          window.alert('No se pudo abrir el diálogo para guardar el PDF.');
-        }
-      };
-
-      frame.onload = () => window.setTimeout(triggerPrint, 120);
-      printWindow.document.open();
-      printWindow.document.write(printableHtml);
-      printWindow.document.close();
-      window.setTimeout(triggerPrint, 260);
+        doc.save(filename);
+      } catch (_error) {
+        window.alert('No se pudo generar el PDF en este navegador.');
+      }
     },
-    [buildPrintableTable, cleanupPrintFrame]
+    [buildPdfRows]
   );
 
   const loadData = useCallback(async () => {
@@ -395,8 +311,6 @@ export const HorarioSemanal = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  useEffect(() => cleanupPrintFrame, [cleanupPrintFrame]);
 
   const header = (
     <div className="dashboard-header dashboard-header--compact">

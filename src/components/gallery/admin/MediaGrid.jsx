@@ -5,7 +5,7 @@ import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { AlertDialog } from '../../common/AlertDialog';
 import { LoadingModal } from '../../common/LoadingModal';
 
-const MediaGrid = ({ category, album, refreshTrigger }) => {
+const MediaGrid = ({ album, refreshTrigger }) => {
   const { user, isAdmin } = useAuth();
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);

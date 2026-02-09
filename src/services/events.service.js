@@ -180,7 +180,7 @@ export const eventsService = {
         const file = files[i];
         const safeName = String(file.name || 'archivo')
           .replace(/\s+/g, '_')
-          .replace(/[^\w.\-]/g, '');
+          .replace(/[^\w.-]/g, '');
         const fileName = `${timestamp}_${i}_${safeName}`;
         const storagePath = `public/events/${eventId}/${fileName}`;
         const storageRef = ref(storage, storagePath);

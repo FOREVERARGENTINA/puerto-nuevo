@@ -1,7 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES } from '../config/constants';
+import { conversationsService } from '../services/conversations.service';
+import { CONVERSATION_READ_EVENT, emitConversationRead } from '../utils/conversationEvents';
 
 const resolveAreaForRole = (role) => {
   if (role === ROLES.COORDINACION) return 'coordinacion';
@@ -10,10 +12,32 @@ const resolveAreaForRole = (role) => {
   return null;
 };
 
+const patchConversationAsRead = (items, conversationId, forRole) => (
+  items.map((conv) => {
+    if (conv.id !== conversationId) return conv;
+    if (forRole === 'family') {
+      return { ...conv, mensajesSinLeerFamilia: 0 };
+    }
+    return { ...conv, mensajesSinLeerEscuela: 0 };
+  })
+);
+
 export function useConversations({ user, role, limitCount = 200 }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const handleConversationRead = (event) => {
+      const conversationId = event?.detail?.conversationId;
+      const forRole = event?.detail?.forRole;
+      if (!conversationId || !forRole) return;
+      setConversations((prev) => patchConversationAsRead(prev, conversationId, forRole));
+    };
+
+    window.addEventListener(CONVERSATION_READ_EVENT, handleConversationRead);
+    return () => window.removeEventListener(CONVERSATION_READ_EVENT, handleConversationRead);
+  }, []);
 
   useEffect(() => {
     if (!user || !role) {
@@ -72,10 +96,25 @@ export function useConversations({ user, role, limitCount = 200 }) {
     return conversations.reduce((sum, c) => sum + (c[key] || 0), 0);
   }, [conversations, role]);
 
+  const markAsRead = useCallback(async (conversationId) => {
+    if (!conversationId || !role) return { success: false, error: 'Datos incompletos' };
+
+    const forRole = role === ROLES.FAMILY ? 'family' : 'school';
+    setConversations((prev) => patchConversationAsRead(prev, conversationId, forRole));
+    emitConversationRead(conversationId, forRole);
+
+    const result = await conversationsService.markConversationRead(conversationId, forRole);
+    if (!result.success) {
+      setError(result.error || 'No se pudo marcar como leído');
+    }
+    return result;
+  }, [role]);
+
   return {
     conversations,
     loading,
     error,
-    unreadCount
+    unreadCount,
+    markAsRead
   };
 }

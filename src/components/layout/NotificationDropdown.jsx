@@ -11,11 +11,12 @@ export function NotificationDropdown({
   const navigate = useNavigate();
   const hasAdminSummary = Array.isArray(adminSummaryItems) && adminSummaryItems.length > 0;
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
     if (typeof onNotificationClick === 'function') {
       onNotificationClick(notification);
     }
 
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
     navigate(notification.actionUrl);
     onClose();
   };

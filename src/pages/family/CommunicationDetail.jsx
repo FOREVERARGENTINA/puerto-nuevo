@@ -59,6 +59,31 @@ export function CommunicationDetail() {
     checkReadStatus();
   }, [communication, user]);
 
+  // Marcar como leído automáticamente al abrir el comunicado.
+  useEffect(() => {
+    if (!communication || !user || hasRead) return;
+
+    let cancelled = false;
+
+    const markOpenedCommunicationAsRead = async () => {
+      const result = await readReceiptsService.markAsRead(
+        communication.id,
+        user.uid,
+        user.displayName || user.email
+      );
+
+      if (!cancelled && result.success) {
+        setHasRead(true);
+      }
+    };
+
+    markOpenedCommunicationAsRead();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [communication, user, hasRead]);
+
   // Cargar nombre del remitente
   useEffect(() => {
     if (!communication || senderName || !communication.sentBy) return;

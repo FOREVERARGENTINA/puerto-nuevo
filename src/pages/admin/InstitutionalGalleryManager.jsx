@@ -13,15 +13,15 @@ const InstitutionalGalleryManager = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    const loadCategories = async () => {
+      const result = await institutionalGalleryService.getAllCategories();
+      if (result.success) {
+        setCategories(result.categories);
+      }
+    };
+
     loadCategories();
   }, []);
-
-  const loadCategories = async () => {
-    const result = await institutionalGalleryService.getAllCategories();
-    if (result.success) {
-      setCategories(result.categories);
-    }
-  };
 
   const handleSelectCategory = (category) => {
     setSelectedCategory(category);

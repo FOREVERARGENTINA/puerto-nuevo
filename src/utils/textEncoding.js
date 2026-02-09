@@ -15,7 +15,7 @@ export const fixMojibake = (value) => {
     if (decoded.includes('\uFFFD')) return value;
     if (hasMojibake(decoded)) return value;
     return decoded;
-  } catch (error) {
+  } catch {
     return value;
   }
 };

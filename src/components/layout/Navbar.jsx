@@ -194,7 +194,12 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
         </div>
       </div>
 
-      <Modal isOpen={showInstallHelp} onClose={() => setShowInstallHelp(false)} size="sm">
+      <Modal
+        isOpen={showInstallHelp}
+        onClose={() => setShowInstallHelp(false)}
+        size="sm"
+        className="pwa-install-modal"
+      >
         <ModalHeader title="Instalar app" onClose={() => setShowInstallHelp(false)} />
         <ModalBody>
           <p>En iPhone o iPad:</p>

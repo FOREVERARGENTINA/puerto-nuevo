@@ -175,6 +175,13 @@ export function MySnacks() {
     return fin < today;
   };
 
+  const isCurrentWeek = (fechaInicio, fechaFin) => {
+    const inicio = new Date(`${fechaInicio}T00:00:00`);
+    const fin = new Date(`${fechaFin}T23:59:59`);
+    const now = new Date();
+    return now >= inicio && now <= fin;
+  };
+
   const getAmbienteLabel = (ambiente) => {
     if (ambiente === AMBIENTES.TALLER_1) return 'Taller 1';
     if (ambiente === AMBIENTES.TALLER_2) return 'Taller 2';
@@ -308,6 +315,7 @@ export function MySnacks() {
                     {upcomingAssignments.map((assignment) => {
                       const upcoming = isUpcoming(assignment.fechaInicio);
                       const past = isPast(assignment.fechaFin);
+                      const currentWeek = isCurrentWeek(assignment.fechaInicio, assignment.fechaFin);
                       const badge = getAssignmentBadge(assignment);
                       const status = badge.status;
 
@@ -333,9 +341,9 @@ export function MySnacks() {
                               </span>
                             </div>
 
-                            {upcoming && status.style === 'pending' && (
+                            {currentWeek && status.style === 'pending' && (
                               <div className="assignment-warning">
-                                <strong>Este turno es esta semana.</strong> Recordá traer los snacks el lunes.
+                                <strong>Este turno es esta semana.</strong> Confirmá o rechazá el turno antes del lunes.
                               </div>
                             )}
 
@@ -410,14 +418,11 @@ export function MySnacks() {
 
                                 return (
                                   <>
-                                    {alreadyConfirmed && (
+                                    {alreadyConfirmed && !iConfirmed && (
                                       <div className="assignment-confirmed mb-sm">
                                         <span aria-hidden="true">•</span>
                                         <span>
-                                          {iConfirmed
-                                            ? 'Ya confirmaste que traerás los snacks'
-                                            : `Ya confirmado por: ${confirmedByName}`
-                                          }
+                                          {`Ya confirmado por: ${confirmedByName}`}
                                         </span>
                                       </div>
                                     )}
@@ -443,12 +448,14 @@ export function MySnacks() {
 
                                       {/* Estado CONFIRMADO: solo puede solicitar cambio de fecha */}
                                       {status.key === 'confirmed' && (
-                                        <button
-                                          onClick={() => handleOpenEditModal(assignment, 'edit')}
-                                          className="btn btn--outline"
-                                        >
-                                          Solicitar cambio de fecha
-                                        </button>
+                                        !currentWeek && (
+                                          <button
+                                            onClick={() => handleOpenEditModal(assignment, 'edit')}
+                                            className="btn btn--outline"
+                                          >
+                                            Solicitar cambio de fecha
+                                          </button>
+                                        )
                                       )}
                                     </div>
                                   </>

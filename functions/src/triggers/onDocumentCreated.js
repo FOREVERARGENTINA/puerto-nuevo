@@ -66,7 +66,7 @@ exports.onDocumentWithMandatoryReading = onDocumentCreated(
         },
         read: false,
         createdAt: now,
-        url: `/family/documentos`
+        url: `/familia/documentos`
       });
     });
 
@@ -119,7 +119,7 @@ exports.onDocumentWithMandatoryReading = onDocumentCreated(
               ${fechaLimiteText}
               <p><strong>⚠️ Este documento requiere confirmación de lectura.</strong></p>
               <p>Por favor, ingresá a la plataforma para leer el documento y confirmar tu lectura:</p>
-              <p><a href="https://puerto-nuevo-montessori.web.app/family/documentos" style="background-color: #488284; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Ver documento</a></p>
+              <p><a href="https://puerto-nuevo-montessori.web.app/familia/documentos" style="background-color: #488284; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Ver documento</a></p>
               <p style="color: #666; font-size: 0.9em;">Puerto Nuevo Montessori</p>
             `
           };

@@ -8,13 +8,29 @@
   meetingNotesLoading = false,
   meetingNotesLoaded = false
 }) => {
+  const parseLocalDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        return new Date(year, month, day);
+      }
+    }
+    return new Date(value);
+  };
+
   const getAmbienteLabel = (ambiente) => {
     return ambiente === 'taller1' ? 'Taller 1' : 'Taller 2';
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
-    const date = new Date(dateString);
+    const date = parseLocalDate(dateString);
+    if (!date || Number.isNaN(date.getTime())) return 'No especificada';
     return date.toLocaleDateString('es-AR');
   };
 
@@ -30,7 +46,8 @@
   const calculateAge = (birthDate) => {
     if (!birthDate) return '';
     const today = new Date();
-    const birth = new Date(birthDate);
+    const birth = parseLocalDate(birthDate);
+    if (!birth || Number.isNaN(birth.getTime())) return '';
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -53,19 +70,21 @@
     child.datosMedicos.telefonoClinica
   );
   const medicalBadgeText = 'Info médica';
-  const familiesTitle = 'Familias';
   const medicalTitle = 'Información médica';
   const documentsTitle = 'Documentos';
   const hasMeetingNotes = Array.isArray(meetingNotes) && meetingNotes.length > 0;
   const shouldShowMeetingNotes = meetingNotesLoading || hasMeetingNotes || meetingNotesLoaded;
+  const cardClassName = isAdmin ? 'child-card child-card--admin' : 'child-card';
 
   return (
-    <div className="child-card">
+    <div className={cardClassName}>
       {/* Header con nombre y badges */}
       <div className="child-card__header">
-        <div className="child-card__avatar">
-          {child.nombreCompleto.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-        </div>
+        {!isAdmin && (
+          <div className="child-card__avatar">
+            {child.nombreCompleto.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+          </div>
+        )}
         <div className="child-card__title">
           <h3 className="child-card__name">{child.nombreCompleto}</h3>
           <div className="child-card__badges">
@@ -105,9 +124,9 @@
           </div>
         )}
 
-        {child.responsables && child.responsables.length > 0 && (
+        {!isAdmin && child.responsables && child.responsables.length > 0 && (
           <div className="child-card__section">
-            <span className="child-card__section-title">{familiesTitle} ({child.responsables.length})</span>
+            <span className="child-card__section-title">Familias ({child.responsables.length})</span>
             <div className="child-card__families">
               {child.responsables.map((responsableId) => {
                 const familia = familyUsers[responsableId];

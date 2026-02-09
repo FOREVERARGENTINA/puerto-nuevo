@@ -38,8 +38,13 @@ const NOTES_ALLOWED_MIME_TYPES = new Set([
   'image/heif-sequence'
 ]);
 
+const getAppointmentModeLabel = (value) => {
+  if (value === 'virtual') return 'Virtual';
+  if (value === 'presencial') return 'Presencial';
+  return 'Sin definir';
+};
+
 const AppointmentsManager = () => {
-  const initialToday = new Date();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleAppointmentsCount, setVisibleAppointmentsCount] = useState(30);
@@ -61,6 +66,7 @@ const AppointmentsManager = () => {
   const [selectedChildId, setSelectedChildId] = useState('');
   const [familySearchTerm, setFamilySearchTerm] = useState('');
   const [selectedFamilyIds, setSelectedFamilyIds] = useState([]);
+  const [assignMode, setAssignMode] = useState('');
   const [slotsForm, setSlotsForm] = useState({
     diaSemana: '1',
     fechaDesde: '',
@@ -68,7 +74,8 @@ const AppointmentsManager = () => {
     horaInicio: '09:00',
     horaFin: '17:00',
     duracionMinutos: 30,
-    intervaloMinutos: 0
+    intervaloMinutos: 0,
+    modalidad: ''
   });
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -338,9 +345,18 @@ const AppointmentsManager = () => {
   };
 
   const generateTimeSlots = () => {
-    const { diaSemana, fechaDesde, fechaHasta, horaInicio, horaFin, duracionMinutos, intervaloMinutos } = slotsForm;
+    const {
+      diaSemana,
+      fechaDesde,
+      fechaHasta,
+      horaInicio,
+      horaFin,
+      duracionMinutos,
+      intervaloMinutos,
+      modalidad
+    } = slotsForm;
     
-    if (!diaSemana || !fechaDesde || !fechaHasta || !horaInicio || !horaFin) {
+    if (!diaSemana || !fechaDesde || !fechaHasta || !horaInicio || !horaFin || !modalidad) {
       alert('Por favor completa todos los campos');
       return;
     }
@@ -368,7 +384,8 @@ const AppointmentsManager = () => {
       while (currentTime < endTime) {
         slots.push({
           fechaHora: Timestamp.fromDate(new Date(currentTime)),
-          duracionMinutos: parseInt(duracionMinutos)
+          duracionMinutos: parseInt(duracionMinutos),
+          modalidad
         });
         
         currentTime.setMinutes(currentTime.getMinutes() + parseInt(duracionMinutos) + parseInt(intervaloMinutos));
@@ -383,7 +400,7 @@ const AppointmentsManager = () => {
   const handleCreateSlots = async () => {
     const slots = generateTimeSlots();
 
-    if (slots.length === 0) {
+    if (!Array.isArray(slots) || slots.length === 0) {
       alertDialog.openDialog({
         title: 'Error',
         message: 'No se generaron slots. Verifica los horarios.',
@@ -394,7 +411,7 @@ const AppointmentsManager = () => {
 
     confirmDialog.openDialog({
       title: 'Crear Turnos',
-      message: `Se crearán ${slots.length} turnos disponibles. ¿Deseas continuar?`,
+      message: `Se crearán ${slots.length} turnos disponibles (${getAppointmentModeLabel(slotsForm.modalidad)}). ¿Deseas continuar?`,
       onConfirm: async () => {
         const result = await appointmentsService.createTimeSlots(slots);
         if (result.success) {
@@ -576,6 +593,7 @@ const AppointmentsManager = () => {
       return;
     }
     setAssignError('');
+    setAssignMode(selectedAppointment?.modalidad || '');
     setShowAssignModal(true);
   };
 
@@ -584,6 +602,7 @@ const AppointmentsManager = () => {
     setAssignError('');
     setSelectedChildId('');
     setSelectedFamilyIds([]);
+    setAssignMode('');
   };
 
   const toggleFamilySelection = (uid) => {
@@ -611,6 +630,10 @@ const AppointmentsManager = () => {
       setAssignError('Seleccioná al menos una familia.');
       return;
     }
+    if (!assignMode) {
+      setAssignError('Seleccioná la modalidad de la reunión.');
+      return;
+    }
 
     setAssignLoading(true);
     setAssignError('');
@@ -632,6 +655,7 @@ const AppointmentsManager = () => {
       familiaUid: selectedFamilyIds[0],
       familiasUids: selectedFamilyIds,
       hijoId: selectedChildId,
+      modalidad: assignMode,
       familiaEmail: primaryFamily.email || '',
       familiaDisplayName: primaryFamily.displayName || '',
       familiasInfo: familiesInfo,
@@ -804,7 +828,8 @@ const AppointmentsManager = () => {
         const name = (app.familiaDisplayName || '').toLowerCase();
         const child = (app.hijoNombre || '').toLowerCase();
         const estado = (app.estado || '').toLowerCase();
-        return email.includes(term) || name.includes(term) || child.includes(term) || estado.includes(term);
+        const modalidad = getAppointmentModeLabel(app.modalidad).toLowerCase();
+        return email.includes(term) || name.includes(term) || child.includes(term) || estado.includes(term) || modalidad.includes(term);
       })
     : filteredAppointments;
 
@@ -1036,6 +1061,21 @@ const AppointmentsManager = () => {
                       step="5"
                     />
                   </div>
+
+                  <div className="form-group">
+                    <label htmlFor="modalidad">Modalidad de reunión *</label>
+                    <select
+                      id="modalidad"
+                      name="modalidad"
+                      className="form-input"
+                      value={slotsForm.modalidad}
+                      onChange={handleSlotFormChange}
+                    >
+                      <option value="">Seleccionar modalidad...</option>
+                      <option value="presencial">Presencial</option>
+                      <option value="virtual">Virtual</option>
+                    </select>
+                  </div>
                 </div>
               </section>
             </div>
@@ -1132,7 +1172,9 @@ const AppointmentsManager = () => {
                               >
                                 <div className="appointment-time-section">
                                   <div className="appointment-time">{formatTime(app.fechaHora)}</div>
-                                  <div className="appointment-duration">{app.duracionMinutos} min</div>
+                                  <div className="appointment-duration">
+                                    {app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}
+                                  </div>
                                 </div>
                                 <div className="appointment-info-section">
                                   <span className={`badge badge--${
@@ -1305,6 +1347,7 @@ const AppointmentsManager = () => {
               )}
               <div className="appointment-details-summary">
                 <p><strong>Fecha y Hora:</strong> {formatFullDate(selectedAppointment.fechaHora?.toDate ? selectedAppointment.fechaHora.toDate() : new Date(selectedAppointment.fechaHora))} - {formatTime(selectedAppointment.fechaHora)}</p>
+                <p><strong>Modalidad:</strong> {getAppointmentModeLabel(selectedAppointment.modalidad)}</p>
                 <p><strong>Estado:</strong> <span className={`badge badge--${
                   selectedAppointment.estado === 'disponible' ? 'success' :
                   selectedAppointment.estado === 'bloqueado' ? 'secondary' :
@@ -1644,9 +1687,23 @@ const AppointmentsManager = () => {
               {!selectedChild && (
                 <p className="empty-state__text">Seleccioná un alumno para ver sus responsables.</p>
               )}
+
+              <div className="form-group">
+                <label htmlFor="assign-mode">Modalidad de reunión *</label>
+                <select
+                  id="assign-mode"
+                  className="form-input"
+                  value={assignMode}
+                  onChange={(e) => setAssignMode(e.target.value)}
+                >
+                  <option value="">Seleccionar modalidad...</option>
+                  <option value="presencial">Presencial</option>
+                  <option value="virtual">Virtual</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex-row mt-md" style={{ justifyContent: 'flex-end' }}>
+            <div className="modal-footer">
               <button className="btn btn--outline" onClick={closeAssignModal}>
                 Cancelar
               </button>
@@ -1685,7 +1742,3 @@ const AppointmentsManager = () => {
 };
 
 export default AppointmentsManager;
-
-
-
-

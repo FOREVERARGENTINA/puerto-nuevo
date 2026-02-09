@@ -1799,6 +1799,36 @@
   gap: var(--spacing-md);
 }
 
+.login-page .form-input,
+.login-page .form-textarea,
+.login-page .form-select,
+.login-page .form-control {
+  background-color: var(--color-primary-soft);
+  border-color: rgba(47, 111, 106, 0.28);
+  color: var(--color-primary-dark);
+}
+
+.login-page .form-input::placeholder,
+.login-page .form-textarea::placeholder {
+  color: rgba(36, 91, 87, 0.66);
+}
+
+.login-page .form-input:focus,
+.login-page .form-textarea:focus,
+.login-page .form-select:focus,
+.login-page .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(91, 165, 168, 0.2);
+}
+
+.login-page .form-input:-webkit-autofill,
+.login-page .form-input:-webkit-autofill:hover,
+.login-page .form-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-primary-dark);
+  box-shadow: 0 0 0px 1000px var(--color-primary-soft) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .login-form .btn {
   margin-top: var(--spacing-sm);
 }
@@ -2833,6 +2863,37 @@
 .children-page .child-card__footer {
   background: var(--children-surface-alt);
   border-top: 1px solid var(--children-divider);
+}
+
+.children-page .child-card--admin .child-card__header {
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.children-page .child-card--admin .child-card__name {
+  font-size: 1.35rem;
+  margin-bottom: 4px;
+}
+
+.children-page .child-card--admin .child-card__body {
+  padding: 14px 18px;
+  gap: 12px;
+}
+
+.children-page .child-card--admin .child-card__section {
+  padding: 10px;
+}
+
+.children-page .child-card--admin .child-card__medical-grid {
+  gap: 6px;
+}
+
+.children-page .child-card--admin .child-card__medical-item {
+  padding: 7px 9px;
+}
+
+.children-page .child-card--admin .child-card__footer {
+  padding: 12px 18px;
 }
 
 /* Badge variantes */
@@ -5352,6 +5413,39 @@
   color: var(--color-text-light);
 }
 
+.pwa-install-modal {
+  border-radius: 22px;
+  border: 1px solid rgba(44, 107, 111, 0.15);
+  box-shadow: 0 22px 50px rgba(30, 77, 80, 0.25);
+  overflow: hidden;
+  animation: pwaModalIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pwa-install-modal .modal-header {
+  background: linear-gradient(135deg, rgba(44, 107, 111, 0.12) 0%, rgba(91, 165, 168, 0.08) 100%);
+  border-bottom: 1px solid rgba(44, 107, 111, 0.14);
+}
+
+.pwa-install-modal .modal-body {
+  padding-top: var(--spacing-md);
+}
+
+.pwa-install-modal .modal-footer {
+  border-top: 1px solid rgba(44, 107, 111, 0.12);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+@keyframes pwaModalIn {
+  from {
+    transform: translateY(18px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
 .pwa-install-banner {
   position: fixed;
   bottom: var(--spacing-md);
@@ -5360,13 +5454,16 @@
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 36px rgba(30, 77, 80, 0.35);
+  backdrop-filter: blur(6px);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--spacing-md);
   z-index: var(--z-modal);
+  animation: pwaBannerIn 0.32s ease-out;
 }
 
 .pwa-install-banner__content {
@@ -5388,7 +5485,7 @@
   object-fit: contain;
   background: rgba(255, 255, 255, 0.95);
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: 14px;
 }
 
 .pwa-install-banner__button {
@@ -5396,9 +5493,38 @@
   color: var(--color-primary-dark);
   border: none;
   padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pwa-install-banner__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+@keyframes pwaBannerIn {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-install-modal,
+  .pwa-install-banner {
+    animation: none;
+  }
+
+  .pwa-install-banner__button {
+    transition: none;
+  }
 }
 
 .notification-bell:hover {
@@ -5998,11 +6124,31 @@
 @keyframes eventCalendarSheetIn {
   from {
     opacity: 0;
-    transform: translateY(26px);
+    transform: translateY(34px) scale(0.985);
   }
-  70% {
+  72% {
     opacity: 1;
-    transform: translateY(-2px);
+    transform: translateY(-1px) scale(1.002);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes eventCalendarBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes eventCalendarSheetItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -7195,15 +7341,15 @@
     margin-top: var(--spacing-md);
   }
 
-  .appointments-manager-layout--family .appointments-calendar-panel {
+  .appointments-manager-layout--family .appointments-secondary-panel--family {
     order: 0;
   }
 
-  .appointments-manager-layout--family .appointments-list-panel--family-main {
+  .appointments-manager-layout--family .appointments-calendar-panel {
     order: 1;
   }
 
-  .appointments-manager-layout--family .appointments-secondary-panel--family {
+  .appointments-manager-layout--family .appointments-list-panel--family-main {
     order: 2;
   }
 
@@ -9570,6 +9716,7 @@
     border: none;
     margin: 0;
     padding: 0;
+    animation: eventCalendarBackdropIn 0.22s ease-out;
   }
 
   .event-calendar__sheet {
@@ -9594,7 +9741,9 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.62);
     max-height: 62vh;
     overflow-y: auto;
-    animation: eventCalendarSheetIn 0.28s cubic-bezier(0.22, 1.1, 0.32, 1);
+    transform-origin: bottom center;
+    will-change: transform, opacity;
+    animation: eventCalendarSheetIn 0.34s cubic-bezier(0.2, 0.9, 0.2, 1);
   }
 
   .event-calendar__sheet::before {
@@ -9648,6 +9797,21 @@
     position: relative;
     padding: 10px 10px 10px 12px;
     border-radius: 12px;
+    animation: eventCalendarSheetItemIn 0.24s ease-out both;
+  }
+
+  .event-calendar__sheet .event-calendar__event-item:nth-child(1) { animation-delay: 0.02s; }
+  .event-calendar__sheet .event-calendar__event-item:nth-child(2) { animation-delay: 0.04s; }
+  .event-calendar__sheet .event-calendar__event-item:nth-child(3) { animation-delay: 0.06s; }
+  .event-calendar__sheet .event-calendar__event-item:nth-child(4) { animation-delay: 0.08s; }
+  .event-calendar__sheet .event-calendar__event-item:nth-child(5) { animation-delay: 0.1s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-calendar__sheet-backdrop,
+    .event-calendar__sheet,
+    .event-calendar__sheet .event-calendar__event-item {
+      animation: none;
+    }
   }
 
   .event-calendar__sheet .event-calendar__event-item::before {

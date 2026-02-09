@@ -25,6 +25,14 @@ const isPastAssignment = (fechaFin) => {
   return endDate < new Date();
 };
 
+const isCurrentAssignmentWeek = (fechaInicio, fechaFin) => {
+  if (!fechaInicio || !fechaFin) return false;
+  const startDate = new Date(`${fechaInicio}T00:00:00`);
+  const endDate = new Date(`${fechaFin}T23:59:59`);
+  const now = new Date();
+  return now >= startDate && now <= endDate;
+};
+
 const isTerminalState = (stateKey) => (
   stateKey === SNACK_ASSIGNMENT_STATE.CANCELLED
   || stateKey === SNACK_ASSIGNMENT_STATE.COMPLETED
@@ -341,6 +349,9 @@ export const snacksService = {
       }
       if (isPastAssignment(data.fechaFin)) {
         return { success: false, error: 'No se puede solicitar cambio de un turno pasado.' };
+      }
+      if (isCurrentAssignmentWeek(data.fechaInicio, data.fechaFin)) {
+        return { success: false, error: 'No se puede solicitar cambio durante la semana actual del turno.' };
       }
 
       await updateDoc(docRef, {

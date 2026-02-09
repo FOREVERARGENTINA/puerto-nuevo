@@ -238,6 +238,12 @@ const BookAppointment = () => {
     });
   };
 
+  const getAppointmentModeLabel = (value) => {
+    if (value === 'virtual') return 'Virtual';
+    if (value === 'presencial') return 'Presencial';
+    return 'Sin definir';
+  };
+
   const getUpcomingAppointments = () => {
     const now = new Date();
     return myAppointments
@@ -346,6 +352,7 @@ const BookAppointment = () => {
                       <div key={app.id} className="upcoming-appointment-item">
                         <div className="appointment-details">
                           <div className="appointment-datetime">{formatDateTime(app.fechaHora)}</div>
+                          <div className="appointment-note">Modalidad: {getAppointmentModeLabel(app.modalidad)}</div>
                           {app.nota && <div className="appointment-note">{app.nota}</div>}
                         </div>
                         <button
@@ -437,6 +444,7 @@ const BookAppointment = () => {
                                 }`}>
                                   {app.estado === 'reservado' ? 'Confirmado' : app.estado}
                                 </span>
+                                <span className="appointment-note-preview">{getAppointmentModeLabel(app.modalidad)}</span>
                                 {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
                               </div>
                               {app.estado === 'asistio' && note && (
@@ -593,7 +601,7 @@ const BookAppointment = () => {
                         <div key={app.id} className="available-slot-item">
                           <div className="slot-time-info">
                             <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                            <div className="slot-duration">{app.duracionMinutos} min</div>
+                            <div className="slot-duration">{app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}</div>
                           </div>
                           <button
                             onClick={() => handleSelectSlot(app)}
@@ -636,7 +644,7 @@ const BookAppointment = () => {
                       <div key={app.id} className="available-slot-item">
                         <div className="slot-time-info">
                           <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                          <div className="slot-duration">{app.duracionMinutos} min</div>
+                          <div className="slot-duration">{app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}</div>
                         </div>
                         <button
                           onClick={() => handleSelectSlot(app)}

@@ -1,4 +1,12 @@
-export function Modal({ isOpen, onClose, children, size = 'md', closeOnOverlay = true }) {
+export function Modal({
+  isOpen,
+  onClose,
+  children,
+  size = 'md',
+  closeOnOverlay = true,
+  className = '',
+  overlayClassName = ''
+}) {
   if (!isOpen) return null;
 
   const handleOverlayClick = () => {
@@ -6,10 +14,13 @@ export function Modal({ isOpen, onClose, children, size = 'md', closeOnOverlay =
     onClose?.();
   };
 
+  const overlayClasses = ['modal-overlay', overlayClassName].filter(Boolean).join(' ');
+  const contentClasses = ['modal-content', `modal-content--${size}`, className].filter(Boolean).join(' ');
+
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
+    <div className={overlayClasses} onClick={handleOverlayClick}>
       <div
-        className={`modal-content modal-content--${size}`}
+        className={contentClasses}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

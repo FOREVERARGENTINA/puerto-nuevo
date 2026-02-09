@@ -10,11 +10,12 @@ import {
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { readReceiptsService } from '../services/readReceipts.service';
-import { ADMIN_ROLES } from '../config/constants';
+import { ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
 
 export function useCommunications(limitCount = 50) {
   const { user, role } = useAuth();
   const [communications, setCommunications] = useState([]);
+  const [unreadCommunications, setUnreadCommunications] = useState([]);
   const [unreadRequired, setUnreadRequired] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,17 +50,20 @@ export function useCommunications(limitCount = 50) {
 
     // Función para verificar lecturas
     const checkUnreadCommunications = async (comms) => {
-      const unreadPromises = comms
-        .filter(comm => comm.requiereLecturaObligatoria)
-        .map(async (comm) => {
-          const result = await readReceiptsService.hasUserRead(comm.id, user.uid);
-          return result.success && !result.hasRead ? comm : null;
-        });
+      const trackableComms = comms.filter((comm) => (
+        comm.requiereLecturaObligatoria || comm.type === COMMUNICATION_TYPES.INDIVIDUAL
+      ));
+
+      const unreadPromises = trackableComms.map(async (comm) => {
+        const result = await readReceiptsService.hasUserRead(comm.id, user.uid);
+        return result.success && !result.hasRead ? comm : null;
+      });
 
       const unreadResults = await Promise.all(unreadPromises);
-      const unread = unreadResults.filter(comm => comm !== null);
+      const unread = unreadResults.filter((comm) => comm !== null);
 
-      setUnreadRequired(unread);
+      setUnreadCommunications(unread);
+      setUnreadRequired(unread.filter((comm) => comm.requiereLecturaObligatoria));
     };
 
     const unsubscribe = onSnapshot(
@@ -112,7 +116,8 @@ export function useCommunications(limitCount = 50) {
     );
 
     if (result.success) {
-      setUnreadRequired(prev => prev.filter(comm => comm.id !== commId));
+      setUnreadCommunications((prev) => prev.filter((comm) => comm.id !== commId));
+      setUnreadRequired((prev) => prev.filter((comm) => comm.id !== commId));
     }
 
     return result;
@@ -120,6 +125,7 @@ export function useCommunications(limitCount = 50) {
 
   return {
     communications,
+    unreadCommunications,
     unreadRequired,
     loading,
     error,

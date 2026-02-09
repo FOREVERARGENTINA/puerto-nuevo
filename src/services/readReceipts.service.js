@@ -13,6 +13,13 @@ export const readReceiptsService = {
   async markAsRead(commId, userId, userDisplayName) {
     try {
       const lecturaRef = doc(db, 'communications', commId, 'lecturas', userId);
+      const lecturaDoc = await getDoc(lecturaRef);
+
+      // Idempotente: si ya existe la lectura, no volver a escribir.
+      if (lecturaDoc.exists()) {
+        return { success: true };
+      }
+
       await setDoc(lecturaRef, {
         leidoAt: serverTimestamp(),
         userDisplayName: userDisplayName || 'Usuario'

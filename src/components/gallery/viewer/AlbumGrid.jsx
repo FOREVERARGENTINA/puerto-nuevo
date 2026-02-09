@@ -7,19 +7,19 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
   const [brokenThumbs, setBrokenThumbs] = useState(() => new Set());
 
   useEffect(() => {
-    if (category) {
-      loadAlbums();
-    }
-  }, [category]);
+    if (!category) return;
 
-  const loadAlbums = async () => {
-    setLoading(true);
-    const result = await institutionalGalleryService.getAlbumsByCategory(category.id);
-    if (result.success) {
-      setAlbums(result.albums);
-    }
-    setLoading(false);
-  };
+    const loadAlbums = async () => {
+      setLoading(true);
+      const result = await institutionalGalleryService.getAlbumsByCategory(category.id);
+      if (result.success) {
+        setAlbums(result.albums);
+      }
+      setLoading(false);
+    };
+
+    loadAlbums();
+  }, [category]);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return '';

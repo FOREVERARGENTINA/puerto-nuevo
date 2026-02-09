@@ -1,10 +1,13 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { useAuth } from '../../hooks/useAuth';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SESSION_PROMPT_DELAY_MS = 5000;
 
 export function PwaInstallPrompt() {
+  const { user, loading } = useAuth();
   const { canInstall, shouldShowIosInstall, promptInstall } = usePwaInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIosBanner, setShowIosBanner] = useState(false);
@@ -12,7 +15,10 @@ export function PwaInstallPrompt() {
   const iosTimerRef = useRef(null);
 
   useEffect(() => {
-    if (!canInstall) return;
+    if (loading || !user || !canInstall) {
+      setShowPrompt(false);
+      return;
+    }
 
     const status = localStorage.getItem('pwa-install-status');
     const lastPrompt = parseInt(localStorage.getItem('pwa-last-prompt') || '0', 10);
@@ -22,30 +28,34 @@ export function PwaInstallPrompt() {
 
     promptTimerRef.current = window.setTimeout(() => {
       setShowPrompt(true);
-    }, 3000);
+    }, SESSION_PROMPT_DELAY_MS);
 
     return () => {
       if (promptTimerRef.current) {
         clearTimeout(promptTimerRef.current);
       }
     };
-  }, [canInstall]);
+  }, [canInstall, user, loading]);
 
   useEffect(() => {
-    if (!shouldShowIosInstall) return;
+    if (loading || !user || !shouldShowIosInstall) {
+      setShowIosBanner(false);
+      return;
+    }
+
     const alreadyShown = localStorage.getItem('ios-install-banner-shown');
     if (alreadyShown) return;
 
     iosTimerRef.current = window.setTimeout(() => {
       setShowIosBanner(true);
-    }, 3000);
+    }, SESSION_PROMPT_DELAY_MS);
 
     return () => {
       if (iosTimerRef.current) {
         clearTimeout(iosTimerRef.current);
       }
     };
-  }, [shouldShowIosInstall]);
+  }, [shouldShowIosInstall, user, loading]);
 
   useEffect(() => {
     const handleInstalled = () => {
@@ -82,7 +92,7 @@ export function PwaInstallPrompt() {
 
   return (
     <>
-      <Modal isOpen={showPrompt} onClose={handleLater} size="sm">
+      <Modal isOpen={showPrompt} onClose={handleLater} size="sm" className="pwa-install-modal">
         <ModalHeader title="Instalar app" onClose={handleLater} />
         <ModalBody>
           <div className="pwa-install-header">
@@ -118,4 +128,3 @@ export function PwaInstallPrompt() {
     </>
   );
 }
-

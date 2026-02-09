@@ -38,7 +38,7 @@ export function AuthAction() {
           setEmail(verifiedEmail || '');
           setState('ready');
         }
-      } catch (err) {
+      } catch {
         if (isMounted) {
           setState('error');
           setError('El enlace es inválido o ya venció. Solicita un nuevo restablecimiento.');
@@ -69,7 +69,7 @@ export function AuthAction() {
     try {
       await confirmPasswordReset(auth, oobCode, password);
       setState('success');
-    } catch (err) {
+    } catch {
       setError('No se pudo restablecer la contraseña. Intenta nuevamente.');
     } finally {
       setSubmitting(false);

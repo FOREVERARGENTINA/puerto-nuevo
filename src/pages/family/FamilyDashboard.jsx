@@ -10,7 +10,6 @@ export function FamilyDashboard() {
           <h1 className="dashboard-title">Portal de Familias</h1>
           <p className="dashboard-subtitle">Bienvenidos al espacio de comunicación y seguimiento de la comunidad Montessori.</p>
         </div>
-        <span className="badge badge--success">Familia</span>
       </div>
 
       <div className="dashboard-content">

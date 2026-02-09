@@ -2,6 +2,9 @@
 /* Variables CSS centralizadas */
 
 :root {
+  /* Evita que controles nativos (input, checkbox, select) tomen dark mode del SO */
+  color-scheme: light;
+
   /* COLORES PRINCIPALES - Paleta del Logo Montessori Puerto Nuevo */
   --color-primary: #2C6B6F;           /* Azul petróleo - texto del logo */
   --color-primary-dark: #1E4D50;      /* Azul petróleo oscuro */
@@ -98,6 +101,8 @@
 
 /* DARK MODE - Activado con data-theme="dark" */
 [data-theme="dark"] {
+  color-scheme: dark;
+
   /* Backgrounds - Azul petróleo profundo */
   --color-background: #1A2627;        /* Azul petróleo muy profundo */
   --color-background-alt: #2C3E3F;    /* Azul petróleo medio */

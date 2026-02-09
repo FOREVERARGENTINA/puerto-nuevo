@@ -44,10 +44,10 @@ export function CommunicationCard({ communication, hasRead, onMarkAsRead, onView
       <div className="communication-card__main">
         <div className="communication-card__badges">
           <div className="communication-card__status">
-            {communication.requiereLecturaObligatoria && !hasRead && (
+            {!hasRead && communication.requiereLecturaObligatoria && (
               <span className="badge badge--error">No leído</span>
             )}
-            {communication.requiereLecturaObligatoria && hasRead && (
+            {hasRead && (
               <span className="badge badge--success">Leído</span>
             )}
           </div>

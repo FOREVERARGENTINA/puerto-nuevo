@@ -56,6 +56,12 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     });
   };
 
+  const appointmentModeLabel = appointment?.modalidad === 'virtual'
+    ? 'Virtual'
+    : appointment?.modalidad === 'presencial'
+      ? 'Presencial'
+      : 'Sin definir';
+
   return (
     <div className="appointment-form-container">
       <div className="card appointment-form-card">
@@ -83,6 +89,13 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                   </span>
                 </>
               )}
+              <>
+                <span className="booking-summary-separator" aria-hidden="true">•</span>
+                <span className="booking-summary-chip">
+                  <span className="booking-summary-label">Modalidad</span>
+                  <span className="booking-summary-value">{appointmentModeLabel}</span>
+                </span>
+              </>
             </div>
           </div>
 

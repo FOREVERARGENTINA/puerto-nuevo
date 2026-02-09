@@ -67,7 +67,7 @@ const createImageThumbnail = async (file, maxSize = 480, quality = 0.8) => {
 
     if (!blob) return null;
     return blob;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -210,7 +210,7 @@ export const talleresService = {
         const file = files[i];
         const safeName = String(file.name || 'archivo')
           .replace(/\s+/g, '_')
-          .replace(/[^\w.\-]/g, '');
+          .replace(/[^\w.-]/g, '');
         const fileName = `${timestamp}_${i}_${safeName}`;
         const storagePath = `talleres/${tallerId}/gallery/${fileName}`;
         const storageRef = ref(storage, storagePath);
@@ -341,7 +341,7 @@ export const talleresService = {
         const file = files[i];
         const safeName = String(file.name || 'archivo')
           .replace(/\s+/g, '_')
-          .replace(/[^\w.\-]/g, '');
+          .replace(/[^\w.-]/g, '');
         const fileName = `${timestamp}_${i}_${safeName}`;
         const storagePath = `talleres/${tallerId}/albums/${albumId}/${fileName}`;
         const storageRef = ref(storage, storagePath);
@@ -490,4 +490,3 @@ export const talleresService = {
     }
   }
 };
-

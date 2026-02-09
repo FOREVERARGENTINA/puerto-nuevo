@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AMBIENTES } from '../config/constants';
-import { conversationsService } from '../services/conversations.service';
 
 /**
  * Hook optimizado para el resumen del navbar en tiempo real

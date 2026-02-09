@@ -54,6 +54,12 @@ const getFamilyFirstName = (displayName, email) => {
   return firstToken.charAt(0).toUpperCase() + firstToken.slice(1);
 };
 
+const getAppointmentModeLabel = (mode) => {
+  if (mode === 'virtual') return 'virtual';
+  if (mode === 'presencial') return 'presencial';
+  return 'sin definir';
+};
+
 const isSnackConfirmedByFamily = (assignment, familyUid) => {
   if (!assignment || !familyUid) return false;
   if (assignment.suspendido) return false;
@@ -117,6 +123,7 @@ const mapAppointmentsToCalendarEvents = (appointments, year, month, { includeFam
         hora: hourLabel,
         titulo: title,
         descripcion: description,
+        appointmentMode: getAppointmentModeLabel(appointment.modalidad),
         source: 'appointment'
       };
     })
@@ -315,6 +322,7 @@ export function EventCalendar() {
   const closeDayDetails = () => setSelectedDate(null);
   const isSnackEvent = (event) => event?.source === 'snack';
   const isAppointmentEvent = (event) => event?.source === 'appointment';
+  const getAppointmentBadgeLabel = (event) => `Reunión ${event?.appointmentMode || 'sin definir'}`;
 
   return (
     <div className="event-calendar">
@@ -407,7 +415,7 @@ export function EventCalendar() {
                   )}
                   {isAppointmentEvent(event) && (
                     <span className="event-calendar__event-badge event-calendar__event-badge--appointment">
-                      Reunión
+                      {getAppointmentBadgeLabel(event)}
                     </span>
                   )}
                   {!isSnackEvent(event) && !isAppointmentEvent(event) && isPast && (
@@ -466,7 +474,7 @@ export function EventCalendar() {
                     )}
                     {isAppointmentEvent(event) && (
                       <span className="event-calendar__event-badge event-calendar__event-badge--appointment">
-                        Reunión
+                        {getAppointmentBadgeLabel(event)}
                       </span>
                     )}
                     {!isSnackEvent(event) && !isAppointmentEvent(event) && isPast && (

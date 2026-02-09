@@ -9,7 +9,7 @@ import Icon from '../../components/ui/Icon';
 export function Communications() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { communications, unreadRequired, loading, error, markAsRead, hasUnreadRequired } = useCommunications();
+  const { communications, unreadRequired, loading, error, hasUnreadRequired } = useCommunications();
   const [readStatus, setReadStatus] = useState({});
   const [senderFilter, setSenderFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
@@ -205,5 +205,4 @@ export function Communications() {
     </div>
   );
 }
-
 

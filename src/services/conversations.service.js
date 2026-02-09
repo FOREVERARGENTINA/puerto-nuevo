@@ -243,7 +243,7 @@ export const conversationsService = {
       );
       const snapshot = await getCountFromServer(q);
       return { success: true, count: snapshot.data().count || 0 };
-    } catch (error) {
+    } catch {
       try {
         const q = query(
           conversationsCollection,

@@ -174,10 +174,26 @@ const ChildrenManager = () => {
     ambiente === 'taller1' ? 'Taller 1' : 'Taller 2'
   );
 
+  const parseLocalDate = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        return new Date(year, month, day);
+      }
+    }
+    return new Date(value);
+  };
+
   const calculateAge = (birthDate) => {
     if (!birthDate) return null;
     const today = new Date();
-    const birth = new Date(birthDate);
+    const birth = parseLocalDate(birthDate);
+    if (!birth || Number.isNaN(birth.getTime())) return null;
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {

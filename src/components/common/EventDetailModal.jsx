@@ -27,16 +27,6 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
     return labels[tipo] || tipo;
   };
 
-  const getEventTypeBadge = (tipo) => {
-    const badges = {
-      general: 'badge--info',
-      reuniones: 'badge--warning',
-      talleres: 'badge--success',
-      snacks: 'badge--primary'
-    };
-    return badges[tipo] || 'badge--neutral';
-  };
-
   const formatDate = (timestamp) => {
     if (!timestamp) return '';
     const date = normalizeEventDate(timestamp);
@@ -44,16 +34,6 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
-      year: 'numeric'
-    }).format(date);
-  };
-
-  const formatShortDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = normalizeEventDate(timestamp);
-    return new Intl.DateTimeFormat('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
       year: 'numeric'
     }).format(date);
   };

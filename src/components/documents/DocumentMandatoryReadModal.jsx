@@ -1,13 +1,22 @@
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
 import Icon from '../ui/Icon';
+import { useState } from 'react';
 
 /**
  * Modal para confirmar lectura de documento obligatorio
  */
 export function DocumentMandatoryReadModal({ document, onConfirm, onClose }) {
+  const [hasOpenedDocument, setHasOpenedDocument] = useState(false);
+  const [showOpenWarning, setShowOpenWarning] = useState(false);
+
   if (!document) return null;
 
   const handleConfirm = () => {
+    if (!hasOpenedDocument) {
+      setShowOpenWarning(true);
+      return;
+    }
+
     onConfirm(document.id);
   };
 
@@ -82,6 +91,10 @@ export function DocumentMandatoryReadModal({ document, onConfirm, onClose }) {
           href={document.archivoURL}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => {
+            setHasOpenedDocument(true);
+            setShowOpenWarning(false);
+          }}
           className="btn btn--primary btn--lg"
           style={{ 
             marginBottom: 'var(--spacing-lg)',
@@ -97,6 +110,15 @@ export function DocumentMandatoryReadModal({ document, onConfirm, onClose }) {
           <Icon name="eye" size={20} />
           Abrir documento para leer
         </a>
+
+        {showOpenWarning && (
+          <div className="alert alert--warning" style={{ marginBottom: 'var(--spacing-lg)' }}>
+            <p style={{ margin: 0 }}>
+              <strong>Atención:</strong> parece que todavía no abriste el archivo.
+              Tocá <strong>Abrir documento para leer</strong> antes de confirmar.
+            </p>
+          </div>
+        )}
 
         <div className="alert alert--warning" style={{ marginBottom: 'var(--spacing-lg)' }}>
           <p style={{ margin: 0 }}>
@@ -132,3 +154,4 @@ export function DocumentMandatoryReadModal({ document, onConfirm, onClose }) {
     </Modal>
   );
 }
+

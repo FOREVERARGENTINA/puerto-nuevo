@@ -5,6 +5,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import { conversationsService } from '../../services/conversations.service';
 import { ROUTES, CONVERSATION_STATUS } from '../../config/constants';
+import { emitConversationRead } from '../../utils/conversationEvents';
 import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
@@ -57,7 +58,11 @@ export function FamilyConversationDetail() {
   useEffect(() => {
     if (!conversation || !user) return;
     if ((conversation.mensajesSinLeerFamilia || 0) > 0) {
-      conversationsService.markConversationRead(conversation.id, 'family');
+      setConversation((prev) => (prev ? { ...prev, mensajesSinLeerFamilia: 0 } : prev));
+      emitConversationRead(conversation.id, 'family');
+      conversationsService.markConversationRead(conversation.id, 'family').catch(() => {
+        // no-op: el listener remoto corrige estado final
+      });
     }
   }, [conversation, user]);
 

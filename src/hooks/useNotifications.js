@@ -73,11 +73,39 @@ const isWithinRange = (date, start, end) => {
   return date >= start && date <= end;
 };
 
+const normalizeDismissedIds = (entries) => {
+  if (!Array.isArray(entries)) return [];
+  const ids = entries
+    .map((entry) => {
+      if (typeof entry !== 'string') return '';
+      const trimmed = entry.trim();
+      if (!trimmed) return '';
+      // Backward compatibility: previous format used "id:timestamp".
+      return /:\d+$/.test(trimmed) ? trimmed.replace(/:\d+$/, '') : trimmed;
+    })
+    .filter(Boolean);
+  return Array.from(new Set(ids));
+};
+
+const readDismissedIds = (storageKey) => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const normalized = normalizeDismissedIds(parsed);
+    localStorage.setItem(storageKey, JSON.stringify(normalized));
+    return normalized;
+  } catch {
+    return [];
+  }
+};
+
 export function useNotifications() {
   const { user, role } = useAuth();
-  const { unreadRequired } = useCommunications();
+  const { unreadCommunications } = useCommunications();
   const { conversations } = useConversations({ user, role });
   const [dismissedSnackAssignedKeys, setDismissedSnackAssignedKeys] = useState([]);
+  const [dismissedAppointmentAssignedKeys, setDismissedAppointmentAssignedKeys] = useState([]);
+  const [dismissedHydrated, setDismissedHydrated] = useState(false);
   const [upcomingSnacks, setUpcomingSnacks] = useState([]);
   const [assignedSnacks, setAssignedSnacks] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
@@ -87,16 +115,38 @@ export function useNotifications() {
   useEffect(() => {
     if (!user?.uid) {
       setDismissedSnackAssignedKeys([]);
+      setDismissedAppointmentAssignedKeys([]);
+      setDismissedHydrated(true);
       return;
     }
 
-    try {
-      const raw = localStorage.getItem(`pn:dismissedSnackAssigned:${user.uid}`);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setDismissedSnackAssignedKeys(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setDismissedSnackAssignedKeys([]);
-    }
+    const snackKey = `pn:dismissedSnackAssigned:${user.uid}`;
+    const appointmentKey = `pn:dismissedAppointmentAssigned:${user.uid}`;
+
+    setDismissedSnackAssignedKeys(readDismissedIds(snackKey));
+    setDismissedAppointmentAssignedKeys(readDismissedIds(appointmentKey));
+    setDismissedHydrated(true);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const snackKey = `pn:dismissedSnackAssigned:${user.uid}`;
+    const appointmentKey = `pn:dismissedAppointmentAssigned:${user.uid}`;
+
+    const handleStorage = (event) => {
+      if (!event.key) return;
+      if (event.key === snackKey) {
+        setDismissedSnackAssignedKeys(readDismissedIds(snackKey));
+        return;
+      }
+      if (event.key === appointmentKey) {
+        setDismissedAppointmentAssignedKeys(readDismissedIds(appointmentKey));
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [user?.uid]);
 
   useEffect(() => {
@@ -253,7 +303,7 @@ export function useNotifications() {
   }, [user, role]);
 
   const relevantCommunications = user
-    ? unreadRequired.filter((comm) => {
+    ? unreadCommunications.filter((comm) => {
         if (!comm.destinatarios || !Array.isArray(comm.destinatarios)) return false;
 
         const isRecipient = comm.destinatarios.includes(user.uid);
@@ -302,34 +352,68 @@ export function useNotifications() {
       };
     });
 
-  const assignedNotifications = assignedAppointments.map((appt) => ({
-    id: `assigned-${appt.id}`,
-    type: 'turno-asignado',
-    title: 'Turno asignado',
-    message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
-    timestamp: appt.assignedAt?.toDate() || appt.updatedAt?.toDate() || appt.createdAt?.toDate() || new Date(),
-    urgent: true,
-    actionUrl: appointmentsUrl,
-    metadata: { appointmentId: appt.id }
-  }));
+  const assignedNotifications = assignedAppointments.map((appt) => {
+    const assignedDate = toDateSafe(appt.assignedAt)
+      || toDateSafe(appt.updatedAt)
+      || toDateSafe(appt.createdAt);
 
-  const assignedSnackNotifications = assignedSnacks.map((snack) => ({
-    id: `snack-assigned-${snack.id}`,
-    type: 'snack-asignado',
-    title: 'Semana de snacks asignada',
-    message: snack.fechaInicio && snack.fechaFin
-      ? `Semana del ${formatSnackDate(snack.fechaInicio)} al ${formatSnackDate(snack.fechaFin)}`
-      : 'Tenes una nueva semana de snacks asignada',
-    timestamp: getSnackAssignedDate(snack) || new Date(),
-    urgent: true,
-    actionUrl: snacksUrl,
-    metadata: { assignmentId: snack.id }
-  }));
+    return {
+      id: `assigned-${appt.id}`,
+      type: 'turno-asignado',
+      title: 'Turno asignado',
+      message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
+      timestamp: assignedDate || new Date(),
+      urgent: true,
+      actionUrl: appointmentsUrl,
+      metadata: {
+        appointmentId: appt.id,
+        assignedAtMs: assignedDate?.getTime() || 0
+      }
+    };
+  });
+
+  const assignedSnackNotifications = assignedSnacks.map((snack) => {
+    const assignedDate = getSnackAssignedDate(snack);
+
+    return {
+      id: `snack-assigned-${snack.id}`,
+      type: 'snack-asignado',
+      title: 'Semana de snacks asignada',
+      message: snack.fechaInicio && snack.fechaFin
+        ? `Semana del ${formatSnackDate(snack.fechaInicio)} al ${formatSnackDate(snack.fechaFin)}`
+        : 'Tenes una nueva semana de snacks asignada',
+      timestamp: assignedDate || new Date(),
+      urgent: true,
+      actionUrl: snacksUrl,
+      metadata: {
+        assignmentId: snack.id,
+        assignedAtMs: assignedDate?.getTime() || 0
+      }
+    };
+  });
 
   const getSnackAssignedDismissKey = (notification) => {
-    const assignmentId = notification?.metadata?.assignmentId || notification?.id;
-    const timestampMs = toDateSafe(notification?.timestamp)?.getTime() || 0;
-    return `${assignmentId}:${timestampMs}`;
+    if (notification?.metadata?.assignmentId) {
+      return String(notification.metadata.assignmentId);
+    }
+
+    const fallbackId = typeof notification?.id === 'string' ? notification.id : '';
+    if (!fallbackId) return '';
+    return fallbackId.startsWith('snack-assigned-')
+      ? fallbackId.replace('snack-assigned-', '')
+      : fallbackId;
+  };
+
+  const getAppointmentAssignedDismissKey = (notification) => {
+    if (notification?.metadata?.appointmentId) {
+      return String(notification.metadata.appointmentId);
+    }
+
+    const fallbackId = typeof notification?.id === 'string' ? notification.id : '';
+    if (!fallbackId) return '';
+    return fallbackId.startsWith('assigned-')
+      ? fallbackId.replace('assigned-', '')
+      : fallbackId;
   };
 
   const assignedIds = new Set(assignedAppointments.map((appt) => appt.id));
@@ -370,10 +454,20 @@ export function useNotifications() {
       actionUrl: role === ROLES.FAMILY ? '/familia/documentos' : '/shared/documentos',
       metadata: { documentId: doc.documentId, receiptId: doc.id }
     })),
-    ...assignedNotifications,
-    ...assignedSnackNotifications.filter((notif) => (
-      !dismissedSnackAssignedKeys.includes(getSnackAssignedDismissKey(notif))
-    )),
+    ...(
+      dismissedHydrated
+        ? assignedNotifications.filter((notif) => (
+            !dismissedAppointmentAssignedKeys.includes(getAppointmentAssignedDismissKey(notif))
+          ))
+        : []
+    ),
+    ...(
+      dismissedHydrated
+        ? assignedSnackNotifications.filter((notif) => (
+            !dismissedSnackAssignedKeys.includes(getSnackAssignedDismissKey(notif))
+          ))
+        : []
+    ),
     ...upcomingSnacks
       .filter((snack) => !assignedSnackIds.has(snack.id))
       .map((snack) => ({
@@ -397,21 +491,37 @@ export function useNotifications() {
     notifications,
     totalCount: notifications.length,
     dismissNotification: (notification) => {
-      if (!user?.uid || notification?.type !== 'snack-asignado') {
+      if (!user?.uid || !notification?.type) {
         return;
       }
 
-      const key = getSnackAssignedDismissKey(notification);
-      setDismissedSnackAssignedKeys((prev) => {
-        if (prev.includes(key)) return prev;
-        const next = [...prev, key].slice(-80);
+      if (notification.type === 'snack-asignado') {
+        const key = getSnackAssignedDismissKey(notification);
+        if (!key) return;
+        if (dismissedSnackAssignedKeys.includes(key)) return;
+        const next = Array.from(new Set([...dismissedSnackAssignedKeys, key])).slice(-120);
         try {
           localStorage.setItem(`pn:dismissedSnackAssigned:${user.uid}`, JSON.stringify(next));
         } catch {
           // no-op
         }
-        return next;
-      });
+        setDismissedSnackAssignedKeys(next);
+        return;
+      }
+
+      if (notification.type === 'turno-asignado') {
+        const key = getAppointmentAssignedDismissKey(notification);
+        if (!key) return;
+        if (dismissedAppointmentAssignedKeys.includes(key)) return;
+        const next = Array.from(new Set([...dismissedAppointmentAssignedKeys, key])).slice(-120);
+        try {
+          localStorage.setItem(`pn:dismissedAppointmentAssigned:${user.uid}`, JSON.stringify(next));
+        } catch {
+          // no-op
+        }
+        setDismissedAppointmentAssignedKeys(next);
+        return;
+      }
     },
     byType: {
       conversaciones: conversationNotifications.length,

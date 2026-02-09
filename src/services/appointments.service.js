@@ -26,12 +26,17 @@ const emitAppointmentsUpdated = () => {
     window.dispatchEvent(new CustomEvent('appointments:updated'));
   }
 };
+const normalizeAppointmentMode = (value) => (
+  value === 'virtual' || value === 'presencial' ? value : null
+);
 
 export const appointmentsService = {
   async createAppointment(data) {
     try {
+      const mode = normalizeAppointmentMode(data?.modalidad);
       const docRef = await addDoc(appointmentsCollection, {
         ...data,
+        ...(mode ? { modalidad: mode } : {}),
         estado: 'reservado',
         createdAt: serverTimestamp()
       });
@@ -86,7 +91,7 @@ export const appointmentsService = {
         const file = files[i];
         const safeName = String(file.name || 'archivo')
           .replace(/\s+/g, '_')
-          .replace(/[^\w.\-]/g, '');
+          .replace(/[^\w.-]/g, '');
         const fileName = `${timestamp}_${i}_${safeName}`;
         const storagePath = `private/appointments/${appointmentId}/notes/${fileName}`;
         const storageRef = ref(storage, storagePath);
@@ -344,15 +349,17 @@ export const appointmentsService = {
 
   async createTimeSlots(slotsData) {
     try {
-      const promises = slotsData.map(slot => 
-        addDoc(appointmentsCollection, {
+      const promises = slotsData.map(slot => {
+        const mode = normalizeAppointmentMode(slot?.modalidad);
+        return addDoc(appointmentsCollection, {
           ...slot,
+          ...(mode ? { modalidad: mode } : {}),
           estado: 'disponible',
           familiaUid: null,
           hijoId: null,
           createdAt: serverTimestamp()
-        })
-      );
+        });
+      });
       await Promise.all(promises);
       return { success: true };
     } catch (error) {
