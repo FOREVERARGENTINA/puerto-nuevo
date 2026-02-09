@@ -16,6 +16,9 @@ const BookAppointment = () => {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isMobileSlotsOpen, setIsMobileSlotsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [earliestAllowed, setEarliestAllowed] = useState(null);
 
@@ -182,10 +185,14 @@ const BookAppointment = () => {
     return { daysInMonth, startingDayOfWeek, year, month };
   };
 
+  const getAppointmentDate = (value) => (
+    value?.toDate ? value.toDate() : new Date(value)
+  );
+
   const getAppointmentsForDate = (date) => {
     const dateString = date.toISOString().split('T')[0];
     return availableAppointments.filter(app => {
-      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      const appDate = getAppointmentDate(app.fechaHora);
       const appDateString = appDate.toISOString().split('T')[0];
       const meetsLeadTime = earliestAllowed ? appDate >= earliestAllowed : true;
       return appDateString === dateString && meetsLeadTime;
@@ -198,21 +205,29 @@ const BookAppointment = () => {
     newMonth.setMonth(newMonth.getMonth() + offset);
     setCurrentMonth(newMonth);
     setSelectedDate(null);
+    setIsMobileSlotsOpen(false);
   };
 
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDate(today);
+    setIsMobileSlotsOpen(true);
   };
 
+  useEffect(() => {
+    if (selectedDate) {
+      setIsMobileSlotsOpen(true);
+    }
+  }, [selectedDate]);
+
   const formatTime = (timestamp) => {
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = getAppointmentDate(timestamp);
     return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDateTime = (timestamp) => {
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const date = getAppointmentDate(timestamp);
     return date.toLocaleString('es-AR', {
       weekday: 'long',
       year: 'numeric',
@@ -227,12 +242,12 @@ const BookAppointment = () => {
     const now = new Date();
     return myAppointments
       .filter(app => {
-        const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+        const appDate = getAppointmentDate(app.fechaHora);
         return appDate >= now && app.estado === 'reservado';
       })
       .sort((a, b) => {
-        const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
-        const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+        const dateA = getAppointmentDate(a.fechaHora);
+        const dateB = getAppointmentDate(b.fechaHora);
         return dateA - dateB;
       });
   };
@@ -242,7 +257,7 @@ const BookAppointment = () => {
       <div className="container page-container">
         <div className="dashboard-header dashboard-header--compact">
           <div>
-            <h1 className="dashboard-title">Turnos y Reuniones</h1>
+            <h1 className="dashboard-title">Turnos para Reuniones</h1>
             <p className="dashboard-subtitle">Reservá un turno con la escuela.</p>
           </div>
         </div>
@@ -259,12 +274,6 @@ const BookAppointment = () => {
   if (showBookingForm && selectedSlot) {
     return (
       <div className="container page-container">
-        <div className="dashboard-header dashboard-header--compact">
-          <div>
-            <h1 className="dashboard-title">Reservar Turno</h1>
-            <p className="dashboard-subtitle">Seleccioná la fecha y completá el formulario.</p>
-          </div>
-        </div>
         <AppointmentForm
           appointment={selectedSlot}
           userChildren={userChildren}
@@ -277,6 +286,10 @@ const BookAppointment = () => {
 
   const upcomingAppointments = getUpcomingAppointments();
   const selectedDateAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
+  const upcomingAppointmentIds = new Set(upcomingAppointments.map(app => app.id));
+  const appointmentHistory = myAppointments
+    .filter(app => !upcomingAppointmentIds.has(app.id))
+    .sort((a, b) => getAppointmentDate(b.fechaHora) - getAppointmentDate(a.fechaHora));
   const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -314,18 +327,20 @@ const BookAppointment = () => {
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">Turnos y Reuniones</h1>
+          <h1 className="dashboard-title">Turnos para Reuniones</h1>
           <p className="dashboard-subtitle">Reservá turnos y consultá tu agenda.</p>
         </div>
       </div>
 
-      <div className="appointments-manager-layout">
-        <div className="appointments-list-panel">
-          <div className="card">
-            <div className="card__body">
-              {upcomingAppointments.length > 0 && (
-                <>
-                  <h2 className="card__title">Próximos turnos</h2>
+      <div className="appointments-manager-layout appointments-manager-layout--family">
+        <div className="appointments-secondary-panel appointments-secondary-panel--family">
+          {upcomingAppointments.length > 0 && (
+            <div className="card appointments-upcoming-card">
+              <div className="card__body">
+                <section className="appointments-section appointments-section--upcoming">
+                  <div className="appointments-section__header">
+                    <h2 className="card__title">Próximos turnos</h2>
+                  </div>
                   <div className="upcoming-appointments-list">
                     {upcomingAppointments.slice(0, 3).map(app => (
                       <div key={app.id} className="upcoming-appointment-item">
@@ -342,102 +357,123 @@ const BookAppointment = () => {
                       </div>
                     ))}
                   </div>
-                  <div className="divider" />
-                </>
-              )}
+                </section>
+              </div>
+            </div>
+          )}
 
-              <h2 className="card__title">
-                {selectedDate
-                  ? `Turnos del ${selectedDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}`
-                  : 'Selecciona un día'}
-              </h2>
-              <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>
+          <div className="card appointments-guide-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--guide">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Cómo reservar</h2>
+                  <div className="appointments-section__actions">
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline appointments-section__toggle"
+                      onClick={() => setIsGuideOpen(prev => !prev)}
+                      aria-expanded={isGuideOpen}
+                      aria-controls="appointments-guide-content"
+                    >
+                      {isGuideOpen ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
+                </div>
+                {isGuideOpen && (
+                  <div id="appointments-guide-content">
+                    <ol className="appointments-guide-list">
+                      <li>Elegí un día en el calendario con disponibilidad.</li>
+                      <li>Seleccioná un horario en la lista de turnos.</li>
+                      <li>Completá el formulario y confirmá.</li>
+                    </ol>
+                    <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
 
-              {!selectedDate ? (
-                <div className="empty-state">
-                  <p className="empty-state__text">Selecciona un día en el calendario para ver los turnos disponibles</p>
+          <div className="card appointments-history-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--history">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Historial</h2>
+                  <div className="appointments-section__actions">
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline appointments-section__toggle"
+                      onClick={() => setIsHistoryOpen(prev => !prev)}
+                      aria-expanded={isHistoryOpen}
+                      aria-controls="appointments-history-content"
+                    >
+                      {isHistoryOpen ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
                 </div>
-              ) : selectedDateAppointments.length === 0 ? (
-                <div className="empty-state">
-                  <p className="empty-state__text">No hay turnos disponibles para este día</p>
-                </div>
-              ) : (
-                <div className="available-slots-list">
-                  {selectedDateAppointments.map(app => (
-                    <div key={app.id} className="available-slot-item">
-                      <div className="slot-time-info">
-                        <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                        <div className="slot-duration">{app.duracionMinutos} min</div>
+
+                {isHistoryOpen && (
+                  <div id="appointments-history-content">
+                    {appointmentHistory.length === 0 ? (
+                      <div className="empty-state empty-state--compact">
+                        <p className="empty-state__text">Todavía no hay turnos para mostrar.</p>
                       </div>
-                      <button
-                        onClick={() => handleSelectSlot(app)}
-                        className="btn btn--primary btn--sm"
-                      >
-                        Reservar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ) : (
+                      <div className="my-appointments-list">
+                        {appointmentHistory.map(app => {
+                          const appDate = getAppointmentDate(app.fechaHora);
+                          const isPast = appDate < new Date();
+                          const note = appointmentNotes[app.id];
 
-              {myAppointments.length > 0 && (
-                <>
-                  <div className="divider" />
-                  <h2 className="card__title">Todos mis turnos</h2>
-                  <div className="my-appointments-list">
-                    {myAppointments.map(app => {
-                      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
-                      const isPast = appDate < new Date();
-                      const note = appointmentNotes[app.id];
-
-                      return (
-                        <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
-                          <div className="appointment-datetime">
-                            {formatDateTime(app.fechaHora)}
-                          </div>
-                          <div className="appointment-meta">
-                            <span className={`badge badge--${
-                              app.estado === 'reservado' ? 'warning' :
-                              app.estado === 'asistio' ? 'success' :
-                              'secondary'
-                            }`}>
-                              {app.estado === 'reservado' ? 'Confirmado' : app.estado}
-                            </span>
-                            {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
-                          </div>
-                          {app.estado === 'asistio' && note && (
-                            <div style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
-                              <div><strong>Resumen:</strong> {note.resumen}</div>
-                              {note.acuerdos && <div><strong>Acuerdos:</strong> {note.acuerdos}</div>}
-                              {note.proximosPasos && <div><strong>Próximos pasos:</strong> {note.proximosPasos}</div>}
-                              {Array.isArray(note.attachments) && note.attachments.length > 0 && (
-                                <div style={{ marginTop: 'var(--spacing-xs)' }}>
-                                  <strong>Adjuntos:</strong>
-                                  <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
-                                    {note.attachments.map((file, index) => (
-                                      <li key={`${app.id}-note-${index}`}>
-                                        <a href={file.url} target="_blank" rel="noreferrer">{file.name || 'Archivo'}</a>
-                                      </li>
-                                    ))}
-                                  </ul>
+                          return (
+                            <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
+                              <div className="appointment-datetime">
+                                {formatDateTime(app.fechaHora)}
+                              </div>
+                              <div className="appointment-meta">
+                                <span className={`badge badge--${
+                                  app.estado === 'reservado' ? 'warning' :
+                                  app.estado === 'asistio' ? 'success' :
+                                  'secondary'
+                                }`}>
+                                  {app.estado === 'reservado' ? 'Confirmado' : app.estado}
+                                </span>
+                                {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
+                              </div>
+                              {app.estado === 'asistio' && note && (
+                                <div style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
+                                  <div><strong>Resumen:</strong> {note.resumen}</div>
+                                  {note.acuerdos && <div><strong>Acuerdos:</strong> {note.acuerdos}</div>}
+                                  {note.proximosPasos && <div><strong>Próximos pasos:</strong> {note.proximosPasos}</div>}
+                                  {Array.isArray(note.attachments) && note.attachments.length > 0 && (
+                                    <div style={{ marginTop: 'var(--spacing-xs)' }}>
+                                      <strong>Adjuntos:</strong>
+                                      <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                                        {note.attachments.map((file, index) => (
+                                          <li key={`${app.id}-note-${index}`}>
+                                            <a href={file.url} target="_blank" rel="noreferrer">Adjunto {index + 1}</a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
                                 </div>
                               )}
+                              {app.estado === 'reservado' && !isPast && (
+                                <button
+                                  onClick={() => handleCancelAppointment(app.id)}
+                                  className="btn btn--sm btn--outline btn--danger-outline"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
                             </div>
-                          )}
-                          {app.estado === 'reservado' && !isPast && (
-                            <button
-                              onClick={() => handleCancelAppointment(app.id)}
-                              className="btn btn--sm btn--outline btn--danger-outline"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </>
-              )}
+                )}
+              </section>
             </div>
           </div>
         </div>
@@ -506,16 +542,113 @@ const BookAppointment = () => {
                       key={index}
                       className={`event-calendar__day ${
                         day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
-                      } ${day && hasAppointments ? 'event-calendar__day--has-event' : ''} ${
+                      } ${day && hasAppointments ? 'event-calendar__day--has-event event-calendar__day--has-slot' : ''} ${
                         isSelected ? 'event-calendar__day--selected' : ''
                       } ${isToday ? 'event-calendar__day--today' : ''}`}
-                      onClick={() => day && !isTooSoon && setSelectedDate(new Date(currentMonthYear, currentMonthIndex, day))}
+                      onClick={() => {
+                        if (day && !isTooSoon) {
+                          setSelectedDate(new Date(currentMonthYear, currentMonthIndex, day));
+                          setIsMobileSlotsOpen(true);
+                        }
+                      }}
                     >
                       {day}
                     </div>
                   );
                 })}
               </div>
+            </div>
+
+            <div className="appointments-mobile-slots">
+              <button
+                type="button"
+                className="appointments-mobile-slots__trigger"
+                onClick={() => setIsMobileSlotsOpen(prev => !prev)}
+                aria-expanded={isMobileSlotsOpen}
+                aria-controls="appointments-mobile-slots-content"
+              >
+                <span>
+                  {selectedDate
+                    ? `Slots del ${selectedDate.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}`
+                    : 'Slots disponibles'}
+                </span>
+                <span className="appointments-mobile-slots__meta">
+                  {selectedDate ? `${selectedDateAppointments.length} disponibles` : 'Selecciona un día'}
+                </span>
+              </button>
+
+              {isMobileSlotsOpen && (
+                <div id="appointments-mobile-slots-content" className="appointments-mobile-slots__content">
+                  {!selectedDate ? (
+                    <div className="empty-state empty-state--compact">
+                      <p className="empty-state__text">Selecciona un día en el calendario para ver horarios.</p>
+                    </div>
+                  ) : selectedDateAppointments.length === 0 ? (
+                    <div className="empty-state empty-state--compact">
+                      <p className="empty-state__text">No hay turnos disponibles para este día.</p>
+                    </div>
+                  ) : (
+                    <div className="available-slots-list">
+                      {selectedDateAppointments.map(app => (
+                        <div key={app.id} className="available-slot-item">
+                          <div className="slot-time-info">
+                            <div className="slot-time">{formatTime(app.fechaHora)}</div>
+                            <div className="slot-duration">{app.duracionMinutos} min</div>
+                          </div>
+                          <button
+                            onClick={() => handleSelectSlot(app)}
+                            className="btn btn--primary btn--sm"
+                          >
+                            Reservar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="appointments-list-panel appointments-list-panel--family-main">
+          <div className="card appointments-availability-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--availability">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Horarios disponibles</h2>
+                  <span className="appointments-section__meta">
+                    {selectedDate ? `${selectedDateAppointments.length} disponibles` : 'Selecciona un dia'}
+                  </span>
+                </div>
+
+                {!selectedDate ? (
+                  <div className="empty-state empty-state--compact">
+                    <p className="empty-state__text">Selecciona un dia en el calendario para ver horarios.</p>
+                  </div>
+                ) : selectedDateAppointments.length === 0 ? (
+                  <div className="empty-state empty-state--compact">
+                    <p className="empty-state__text">No hay turnos disponibles para este dia.</p>
+                  </div>
+                ) : (
+                  <div className="available-slots-list">
+                    {selectedDateAppointments.map(app => (
+                      <div key={app.id} className="available-slot-item">
+                        <div className="slot-time-info">
+                          <div className="slot-time">{formatTime(app.fechaHora)}</div>
+                          <div className="slot-duration">{app.duracionMinutos} min</div>
+                        </div>
+                        <button
+                          onClick={() => handleSelectSlot(app)}
+                          className="btn btn--primary btn--sm"
+                        >
+                          Reservar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           </div>
         </div>

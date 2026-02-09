@@ -46,7 +46,7 @@ export const documentReadReceiptsService = {
   },
 
   /**
-   * Marca un documento como leÃ­do por un usuario
+   * Marca un documento como leído por un usuario
    * @param {string} documentId - ID del documento
    * @param {string} userId - UID del usuario
    */
@@ -86,7 +86,7 @@ export const documentReadReceiptsService = {
 
       return { success: true };
     } catch (error) {
-      console.error('Error marcando como leÃ­do:', error);
+      console.error('Error marcando como leído:', error);
       return { success: false, error: error.message };
     }
   },

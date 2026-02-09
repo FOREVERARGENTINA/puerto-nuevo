@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,7 +10,6 @@ import Icon from '../../components/ui/Icon';
 
 export function CommunicationDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [communication, setCommunication] = useState(null);
   const [hasRead, setHasRead] = useState(false);
@@ -120,9 +119,9 @@ export function CommunicationDetail() {
         <div className="alert alert--error">
           {error || 'Comunicado no encontrado'}
         </div>
-        <Link to={ROUTES.COMMUNICATIONS} className="btn btn--outline" style={{ marginTop: 'var(--spacing-md)' }}>
-          <Icon name="arrow-left" size={16} />
-          Volver a Comunicados
+        <Link to={ROUTES.COMMUNICATIONS} className="btn btn--outline btn--back" style={{ marginTop: 'var(--spacing-md)' }}>
+          <Icon name="chevron-left" size={16} />
+          Volver
         </Link>
       </div>
     );
@@ -132,9 +131,9 @@ export function CommunicationDetail() {
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <Link to={ROUTES.COMMUNICATIONS} className="btn btn--text" style={{ marginBottom: 'var(--spacing-xs)' }}>
-            <Icon name="arrow-left" size={16} />
-            Volver a Comunicados
+          <Link to={ROUTES.COMMUNICATIONS} className="btn btn--outline btn--back" style={{ marginBottom: 'var(--spacing-xs)' }}>
+            <Icon name="chevron-left" size={16} />
+            Volver
           </Link>
           <h1 className="dashboard-title">{communication.title}</h1>
           <p className="dashboard-subtitle">

@@ -1,137 +1,199 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 
+const TERMINAL_STATES = new Set(['cancelado', 'completado']);
+
 /**
- * Cloud Function Scheduled: Recordatorio de Snacks (Viernes)
- * Se ejecuta todos los viernes a las 10:00 AM (hora Argentina)
- * Envía recordatorios a las familias que tienen asignación la próxima semana
+ * Scheduled function: weekly snacks reminder (Friday 10:00 AM Argentina time).
+ * Sends reminders for next week assignments.
  */
-exports.sendSnacksReminder = onSchedule({
-  schedule: '0 10 * * 5', // Cron: Todos los viernes a las 10:00 AM
-  timeZone: 'America/Argentina/Buenos_Aires',
-  region: 'us-central1'
-}, async (_event) => {
-  const db = admin.firestore();
+exports.sendSnacksReminder = onSchedule(
+  {
+    schedule: '0 10 * * 5',
+    timeZone: 'America/Argentina/Buenos_Aires',
+    region: 'us-central1'
+  },
+  async (_event) => {
+    const db = admin.firestore();
 
-  console.log('🍎 Ejecutando recordatorio de snacks...');
+    console.log('Running weekly snacks reminder...');
 
-  try {
-    // Calcular el próximo lunes (3 días después del viernes)
-    const today = new Date();
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + 3);
-    nextMonday.setHours(0, 0, 0, 0);
+    try {
+      const mondayString = getNextMondayString();
+      console.log(`Searching assignments for week starting ${mondayString}`);
 
-    const mondayString = nextMonday.toISOString().split('T')[0];
+      const snapshot = await db.collection('snackAssignments').where('fechaInicio', '==', mondayString).get();
 
-    console.log(`Buscando asignaciones para la semana del ${mondayString}`);
-
-    // Buscar asignaciones para la próxima semana que NO hayan sido confirmadas
-    // Nota: verificaremos por familia dentro del loop para enviar recordatorios individuales
-    const snapshot = await db.collection('snackAssignments')
-      .where('fechaInicio', '==', mondayString)
-      .where('confirmadoPorFamilia', '==', false)
-      .get();
-
-    if (snapshot.empty) {
-      console.log('No hay asignaciones pendientes para la próxima semana');
-      return null;
-    }
-
-    console.log(`Encontradas ${snapshot.size} asignaciones pendientes`);
-
-    const promises = [];
-
-    for (const doc of snapshot.docs) {
-      const assignment = doc.data();
-
-      console.log(`Procesando asignación para familia: ${assignment.familiaNombre || assignment.familiasUids?.[0] || 'N/D'} (child: ${assignment.childName || 'N/A'})`);
-
-      // Si hay familias listadas, enviar recordatorio por cada familia pendiente
-      if (Array.isArray(assignment.familias) && assignment.familias.length > 0) {
-        const updates = [];
-        const familiasToNotify = assignment.familias.filter(f => !f.recordatorioEnviado);
-        for (const fam of familiasToNotify) {
-          const comunicadoData = {
-            titulo: '🍎 Recordatorio: Snacks de la próxima semana',
-            mensaje: `Hola ${fam.name || ''},\n\nTe recordamos que la próxima semana (del ${formatDate(assignment.fechaInicio)} al ${formatDate(assignment.fechaFin)}) te corresponde traer los snacks para ${assignment.ambiente}${assignment.childName ? ' (Alumno: ' + assignment.childName + ')' : ''}.\n\nPor favor, trae los ingredientes el día lunes.\n\nSi tienes algún inconveniente, confirma o solicita un cambio desde el portal en la sección "Mis Turnos de Snacks".\n\n¡Gracias por tu colaboración!`,
-            destinatarios: [fam.uid],
-            sentBy: 'sistema',
-            sentAt: admin.firestore.FieldValue.serverTimestamp(),
-            requiresConfirmation: false,
-            tipo: 'recordatorio_snacks',
-            metadata: {
-              assignmentId: doc.id,
-              fechaInicio: assignment.fechaInicio,
-              fechaFin: assignment.fechaFin,
-              childName: assignment.childName || null
-            }
-          };
-
-          promises.push(db.collection('communications').add(comunicadoData));
-
-          // marcar esta familia como notificada en el array
-          updates.push(fam.uid);
-        }
-
-        if (updates.length > 0) {
-          const updatedFamilias = assignment.familias.map(f => updates.includes(f.uid) ? { ...f, recordatorioEnviado: true } : f);
-          promises.push(db.collection('snackAssignments').doc(doc.id).update({ familias: updatedFamilias, updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
-        }
-      } else {
-        // Compatibilidad hacia atrás: si no hay familias, usar familiaUid
-        const comunicadoData = {
-          titulo: '🍎 Recordatorio: Snacks de la próxima semana',
-          mensaje: `Hola ${assignment.familiaNombre || ''},\n\nTe recordamos que la próxima semana (del ${formatDate(assignment.fechaInicio)} al ${formatDate(assignment.fechaFin)}) te corresponde traer los snacks para ${assignment.ambiente}${assignment.childName ? ' (Alumno: ' + assignment.childName + ')' : ''}.\n\nPor favor, trae los ingredientes el día lunes.\n\nSi tienes algún inconveniente, confirma o solicita un cambio desde el portal en la sección "Mis Turnos de Snacks".\n\n¡Gracias por tu colaboración!`,
-          destinatarios: [assignment.familiaUid],
-          sentBy: 'sistema',
-          sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          requiresConfirmation: false,
-          tipo: 'recordatorio_snacks',
-          metadata: {
-            assignmentId: doc.id,
-            fechaInicio: assignment.fechaInicio,
-            fechaFin: assignment.fechaFin,
-            childName: assignment.childName || null
-          }
-        };
-
-        promises.push(db.collection('communications').add(comunicadoData));
-
-        // Marcar recordatorio como enviado (compat)
-        promises.push(db.collection('snackAssignments').doc(doc.id).update({
-          recordatorioEnviado: true,
-          fechaRecordatorio: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        }));
+      if (snapshot.empty) {
+        console.log('No assignments found for next week.');
+        return null;
       }
+
+      const writes = [];
+      let notificationsSent = 0;
+
+      for (const docSnap of snapshot.docs) {
+        const assignment = docSnap.data();
+        const assignmentId = docSnap.id;
+
+        const assignmentIsSuspended = assignment.suspendido === true || assignment.estado === 'suspendido';
+        const assignmentIsTerminal = TERMINAL_STATES.has(assignment.estado);
+        if (assignmentIsSuspended || assignmentIsTerminal) {
+          continue;
+        }
+
+        if (Array.isArray(assignment.familias) && assignment.familias.length > 0) {
+          const isAssignmentConfirmed =
+            assignment.confirmadoPorFamilia === true || assignment.estado === 'confirmado';
+
+          const pendingByReminderFlag = assignment.familias.filter((fam) => !fam?.recordatorioEnviado);
+          const confirmedFamilies = pendingByReminderFlag.filter((fam) => fam?.confirmed === true);
+
+          const familiesToNotify = pendingByReminderFlag.filter((fam) => {
+            if (!fam?.uid || fam.recordatorioEnviado) return false;
+            if (isAssignmentConfirmed) return fam.confirmed === true;
+            return true;
+          });
+
+          const finalFamiliesToNotify =
+            isAssignmentConfirmed && confirmedFamilies.length === 0
+              ? pendingByReminderFlag.filter((fam) => Boolean(fam?.uid))
+              : familiesToNotify;
+
+          const notifiedUids = [];
+          for (const fam of finalFamiliesToNotify) {
+            writes.push(
+              db.collection('communications').add(
+                buildReminderCommunication({
+                  assignment,
+                  assignmentId,
+                  recipientUid: fam.uid,
+                  recipientName: fam.name || '',
+                  isConfirmedReminder: isAssignmentConfirmed
+                })
+              )
+            );
+            notificationsSent += 1;
+            notifiedUids.push(fam.uid);
+          }
+
+          if (notifiedUids.length > 0) {
+            const nowIso = new Date().toISOString();
+            const updatedFamilies = assignment.familias.map((fam) =>
+              notifiedUids.includes(fam.uid)
+                ? { ...fam, recordatorioEnviado: true, fechaRecordatorio: nowIso }
+                : fam
+            );
+
+            writes.push(
+              db.collection('snackAssignments').doc(assignmentId).update({
+                familias: updatedFamilies,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              })
+            );
+          }
+        } else {
+          // Legacy document fallback.
+          if (!assignment.familiaUid || assignment.recordatorioEnviado === true) {
+            continue;
+          }
+
+          const isAssignmentConfirmed =
+            assignment.confirmadoPorFamilia === true || assignment.estado === 'confirmado';
+
+          writes.push(
+            db.collection('communications').add(
+              buildReminderCommunication({
+                assignment,
+                assignmentId,
+                recipientUid: assignment.familiaUid,
+                recipientName: assignment.familiaNombre || '',
+                isConfirmedReminder: isAssignmentConfirmed
+              })
+            )
+          );
+          notificationsSent += 1;
+
+          writes.push(
+            db.collection('snackAssignments').doc(assignmentId).update({
+              recordatorioEnviado: true,
+              fechaRecordatorio: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            })
+          );
+        }
+      }
+
+      await Promise.all(writes);
+
+      console.log(`Weekly snack reminders sent: ${notificationsSent}`);
+      return { success: true, count: notificationsSent };
+    } catch (error) {
+      console.error('Error sending snack reminders:', error);
+      throw error;
     }
-
-    await Promise.all(promises);
-
-    console.log(`✅ Recordatorios enviados exitosamente a ${snapshot.size} familias`);
-
-    return {
-      success: true,
-      count: snapshot.size
-    };
-
-  } catch (error) {
-    console.error('Error enviando recordatorios:', error);
-    throw error;
   }
-});
+);
 
-/**
- * Helper para formatear fechas
- */
+function buildReminderCommunication({
+  assignment,
+  assignmentId,
+  recipientUid,
+  recipientName,
+  isConfirmedReminder
+}) {
+  const dateRange = `del ${formatDate(assignment.fechaInicio)} al ${formatDate(assignment.fechaFin)}`;
+  const childLabel = assignment.childName ? ` (Alumno: ${assignment.childName})` : '';
+  const greeting = recipientName ? `Hola ${recipientName},` : 'Hola,';
+
+  const body = isConfirmedReminder
+    ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${assignment.ambiente}${childLabel}.\n\nPor favor, trae los ingredientes el dia lunes.\n\nGracias por tu colaboracion.`
+    : `${greeting}\n\nTe recordamos que la proxima semana (${dateRange}) te corresponde traer los snacks para ${assignment.ambiente}${childLabel}.\n\nPor favor, confirma o solicita cambio desde el portal en "Mis Turnos de Snacks".`;
+
+  return {
+    title: 'Recordatorio de snacks de la proxima semana',
+    body,
+    destinatarios: [recipientUid],
+    type: 'individual',
+    sentBy: 'sistema',
+    sentByDisplayName: 'Sistema',
+    sendByEmail: true,
+    hasPendingAttachments: false,
+    requiresConfirmation: false,
+    requiereLecturaObligatoria: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    tipo: 'recordatorio_snacks',
+    metadata: {
+      assignmentId,
+      fechaInicio: assignment.fechaInicio,
+      fechaFin: assignment.fechaFin,
+      childName: assignment.childName || null,
+      ambiente: assignment.ambiente || null,
+      confirmado: Boolean(isConfirmedReminder)
+    }
+  };
+}
+
+function getNextMondayString() {
+  const today = new Date();
+  const baseDate = new Date(today);
+  baseDate.setHours(0, 0, 0, 0);
+
+  // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const dayOfWeek = baseDate.getDay();
+  const daysUntilNextMonday = ((8 - dayOfWeek) % 7) || 7;
+
+  baseDate.setDate(baseDate.getDate() + daysUntilNextMonday);
+  return baseDate.toISOString().split('T')[0];
+}
+
 function formatDate(dateString) {
-  const date = new Date(dateString + 'T00:00:00');
-  const options = {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     timeZone: 'America/Argentina/Buenos_Aires'
-  };
-  return date.toLocaleDateString('es-AR', options);
+  });
 }

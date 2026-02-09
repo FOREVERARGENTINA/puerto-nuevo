@@ -6,6 +6,7 @@ import { ROLES, AMBIENTES, ROUTES } from '../../config/constants';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
+import Icon from '../../components/ui/Icon';
 
 export function UserManagement() {
   const { user, isAdmin } = useAuth();
@@ -260,8 +261,9 @@ export function UserManagement() {
           <p className="dashboard-subtitle">Crear usuarios y roles</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline">
-            ← Volver al Dashboard
+          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
           </Link>
         </div>
       </div>

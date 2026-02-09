@@ -138,6 +138,15 @@ export function AdminDashboard() {
                 <p>Biblioteca y permisos</p>
               </div>
             </Link>
+            <Link to={ROUTES.INSTITUTIONAL_GALLERY_ADMIN} className="card card--compact card--clickable link-unstyled admin-dashboard-card">
+              <div className="admin-dashboard-card__icon">
+                <Icon name="image" size={18} />
+              </div>
+              <div className="admin-dashboard-card__content">
+                <h3 className="card__title">Galería Institucional</h3>
+                <p>Fotos, videos y multimedia</p>
+              </div>
+            </Link>
           </div>
         </section>
       </div>

@@ -14,6 +14,39 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { fixMojibakeDeep } from '../utils/textEncoding';
+import {
+  normalizeSnackAssignmentState,
+  SNACK_ASSIGNMENT_STATE
+} from '../utils/snackAssignmentState';
+
+const isPastAssignment = (fechaFin) => {
+  if (!fechaFin) return false;
+  const endDate = new Date(`${fechaFin}T23:59:59`);
+  return endDate < new Date();
+};
+
+const isTerminalState = (stateKey) => (
+  stateKey === SNACK_ASSIGNMENT_STATE.CANCELLED
+  || stateKey === SNACK_ASSIGNMENT_STATE.COMPLETED
+);
+
+const dispatchSnacksUpdated = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('snacks:updated'));
+  }
+};
+
+const resetFamiliesConfirmation = (familias = []) => (
+  Array.isArray(familias)
+    ? familias.map((family) => ({
+        ...family,
+        confirmed: false,
+        fechaConfirmacion: null,
+        recordatorioEnviado: false,
+        fechaRecordatorio: null
+      }))
+    : []
+);
 
 /**
  * Servicio para gestión de calendario de snacks
@@ -53,14 +86,31 @@ export const snacksService = {
       if (!existingSnapshot.empty) {
         // Si ya existe una asignación para este ambiente y semana, actualizamos con la información de child o familias si viene
         const existingDoc = existingSnapshot.docs[0];
+        const existingData = existingDoc.data();
         const updateData = {};
         if (data.childId) updateData.childId = data.childId;
         if (data.childName) updateData.childName = data.childName;
         if (familias.length > 0) {
-          updateData.familias = familias;
+          updateData.familias = resetFamiliesConfirmation(familias);
           updateData.familiasUids = familiasUids;
         }
         if (Object.keys(updateData).length > 0) {
+          // Reasignación para la misma semana: reinicia estado y confirmaciones para evitar inconsistencias.
+          updateData.estado = 'pendiente';
+          updateData.assignedAt = serverTimestamp();
+          updateData.confirmadoPorFamilia = false;
+          updateData.confirmadoPor = null;
+          updateData.solicitudCambio = false;
+          updateData.motivoCambio = null;
+          updateData.motivoCancelacion = null;
+          updateData.fechaCancelacion = null;
+          updateData.fechaConfirmacion = null;
+          updateData.recordatorioEnviado = false;
+          updateData.suspendido = false;
+          updateData.motivoSuspension = null;
+          if (!updateData.familias && Array.isArray(existingData.familias)) {
+            updateData.familias = resetFamiliesConfirmation(existingData.familias);
+          }
           updateData.updatedAt = serverTimestamp();
           await updateDoc(doc(db, 'snackAssignments', existingDoc.id), updateData);
         }
@@ -71,12 +121,12 @@ export const snacksService = {
         ambiente: data.ambiente,
         fechaInicio: data.fechaInicio, // Formato: "2026-03-03" (lunes)
         fechaFin: data.fechaFin,         // Formato: "2026-03-07" (viernes)
-        familias,
+        familias: resetFamiliesConfirmation(familias),
         familiasUids,
         // Soporte para alumno (child) cuando la asignación viene por alumno
         childId: data.childId || null,
         childName: data.childName || null,
-        estado: 'pendiente',              // pendiente | confirmado | completado | cambio_solicitado
+        estado: 'pendiente',              // pendiente | confirmado | cambio_solicitado
         recordatorioEnviado: false,
         solicitudCambio: false,
         motivoCambio: null,
@@ -173,11 +223,39 @@ export const snacksService = {
   async confirmAssignment(assignmentId) {
     try {
       const docRef = doc(db, 'snackAssignments', assignmentId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return { success: false, error: 'Assignment not found' };
+
+      const data = snap.data();
+      const state = normalizeSnackAssignmentState(data);
+      if (state === SNACK_ASSIGNMENT_STATE.SUSPENDED || isTerminalState(state)) {
+        return { success: false, error: 'No se puede confirmar este turno en su estado actual.' };
+      }
+      if (isPastAssignment(data.fechaFin)) {
+        return { success: false, error: 'No se puede confirmar un turno pasado.' };
+      }
+
+      const families = Array.isArray(data.familias)
+        ? data.familias.map((family, index, all) => (
+            all.length === 1
+              ? {
+                  ...family,
+                  confirmed: true,
+                  fechaConfirmacion: family.fechaConfirmacion || new Date().toISOString()
+                }
+              : family
+          ))
+        : [];
       await updateDoc(docRef, {
+        familias: families,
         confirmadoPorFamilia: true,
+        confirmadoPor: data.confirmadoPor || 'Familia',
         estado: 'confirmado',
         solicitudCambio: false,
+        assignedAt: serverTimestamp(),
         motivoCambio: null,
+        motivoCancelacion: null,
+        fechaCancelacion: null,
         fechaConfirmacion: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -200,30 +278,46 @@ export const snacksService = {
       if (!snap.exists()) return { success: false, error: 'Assignment not found' };
 
       const data = snap.data();
-      const familias = Array.isArray(data.familias) ? data.familias : [];
-      let changed = false;
-      let confirmedByName = '';
-
-      const newFamilias = familias.map(f => {
-        if (f.uid === familyUid && !f.confirmed) {
-          changed = true;
-          confirmedByName = f.name || f.email || familyUid;
-          return { ...f, confirmed: true, fechaConfirmacion: new Date().toISOString() };
-        }
-        return f;
-      });
-
-      if (changed) {
-        // Una familia confirmó -> TODO confirmado (son padres del mismo alumno)
-        await updateDoc(docRef, {
-          familias: newFamilias,
-          confirmadoPorFamilia: true,
-          confirmadoPor: confirmedByName,
-          estado: 'confirmado',
-          updatedAt: serverTimestamp()
-        });
+      const state = normalizeSnackAssignmentState(data);
+      if (state === SNACK_ASSIGNMENT_STATE.SUSPENDED || isTerminalState(state)) {
+        return { success: false, error: 'No se puede confirmar este turno en su estado actual.' };
+      }
+      if (isPastAssignment(data.fechaFin)) {
+        return { success: false, error: 'No se puede confirmar un turno pasado.' };
       }
 
+      const familias = Array.isArray(data.familias) ? data.familias : [];
+      if (familias.length === 0) {
+        return { success: false, error: 'Este turno no tiene familias responsables configuradas.' };
+      }
+
+      const targetFamily = familias.find((f) => f.uid === familyUid);
+      if (!targetFamily) {
+        return { success: false, error: 'La familia no esta vinculada a este turno.' };
+      }
+
+      const confirmedByName = targetFamily.name || targetFamily.email || familyUid;
+      const nowIso = new Date().toISOString();
+      const updatedFamilies = familias.map((family) => (
+        family.uid === familyUid
+          ? { ...family, confirmed: true, fechaConfirmacion: nowIso }
+          : family
+      ));
+
+      await updateDoc(docRef, {
+        familias: updatedFamilies,
+        confirmadoPorFamilia: true,
+        confirmadoPor: confirmedByName,
+        estado: 'confirmado',
+        solicitudCambio: false,
+        motivoCambio: null,
+        motivoCancelacion: null,
+        fechaCancelacion: null,
+        fechaConfirmacion: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      dispatchSnacksUpdated();
       return { success: true };
     } catch (error) {
       console.error('Error confirming family assignment:', error);
@@ -237,15 +331,29 @@ export const snacksService = {
   async requestChange(assignmentId, motivo = '') {
     try {
       const docRef = doc(db, 'snackAssignments', assignmentId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return { success: false, error: 'Assignment not found' };
+
+      const data = snap.data();
+      const state = normalizeSnackAssignmentState(data);
+      if (state === SNACK_ASSIGNMENT_STATE.SUSPENDED || isTerminalState(state)) {
+        return { success: false, error: 'No se puede solicitar cambio para este turno.' };
+      }
+      if (isPastAssignment(data.fechaFin)) {
+        return { success: false, error: 'No se puede solicitar cambio de un turno pasado.' };
+      }
+
       await updateDoc(docRef, {
         solicitudCambio: true,
         motivoCambio: motivo,
         confirmadoPorFamilia: false,
+        confirmadoPor: null,
         estado: 'cambio_solicitado',
         fechaSolicitudCambio: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
+      dispatchSnacksUpdated();
       return { success: true };
     } catch (error) {
       console.error('Error requesting change:', error);
@@ -259,36 +367,34 @@ export const snacksService = {
   async cancelAssignment(assignmentId, motivo = '') {
     try {
       const docRef = doc(db, 'snackAssignments', assignmentId);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return { success: false, error: 'Assignment not found' };
+
+      const data = snap.data();
+      const state = normalizeSnackAssignmentState(data);
+      if (state === SNACK_ASSIGNMENT_STATE.SUSPENDED || state === SNACK_ASSIGNMENT_STATE.COMPLETED) {
+        return { success: false, error: 'No se puede cancelar este turno en su estado actual.' };
+      }
+      if (isPastAssignment(data.fechaFin)) {
+        return { success: false, error: 'No se puede cancelar un turno pasado.' };
+      }
+
       await updateDoc(docRef, {
+        familias: resetFamiliesConfirmation(data.familias),
         estado: 'cancelado',
         motivoCancelacion: motivo,
         confirmadoPorFamilia: false,
+        confirmadoPor: null,
+        solicitudCambio: false,
+        motivoCambio: null,
         fechaCancelacion: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
+      dispatchSnacksUpdated();
       return { success: true };
     } catch (error) {
       console.error('Error canceling assignment:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * Admin marca como completado
-   */
-  async markAsCompleted(assignmentId) {
-    try {
-      const docRef = doc(db, 'snackAssignments', assignmentId);
-      await updateDoc(docRef, {
-        estado: 'completado',
-        fechaCompletado: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error marking as completed:', error);
       return { success: false, error: error.message };
     }
   },
@@ -394,6 +500,10 @@ export const snacksService = {
           updateDoc(doc(db, 'snackAssignments', docSnap.id), {
             suspendido: true,
             motivoSuspension: motivo,
+            confirmadoPorFamilia: false,
+            confirmadoPor: null,
+            solicitudCambio: false,
+            motivoCambio: null,
             updatedAt: serverTimestamp()
           })
         );
@@ -414,6 +524,7 @@ export const snacksService = {
         motivoSuspension: motivo,
         recordatorioEnviado: false,
         confirmadoPorFamilia: false,
+        confirmadoPor: null,
         solicitudCambio: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

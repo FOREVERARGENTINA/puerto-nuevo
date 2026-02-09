@@ -14,11 +14,16 @@
     "migrate:mojibake": "node scripts/fixMojibake.js",
     "migrate:mojibake:apply": "node scripts/fixMojibake.js --apply",
     "fix:utf8": "node scripts/fixSourceEncoding.js",
-    "fix:utf8:apply": "node scripts/fixSourceEncoding.js --apply"
+    "fix:utf8:apply": "node scripts/fixSourceEncoding.js --apply",
+    "check:encoding": "node scripts/check-encoding.js",
+    "fix:encoding": "node scripts/fix-encoding.js",
+    "fix:encoding:apply": "node scripts/fix-encoding.js --apply"
   },
   "dependencies": {
+    "browser-image-compression": "^2.0.2",
     "firebase": "^12.6.0",
     "firebase-admin": "^12.0.0",
+    "heic2any": "^0.0.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.1"

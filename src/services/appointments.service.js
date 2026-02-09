@@ -21,6 +21,11 @@ const appointmentsCollection = collection(db, 'appointments');
 const getNotesDocRef = (appointmentId) => (
   doc(db, 'appointments', appointmentId, 'notes', 'summary')
 );
+const emitAppointmentsUpdated = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('appointments:updated'));
+  }
+};
 
 export const appointmentsService = {
   async createAppointment(data) {
@@ -30,6 +35,7 @@ export const appointmentsService = {
         estado: 'reservado',
         createdAt: serverTimestamp()
       });
+      emitAppointmentsUpdated();
       return { success: true, id: docRef.id };
     } catch (error) {
       return { success: false, error: error.message };
@@ -241,6 +247,7 @@ export const appointmentsService = {
         ...data,
         updatedAt: serverTimestamp()
       });
+      emitAppointmentsUpdated();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -258,6 +265,7 @@ export const appointmentsService = {
         payload.canceladoAt = serverTimestamp();
       }
       await updateDoc(doc(appointmentsCollection, appointmentId), payload);
+      emitAppointmentsUpdated();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

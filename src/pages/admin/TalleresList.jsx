@@ -4,6 +4,7 @@ import { talleresService } from '../../services/talleres.service';
 import { usersService } from '../../services/users.service';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+import Icon from '../../components/ui/Icon';
 
 const TalleresList = () => {
   const navigate = useNavigate();
@@ -47,6 +48,8 @@ const TalleresList = () => {
     return tallerista?.email || 'No asignado';
   };
 
+
+
   const header = (
     <div className="dashboard-header dashboard-header--compact">
       <div>
@@ -57,7 +60,8 @@ const TalleresList = () => {
         <button onClick={() => navigate('/admin/talleres/nuevo')} className="btn btn--primary">
           Crear taller
         </button>
-        <button onClick={() => navigate(-1)} className="btn btn--outline">
+        <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver
         </button>
       </div>

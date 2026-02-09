@@ -230,6 +230,7 @@ export const ROUTES = {
   ADMIN_CONVERSATIONS: '/admin/conversaciones',
   ADMIN_CONVERSATION_NEW: '/admin/conversaciones/nuevo',
   ADMIN_SNACKS_LISTS: '/admin/snacks/listas',
+  INSTITUTIONAL_GALLERY_ADMIN: '/admin/galeria-institucional',
 
   // Family
   FAMILY_DASHBOARD: '/familia',
@@ -239,21 +240,25 @@ export const ROUTES = {
   DOCUMENTS: '/familia/documentos',
   FAMILY_CONVERSATIONS: '/familia/conversaciones',
   FAMILY_CONVERSATION_NEW: '/familia/conversaciones/nueva',
+  INSTITUTIONAL_GALLERY_FAMILY: '/familia/galeria',
 
   // Teacher
   TEACHER_DASHBOARD: '/docente',
   MY_TALLER: '/docente/mi-taller',
   TEACHER_DOCUMENTS: '/docente/documentos',
+  INSTITUTIONAL_GALLERY_TEACHER: '/docente/galeria',
 
   // Tallerista
   TALLERISTA_DASHBOARD: '/tallerista',
   MY_TALLER_ESPECIAL: '/tallerista/mi-taller',
   TALLER_GALLERY: '/tallerista/galeria',
   TALLER_DOCUMENTS: '/tallerista/documentos',
+  INSTITUTIONAL_GALLERY_TALLERISTA: '/tallerista/galeria-institucional',
 
   // Aspirante
   ASPIRANTE_DASHBOARD: '/aspirante',
-  ASPIRANTE_DOCUMENTS: '/aspirante/documentos'
+  ASPIRANTE_DOCUMENTS: '/aspirante/documentos',
+  INSTITUTIONAL_GALLERY_ASPIRANTE: '/aspirante/galeria'
 };
 
 // Mapeo de roles a rutas de dashboard
@@ -295,3 +300,50 @@ export const ASPIRANTE_STAGES = {
   ACEPTADO: 'aceptado',
   RECHAZADO: 'rechazado'
 };
+
+// Categorías de galería institucional
+export const GALLERY_CATEGORIES = {
+  CLASES: {
+    slug: 'clases',
+    name: 'Clases',
+    allowedRoles: ['family', 'docente', 'coordinacion', 'superadmin'],
+    displayOrder: 1
+  },
+  RECORRIDO: {
+    slug: 'recorrido-aula',
+    name: 'Recorrido por el aula',
+    allowedRoles: ['family', 'aspirante', 'docente', 'coordinacion', 'superadmin'],
+    displayOrder: 2
+  },
+  CLASES_VIRTUALES: {
+    slug: 'clases-virtuales',
+    name: 'Clases virtuales',
+    allowedRoles: ['family', 'docente', 'coordinacion', 'superadmin'],
+    displayOrder: 3
+  },
+  INFO_ASPIRANTES: {
+    slug: 'info-aspirantes',
+    name: 'Info para aspirantes',
+    allowedRoles: ['aspirante', 'family', 'docente', 'coordinacion', 'superadmin'],
+    displayOrder: 4
+  },
+  RECUERDOS: {
+    slug: 'recuerdos',
+    name: 'Recuerdos',
+    allowedRoles: ['family', 'docente', 'coordinacion', 'superadmin', 'tallerista'],
+    displayOrder: 5
+  },
+  FIESTAS: {
+    slug: 'fiestas',
+    name: 'Fiestas',
+    allowedRoles: ['family', 'docente', 'coordinacion', 'superadmin', 'tallerista'],
+    displayOrder: 6
+  }
+};
+
+// Roles que pueden subir contenido a la galería institucional
+export const CAN_UPLOAD_TO_GALLERY = [
+  ROLES.SUPERADMIN,
+  ROLES.COORDINACION,
+  ROLES.DOCENTE
+];

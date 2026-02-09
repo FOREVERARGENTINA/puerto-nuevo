@@ -4,7 +4,74 @@ import { childrenService } from '../../services/children.service';
 import { talleresService } from '../../services/talleres.service';
 import { eventsService } from '../../services/events.service';
 import { useNavigate } from 'react-router-dom';
-import { Modal, ModalHeader, ModalBody } from '../../components/common/Modal';
+import Icon from '../../components/ui/Icon';
+import { InstitutionalLightbox } from '../../components/gallery/shared/InstitutionalLightbox';
+
+function parseTimeToMinutes(value) {
+  const [hours, minutes] = String(value || '').trim().split(':');
+  const hh = Number.parseInt(hours, 10);
+  const mm = Number.parseInt(minutes, 10);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  return (hh * 60) + mm;
+}
+
+function formatMinutesToTime(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function getMergedHorariosByDay(horarios = []) {
+  const byDay = new Map();
+
+  horarios.forEach((item) => {
+    const dia = String(item?.dia || '').trim();
+    const bloque = String(item?.bloque || '').replace(/\s+/g, '');
+    if (!dia || !bloque.includes('-')) return;
+
+    const [startRaw, endRaw] = bloque.split('-');
+    const startMinutes = parseTimeToMinutes(startRaw);
+    const endMinutes = parseTimeToMinutes(endRaw);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return;
+
+    if (!byDay.has(dia)) byDay.set(dia, []);
+    byDay.get(dia).push({ startMinutes, endMinutes });
+  });
+
+  const merged = [];
+  byDay.forEach((ranges, dia) => {
+    const ordered = [...ranges].sort((a, b) => a.startMinutes - b.startMinutes);
+    if (ordered.length === 0) return;
+
+    const compacted = [ordered[0]];
+    for (let i = 1; i < ordered.length; i += 1) {
+      const current = ordered[i];
+      const last = compacted[compacted.length - 1];
+
+      if (current.startMinutes <= last.endMinutes) {
+        last.endMinutes = Math.max(last.endMinutes, current.endMinutes);
+      } else {
+        compacted.push({ ...current });
+      }
+    }
+
+    compacted.forEach((range) => {
+      merged.push({
+        dia,
+        startMinutes: range.startMinutes,
+        bloque: `${formatMinutesToTime(range.startMinutes)}-${formatMinutesToTime(range.endMinutes)}`
+      });
+    });
+  });
+
+  return merged.sort((a, b) => {
+    const dayOrder = { Lunes: 1, Martes: 2, 'Miércoles': 3, Miercoles: 3, Jueves: 4, Viernes: 5 };
+    const dayA = dayOrder[a.dia] || 99;
+    const dayB = dayOrder[b.dia] || 99;
+    if (dayA !== dayB) return dayA - dayB;
+    return a.startMinutes - b.startMinutes;
+  });
+}
 
 export function TalleresEspeciales() {
   const { user } = useAuth();
@@ -31,7 +98,8 @@ export function TalleresEspeciales() {
         <p className="dashboard-subtitle">Información y materiales de los talleres.</p>
       </div>
       <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-        <button onClick={() => navigate(-1)} className="btn btn--outline">
+        <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver
         </button>
       </div>
@@ -73,7 +141,15 @@ export function TalleresEspeciales() {
 
     const horario = taller.horario || (normalizedHorarios.length > 0 ? Array.from(new Set(normalizedHorarios.map(h => h.bloque))).join(', ') : '');
     const calendario = taller.calendario || taller.calendar || '';
-    const tallerAug = { ...taller, horarios: normalizedHorarios, diasSemana, horario, calendario };
+    const horariosCompactados = getMergedHorariosByDay(normalizedHorarios);
+    const tallerAug = {
+      ...taller,
+      horarios: normalizedHorarios,
+      horariosCompactados,
+      diasSemana,
+      horario,
+      calendario
+    };
     
     setSelectedTaller(tallerAug);
     setSelectedAlbum(null);
@@ -232,70 +308,30 @@ export function TalleresEspeciales() {
       {header}
 
       {/* Selector de talleres */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-        gap: 'var(--spacing-sm)',
-        marginBottom: 'var(--spacing-lg)'
-      }}>
-        {talleres.map(t => (
-          <div
-            key={t.id}
-            onClick={() => selectTaller(t)}
-            style={{
-              cursor: 'pointer',
-              padding: 'var(--spacing-md)',
-              background: selectedTaller?.id === t.id
-                ? 'var(--color-primary-soft)'
-                : 'white',
-              border: selectedTaller?.id === t.id
-                ? '2px solid var(--color-primary)'
-                : '1px solid #D4C4B5',
-              borderRadius: '8px',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              if (selectedTaller?.id !== t.id) {
-                e.currentTarget.style.borderColor = '#A89074';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedTaller?.id !== t.id) {
-                e.currentTarget.style.borderColor = '#D4C4B5';
-                e.currentTarget.style.boxShadow = 'none';
-              }
-            }}
-          >
-            {selectedTaller?.id === t.id && (
-              <div style={{
-                position: 'absolute',
-                top: 'var(--spacing-sm)',
-                right: 'var(--spacing-sm)',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--color-primary)'
-              }} />
-            )}
-            <h3 style={{
-              margin: '0 0 var(--spacing-xs) 0',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: '600',
-              color: selectedTaller?.id === t.id ? 'var(--color-primary)' : 'var(--color-text)',
-              paddingRight: 'var(--spacing-md)'
-            }}>
-              {t.nombre}
-            </h3>
-            <div style={{
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--color-text-light)'
-            }}>
-              {t.ambiente === 'taller1' ? 'Taller 1' : 'Taller 2'}
+      <div className="card family-talleres-selector">
+        <div className="card__body">
+          <div className="family-talleres-selector__row">
+            <div className="family-talleres-selector__control-wrap">
+              <select
+                id="family-taller-select"
+                className="form-control form-select family-talleres-selector__control"
+                value={selectedTaller?.id || ''}
+                onChange={(event) => {
+                  const nextTaller = talleres.find((t) => t.id === event.target.value);
+                  if (nextTaller && nextTaller.id !== selectedTaller?.id) {
+                    selectTaller(nextTaller);
+                  }
+                }}
+              >
+                {talleres.map((taller) => (
+                  <option key={taller.id} value={taller.id}>
+                    {taller.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
       {/* Contenido del taller seleccionado */}
@@ -381,9 +417,9 @@ export function TalleresEspeciales() {
                     borderRadius: '8px'
                   }}>
                     <h3 style={{ margin: '0 0 var(--spacing-sm) 0', fontSize: 'var(--font-size-sm)', fontWeight: '600', color: 'var(--color-primary)' }}>Horarios</h3>
-                    {selectedTaller.horarios?.length > 0 ? (
+                    {selectedTaller.horariosCompactados?.length > 0 ? (
                       <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                        {selectedTaller.horarios.map((h, idx) => (
+                        {selectedTaller.horariosCompactados.map((h, idx) => (
                           <span key={idx} style={{
                             padding: '6px 12px',
                             background: 'white',
@@ -467,11 +503,6 @@ export function TalleresEspeciales() {
                   <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
                     {tallerEvents.map(event => {
                       const date = event.fecha?.toDate ? event.fecha.toDate() : new Date(event.fecha);
-                      const dateLabel = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('es-AR', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      });
                       return (
                         <div
                           key={event.id}
@@ -792,106 +823,19 @@ export function TalleresEspeciales() {
         </div>
       )}
 
-      <GalleryLightbox
+      <InstitutionalLightbox
         isOpen={showLightbox}
-        onClose={closeLightbox}
         items={gallery}
+        loading={loadingGallery}
         currentIndex={selectedMediaIndex}
         onPrev={showPrevMedia}
         onNext={showNextMedia}
+        onClose={closeLightbox}
+        title={selectedAlbum?.name || 'Galería'}
       />
     </div>
   );
 }
-
-// Lightbox modal for gallery
-const GalleryLightbox = ({ isOpen, onClose, items, currentIndex, onPrev, onNext }) => {
-  const item = items?.[currentIndex];
-  const [touchStartX, setTouchStartX] = useState(null);
-  const [touchEndX, setTouchEndX] = useState(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        onPrev();
-        return;
-      }
-
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        onNext();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, onPrev, onNext]);
-
-  if (!item) return null;
-
-  const handleTouchStart = (event) => {
-    if (!event.touches || event.touches.length === 0) return;
-    setTouchEndX(null);
-    setTouchStartX(event.touches[0].clientX);
-  };
-
-  const handleTouchMove = (event) => {
-    if (!event.touches || event.touches.length === 0) return;
-    setTouchEndX(event.touches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (touchStartX === null || touchEndX === null) return;
-    const delta = touchStartX - touchEndX;
-    const minSwipe = 60;
-    if (Math.abs(delta) < minSwipe) return;
-    if (delta > 0) {
-      onNext();
-    } else {
-      onPrev();
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <ModalHeader title="Galería" onClose={onClose} />
-      <ModalBody>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-          <button className="btn btn--outline btn--sm" onClick={onPrev}>
-            Anterior
-          </button>
-          <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-            {currentIndex + 1} de {items.length}
-          </span>
-          <button className="btn btn--outline btn--sm" onClick={onNext}>
-            Siguiente
-          </button>
-        </div>
-        <div
-          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          {item.tipo === 'video' ? (
-            <video src={item.url} controls style={{ width: '100%', maxHeight: '70vh' }} />
-          ) : (
-            <img src={item.url} alt={item.fileName} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
-          )}
-        </div>
-      </ModalBody>
-    </Modal>
-  );
-};
 
 
 

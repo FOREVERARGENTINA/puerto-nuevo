@@ -1,7 +1,8 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentUploader } from '../../components/documents/DocumentUploader';
 import { DocumentViewer } from '../../components/documents/DocumentViewer';
+import Icon from '../../components/ui/Icon';
 
 export function DocumentManager() {
   const navigate = useNavigate();
@@ -14,7 +15,8 @@ export function DocumentManager() {
           <h1 className="dashboard-title">Gestión de documentos</h1>
           <p className="dashboard-subtitle">Administrá y compartí documentos del taller.</p>
         </div>
-        <button onClick={() => navigate(-1)} className="btn btn--outline">
+        <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver
         </button>
       </div>
@@ -53,5 +55,3 @@ export function DocumentManager() {
     </div>
   );
 }
-
-

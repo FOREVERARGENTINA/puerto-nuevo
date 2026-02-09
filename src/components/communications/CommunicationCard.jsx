@@ -41,22 +41,24 @@ export function CommunicationCard({ communication, hasRead, onMarkAsRead, onView
         }
       }}
     >
-      <div className="communication-card__status">
-        {communication.requiereLecturaObligatoria && !hasRead && (
-          <span className="badge badge--error">No leído</span>
-        )}
-        {communication.requiereLecturaObligatoria && hasRead && (
-          <span className="badge badge--success">Leído</span>
-        )}
-      </div>
-
       <div className="communication-card__main">
+        <div className="communication-card__badges">
+          <div className="communication-card__status">
+            {communication.requiereLecturaObligatoria && !hasRead && (
+              <span className="badge badge--error">No leído</span>
+            )}
+            {communication.requiereLecturaObligatoria && hasRead && (
+              <span className="badge badge--success">Leído</span>
+            )}
+          </div>
+          <span className={`${getTypeBadgeClass(communication.type)} communication-card__type`}>
+            {getTypeLabel(communication.type)}
+          </span>
+        </div>
+
         <div className="communication-card__header">
           <div className="communication-card__title-row">
             <h3>{communication.title}</h3>
-            <span className={`${getTypeBadgeClass(communication.type)} communication-card__type`}>
-              {getTypeLabel(communication.type)}
-            </span>
           </div>
           <div className="communication-card__meta">
             <span>

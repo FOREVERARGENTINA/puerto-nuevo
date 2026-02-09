@@ -1,6 +1,10 @@
-export function LoadingScreen({ message = 'Cargando...' }) {
+export function LoadingScreen({ message = 'Cargando...', isExiting = false }) {
   return (
-    <div className="loading-screen">
+    <div
+      className={`loading-screen${isExiting ? ' loading-screen--exit' : ''}`}
+      aria-live="polite"
+      aria-busy="true"
+    >
       <div className="loading-screen__content">
         <div className="loading-screen__logo-container">
           <img

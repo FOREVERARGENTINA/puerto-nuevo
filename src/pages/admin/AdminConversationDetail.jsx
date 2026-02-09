@@ -5,6 +5,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import { conversationsService } from '../../services/conversations.service';
 import { CONVERSATION_STATUS, ESCUELA_AREAS, ROUTES, ROLES } from '../../config/constants';
+import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
   getCategoryLabel,
@@ -128,7 +129,8 @@ export function AdminConversationDetail() {
     return (
       <div className="container page-container">
         <div className="alert alert--error">Conversación no encontrada</div>
-        <button className="btn btn--outline mt-md" onClick={() => navigate(ROUTES.ADMIN_CONVERSATIONS)}>
+        <button className="btn btn--outline btn--back mt-md" onClick={() => navigate(ROUTES.ADMIN_CONVERSATIONS)}>
+          <Icon name="chevron-left" size={16} />
           Volver
         </button>
       </div>
@@ -138,20 +140,23 @@ export function AdminConversationDetail() {
   return (
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
-        <div className="conversation-header">
-          <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--link">← Volver</Link>
-          <div className="conversation-header__main">
-            <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
-            <div className="conversation-header__meta">
-              {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
-                <span className={getConversationStatusBadge(conversation.estado)}>
-                  {getConversationStatusLabel(conversation.estado, role)}
-                </span>
-              )}
-              <span className="text-muted">{headerMeta}</span>
-            </div>
-            <div className="text-muted">Asunto: {conversation.asunto || 'Sin asunto'}</div>
+        <div>
+          <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
+          <div className="conversation-header__meta">
+            {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
+              <span className={getConversationStatusBadge(conversation.estado)}>
+                {getConversationStatusLabel(conversation.estado, role)}
+              </span>
+            )}
+            <span className="text-muted">{headerMeta}</span>
           </div>
+          <p className="dashboard-subtitle">Asunto: {conversation.asunto || 'Sin asunto'}</p>
+        </div>
+        <div>
+          <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </Link>
         </div>
       </div>
 

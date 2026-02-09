@@ -102,7 +102,7 @@ export const talleresService = {
   async getTalleresByTallerista(talleristaUid) {
     try {
       // Buscar tanto en caso de que `talleristaId` sea un array (array-contains)
-      // como en caso de que por compatibilidad retroactiva estÃ© guardado como string.
+      // como en caso de que por compatibilidad retroactiva esté guardado como string.
       const qArray = query(
         talleresCollection,
         where('talleristaId', 'array-contains', talleristaUid)
@@ -253,7 +253,7 @@ export const talleresService = {
 
   async deleteGalleryMedia(tallerId, item) {
     try {
-      if (!item) return { success: false, error: 'Elemento no vÃ¡lido' };
+      if (!item) return { success: false, error: 'Elemento no válido' };
 
       const storagePath = item.path
         || (item.fileName ? `talleres/${tallerId}/gallery/${item.fileName}` : null);
@@ -388,12 +388,52 @@ export const talleresService = {
     }
   },
 
+  async saveExternalVideo(tallerId, albumId, videoData, uploadedBy) {
+    try {
+      const mediaCollection = collection(db, `talleres/${tallerId}/albums/${albumId}/media`);
+
+      const mediaDoc = await addDoc(mediaCollection, {
+        url: videoData.originalUrl,
+        path: null,
+        fileName: `${videoData.provider}-${videoData.videoId}`,
+        tipo: 'video-externo',
+        provider: videoData.provider,
+        videoId: videoData.videoId,
+        embedUrl: videoData.embedUrl,
+        thumbUrl: videoData.thumbnailUrl,
+        thumbPath: null,
+        uploadedBy: uploadedBy || '',
+        size: null,
+        contentType: null,
+        createdAt: serverTimestamp()
+      });
+
+      if (videoData.thumbnailUrl) {
+        const albumDoc = doc(db, `talleres/${tallerId}/albums`, albumId);
+        const albumSnap = await getDoc(albumDoc);
+        const albumData = albumSnap.exists() ? albumSnap.data() : null;
+        if (!albumData?.thumbUrl) {
+          await updateDoc(albumDoc, {
+            thumbUrl: videoData.thumbnailUrl,
+            thumbPath: null,
+            thumbUpdatedAt: serverTimestamp()
+          });
+        }
+      }
+
+      return { success: true, id: mediaDoc.id };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   async deleteAlbumMedia(tallerId, albumId, item) {
     try {
       if (!item) return { success: false, error: 'Elemento invalido' };
 
+      // Solo eliminar de Storage si tiene path (no es video externo)
       const storagePath = item.path
-        || (item.fileName ? `talleres/${tallerId}/albums/${albumId}/${item.fileName}` : null);
+        || (item.fileName && item.tipo !== 'video-externo' ? `talleres/${tallerId}/albums/${albumId}/${item.fileName}` : null);
 
       if (storagePath) {
         const storageRef = ref(storage, storagePath);
@@ -450,5 +490,4 @@ export const talleresService = {
     }
   }
 };
-
 

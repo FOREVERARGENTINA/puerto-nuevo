@@ -21,7 +21,9 @@
       "Bash(grep:*)",
       "Bash(npm run build:*)",
       "Bash(mv:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm run check:encoding:*)",
+      "Bash(npm run fix:encoding:*)"
     ],
     "deny": [],
     "ask": []

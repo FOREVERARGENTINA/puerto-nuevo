@@ -1,4 +1,64 @@
+# EditorConfig - Configuración de codificación y formato
+# https://editorconfig.org
+# Esto asegura que TODOS los editores (VS Code, Codex, etc.) usen UTF-8
+
+# Archivo raíz - detiene la búsqueda de .editorconfig en directorios superiores
 root = true
 
+# Reglas para TODOS los archivos
 [*]
 charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Archivos JavaScript y JSX (React)
+[*.{js,jsx}]
+charset = utf-8
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# Archivos CSS
+[*.css]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Archivos JSON
+[*.json]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Archivos HTML
+[*.html]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Archivos Markdown
+[*.md]
+charset = utf-8
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Archivos de configuración
+[{package.json,.prettierrc,.eslintrc,*.config.js}]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Archivos YAML
+[*.{yml,yaml}]
+charset = utf-8
+indent_style = space
+indent_size = 2
+
+# Firestore rules
+[*.rules]
+charset = utf-8
+indent_style = space
+indent_size = 2

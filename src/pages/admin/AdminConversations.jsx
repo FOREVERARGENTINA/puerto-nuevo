@@ -1,9 +1,11 @@
 ﻿import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useConversations } from '../../hooks/useConversations';
 import { CONVERSATION_CATEGORIES, CONVERSATION_STATUS, ROUTES, ROLES } from '../../config/constants';
 import { formatRelativeTime } from '../../utils/dateHelpers';
+import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
   getCategoryLabel,
@@ -30,6 +32,10 @@ export function AdminConversations() {
     setInitiatedFilter('todas');
     setSearchTerm('');
   };
+
+  useEffect(() => {
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [statusFilter, categoryFilter, initiatedFilter, searchTerm]);
 
   const counts = useMemo(() => {
     return {
@@ -59,8 +65,6 @@ export function AdminConversations() {
       }
       return true;
     });
-    // Reset visible count when filters change
-    setVisibleCount(ITEMS_PER_PAGE);
     return result;
   }, [conversations, statusFilter, categoryFilter, initiatedFilter, searchTerm]);
 
@@ -101,6 +105,10 @@ export function AdminConversations() {
           {unreadCount > 0 && (
             <span className="badge badge--warning">{unreadCount} sin leer</span>
           )}
+          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </Link>
           <Link to={ROUTES.ADMIN_CONVERSATION_NEW} className="btn btn--primary">
             + Nuevo Mensaje
           </Link>

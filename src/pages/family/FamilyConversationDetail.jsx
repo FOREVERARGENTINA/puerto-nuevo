@@ -1,10 +1,11 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import { conversationsService } from '../../services/conversations.service';
-import { ROUTES, CONVERSATION_STATUS, ROLES } from '../../config/constants';
+import { ROUTES, CONVERSATION_STATUS } from '../../config/constants';
+import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
   getCategoryLabel,
@@ -89,11 +90,6 @@ export function FamilyConversationDetail() {
     setSending(false);
   };
 
-  const headerMeta = useMemo(() => {
-    if (!conversation) return '';
-    return `${getAreaLabel(conversation.destinatarioEscuela)} · ${getCategoryLabel(conversation.categoria)}`;
-  }, [conversation]);
-
   if (loading) {
     return (
       <div style={{ padding: 'var(--spacing-lg)', textAlign: 'center' }}>
@@ -106,7 +102,8 @@ export function FamilyConversationDetail() {
     return (
       <div className="container page-container">
         <div className="alert alert--error">Conversación no encontrada</div>
-        <button className="btn btn--outline mt-md" onClick={() => navigate(ROUTES.FAMILY_CONVERSATIONS)}>
+        <button className="btn btn--outline btn--back mt-md" onClick={() => navigate(ROUTES.FAMILY_CONVERSATIONS)}>
+          <Icon name="chevron-left" size={16} />
           Volver
         </button>
       </div>
@@ -114,27 +111,26 @@ export function FamilyConversationDetail() {
   }
 
   return (
-    <div className="family-conversations-page">
-      <div className="conversations-header">
-        <div className="conversations-header__content">
-          <div>
-            <h1 className="conversations-title">{conversation.asunto || 'Sin asunto'}</h1>
-            <div className="conversation-detail-meta">
-              {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
-                <span className={`conversation-status-tag conversation-status-tag--${conversation.estado}`}>
-                  {getConversationStatusLabel(conversation.estado, role)}
-                </span>
-              )}
-              <span className="conversation-meta-item">{getAreaLabel(conversation.destinatarioEscuela)}</span>
-              <span className="conversation-meta-divider">·</span>
-              <span className="conversation-meta-item">{getCategoryLabel(conversation.categoria)}</span>
-            </div>
+    <div className="container page-container family-conversations-page">
+      <div className="dashboard-header dashboard-header--compact">
+        <div>
+          <h1 className="dashboard-title">{conversation.asunto || 'Sin asunto'}</h1>
+          <div className="conversation-detail-meta">
+            {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
+              <span className={`conversation-status-tag conversation-status-tag--${conversation.estado}`}>
+                {getConversationStatusLabel(conversation.estado, role)}
+              </span>
+            )}
+            <span className="conversation-meta-item">{getAreaLabel(conversation.destinatarioEscuela)}</span>
+            <span className="conversation-meta-divider">·</span>
+            <span className="conversation-meta-item">{getCategoryLabel(conversation.categoria)}</span>
           </div>
-          <div className="conversations-header__actions">
-            <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline btn--sm">
-              ← Volver
-            </Link>
-          </div>
+        </div>
+        <div className="conversations-header__actions">
+          <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline btn--back btn--sm">
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </Link>
         </div>
       </div>
 

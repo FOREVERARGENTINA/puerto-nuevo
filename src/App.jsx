@@ -26,6 +26,7 @@ const EventsManager = lazy(() => import('./pages/admin/EventsManager').then(m =>
 const AdminConversations = lazy(() => import('./pages/admin/AdminConversations').then(m => ({ default: m.AdminConversations })));
 const AdminNewConversation = lazy(() => import('./pages/admin/AdminNewConversation').then(m => ({ default: m.AdminNewConversation })));
 const AdminConversationDetail = lazy(() => import('./pages/admin/AdminConversationDetail').then(m => ({ default: m.AdminConversationDetail })));
+const InstitutionalGalleryManager = lazy(() => import('./pages/admin/InstitutionalGalleryManager'));
 
 // Lazy load páginas familia
 const FamilyDashboard = lazy(() => import('./pages/family/FamilyDashboard').then(m => ({ default: m.FamilyDashboard })));
@@ -52,6 +53,7 @@ const DocumentManager = lazy(() => import('./pages/tallerista/DocumentManager').
 // Lazy load páginas compartidas
 const Documents = lazy(() => import('./pages/shared/Documents').then(m => ({ default: m.Documents })));
 const HorarioSemanal = lazy(() => import('./pages/shared/HorarioSemanal').then(m => ({ default: m.HorarioSemanal })));
+const InstitutionalGallery = lazy(() => import('./pages/shared/InstitutionalGallery'));
 
 // Lazy load páginas aspirante
 const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
@@ -60,6 +62,7 @@ const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboa
 import './styles/design-system.css';
 import './styles/global.css';
 import './styles/components.css';
+import './styles/sections/gallery.css';
 
 // Componente de loading
 const PageLoader = () => (
@@ -225,6 +228,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
                     <DocumentsAdmin />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/galeria-institucional"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE]}>
+                    <InstitutionalGalleryManager />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -450,6 +465,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/familia/galeria"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <InstitutionalGallery />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Teacher Routes */}
           <Route
@@ -495,6 +522,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
                     <HorarioSemanal />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/docente/galeria"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <InstitutionalGallery />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -574,6 +613,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/tallerista/galeria-institucional"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <InstitutionalGallery />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Aspirante Routes */}
           <Route
@@ -595,6 +646,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
                     <Documents />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/aspirante/galeria"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                    <InstitutionalGallery />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

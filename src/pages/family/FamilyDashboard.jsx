@@ -83,6 +83,15 @@ export function FamilyDashboard() {
                 <p>Calendario de ambientes y talleres</p>
               </div>
             </Link>
+            <Link to={ROUTES.INSTITUTIONAL_GALLERY_FAMILY} className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-success">
+              <div className="admin-dashboard-card__icon">
+                <Icon name="image" size={18} />
+              </div>
+              <div className="admin-dashboard-card__content">
+                <h3 className="card__title">Galería</h3>
+                <p>Fotos, videos y recuerdos</p>
+              </div>
+            </Link>
           </div>
         </section>
 

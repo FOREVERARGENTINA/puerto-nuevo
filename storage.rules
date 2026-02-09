@@ -2,7 +2,6 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Funciones auxiliares
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -15,106 +14,70 @@ service firebase.storage {
       return request.auth.token.role in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
     }
 
-    // Public: autenticados leen, admin/docentes/talleristas escriben
     match /public/{allPaths=**} {
       allow read: if isAuthenticated();
       allow write: if canUpload();
     }
 
-    // Private: solo admin y responsables del niño
     match /private/children/{childId}/{fileName} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        request.auth.uid in firestore.get(/databases/(default)/documents/children/$(childId)).data.responsables
-      );
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid in firestore.get(/databases/(default)/documents/children/$(childId)).data.responsables);
       allow write: if isAdmin();
     }
 
-    // Private: adjuntos de notas de reuniones en turnos
     match /private/appointments/{appointmentId}/notes/{fileName} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        (
-          (
-            request.auth.uid == firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.familiaUid ||
-            request.auth.uid in firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.get('familiasUids', [])
-          ) &&
-          firestore.get(/databases/(default)/documents/appointments/$(appointmentId)/notes/summary).data.visibilidad == 'familia'
-        )
-      );
+      allow read: if isAuthenticated() && (isAdmin() || ((request.auth.uid == firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.familiaUid || request.auth.uid in firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.get('familiasUids', [])) && firestore.get(/databases/(default)/documents/appointments/$(appointmentId)/notes/summary).data.visibilidad == 'familia'));
       allow write: if isAdmin();
     }
 
-    // Talleres: galerías de fotos/videos (Fase 5)
     match /talleres/{tallerId}/gallery/{fileName} {
-      // Leer: Todos los autenticados
       allow read: if isAuthenticated();
-
-      // Escribir: Admin o tallerista del taller
-      allow write: if isAdmin() || (
-        isAuthenticated() &&
-        request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId
-      );
+      allow create, update: if (isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId))
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId);
     }
-    // Talleres: albums (carpetas reales)
+
     match /talleres/{tallerId}/albums/{albumId}/{fileName} {
-      // Leer: Todos los autenticados
       allow read: if isAuthenticated();
-
-      // Escribir: Admin o tallerista del taller
-      allow write: if isAdmin() || (
-        isAuthenticated() &&
-        request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId
-      );
+      allow create, update: if (isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId))
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId);
     }
 
-    // Documentos institucionales (Fase 5)
     match /documents/{category}/{fileName} {
-      // Leer: Todos los autenticados (el control de acceso se hace en Firestore)
       allow read: if isAuthenticated();
-
-      // Escribir:
-      // - Superadmin y Coordinación pueden subir cualquier documento.
-      // - Talleristas pueden subir documentos **solo** en la categoría 'taller'.
-      allow write: if isAuthenticated() && (
-        request.auth.token.role in ['superadmin', 'coordinacion'] ||
-        (request.auth.token.role == 'tallerista' && category == 'taller')
-      );
+      allow write: if isAuthenticated() && (request.auth.token.role in ['superadmin', 'coordinacion'] || (request.auth.token.role == 'tallerista' && category == 'taller'));
     }
 
-    // Comunicados: archivos adjuntos
     match /communications/{commId}/{fileName} {
-      // Leer: Usuarios autenticados que están en destinatarios del comunicado
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        request.auth.uid in firestore.get(/databases/(default)/documents/communications/$(commId)).data.destinatarios
-      );
-
-      // Escribir: Superadmin, Coordinación, Docentes (quienes pueden crear comunicados)
-      allow write: if isAuthenticated() && (
-        request.auth.token.role in ['superadmin', 'coordinacion', 'docente']
-      );
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid in firestore.get(/databases/(default)/documents/communications/$(commId)).data.destinatarios);
+      allow write: if isAuthenticated() && (request.auth.token.role in ['superadmin', 'coordinacion', 'docente']);
     }
 
-    // Conversaciones privadas: adjuntos
     match /conversations/{convId}/{messageId}/{fileName} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid ||
-        (request.auth.token.role == 'coordinacion' && firestore.get(/databases/(default)/documents/conversations/$(convId)).data.destinatarioEscuela == 'coordinacion') ||
-        (request.auth.token.role == 'superadmin')
-      );
-
-      allow write: if isAuthenticated() && (
-        isAdmin() ||
-        request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid
-      );
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid || (request.auth.token.role == 'coordinacion' && firestore.get(/databases/(default)/documents/conversations/$(convId)).data.destinatarioEscuela == 'coordinacion') || (request.auth.token.role == 'superadmin'));
+      allow write: if isAuthenticated() && (isAdmin() || request.auth.uid == firestore.get(/databases/(default)/documents/conversations/$(convId)).data.familiaUid);
     }
 
-    // Deny everything else
+    match /institutional-gallery/{categorySlug}/albums/{albumId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated()
+                            && request.auth.token.role in ['superadmin', 'coordinacion', 'docente']
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAuthenticated()
+                    && request.auth.token.role in ['superadmin', 'coordinacion', 'docente'];
+    }
+
+    match /institutional-gallery/{categorySlug}/category/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated()
+                            && request.auth.token.role in ['superadmin', 'coordinacion', 'docente']
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAuthenticated()
+                    && request.auth.token.role in ['superadmin', 'coordinacion', 'docente'];
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
   }
 }
-

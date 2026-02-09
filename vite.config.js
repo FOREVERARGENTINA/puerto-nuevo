@@ -44,7 +44,28 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
+        globIgnores: [
+          '**/assets/heic2any-*.js',
+          '**/assets/heic-converter-*.js'
+        ],
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(heic2any|heic-converter)-.*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'heic-chunks',
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       }
     })
   ],
@@ -73,7 +94,9 @@ export default defineConfig({
             'firebase/firestore',
             'firebase/storage',
             'firebase/functions'
-          ]
+          ],
+          // Aislar convertidor HEIC para control de cache en PWA
+          'heic-converter': ['heic2any']
         }
       }
     },

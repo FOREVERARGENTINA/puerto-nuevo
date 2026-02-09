@@ -42,7 +42,6 @@ export function EventsManager() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('upcoming');
   const [selectedEventForView, setSelectedEventForView] = useState(null);
   const [showEventDetail, setShowEventDetail] = useState(false);
   const maxMediaSizeBytes = 50 * 1024 * 1024;
@@ -138,6 +137,34 @@ export function EventsManager() {
       return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
     }
     return date;
+  };
+
+  const parseEventDateTime = (event) => {
+    const eventDate = normalizeEventDate(event?.fecha);
+    if (!eventDate || Number.isNaN(eventDate.getTime())) return null;
+
+    const dateTime = new Date(eventDate);
+    const hora = typeof event?.hora === 'string' ? event.hora.trim() : '';
+    const timeMatch = hora.match(/^(\d{1,2}):(\d{2})$/);
+
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        dateTime.setHours(hours, minutes, 0, 0);
+        return dateTime;
+      }
+    }
+
+    // Sin hora explicita: se considera al final del dia.
+    dateTime.setHours(23, 59, 59, 999);
+    return dateTime;
+  };
+
+  const isPastEvent = (event, referenceDate = new Date()) => {
+    const eventDateTime = parseEventDateTime(event);
+    if (!eventDateTime) return false;
+    return eventDateTime < referenceDate;
   };
 
   const monthNames = [
@@ -448,16 +475,6 @@ export function EventsManager() {
     if (typeFilter !== 'all') {
       list = list.filter(event => event.tipo === typeFilter);
     }
-    if (timeFilter !== 'all') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      list = list.filter(event => {
-        const eventDate = normalizeEventDate(event.fecha);
-        if (!eventDate) return false;
-        if (timeFilter === 'upcoming') return eventDate >= today;
-        return eventDate < today;
-      });
-    }
     if (searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       list = list.filter(event => {
@@ -467,7 +484,7 @@ export function EventsManager() {
       });
     }
     return list;
-  }, [eventsForMonth, normalizeEventDate, searchTerm, timeFilter, typeFilter]);
+  }, [eventsForMonth, searchTerm, typeFilter]);
 
   const filteredEvents = useMemo(() => {
     if (!selectedDay) return eventsForCalendar;
@@ -479,16 +496,34 @@ export function EventsManager() {
 
   const sortedFilteredEvents = useMemo(() => {
     return [...filteredEvents].sort((a, b) => {
-      const dateA = normalizeEventDate(a.fecha) || new Date(0);
-      const dateB = normalizeEventDate(b.fecha) || new Date(0);
-      const timeA = a.hora || '99:99';
-      const timeB = b.hora || '99:99';
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
-      }
-      return timeA.localeCompare(timeB);
+      const pastA = isPastEvent(a);
+      const pastB = isPastEvent(b);
+      if (pastA !== pastB) return pastA ? 1 : -1;
+
+      const dateA = parseEventDateTime(a);
+      const dateB = parseEventDateTime(b);
+      if (!dateA || !dateB) return 0;
+
+      // Proximos en ascendente, pasados del mas reciente al mas lejano.
+      return pastA ? dateB - dateA : dateA - dateB;
     });
   }, [filteredEvents]);
+
+  const upcomingEventsPreview = useMemo(() => {
+    return sortedFilteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
+  }, [sortedFilteredEvents]);
+
+  const upcomingEventsSummary = useMemo(() => {
+    if (upcomingEventsPreview.length === 0) {
+      return 'Próximos eventos: sin eventos próximos en este rango.';
+    }
+
+    if (upcomingEventsPreview.length === 1) {
+      return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
+    }
+
+    return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
+  }, [upcomingEventsPreview]);
 
   const visibleEvents = useMemo(() => {
     return sortedFilteredEvents.slice(0, visibleEventsCount);
@@ -510,13 +545,26 @@ export function EventsManager() {
     return Array.from(groups.values());
   }, [normalizeEventDate, visibleEvents]);
 
-  const daysWithEvents = useMemo(() => {
-    const set = new Set();
+  const [daysWithEvents, daysWithUpcomingEvents, daysWithPastEvents] = useMemo(() => {
+    const allDays = new Set();
+    const upcomingDays = new Set();
+    const pastDays = new Set();
+    const now = new Date();
+
     eventsForCalendar.forEach(event => {
       const eventDate = normalizeEventDate(event.fecha);
-      if (eventDate) set.add(eventDate.getDate());
+      if (!eventDate) return;
+
+      const eventDay = eventDate.getDate();
+      allDays.add(eventDay);
+      if (isPastEvent(event, now)) {
+        pastDays.add(eventDay);
+      } else {
+        upcomingDays.add(eventDay);
+      }
     });
-    return set;
+
+    return [allDays, upcomingDays, pastDays];
   }, [eventsForCalendar]);
 
   const formatDayHeading = (date) => {
@@ -537,11 +585,11 @@ export function EventsManager() {
       today.getFullYear() === selectedMonthYear
     );
   };
-  const hasFilters = searchTerm.trim() || typeFilter !== 'all' || timeFilter !== 'upcoming';
+  const hasFilters = searchTerm.trim() || typeFilter !== 'all';
 
   useEffect(() => {
     setVisibleEventsCount(20);
-  }, [selectedMonthIndex, selectedMonthYear, searchTerm, typeFilter, timeFilter, selectedDay]);
+  }, [selectedMonthIndex, selectedMonthYear, searchTerm, typeFilter, selectedDay]);
 
   return (
     <div className="container page-container events-manager-page">
@@ -554,7 +602,8 @@ export function EventsManager() {
           <button onClick={() => handleOpenModal()} className="btn btn--primary">
             Crear Evento
           </button>
-          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline">
+          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
             Volver
           </Link>
         </div>
@@ -615,19 +664,27 @@ export function EventsManager() {
                   </div>
 
                   <div className="event-calendar__days">
-                    {days.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`event-calendar__day ${
-                          day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
-                        } ${day && daysWithEvents.has(day) ? 'event-calendar__day--has-event' : ''} ${
-                          selectedDay === day ? 'event-calendar__day--selected' : ''
-                        } ${isToday(day) ? 'event-calendar__day--today' : ''}`}
-                        onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
-                      >
-                        {day}
-                      </div>
-                    ))}
+                    {days.map((day, index) => {
+                      const hasEvent = day && daysWithEvents.has(day);
+                      const hasUpcomingEvent = day && daysWithUpcomingEvents.has(day);
+                      const hasPastEvent = day && daysWithPastEvents.has(day);
+
+                      return (
+                        <div
+                          key={index}
+                          className={`event-calendar__day ${
+                            day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
+                          } ${hasEvent ? 'event-calendar__day--has-event' : ''} ${
+                            hasUpcomingEvent ? 'event-calendar__day--has-upcoming-event' : ''
+                          } ${hasPastEvent ? 'event-calendar__day--has-past-event' : ''} ${
+                            selectedDay === day ? 'event-calendar__day--selected' : ''
+                          } ${isToday(day) ? 'event-calendar__day--today' : ''}`}
+                          onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -662,6 +719,7 @@ export function EventsManager() {
                       <p className="events-list-subtitle">
                         {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
                       </p>
+                      <p className="events-list-next">{upcomingEventsSummary}</p>
                     </div>
                   </div>
 
@@ -697,23 +755,6 @@ export function EventsManager() {
                         <option value="snacks">Snacks</option>
                       </select>
                     </div>
-
-                    <div className="events-filter-field">
-                      <label className="form-label" htmlFor="events-time-filter">
-                        Estado
-                      </label>
-                      <select
-                        id="events-time-filter"
-                        className="form-select form-input--sm"
-                        value={timeFilter}
-                        onChange={(e) => setTimeFilter(e.target.value)}
-                      >
-                        <option value="all">Todos</option>
-                        <option value="upcoming">Próximos</option>
-                        <option value="past">Pasados</option>
-                      </select>
-                    </div>
-
                     {hasFilters && (
                       <button
                         type="button"
@@ -721,7 +762,6 @@ export function EventsManager() {
                         onClick={() => {
                           setSearchTerm('');
                           setTypeFilter('all');
-                          setTimeFilter('upcoming');
                         }}
                       >
                         Limpiar
@@ -742,15 +782,24 @@ export function EventsManager() {
                         >
                           <div className="events-day-heading">{formatDayHeading(group.date)}</div>
                           <div className="events-day-items">
-                          {group.events.map(event => (
+                          {group.events.map(event => {
+                            const pastEvent = isPastEvent(event);
+                            return (
                             <div 
                               key={event.id} 
-                              className="card card--compact card--clickable"
+                              className={`card card--compact card--clickable ${pastEvent ? 'events-list-card--past' : ''}`}
                               onClick={() => handleViewEvent(event)}
                             >
                               <div className="card__header card__header--compact">
                                 <div className="event-card-main">
-                                  <h3 className="card__title">{event.titulo}</h3>
+                                  <div className="event-card-title-row">
+                                    <h3 className="card__title">{event.titulo}</h3>
+                                    {pastEvent && (
+                                      <span className="badge badge--sm events-list-card__past-badge">
+                                        Evento pasado
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="card__subtitle">
                                     {getEventMeta(event)}
                                   </p>
@@ -763,7 +812,8 @@ export function EventsManager() {
                                 </div>
                               </div>
                             </div>
-                            ))}
+                            );
+                          })}
                           </div>
                         </div>
                       ))
@@ -1040,3 +1090,4 @@ export function EventsManager() {
     </div>
   );
 }
+

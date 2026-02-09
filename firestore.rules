@@ -365,17 +365,19 @@ service cloud.firestore {
         isFamily() &&
         (resource.data.familiaUid == request.auth.uid || request.auth.uid in resource.data.get('familiasUids', [])) &&
         (
-          // Permitir confirmar (modelo viejo - confirmadoPorFamilia)
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmadoPorFamilia', 'estado', 'solicitudCambio', 'motivoCambio', 'fechaConfirmacion', 'updatedAt']) &&
-           request.resource.data.confirmadoPorFamilia == true) ||
+          // Permitir confirmar (cualquier modelo - más flexible)
+          (request.resource.data.confirmadoPorFamilia == true &&
+           (request.resource.data.diff(resource.data).affectedKeys().hasAny(['confirmadoPorFamilia']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasAny(['familias'])) &&
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['familiaUid', 'familiasUids', 'ambiente', 'fechaInicio', 'fechaFin', 'childId', 'childName', 'suspendido'])) ||
           // Permitir solicitar cambio
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solicitudCambio', 'motivoCambio', 'confirmadoPorFamilia', 'estado', 'fechaSolicitudCambio', 'updatedAt']) &&
-           request.resource.data.solicitudCambio == true) ||
-          // Permitir cancelar turno
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'motivoCancelacion', 'confirmadoPorFamilia', 'fechaCancelacion', 'updatedAt']) &&
-           request.resource.data.estado == 'cancelado') ||
-          // Permitir confirmación por familia (modelo nuevo - actualizar array familias)
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familias', 'estado', 'confirmadoPorFamilia', 'confirmadoPor', 'updatedAt'])
+          (request.resource.data.solicitudCambio == true &&
+           request.resource.data.diff(resource.data).affectedKeys().hasAny(['solicitudCambio']) &&
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['familiaUid', 'familiasUids', 'ambiente', 'fechaInicio', 'fechaFin', 'childId', 'childName'])) ||
+          // Permitir cancelar turno (más flexible)
+          (request.resource.data.estado == 'cancelado' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasAny(['estado']) &&
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['familiaUid', 'familiasUids', 'ambiente', 'fechaInicio', 'fechaFin', 'childId', 'childName']))
         )
       );
     }
@@ -417,6 +419,45 @@ service cloud.firestore {
 
       // Eliminar: Solo SuperAdmin
       allow delete: if isSuperAdmin();
+    }
+
+    // Colección: /gallery-categories (categorías de galería institucional)
+    match /gallery-categories/{categoryId} {
+      // Leer: Todos los autenticados (el filtrado por rol se hace en el cliente)
+      allow read: if isAuthenticated();
+
+      // Crear/Actualizar/Eliminar: Admin o docentes
+      allow create, update, delete: if isAdmin() || isDocente();
+    }
+
+    // Colección: /gallery-albums (álbumes de galería institucional)
+    match /gallery-albums/{albumId} {
+      // Leer: Todos los autenticados (el filtrado por categoría se hace en el cliente)
+      allow read: if isAuthenticated();
+
+      // Crear/Actualizar/Eliminar: Admin o docentes
+      allow create, update, delete: if isAdmin() || isDocente();
+    }
+
+    // Colección: /gallery-media (archivos multimedia de galería institucional)
+    match /gallery-media/{mediaId} {
+      // Leer: Todos los autenticados (el filtrado por categoría se hace en el cliente)
+      allow read: if isAuthenticated();
+
+      // Crear: Admin o docentes
+      allow create: if isAdmin() || isDocente();
+
+      // Actualizar: Admin o quien lo subió
+      allow update: if isAdmin() || (
+        isDocente() &&
+        resource.data.uploadedBy == request.auth.uid
+      );
+
+      // Eliminar: Admin o quien lo subió
+      allow delete: if isAdmin() || (
+        isDocente() &&
+        resource.data.uploadedBy == request.auth.uid
+      );
     }
 
     // Por defecto, denegar todo lo demás

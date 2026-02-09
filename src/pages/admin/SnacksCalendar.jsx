@@ -5,14 +5,17 @@ import { snacksService } from '../../services/snacks.service';
 import { usersService } from '../../services/users.service';
 import { childrenService } from '../../services/children.service';
 import { ROUTES, AMBIENTES } from '../../config/constants';
+import { AlertDialog } from '../../components/common/AlertDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
+import { getSnackStatusMeta } from '../../utils/snackAssignmentState';
 
 export function SnacksCalendar() {
   const [assignmentsTaller1, setAssignmentsTaller1] = useState([]);
   const [assignmentsTaller2, setAssignmentsTaller2] = useState([]);
+  const [calendarWeekCache, setCalendarWeekCache] = useState({});
   const [childrenByTaller, setChildrenByTaller] = useState({
     [AMBIENTES.TALLER_1]: [],
     [AMBIENTES.TALLER_2]: []
@@ -27,8 +30,13 @@ export function SnacksCalendar() {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [selectedChildFamilies, setSelectedChildFamilies] = useState([]);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
+  const [alertDialog, setAlertDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspendReason, setSuspendReason] = useState('Vacaciones');
   const [suspendTargetWeek, setSuspendTargetWeek] = useState(null);
@@ -50,7 +58,6 @@ export function SnacksCalendar() {
   const loadFamiliesByTaller = async (taller) => {
     try {
       setLoadingFamilies(true);
-      console.log(`Cargando familias para ${taller}...`);
       const childrenResult = await childrenService.getChildrenByAmbiente(taller);
 
       if (!childrenResult.success) {
@@ -58,14 +65,10 @@ export function SnacksCalendar() {
         return [];
       }
 
-      console.log(`📚 Hijos en ${taller}:`, childrenResult.children.length);
-
       const responsableUids = new Set();
       childrenResult.children.forEach(child => {
         (child.responsables || []).forEach(r => responsableUids.add(r));
       });
-
-      console.log(`👥 Responsables únicos en ${taller}:`, responsableUids.size);
 
       if (responsableUids.size === 0) return [];
 
@@ -74,9 +77,6 @@ export function SnacksCalendar() {
       const familyUsers = usersResults
         .filter(r => r.success && r.user && r.user.role === 'family')
         .map(r => r.user);
-
-      console.log(`Familias cargadas para ${taller}:`, familyUsers.length);
-      familyUsers.forEach(f => console.log(`  - ${f.displayName || f.email}`));
 
       // Guardar también la lista de hijos para este taller
       setChildrenByTaller(prev => ({ ...prev, [taller]: childrenResult.children }));
@@ -102,27 +102,11 @@ export function SnacksCalendar() {
 
       if (result1.success) setAssignmentsTaller1(result1.assignments);
       if (result2.success) setAssignmentsTaller2(result2.assignments);
-
-      console.log('🔑 AMBIENTES.TALLER_1:', AMBIENTES.TALLER_1);
-      console.log('🔑 AMBIENTES.TALLER_2:', AMBIENTES.TALLER_2);
     } catch (err) {
       console.error('Error en loadAssignmentsForRange:', err);
       setError('Error al cargar asignaciones: ' + err.message);
     }
     setLoading(false);
-  };
-
-  const getNextMonday = (baseDate) => {
-    const start = new Date(baseDate);
-    const dayOfWeek = start.getDay();
-    if (dayOfWeek === 1) return start;
-    if (dayOfWeek === 0) {
-      start.setDate(start.getDate() + 1);
-      return start;
-    }
-    const daysUntilMonday = 8 - dayOfWeek;
-    start.setDate(start.getDate() + daysUntilMonday);
-    return start;
   };
 
   const addDays = (date, days) => {
@@ -222,6 +206,84 @@ export function SnacksCalendar() {
   const toISODate = (date) => date.toISOString().split('T')[0];
   const days = getDaysInMonth();
 
+  const pickAssignmentForWeek = (assignments, dateStr) => {
+    const matches = assignments.filter(a => a.fechaInicio === dateStr);
+    if (matches.length === 0) return null;
+    const suspended = matches.find(a => a.suspendido || a.estado === 'suspendido');
+    return suspended || matches[0];
+  };
+
+  const buildWeekEntry = (weekStartDate, assignmentT1 = null, assignmentT2 = null) => {
+    const monday = getWeekStart(weekStartDate);
+    const friday = new Date(monday);
+    friday.setDate(friday.getDate() + 4);
+
+    return {
+      fechaInicio: toISODate(monday),
+      fechaFin: toISODate(friday),
+      monday,
+      friday,
+      taller1: assignmentT1,
+      taller2: assignmentT2
+    };
+  };
+
+  const isWeekInsideLoadedRange = (weekStartDate) => {
+    if (!weekStartDate) return false;
+    const monday = getWeekStart(weekStartDate);
+    return monday >= startMonday && monday <= endMonday;
+  };
+
+  const loadCalendarWeekFromDb = async (weekStartDate, { force = false } = {}) => {
+    if (!weekStartDate) return;
+
+    const monday = getWeekStart(weekStartDate);
+    const weekKey = toISODate(monday);
+    if (!force && (isWeekInsideLoadedRange(monday) || calendarWeekCache[weekKey]?.loaded)) {
+      return;
+    }
+
+    try {
+      const [result1, result2] = await Promise.all([
+        snacksService.getAssignmentsByAmbienteRange(AMBIENTES.TALLER_1, weekKey, weekKey),
+        snacksService.getAssignmentsByAmbienteRange(AMBIENTES.TALLER_2, weekKey, weekKey)
+      ]);
+
+      if (!result1.success || !result2.success) {
+        throw new Error(result1.error || result2.error || 'No se pudo cargar la semana seleccionada');
+      }
+
+      setCalendarWeekCache(prev => ({
+        ...prev,
+        [weekKey]: {
+          loaded: true,
+          taller1: pickAssignmentForWeek(result1.assignments, weekKey),
+          taller2: pickAssignmentForWeek(result2.assignments, weekKey)
+        }
+      }));
+    } catch (err) {
+      console.error('Error cargando semana del calendario:', err);
+      setError('Error al cargar la semana seleccionada');
+    }
+  };
+
+  const reloadAssignments = async () => {
+    await loadAssignmentsForRange(startDateStr, endDateStr);
+    if (selectedWeekStart && !isWeekInsideLoadedRange(selectedWeekStart)) {
+      await loadCalendarWeekFromDb(selectedWeekStart, { force: true });
+    }
+  };
+
+  const handleWeekSelection = (weekStartDate) => {
+    setSelectedWeekStart(weekStartDate);
+    loadCalendarWeekFromDb(weekStartDate);
+  };
+
+  useEffect(() => {
+    if (!selectedWeekStart) return;
+    loadCalendarWeekFromDb(selectedWeekStart);
+  }, [selectedWeekStart, startDateStr, endDateStr]);
+
   // Generar semanas hasta fin de año (excluyendo última semana de diciembre)
   const generateWeeks = () => {
     const weeks = [];
@@ -230,13 +292,6 @@ export function SnacksCalendar() {
     // Calcular limite: 20 de diciembre (para no incluir semana de fin de ano)
     const endLimit = new Date(currentMonday.getFullYear(), 11, 20); // 20 de diciembre
     endLimit.setHours(0, 0, 0, 0);
-
-    const pickAssignment = (assignments, dateStr) => {
-      const matches = assignments.filter(a => a.fechaInicio === dateStr);
-      if (matches.length === 0) return null;
-      const suspended = matches.find(a => a.suspendido || a.estado === 'suspendido');
-      return suspended || matches[0];
-    };
 
     // Generar semanas hasta el 20 de diciembre
     while (currentMonday <= endLimit) {
@@ -247,8 +302,8 @@ export function SnacksCalendar() {
       const mondayStr = monday.toISOString().split('T')[0];
       const fridayStr = friday.toISOString().split('T')[0];
 
-      const assignmentT1 = pickAssignment(assignmentsTaller1, mondayStr);
-      const assignmentT2 = pickAssignment(assignmentsTaller2, mondayStr);
+      const assignmentT1 = pickAssignmentForWeek(assignmentsTaller1, mondayStr);
+      const assignmentT2 = pickAssignmentForWeek(assignmentsTaller2, mondayStr);
 
       weeks.push({
         fechaInicio: mondayStr,
@@ -263,19 +318,15 @@ export function SnacksCalendar() {
       if (weeks.length >= totalWeeks) break;
     }
 
-    console.log(`📆 Generadas ${weeks.length} semanas hasta fin de año`);
     return weeks;
   };
 
   // Abrir modal de asignación
   const openAssignModal = (week, taller) => {
-    if (isPastWeek(week)) {
-      setError('No se pueden asignar alumnos en semanas pasadas.');
+    if (isClosedWeek(week)) {
+      setError('No se pueden asignar alumnos en semanas cerradas.');
       return;
     }
-    console.log('🔓 Abriendo modal para:', taller);
-    console.log('Hijos disponibles:', childrenByTaller);
-    console.log('👥 Hijos para', taller, ':', childrenByTaller[taller]);
     setSelectedWeek(week);
     setSelectedTaller(taller);
     setSelectedChildId('');
@@ -342,12 +393,12 @@ export function SnacksCalendar() {
     setShowAssignModal(false);
 
     if (result.updated) {
-      setSuccess('Asignación existente actualizada con el alumno seleccionado');
+      openSuccessDialog('Asignación existente actualizada con el alumno seleccionado');
     } else {
-      setSuccess('Asignación creada para el alumno; las familias recibirán recordatorio programado');
+      openSuccessDialog('Asignación creada para el alumno. Las familias recibirán recordatorio programado.');
     }
 
-    await loadAssignmentsForRange(startDateStr, endDateStr);
+    await reloadAssignments();
   };
 
   // Abrir modal de gestión de cambio
@@ -368,9 +419,9 @@ export function SnacksCalendar() {
         setSaving(false);
 
         if (result.success) {
-          setSuccess('Asignación eliminada');
+          openSuccessDialog('Asignación eliminada');
           setShowChangeModal(false);
-          await loadAssignmentsForRange(startDateStr, endDateStr);
+          await reloadAssignments();
         } else {
           setError('Error al eliminar: ' + result.error);
         }
@@ -386,33 +437,44 @@ export function SnacksCalendar() {
   };
 
   const getTallerStatus = (assignment) => {
-    if (!assignment) return { style: 'empty', label: 'Sin asignar' };
-    if (assignment.suspendido || assignment.estado === 'suspendido') {
-      return { style: 'suspended', label: 'No hay snacks', isSuspended: true };
+    const status = getSnackStatusMeta(assignment);
+    if (status.isConfirmedState) {
+      return { ...status, style: 'confirmed', label: 'Confirmado' };
     }
-    if (assignment.solicitudCambio) return { style: 'alert', label: 'Cambio solicitado' };
-    if (assignment.confirmadoPorFamilia) return { style: 'confirmed', label: 'Confirmado' };
-    return { style: 'pending', label: 'Pendiente confirmación' };
+    return status;
+  };
+  const statusFilterLabels = {
+    empty: 'Sin asignar',
+    pending: 'Pendiente',
+    confirmed: 'Confirmado',
+    alert: 'Cambio solicitado',
+    cancelled: 'Cancelado'
+  };
+
+  const getAssignmentSecondaryText = (assignment, status) => {
+    if (!assignment) return '';
+    if (status.isConfirmedState && assignment.confirmadoPor) return `Confirmado por: ${assignment.confirmadoPor}`;
+    if (status.isConfirmedState) return 'Familia confirmada';
+    return assignment.familiaEmail || '';
   };
 
   const getWeekStatus = (week) => {
-    const hasT1 = !!week.taller1;
-    const hasT2 = !!week.taller2;
-
-    if (!hasT1 || !hasT2) return { style: 'incomplete', label: 'Incompleto' };
-
     const t1Status = getTallerStatus(week.taller1);
     const t2Status = getTallerStatus(week.taller2);
+    const t1NeedsAssignment = !week.taller1 || t1Status.style === 'alert';
+    const t2NeedsAssignment = !week.taller2 || t2Status.style === 'alert';
+
+    if (t1NeedsAssignment || t2NeedsAssignment) return { style: 'incomplete', label: 'Sin asignar' };
 
     if (t1Status.style === 'suspended' || t2Status.style === 'suspended') {
       return { style: 'suspended', label: 'Suspendido' };
     }
 
-    if (t1Status.style === 'alert' || t2Status.style === 'alert') {
-      return { style: 'alert', label: 'Requiere atención' };
+    if (t1Status.style === 'cancelled' || t2Status.style === 'cancelled') {
+      return { style: 'cancelled', label: 'Con cancelacion' };
     }
 
-    if (t1Status.style === 'confirmed' && t2Status.style === 'confirmed') {
+    if (t1Status.isConfirmedState && t2Status.isConfirmedState) {
       return { style: 'complete', label: 'Completo' };
     }
 
@@ -424,6 +486,7 @@ export function SnacksCalendar() {
       case 'empty': return 'snack-status snack-status--empty';
       case 'alert': return 'snack-status snack-status--alert';
       case 'confirmed': return 'snack-status snack-status--confirmed';
+      case 'cancelled': return 'snack-status snack-status--cancelled';
       case 'pending': return 'snack-status snack-status--pending';
       case 'incomplete': return 'snack-status snack-status--incomplete';
       case 'complete': return 'snack-status snack-status--complete';
@@ -446,6 +509,15 @@ export function SnacksCalendar() {
 
   const isStatusFilterActive = (value) => statusFilter === value;
 
+  const openSuccessDialog = (message, title = 'Accion completada') => {
+    setAlertDialog({
+      isOpen: true,
+      title,
+      message,
+      type: 'success'
+    });
+  };
+
   // Marcar TODA la semana como suspendida (ambos talleres)
   const handleSuspendWeek = async (week, motivo) => {
     if (!motivo) {
@@ -463,9 +535,8 @@ export function SnacksCalendar() {
     setSaving(false);
 
     if (result1.success && result2.success) {
-      setSuccess('Semana completa marcada como suspendida (ambos talleres)');
-      setTimeout(() => setSuccess(''), 3500);
-      await loadAssignmentsForRange(startDateStr, endDateStr);
+      openSuccessDialog('Semana completa marcada como suspendida (ambos talleres)');
+      await reloadAssignments();
     } else {
       setError('Error al marcar semana como suspendida');
       setTimeout(() => setError(''), 3500);
@@ -506,9 +577,8 @@ export function SnacksCalendar() {
     setSaving(false);
 
     if (results.length > 0 && results.every(r => r.success)) {
-      setSuccess('Suspensión eliminada');
-      setTimeout(() => setSuccess(''), 3500);
-      await loadAssignmentsForRange(startDateStr, endDateStr);
+      openSuccessDialog('Suspensión eliminada');
+      await reloadAssignments();
     } else {
       setError('Error al quitar la suspensión');
       setTimeout(() => setError(''), 3500);
@@ -517,17 +587,32 @@ export function SnacksCalendar() {
 
   const weeks = generateWeeks();
   const selectedWeekKey = selectedWeekStart ? toISODate(selectedWeekStart) : null;
+  const selectedWeekCache = selectedWeekKey ? calendarWeekCache[selectedWeekKey] : null;
+  const weeksByStart = new Map(weeks.map(week => [week.fechaInicio, week]));
+  if (selectedWeekKey && selectedWeekStart && !weeksByStart.has(selectedWeekKey)) {
+    weeksByStart.set(
+      selectedWeekKey,
+      buildWeekEntry(
+        selectedWeekStart,
+        selectedWeekCache?.taller1 || null,
+        selectedWeekCache?.taller2 || null
+      )
+    );
+  }
+  const selectedWeekRecord = selectedWeekKey ? weeksByStart.get(selectedWeekKey) : null;
   const baseWeeks = selectedWeekKey
-    ? weeks.filter(week => week.fechaInicio === selectedWeekKey)
+    ? (selectedWeekRecord ? [selectedWeekRecord] : [])
     : weeks;
   const filteredWeeks = !statusFilter
     ? baseWeeks
     : baseWeeks.filter((week) => {
         const t1 = getTallerStatus(week.taller1).style;
         const t2 = getTallerStatus(week.taller2).style;
+        if (statusFilter === 'empty') {
+          return t1 === 'empty' || t2 === 'empty' || t1 === 'alert' || t2 === 'alert';
+        }
         return statusFilter === t1 || statusFilter === t2;
       });
-  const weeksByStart = new Map(weeks.map(week => [week.fechaInicio, week]));
   const hasWeekData = (week) => Boolean(week?.taller1 || week?.taller2);
   const weeksInSelectedMonth = weeks.filter(
     week => week.monday.getMonth() === selectedMonthIndex || week.friday.getMonth() === selectedMonthIndex
@@ -538,7 +623,7 @@ export function SnacksCalendar() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const currentWeekStart = getWeekStart(today);
-  const isPastWeek = (week) => week?.monday && week.monday < currentWeekStart;
+  const isClosedWeek = (week) => week?.monday && week.monday <= currentWeekStart;
 
   if (loading) {
     return (
@@ -565,8 +650,9 @@ export function SnacksCalendar() {
           >
             {showPastWeeks ? 'Mostrar desde hoy' : 'Mostrar semanas anteriores'}
           </button>
-          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline">
-            ← Volver
+          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
           </Link>
         </div>
       </div>
@@ -579,12 +665,6 @@ export function SnacksCalendar() {
                 {error && (
                   <div className="alert alert--error mb-md" onClick={() => setError('')}>
                     {error}
-                  </div>
-                )}
-
-                {success && (
-                  <div className="alert alert--success mb-md" onClick={() => setSuccess('')}>
-                    {success}
                   </div>
                 )}
 
@@ -631,6 +711,13 @@ export function SnacksCalendar() {
                   </button>
                   <button
                     type="button"
+                    className={`snack-status snack-status--cancelled snack-filter-chip ${isStatusFilterActive('cancelled') ? 'snack-filter-chip--active' : ''}`}
+                    onClick={() => toggleStatusFilter('cancelled')}
+                  >
+                    Cancelado
+                  </button>
+                  <button
+                    type="button"
                     className="btn btn--outline btn--sm"
                     onClick={() => setStatusFilter(null)}
                     disabled={!statusFilter}
@@ -638,6 +725,11 @@ export function SnacksCalendar() {
                     Limpiar filtros
                   </button>
                 </div>
+                <p className="snack-filters__active-hint">
+                  {statusFilter
+                    ? `Filtro activo: ${statusFilterLabels[statusFilter] || statusFilter}`
+                    : 'Sin filtros activos'}
+                </p>
 
                 {filteredWeeks.length === 0 ? (
                   <div className="empty-state">
@@ -669,18 +761,34 @@ export function SnacksCalendar() {
 
                             return (
                               <tr key={week.fechaInicio}>
-                                <td>
+                                <td className="snacks-week-table__week-cell">
                                   <strong>{formatWeek(week.monday, week.friday)}</strong>
                                   <br />
                                   <small className="muted-text">
                                     {week.monday.toLocaleDateString('es-AR', { year: 'numeric' })}
                                   </small>
+                                  <div className="snack-week-date-actions">
+                                    {week.taller1?.suspendido || week.taller2?.suspendido ? (
+                                      <button
+                                        onClick={() => handleRemoveWeekSuspension(week)}
+                                        className="btn btn--sm snack-week-suspend-inline">
+                                        Quitar suspensión
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => openSuspendWeekModal(week)}
+                                        className="btn btn--sm btn--outline snack-week-suspend-inline"
+                                      >
+                                        Suspender semana
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
 
                                 {/* Taller 1 */}
-                                <td>
-                                  {week.taller1 ? (
-                                    <div>
+                                <td className="snacks-week-table__taller-cell">
+                                  {week.taller1 && t1Status.style !== 'alert' ? (
+                                    <div className="snack-week-cell">
                                       {t1Status.isSuspended ? (
                                         <div>
                                           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
@@ -707,15 +815,17 @@ export function SnacksCalendar() {
                                           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                                             <strong>{week.taller1.childName || week.taller1.familiaNombre}</strong>
                                             <br />
-                                            {week.taller1.confirmadoPor ? (
-                                              <small className="muted-text" style={{ color: 'var(--color-success)', fontWeight: 500 }}>
-                                                Confirmado por: {week.taller1.confirmadoPor}
-                                              </small>
-                                            ) : (
-                                              <small className="muted-text">{week.taller1.familiaEmail || ''}</small>
+                                            <small
+                                              className="muted-text"
+                                              style={t1Status.isConfirmedState ? { color: 'var(--color-success)', fontWeight: 500 } : undefined}
+                                            >
+                                              {getAssignmentSecondaryText(week.taller1, t1Status)}
+                                            </small>
+                                            {t1Status.style === 'cancelled' && week.taller1.motivoCancelacion && (
+                                              <small className="muted-text">Motivo: {week.taller1.motivoCancelacion}</small>
                                             )}
                                           </div>
-                                          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap', marginTop: 'var(--spacing-xs)' }}>
+                                          <div className="snack-week-cell__actions">
                                             <span className={getStatusBadgeClass(t1Status.style)}>
                                               {t1Status.label}
                                             </span>
@@ -730,9 +840,8 @@ export function SnacksCalendar() {
                                             )}
                                             <button
                                               onClick={() => handleDeleteAssignment(week.taller1.id)}
-                                              className="btn btn--sm btn--ghost"
+                                              className="btn btn--sm snack-delete-button"
                                               title="Eliminar asignación"
-                                              style={{ fontSize: '0.875rem', padding: '4px 8px', color: 'var(--color-text-light)' }}
                                             >
                                               Eliminar
                                             </button>
@@ -741,22 +850,33 @@ export function SnacksCalendar() {
                                       )}
                                     </div>
                                   ) : (
-                                    <button
-                                      onClick={() => openAssignModal(week, AMBIENTES.TALLER_1)}
-                                      className="btn btn--outline btn--sm"
-                                      style={{ width: '100%' }}
-                                      disabled={isPastWeek(week)}
-                                      title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}
-                                    >
-                                      + Asignar alumno
-                                    </button>
+                                    <div className="snack-week-cell snack-week-cell--empty">
+                                      {week.taller1?.solicitudCambio && (
+                                        <button
+                                          onClick={() => openChangeModal(week.taller1)}
+                                          className="btn btn--sm btn--outline"
+                                          style={{ fontSize: '0.75rem', padding: '4px 8px', width: '100%' }}
+                                        >
+                                          Ver solicitud
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => openAssignModal(week, AMBIENTES.TALLER_1)}
+                                        className="btn btn--outline btn--sm"
+                                        style={{ width: '100%' }}
+                                        disabled={isClosedWeek(week)}
+                                        title={isClosedWeek(week) ? 'Semana cerrada: la asignación se realiza antes del lunes.' : undefined}
+                                      >
+                                        {isClosedWeek(week) ? 'Semana cerrada' : '+ Asignar alumno'}
+                                      </button>
+                                    </div>
                                   )}
                                 </td>
 
                                 {/* Taller 2 */}
-                                <td>
-                                  {week.taller2 ? (
-                                    <div>
+                                <td className="snacks-week-table__taller-cell">
+                                  {week.taller2 && t2Status.style !== 'alert' ? (
+                                    <div className="snack-week-cell">
                                       {t2Status.isSuspended ? (
                                         <div>
                                           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
@@ -782,15 +902,17 @@ export function SnacksCalendar() {
                                           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                                             <strong>{week.taller2.childName || week.taller2.familiaNombre}</strong>
                                             <br />
-                                            {week.taller2.confirmadoPor ? (
-                                              <small className="muted-text" style={{ color: 'var(--color-success)', fontWeight: 500 }}>
-                                                Confirmado por: {week.taller2.confirmadoPor}
-                                              </small>
-                                            ) : (
-                                              <small className="muted-text">{week.taller2.familiaEmail || ''}</small>
+                                            <small
+                                              className="muted-text"
+                                              style={t2Status.isConfirmedState ? { color: 'var(--color-success)', fontWeight: 500 } : undefined}
+                                            >
+                                              {getAssignmentSecondaryText(week.taller2, t2Status)}
+                                            </small>
+                                            {t2Status.style === 'cancelled' && week.taller2.motivoCancelacion && (
+                                              <small className="muted-text">Motivo: {week.taller2.motivoCancelacion}</small>
                                             )}
                                           </div>
-                                          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap', marginTop: 'var(--spacing-xs)' }}>
+                                          <div className="snack-week-cell__actions">
                                             <span className={getStatusBadgeClass(t2Status.style)}>
                                               {t2Status.label}
                                             </span>
@@ -804,9 +926,9 @@ export function SnacksCalendar() {
                                             )}
                                             <button
                                               onClick={() => handleDeleteAssignment(week.taller2.id)}
-                                              className="btn btn--sm btn--ghost"
+                                              className="btn btn--sm snack-delete-button"
                                               title="Eliminar asignación"
-                                              style={{ fontSize: '0.875rem', padding: '4px 8px', color: 'var(--color-text-light)' }}>
+                                            >
                                               Eliminar
                                             </button>
                                           </div>
@@ -814,38 +936,33 @@ export function SnacksCalendar() {
                                       )}
                                     </div>
                                   ) : (
-                                    <button
-                                      onClick={() => openAssignModal(week, AMBIENTES.TALLER_2)}
-                                      className="btn btn--outline btn--sm"
-                                      style={{ width: '100%' }}
-                                      disabled={isPastWeek(week)}
-                                      title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}>
-                                      + Asignar alumno
-                                    </button>
+                                    <div className="snack-week-cell snack-week-cell--empty">
+                                      {week.taller2?.solicitudCambio && (
+                                        <button
+                                          onClick={() => openChangeModal(week.taller2)}
+                                          className="btn btn--sm btn--outline"
+                                          style={{ fontSize: '0.75rem', padding: '4px 8px', width: '100%' }}>
+                                          Ver solicitud
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => openAssignModal(week, AMBIENTES.TALLER_2)}
+                                        className="btn btn--outline btn--sm"
+                                        style={{ width: '100%' }}
+                                        disabled={isClosedWeek(week)}
+                                        title={isClosedWeek(week) ? 'Semana cerrada: la asignación se realiza antes del lunes.' : undefined}>
+                                        {isClosedWeek(week) ? 'Semana cerrada' : '+ Asignar alumno'}
+                                      </button>
+                                    </div>
                                   )}
                                 </td>
 
                                 {/* Estado General + Acciones */}
-                                <td>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', alignItems: 'flex-start' }}>
+                                <td className="snacks-week-table__state-cell">
+                                  <div className="snack-week-state">
                                     <span className={getStatusBadgeClass(weekStatus.style)}>
                                       {weekStatus.label}
                                     </span>
-                                    {week.taller1?.suspendido || week.taller2?.suspendido ? (
-                                      <button
-                                        onClick={() => handleRemoveWeekSuspension(week)}
-                                        className="btn btn--sm snack-action-button"
-                                        style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
-                                        Quitar suspensión
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={() => openSuspendWeekModal(week)}
-                                        className="btn btn--outline btn--sm snack-week-action"
-                                      >
-                                        Suspender semana
-                                      </button>
-                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -878,7 +995,7 @@ export function SnacksCalendar() {
 
                               <div className="snack-week-card__section">
                                 <div className="snack-week-card__label">Taller 1</div>
-                                {week.taller1 ? (
+                                {week.taller1 && t1Status.style !== 'alert' ? (
                                   t1Status.isSuspended ? (
                                     <div>
                                       <div className="snack-week-card__title muted-text">
@@ -902,12 +1019,14 @@ export function SnacksCalendar() {
                                       <div className="snack-week-card__title">
                                         {week.taller1.childName || week.taller1.familiaNombre}
                                       </div>
-                                      {week.taller1.confirmadoPor ? (
-                                        <div className="muted-text" style={{ color: 'var(--color-success)' }}>
-                                          Confirmado por: {week.taller1.confirmadoPor}
-                                        </div>
-                                      ) : (
-                                        <div className="muted-text">{week.taller1.familiaEmail || ''}</div>
+                                      <div
+                                        className="muted-text"
+                                        style={t1Status.isConfirmedState ? { color: 'var(--color-success)' } : undefined}
+                                      >
+                                        {getAssignmentSecondaryText(week.taller1, t1Status)}
+                                      </div>
+                                      {t1Status.style === 'cancelled' && week.taller1.motivoCancelacion && (
+                                        <div className="muted-text">Motivo: {week.taller1.motivoCancelacion}</div>
                                       )}
                                       <div className="snack-week-card__row">
                                         <span className={getStatusBadgeClass(t1Status.style)}>
@@ -923,7 +1042,7 @@ export function SnacksCalendar() {
                                         )}
                                         <button
                                           onClick={() => handleDeleteAssignment(week.taller1.id)}
-                                          className="btn btn--sm snack-action-button"
+                                          className="btn btn--sm snack-delete-button"
                                           title="Eliminar asignación"
                                         >
                                           Eliminar
@@ -932,20 +1051,30 @@ export function SnacksCalendar() {
                                     </div>
                                   )
                                 ) : (
-                                  <button
-                                    onClick={() => openAssignModal(week, AMBIENTES.TALLER_1)}
-                                    className="btn btn--outline btn--sm"
-                                    disabled={isPastWeek(week)}
-                                    title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}
-                                  >
-                                    + Asignar alumno
-                                  </button>
+                                  <div className="snack-week-card__row">
+                                    {week.taller1?.solicitudCambio && (
+                                      <button
+                                        onClick={() => openChangeModal(week.taller1)}
+                                        className="btn btn--sm btn--outline"
+                                      >
+                                        Ver solicitud
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => openAssignModal(week, AMBIENTES.TALLER_1)}
+                                      className="btn btn--outline btn--sm"
+                                      disabled={isClosedWeek(week)}
+                                      title={isClosedWeek(week) ? 'Semana cerrada: la asignación se realiza antes del lunes.' : undefined}
+                                    >
+                                      {isClosedWeek(week) ? 'Semana cerrada' : '+ Asignar alumno'}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
 
                               <div className="snack-week-card__section">
                                 <div className="snack-week-card__label">Taller 2</div>
-                                {week.taller2 ? (
+                                {week.taller2 && t2Status.style !== 'alert' ? (
                                   t2Status.isSuspended ? (
                                     <div>
                                       <div className="snack-week-card__title muted-text">
@@ -969,12 +1098,14 @@ export function SnacksCalendar() {
                                       <div className="snack-week-card__title">
                                         {week.taller2.childName || week.taller2.familiaNombre}
                                       </div>
-                                      {week.taller2.confirmadoPor ? (
-                                        <div className="muted-text" style={{ color: 'var(--color-success)' }}>
-                                          Confirmado por: {week.taller2.confirmadoPor}
-                                        </div>
-                                      ) : (
-                                        <div className="muted-text">{week.taller2.familiaEmail || ''}</div>
+                                      <div
+                                        className="muted-text"
+                                        style={t2Status.isConfirmedState ? { color: 'var(--color-success)' } : undefined}
+                                      >
+                                        {getAssignmentSecondaryText(week.taller2, t2Status)}
+                                      </div>
+                                      {t2Status.style === 'cancelled' && week.taller2.motivoCancelacion && (
+                                        <div className="muted-text">Motivo: {week.taller2.motivoCancelacion}</div>
                                       )}
                                       <div className="snack-week-card__row">
                                         <span className={getStatusBadgeClass(t2Status.style)}>
@@ -990,7 +1121,7 @@ export function SnacksCalendar() {
                                         )}
                                         <button
                                           onClick={() => handleDeleteAssignment(week.taller2.id)}
-                                          className="btn btn--sm snack-action-button"
+                                          className="btn btn--sm snack-delete-button"
                                           title="Eliminar asignación"
                                         >
                                           Eliminar
@@ -999,14 +1130,24 @@ export function SnacksCalendar() {
                                     </div>
                                   )
                                 ) : (
-                                  <button
-                                    onClick={() => openAssignModal(week, AMBIENTES.TALLER_2)}
-                                    className="btn btn--outline btn--sm"
-                                    disabled={isPastWeek(week)}
-                                    title={isPastWeek(week) ? 'No se pueden asignar alumnos en semanas pasadas' : undefined}
-                                  >
-                                    + Asignar alumno
-                                  </button>
+                                  <div className="snack-week-card__row">
+                                    {week.taller2?.solicitudCambio && (
+                                      <button
+                                        onClick={() => openChangeModal(week.taller2)}
+                                        className="btn btn--sm btn--outline"
+                                      >
+                                        Ver solicitud
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => openAssignModal(week, AMBIENTES.TALLER_2)}
+                                      className="btn btn--outline btn--sm"
+                                      disabled={isClosedWeek(week)}
+                                      title={isClosedWeek(week) ? 'Semana cerrada: la asignación se realiza antes del lunes.' : undefined}
+                                    >
+                                      {isClosedWeek(week) ? 'Semana cerrada' : '+ Asignar alumno'}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
 
@@ -1112,7 +1253,7 @@ export function SnacksCalendar() {
                       <div
                         key={index}
                         className={`event-calendar__day event-calendar__day--active ${showWeekDot ? 'event-calendar__day--has-event' : ''} ${isSelectedWeek ? 'event-calendar__day--selected' : ''} ${isToday(day) ? 'event-calendar__day--today' : ''}`}
-                        onClick={() => setSelectedWeekStart(weekStart)}
+                        onClick={() => handleWeekSelection(weekStart)}
                       >
                         {day}
                       </div>
@@ -1322,6 +1463,14 @@ export function SnacksCalendar() {
         title={confirmDialog.dialogData.title}
         message={confirmDialog.dialogData.message}
         type={confirmDialog.dialogData.type}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog(prev => ({ ...prev, isOpen: false }))}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        type={alertDialog.type}
       />
     </div>
   );

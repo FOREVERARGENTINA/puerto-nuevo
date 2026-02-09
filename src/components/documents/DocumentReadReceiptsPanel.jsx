@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { documentReadReceiptsService } from '../../services/documentReadReceipts.service';
 import Icon from '../ui/Icon';
 
@@ -6,27 +6,27 @@ import Icon from '../ui/Icon';
  * Componente para mostrar el estado de confirmaciones de lectura de un documento
  * Solo para admin
  */
-export function DocumentReadReceiptsPanel({ documentId, documentTitle }) {
+export function DocumentReadReceiptsPanel({ documentId, documentTitle: _documentTitle }) {
   const [receipts, setReceipts] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showDetails, setShowDetails] = useState(false);
-
-  useEffect(() => {
-    loadReceipts();
-  }, [documentId]);
+  const [showReceipts, setShowReceipts] = useState(false);
 
   const loadReceipts = async () => {
     setLoading(true);
     const result = await documentReadReceiptsService.getDocumentReceipts(documentId);
-    
+
     if (result.success) {
       setReceipts(result.receipts);
       setStats(result.stats);
     }
-    
+
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadReceipts();
+  }, [documentId]);
 
   if (loading) {
     return (
@@ -40,46 +40,60 @@ export function DocumentReadReceiptsPanel({ documentId, documentTitle }) {
     return null;
   }
 
-  const pendingReceipts = receipts.filter(r => r.status === 'pending');
-  const readReceipts = receipts.filter(r => r.status === 'read');
+  const panelContentId = `document-receipts-${documentId}`;
+  const pendingReceipts = receipts.filter((receipt) => receipt.status === 'pending');
+  const readReceipts = receipts.filter((receipt) => receipt.status === 'read');
 
   return (
-    <div 
-      className="card" 
-      style={{ 
-        marginTop: 'var(--spacing-md)', 
-        background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.03), rgba(var(--color-primary-rgb), 0.01))',
-        borderLeft: '4px solid var(--color-primary)'
+    <div
+      className="card card--compact"
+      style={{
+        marginTop: 'var(--spacing-sm)',
+        padding: 'var(--spacing-sm) var(--spacing-md)',
+        background: 'linear-gradient(135deg, var(--color-background-alt) 0%, var(--color-background-warm) 100%)',
+        borderLeft: '3px solid var(--color-primary)'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-xs)' }}>
-            <Icon name="check-square" size={20} style={{ color: 'var(--color-primary)' }} />
-            <h4 style={{ margin: 0 }}>Confirmaciones de Lectura</h4>
-          </div>
-          
-          <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-sm)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', minWidth: 0 }}>
+          <Icon name="check-square" size={16} style={{ color: 'var(--color-primary)' }} />
+          <h4 style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.2 }}>Confirmaciones de lectura</h4>
+        </div>
+
+        <button
+          onClick={() => setShowReceipts((prev) => !prev)}
+          className="btn btn--sm btn--outline"
+          aria-expanded={showReceipts}
+          aria-controls={panelContentId}
+          style={{ padding: '6px 10px' }}
+        >
+          {showReceipts ? 'Ocultar' : 'Mostrar'}
+        </button>
+      </div>
+
+      {showReceipts && (
+        <div id={panelContentId} style={{ marginTop: 'var(--spacing-sm)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-success)' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-success)', lineHeight: 1 }}>
                 {stats.read}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>
                 Confirmadas
               </div>
             </div>
-            
+
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-warning)' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-warning)', lineHeight: 1 }}>
                 {stats.pending}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>
                 Pendientes
               </div>
             </div>
-            
+
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)', lineHeight: 1 }}>
                 {stats.percentage}%
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>
@@ -87,40 +101,33 @@ export function DocumentReadReceiptsPanel({ documentId, documentTitle }) {
               </div>
             </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="btn btn--sm btn--outline"
-        >
-          {showDetails ? 'Ocultar detalles' : 'Ver detalles'}
-        </button>
-      </div>
-
-      {showDetails && (
-        <div style={{ marginTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-md)' }}>
-          <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+          <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
             {readReceipts.length > 0 && (
               <div>
-                <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-sm)', color: 'var(--color-success)' }}>
-                  <Icon name="check-circle" size={16} />
-                  Le\u00eddo ({readReceipts.length})
+                <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: '6px', color: 'var(--color-success)', fontSize: '0.85rem' }}>
+                  <Icon name="check-circle" size={14} />
+                  Leído ({readReceipts.length})
                 </h5>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                  {readReceipts.map(receipt => (
-                    <div 
-                      key={receipt.id} 
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        padding: 'var(--spacing-xs) var(--spacing-sm)', 
-                        background: 'var(--color-bg-secondary)', 
-                        borderRadius: 'var(--border-radius)',
-                        fontSize: '0.875rem'
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {readReceipts.map((receipt) => (
+                    <div
+                      key={receipt.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xs)',
+                        flexWrap: 'wrap',
+                        padding: '6px 8px',
+                        background: 'var(--color-background-alt)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem'
                       }}
                     >
-                      <span>{receipt.userEmail}</span>
-                      <span style={{ color: 'var(--color-text-light)' }}>
+                      <span style={{ flex: '1 1 200px', minWidth: 0, overflowWrap: 'anywhere' }}>{receipt.userEmail}</span>
+                      <span style={{ color: 'var(--color-text-light)', flex: '0 0 auto', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>
                         {receipt.readAt?.toDate?.().toLocaleString('es-AR') || 'Fecha desconocida'}
                       </span>
                     </div>
@@ -131,25 +138,29 @@ export function DocumentReadReceiptsPanel({ documentId, documentTitle }) {
 
             {pendingReceipts.length > 0 && (
               <div>
-                <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-sm)', color: 'var(--color-warning)' }}>
-                  <Icon name="clock" size={16} />
+                <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: '6px', color: 'var(--color-warning)', fontSize: '0.85rem' }}>
+                  <Icon name="clock" size={14} />
                   Pendiente ({pendingReceipts.length})
                 </h5>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                  {pendingReceipts.map(receipt => (
-                    <div 
-                      key={receipt.id} 
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        padding: 'var(--spacing-xs) var(--spacing-sm)', 
-                        background: 'var(--color-bg-secondary)', 
-                        borderRadius: 'var(--border-radius)',
-                        fontSize: '0.875rem'
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {pendingReceipts.map((receipt) => (
+                    <div
+                      key={receipt.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xs)',
+                        flexWrap: 'wrap',
+                        padding: '6px 8px',
+                        background: 'var(--color-background-alt)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem'
                       }}
                     >
-                      <span>{receipt.userEmail}</span>
-                      <span className="badge badge--warning" style={{ fontSize: '0.7rem' }}>
+                      <span style={{ flex: '1 1 200px', minWidth: 0, overflowWrap: 'anywhere' }}>{receipt.userEmail}</span>
+                      <span className="badge badge--warning" style={{ fontSize: '0.65rem', padding: '2px 6px', flex: '0 0 auto' }}>
                         Sin leer
                       </span>
                     </div>

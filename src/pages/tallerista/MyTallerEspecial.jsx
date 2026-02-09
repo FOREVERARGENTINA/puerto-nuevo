@@ -4,6 +4,7 @@ import { talleresService } from '../../services/talleres.service';
 import { useNavigate } from 'react-router-dom';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+import Icon from '../../components/ui/Icon';
 
 export function MyTallerEspecial() {
   const { user, isAdmin } = useAuth();
@@ -97,7 +98,8 @@ export function MyTallerEspecial() {
         <h1 className="dashboard-title">Mis talleres</h1>
         <p className="dashboard-subtitle">Revisá y actualizá la información del taller.</p>
       </div>
-      <button onClick={() => navigate(-1)} className="btn btn--outline">
+      <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
+        <Icon name="chevron-left" size={16} />
         Volver
       </button>
     </div>

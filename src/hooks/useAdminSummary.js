@@ -110,6 +110,23 @@ export function useAdminSummary(enabled = false) {
       let t1Unassigned = 0;
       let t2Unassigned = 0;
 
+      const isSnapshotUnassigned = (snapshot) => {
+        if (snapshot.empty) return 1;
+
+        const hasAssignedActive = snapshot.docs.some((docSnap) => {
+          const data = docSnap.data();
+          if (data.suspendido || data.estado === 'suspendido') return false;
+          if (data.estado === 'cancelado' || data.estado === 'completado') return false;
+          if (data.solicitudCambio || data.estado === 'cambio_solicitado') return false;
+
+          const hasFamilias = Array.isArray(data.familias) && data.familias.length > 0;
+          const hasLegacyFamilia = Boolean(data.familiaUid);
+          return hasFamilias || hasLegacyFamilia;
+        });
+
+        return hasAssignedActive ? 0 : 1;
+      };
+
       unsubscribeSnacks = () => {
         if (unsubT1) unsubT1();
         if (unsubT2) unsubT2();
@@ -118,17 +135,7 @@ export function useAdminSummary(enabled = false) {
       const unsubT1 = onSnapshot(
         snacksT1Query,
         (snapshot) => {
-          // Verificar si hay alguno sin asignar o suspendido
-          t1Unassigned = snapshot.empty ? 1 : 0;
-          snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.suspendido || data.estado === 'suspendido') return;
-            const hasFamilias = Array.isArray(data.familias) && data.familias.length > 0;
-            const hasLegacyFamilia = !!data.familiaUid;
-            if (!hasFamilias && !hasLegacyFamilia) {
-              t1Unassigned = 1; // Contamos 1 si hay al menos uno
-            }
-          });
+          t1Unassigned = isSnapshotUnassigned(snapshot);
           updateSnacksCount();
         },
         (error) => {
@@ -139,16 +146,7 @@ export function useAdminSummary(enabled = false) {
       const unsubT2 = onSnapshot(
         snacksT2Query,
         (snapshot) => {
-          t2Unassigned = snapshot.empty ? 1 : 0;
-          snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.suspendido || data.estado === 'suspendido') return;
-            const hasFamilias = Array.isArray(data.familias) && data.familias.length > 0;
-            const hasLegacyFamilia = !!data.familiaUid;
-            if (!hasFamilias && !hasLegacyFamilia) {
-              t2Unassigned = 1;
-            }
-          });
+          t2Unassigned = isSnapshotUnassigned(snapshot);
           updateSnacksCount();
         },
         (error) => {

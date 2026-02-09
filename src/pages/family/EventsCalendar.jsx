@@ -14,7 +14,6 @@ export function EventsCalendar() {
   const [familyAmbientes, setFamilyAmbientes] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [typeFilter, setTypeFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventDetail, setShowEventDetail] = useState(false);
 
@@ -68,6 +67,34 @@ export function EventsCalendar() {
       return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
     }
     return date;
+  };
+
+  const parseEventDateTime = (event) => {
+    const eventDate = normalizeEventDate(event?.fecha);
+    if (!eventDate || Number.isNaN(eventDate.getTime())) return null;
+
+    const eventDateTime = new Date(eventDate);
+    const hora = typeof event?.hora === 'string' ? event.hora.trim() : '';
+    const timeMatch = hora.match(/^(\d{1,2}):(\d{2})$/);
+
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        eventDateTime.setHours(hours, minutes, 0, 0);
+        return eventDateTime;
+      }
+    }
+
+    // Sin hora explícita: fin del día.
+    eventDateTime.setHours(23, 59, 59, 999);
+    return eventDateTime;
+  };
+
+  const isPastEvent = (event) => {
+    const eventDateTime = parseEventDateTime(event);
+    if (!eventDateTime) return false;
+    return eventDateTime < new Date();
   };
 
   const getDaysInMonth = () => {
@@ -129,56 +156,84 @@ export function EventsCalendar() {
     return badges[tipo] || 'badge--neutral';
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = normalizeEventDate(timestamp);
-    return new Intl.DateTimeFormat('es-AR', {
-      day: '2-digit',
-      month: 'long'
-    }).format(date);
-  };
-
   const selectedMonthYear = selectedMonth.getFullYear();
   const selectedMonthIndex = selectedMonth.getMonth();
 
-  const isEventVisibleForFamily = (event) => {
-    if (!isFamily) return true;
-    if (event.scope !== 'taller') return true;
-    if (!familyAmbientes.length) return false;
-    if (event.ambiente && familyAmbientes.includes(event.ambiente)) return true;
-    return false;
-  };
-
   const visibleEvents = useMemo(() => (
-    events.filter(isEventVisibleForFamily)
-  ), [events, familyAmbientes]);
+    events.filter(event => {
+      if (!isFamily) return true;
+      if (event.scope !== 'taller') return true;
+      if (!familyAmbientes.length) return false;
+      if (event.ambiente && familyAmbientes.includes(event.ambiente)) return true;
+      return false;
+    })
+  ), [events, familyAmbientes, isFamily]);
+
+  const eventsForCalendar = useMemo(() => visibleEvents, [visibleEvents]);
 
   const filteredEvents = useMemo(() => {
-    let list = visibleEvents;
-    if (typeFilter !== 'all') {
-      list = list.filter(event => event.tipo === typeFilter);
-    }
+    let list = eventsForCalendar;
     if (selectedDay) {
       list = list.filter(event => {
         const eventDate = normalizeEventDate(event.fecha);
         return eventDate && eventDate.getDate() === selectedDay;
       });
     }
-    return list.sort((a, b) => {
-      const dateA = normalizeEventDate(a.fecha);
-      const dateB = normalizeEventDate(b.fecha);
-      return dateA - dateB;
-    });
-  }, [visibleEvents, typeFilter, selectedDay]);
+    return [...list].sort((a, b) => {
+      const pastA = isPastEvent(a);
+      const pastB = isPastEvent(b);
+      if (pastA !== pastB) return pastA ? 1 : -1;
 
-  const daysWithEvents = useMemo(() => {
-    const set = new Set();
-    visibleEvents.forEach(event => {
-      const eventDate = normalizeEventDate(event.fecha);
-      if (eventDate) set.add(eventDate.getDate());
+      const dateA = parseEventDateTime(a);
+      const dateB = parseEventDateTime(b);
+      if (!dateA || !dateB) return 0;
+
+      // Próximos en orden ascendente, pasados del más reciente al más lejano.
+      return pastA ? dateB - dateA : dateA - dateB;
     });
-    return set;
-  }, [visibleEvents]);
+  }, [eventsForCalendar, selectedDay]);
+
+  const upcomingEventsPreview = useMemo(() => {
+    return filteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
+  }, [filteredEvents]);
+
+  const upcomingEventsSummary = useMemo(() => {
+    if (upcomingEventsPreview.length === 0) {
+      return 'Próximos eventos: sin eventos próximos en este rango.';
+    }
+
+    if (upcomingEventsPreview.length === 1) {
+      return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
+    }
+
+    return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
+  }, [upcomingEventsPreview]);
+
+  const [daysWithEvents, daysWithUpcomingEvents, daysWithPastEvents] = useMemo(() => {
+    const allDays = new Set();
+    const upcomingDays = new Set();
+    const pastDays = new Set();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    eventsForCalendar.forEach(event => {
+      const eventDate = normalizeEventDate(event.fecha);
+      if (!eventDate) return;
+
+      const eventDay = eventDate.getDate();
+      const eventDateStart = new Date(eventDate);
+      eventDateStart.setHours(0, 0, 0, 0);
+
+      allDays.add(eventDay);
+      if (eventDateStart < todayStart) {
+        pastDays.add(eventDay);
+      } else {
+        upcomingDays.add(eventDay);
+      }
+    });
+
+    return [allDays, upcomingDays, pastDays];
+  }, [eventsForCalendar]);
 
   const days = useMemo(() => getDaysInMonth(), [selectedMonth]);
   const today = new Date();
@@ -198,7 +253,8 @@ export function EventsCalendar() {
           <h1 className="dashboard-title">Calendario de Eventos</h1>
           <p className="dashboard-subtitle">Actividades y fechas importantes de la escuela</p>
         </div>
-        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
+        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver
         </Link>
       </div>
@@ -261,19 +317,27 @@ export function EventsCalendar() {
                   </div>
 
                   <div className="event-calendar__days">
-                    {days.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`event-calendar__day ${
-                          day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
-                        } ${day && daysWithEvents.has(day) ? 'event-calendar__day--has-event' : ''} ${
-                          selectedDay === day ? 'event-calendar__day--selected' : ''
-                        } ${isToday(day) ? 'event-calendar__day--today' : ''}`}
-                        onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
-                      >
-                        {day}
-                      </div>
-                    ))}
+                    {days.map((day, index) => {
+                      const hasEvent = day && daysWithEvents.has(day);
+                      const hasUpcomingEvent = day && daysWithUpcomingEvents.has(day);
+                      const hasPastEvent = day && daysWithPastEvents.has(day);
+
+                      return (
+                        <div
+                          key={index}
+                          className={`event-calendar__day ${
+                            day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
+                          } ${hasEvent ? 'event-calendar__day--has-event' : ''} ${
+                            hasUpcomingEvent ? 'event-calendar__day--has-upcoming-event' : ''
+                          } ${hasPastEvent ? 'event-calendar__day--has-past-event' : ''} ${
+                            selectedDay === day ? 'event-calendar__day--selected' : ''
+                          } ${isToday(day) ? 'event-calendar__day--today' : ''}`}
+                          onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -306,40 +370,23 @@ export function EventsCalendar() {
                       <p className="events-list-subtitle">
                         {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="events-filters">
-                    <div className="events-filter-field">
-                      <label className="form-label" htmlFor="events-type-filter">
-                        Tipo de evento
-                      </label>
-                      <select
-                        id="events-type-filter"
-                        className="form-select form-input--sm"
-                        value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
-                      >
-                        <option value="all">Todos</option>
-                        <option value="general">General</option>
-                        <option value="reuniones">Reuniones</option>
-                        <option value="talleres">Talleres</option>
-                        <option value="snacks">Snacks</option>
-                      </select>
+                      <p className="events-list-next">{upcomingEventsSummary}</p>
                     </div>
                   </div>
 
                   {filteredEvents.length === 0 ? (
                     <div className="empty-state empty-state--compact">
                       <Icon name="calendar" size={32} className="empty-state__icon" />
-                      <p>No hay eventos que coincidan con los filtros</p>
+                      <p>No hay eventos para mostrar</p>
                     </div>
                   ) : (
                     <div className="events-list">
-                      {filteredEvents.map(event => (
+                      {filteredEvents.map(event => {
+                        const pastEvent = isPastEvent(event);
+                        return (
                         <div 
                           key={event.id} 
-                          className="event-item event-item--clickable"
+                          className={`event-item event-item--clickable ${pastEvent ? 'event-item--past' : ''}`}
                           onClick={() => handleEventClick(event)}
                         >
                           <div className="event-item__date">
@@ -353,6 +400,11 @@ export function EventsCalendar() {
                           <div className="event-item__content">
                             <div className="event-item__header">
                               <h4 className="event-item__title">{event.titulo}</h4>
+                              {pastEvent && (
+                                <span className="badge badge--sm event-item__past-badge">
+                                  Evento pasado
+                                </span>
+                              )}
                               <span className={`badge badge--sm ${getEventTypeBadge(event.tipo)}`}>
                                 {getEventTypeLabel(event.tipo)}
                               </span>
@@ -372,7 +424,8 @@ export function EventsCalendar() {
                           </div>
                           <Icon name="chevron-right" size={16} className="event-item__arrow" />
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </>

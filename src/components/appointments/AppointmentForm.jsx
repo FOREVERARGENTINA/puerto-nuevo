@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { AlertDialog } from '../common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 
@@ -60,26 +60,30 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     <div className="appointment-form-container">
       <div className="card appointment-form-card">
         <div className="card__header appointment-form-header">
-          <h2 className="card__title">Reservar Turno</h2>
+          <div>
+            <h2 className="card__title">Confirmar turno</h2>
+            <p className="appointment-form-subtitle">Revisá los datos antes de reservar.</p>
+          </div>
         </div>
 
         <div className="card__body">
           {/* Appointment Details Section */}
           <div className="appointment-booking-summary">
-            <div className="booking-summary-item">
-              <div className="booking-summary-content">
-                <div className="booking-summary-label">Fecha y Hora</div>
-                <div className="booking-summary-value">{formatDateTime(appointment.fechaHora)}</div>
-              </div>
+            <div className="booking-summary-inline">
+              <span className="booking-summary-chip">
+                <span className="booking-summary-label">Fecha y Hora</span>
+                <span className="booking-summary-value">{formatDateTime(appointment.fechaHora)}</span>
+              </span>
+              {appointment.duracionMinutos && (
+                <>
+                  <span className="booking-summary-separator" aria-hidden="true">•</span>
+                  <span className="booking-summary-chip">
+                    <span className="booking-summary-label">Duración</span>
+                    <span className="booking-summary-value">{appointment.duracionMinutos} minutos</span>
+                  </span>
+                </>
+              )}
             </div>
-            {appointment.duracionMinutos && (
-              <div className="booking-summary-item">
-                <div className="booking-summary-content">
-                  <div className="booking-summary-label">Duración</div>
-                  <div className="booking-summary-value">{appointment.duracionMinutos} minutos</div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Form */}
@@ -119,7 +123,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                 className="form-textarea"
               />
               <div className="form-helper-text">
-                Puedes incluir detalles sobre el motivo de la reunión para que la escuela esté mejor preparada.
+                Agregá contexto opcional para preparar mejor la reunión.
               </div>
             </div>
 
@@ -127,14 +131,14 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
               <button
                 type="button"
                 onClick={onCancel}
-                className="btn btn--outline btn--lg"
+                className="btn btn--outline"
                 disabled={loading}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn btn--primary btn--lg"
+                className="btn btn--primary"
                 disabled={loading}
               >
                 {loading ? (
@@ -142,11 +146,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                     <span className="spinner-small"></span>
                     Reservando...
                   </>
-                ) : (
-                  <>
-                    ✓ Confirmar Reserva
-                  </>
-                )}
+                ) : 'Confirmar reserva'}
               </button>
             </div>
           </form>
@@ -165,3 +165,5 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 };
 
 export default AppointmentForm;
+
+

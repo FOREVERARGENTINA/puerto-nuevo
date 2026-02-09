@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { snacksService } from '../../services/snacks.service';
 import { AMBIENTES, ROUTES } from '../../config/constants';
+import Icon from '../../components/ui/Icon';
 
 export function SnacksLists() {
   const [activeSnackList, setActiveSnackList] = useState(AMBIENTES.TALLER_1);
@@ -13,6 +14,11 @@ export function SnacksLists() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const snackTabs = [
+    { key: AMBIENTES.TALLER_1, title: 'Taller 1' },
+    { key: AMBIENTES.TALLER_2, title: 'Taller 2' }
+  ];
 
   const loadSnackLists = async () => {
     setLoading(true);
@@ -40,7 +46,7 @@ export function SnacksLists() {
       if (!t1.success || !t2.success) {
         setError('No pudimos cargar las listas de snacks.');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error al cargar listas de snacks.');
     } finally {
       setLoading(false);
@@ -87,6 +93,8 @@ export function SnacksLists() {
     setError(result.error || 'Error al guardar la lista.');
   };
 
+  const activeTab = snackTabs.find(tab => tab.key === activeSnackList) || snackTabs[0];
+
   return (
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
@@ -94,7 +102,8 @@ export function SnacksLists() {
           <h1 className="dashboard-title">Listas de snacks</h1>
           <p className="dashboard-subtitle">Editá los alimentos por taller</p>
         </div>
-        <Link to={ROUTES.ADMIN_SNACKS} className="btn btn--outline">
+        <Link to="/admin/snacks" className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver a snacks
         </Link>
       </div>
@@ -105,24 +114,30 @@ export function SnacksLists() {
             {loading ? (
               <p>Cargando listas...</p>
             ) : (
-              <div className="tabs snack-list-tabs">
-                <div className="tabs__header">
-                  <button
-                    className={`tabs__tab ${activeSnackList === AMBIENTES.TALLER_1 ? 'tabs__tab--active' : ''}`}
-                    onClick={() => setActiveSnackList(AMBIENTES.TALLER_1)}
-                    type="button"
-                  >
-                    Taller 1
-                  </button>
-                  <button
-                    className={`tabs__tab ${activeSnackList === AMBIENTES.TALLER_2 ? 'tabs__tab--active' : ''}`}
-                    onClick={() => setActiveSnackList(AMBIENTES.TALLER_2)}
-                    type="button"
-                  >
-                    Taller 2
-                  </button>
+              <div className="snack-list-tabs">
+                <div className="snack-list-tabs__header" role="tablist" aria-label="Seleccionar taller">
+                  {snackTabs.map((tab) => {
+                    const isActive = activeSnackList === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        className={`snack-list-tab ${isActive ? 'snack-list-tab--active' : ''}`}
+                        onClick={() => setActiveSnackList(tab.key)}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                      >
+                        <span className="snack-list-tab__title">{tab.title}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="tabs__content">
+
+                <div className="snack-list-tabs__content">
+                  <div className="snack-list-editor__meta">
+                    <h3 className="snack-list-editor__title">{activeTab.title}</h3>
+                  </div>
+
                   {error && (
                     <div className="alert alert--error mb-md">
                       {error}
@@ -133,6 +148,7 @@ export function SnacksLists() {
                       {success}
                     </div>
                   )}
+
                   <div className="form-group">
                     <label className="form-label" htmlFor="snack-items">
                       Alimentos (uno por línea)
@@ -166,7 +182,7 @@ export function SnacksLists() {
                       onClick={() => handleSaveSnackList(activeSnackList)}
                       disabled={saving}
                     >
-                      {saving ? 'Guardando...' : 'Guardar lista'}
+                      {saving ? 'Guardando...' : `Guardar lista de ${activeTab.title}`}
                     </button>
                   </div>
                 </div>

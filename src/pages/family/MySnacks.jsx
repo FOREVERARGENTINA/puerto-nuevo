@@ -4,13 +4,17 @@ import { useAuth } from '../../hooks/useAuth';
 import { snacksService } from '../../services/snacks.service';
 import { AMBIENTES, ROUTES } from '../../config/constants';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
+import Icon from '../../components/ui/Icon';
+import {
+  getSnackStatusMeta,
+  isSnackAssignmentActiveForFamily
+} from '../../utils/snackAssignmentState';
 
 export function MySnacks() {
   const { user } = useAuth();
   const [myAssignments, setMyAssignments] = useState([]);
   const [snackLists, setSnackLists] = useState({});
   const [snackAmbientes, setSnackAmbientes] = useState([]);
-  const [snackView, setSnackView] = useState('all');
   const [snackListError, setSnackListError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,7 +24,20 @@ export function MySnacks() {
   const [actionType, setActionType] = useState(''); // 'edit' o 'cancel'
   const [motivo, setMotivo] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState('activos'); // 'activos' o 'historial'
+  const [expandedSnackAmbientes, setExpandedSnackAmbientes] = useState({});
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const syncExpandedSnackAmbientes = (ambientes = []) => {
+    setExpandedSnackAmbientes((prev) => {
+      if (!Array.isArray(ambientes) || ambientes.length === 0) return {};
+      const next = {};
+      ambientes.forEach((ambiente) => {
+        next[ambiente] = Boolean(prev[ambiente]);
+      });
+      // Todos inician cerrados
+      return next;
+    });
+  };
 
   // Cargar asignaciones de la familia
   const loadMyAssignments = async () => {
@@ -42,8 +59,8 @@ export function MySnacks() {
 
         if (ambientes.length === 0) {
           setSnackLists({});
-          setSnackView('all');
           setSnackListError('');
+          syncExpandedSnackAmbientes([]);
         } else {
           const listResults = await Promise.all(
             ambientes.map(ambiente => snacksService.getSnackList(ambiente))
@@ -62,17 +79,13 @@ export function MySnacks() {
 
           setSnackLists(lists);
           setSnackListError(hasError ? 'No pudimos cargar todas las listas.' : '');
-          setSnackView(prev => {
-            if (ambientes.length === 1) return ambientes[0];
-            if (prev !== 'all' && ambientes.includes(prev)) return prev;
-            return 'all';
-          });
+          syncExpandedSnackAmbientes(ambientes);
         }
       } else {
         setSnackLists({});
         setSnackAmbientes([]);
-        setSnackView('all');
         setSnackListError('');
+        syncExpandedSnackAmbientes([]);
       }
     } else {
       setError('Error al cargar asignaciones: ' + result.error);
@@ -169,19 +182,23 @@ export function MySnacks() {
   };
 
   const getAssignmentBadge = (assignment) => {
-    if (assignment?.suspendido) {
-      return { className: 'badge--warning', label: 'suspendido' };
+    const status = getSnackStatusMeta(assignment);
+    switch (status.style) {
+      case 'suspended':
+        return { className: 'badge--warning', label: 'suspendido', status };
+      case 'confirmed':
+        return { className: 'badge--success', label: 'confirmado', status };
+      case 'completed':
+        return { className: 'badge--primary', label: 'completado', status };
+      case 'cancelled':
+        return { className: 'badge--error', label: 'cancelado', status };
+      case 'alert':
+        return { className: 'badge--warning', label: 'cambio solicitado', status };
+      case 'pending':
+        return { className: 'badge--info', label: 'pendiente', status };
+      default:
+        return { className: 'badge--info', label: status.label.toLowerCase(), status };
     }
-    if (assignment?.estado === 'confirmado') {
-      return { className: 'badge--success', label: 'confirmado' };
-    }
-    if (assignment?.estado === 'cancelado') {
-      return { className: 'badge--error', label: 'cancelado' };
-    }
-    if (assignment?.estado === 'cambio_solicitado') {
-      return { className: 'badge--warning', label: 'cambio solicitado' };
-    }
-    return { className: 'badge--info', label: assignment?.estado || 'pendiente' };
   };
 
   const renderSnackList = (ambiente, showHeading) => {
@@ -211,19 +228,30 @@ export function MySnacks() {
     );
   };
 
+  const upcomingAssignments = myAssignments.filter((assignment) => !isPast(assignment.fechaFin));
+  const pendingAssignments = upcomingAssignments.filter((assignment) => (
+    getSnackStatusMeta(assignment).style === 'pending'
+  ));
+  const pastAssignments = myAssignments.filter((assignment) => isPast(assignment.fechaFin));
+  const nextAssignment = upcomingAssignments.find((assignment) => (
+    isSnackAssignmentActiveForFamily(assignment)
+  )) || null;
+  const snackAmbientesText = snackAmbientes.map((ambiente) => getAmbienteLabel(ambiente)).join(' y ');
+
   return (
-    <div className="container page-container">
+    <div className="container page-container family-snacks-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Mis turnos de snacks</h1>
           <p className="dashboard-subtitle">Confirmá o solicitá cambios en tus turnos.</p>
         </div>
-        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline">
-          ← Volver
+        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
+          Volver
         </Link>
       </div>
 
-      <div className="card">
+      <div className="card family-snacks-card">
         <div className="card__body">
           {error && (
             <div className="alert alert--error mb-md">
@@ -248,206 +276,191 @@ export function MySnacks() {
             </div>
           ) : (
             <>
-              {/* Mis Asignaciones */}
-              <div className="tabs">
-                <div className="tabs__header">
-                  <button
-                    className={`tabs__tab ${activeTab === 'activos' ? 'tabs__tab--active' : ''}`}
-                    onClick={() => setActiveTab('activos')}
-                  >
-                    Próximos Turnos
-                  </button>
-                  <button
-                    className={`tabs__tab ${activeTab === 'historial' ? 'tabs__tab--active' : ''}`}
-                    onClick={() => setActiveTab('historial')}
-                  >
-                    📋 Historial
-                  </button>
+              {nextAssignment && (
+                <div className="family-snacks-next">
+                  <p className="family-snacks-next__label">Tu próximo turno</p>
+                  <p className="family-snacks-next__week">
+                    {formatWeek(nextAssignment.fechaInicio, nextAssignment.fechaFin)}
+                  </p>
                 </div>
+              )}
+              {!nextAssignment && upcomingAssignments.length > 0 && (
+                <div className="family-snacks-next">
+                  <p className="family-snacks-next__label">Tu próximo turno</p>
+                  <p className="family-snacks-next__week">No hay turnos activos para confirmar.</p>
+                </div>
+              )}
 
-                <div className="tabs__content">
-                  {activeTab === 'activos' && (
-                    <div className="assignments-list">
-                      {myAssignments.filter(a => !isPast(a.fechaFin)).length === 0 ? (
-                        <p className="empty-state__text">No tienes turnos próximos.</p>
-                      ) : (
-                        myAssignments.filter(a => !isPast(a.fechaFin)).map(assignment => {
-                          const upcoming = isUpcoming(assignment.fechaInicio);
-                          const past = isPast(assignment.fechaFin);
-                          const badge = getAssignmentBadge(assignment);
+              {pendingAssignments.length > 0 && (
+                <p className="family-snacks-pending-note">
+                  {pendingAssignments.length === 1
+                    ? 'Tienes 1 turno pendiente de confirmar.'
+                    : `Tienes ${pendingAssignments.length} turnos pendientes de confirmar.`}
+                </p>
+              )}
 
-                          return (
-                            <div
-                              key={assignment.id}
-                              className={`card assignment-card ${
-                                upcoming ? 'assignment-card--upcoming' : ''
-                              }`}
-                            >
-                      <div className="card__body">
-                        <div className="assignment-header">
-                          <div>
-                            <h4 className="assignment-title">
-                              {upcoming && '⚠️ '} {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
-                            </h4>
-                          </div>
-                          <span className={`badge ${
-                            badge.className
-                          }`}>
-                            {badge.label}
-                          </span>
-                        </div>
+              <div className="family-snacks-section">
+                <h3 className="family-snacks-section__title">Cuándo debo llevar alimentos</h3>
+                {upcomingAssignments.length === 0 ? (
+                  <p className="empty-state__text">No tienes turnos próximos.</p>
+                ) : (
+                  <div className="assignments-list">
+                    {upcomingAssignments.map((assignment) => {
+                      const upcoming = isUpcoming(assignment.fechaInicio);
+                      const past = isPast(assignment.fechaFin);
+                      const badge = getAssignmentBadge(assignment);
+                      const status = badge.status;
 
-                        {upcoming && !assignment.confirmadoPorFamilia && assignment.estado === 'pendiente' && !assignment.suspendido && (
-                          <div className="assignment-warning">
-                            <strong>¡Tu turno es esta semana!</strong> Recuerda traer los snacks el lunes.
-                          </div>
-                        )}
-
-                        <div className="assignment-actions">
-                          {(() => {
-                            if (assignment.suspendido) {
-                              return (
-                                <div className="assignment-suspended">
-                                  <span>⏸ Semana suspendida</span>
-                                  {assignment.motivoSuspension && (
-                                    <p className="assignment-suspended__message">
-                                      {assignment.motivoSuspension}
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            // Estados finales sin acción
-                            if (assignment.estado === 'cancelado') {
-                              return (
-                                <div className="assignment-cancelled">
-                                  <span>✗ Turno rechazado</span>
-                                  {assignment.motivoCancelacion && (
-                                    <p className="assignment-cancelled__message">
-                                      {assignment.motivoCancelacion}
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            }
-                            
-                            if (assignment.solicitudCambio) {
-                              return (
-                                <div className="assignment-change-request">
-                                  <p>
-                                    <strong>⚠️ Solicitud de cambio enviada</strong>
-                                  </p>
-                                  {assignment.motivoCambio && (
-                                    <p className="assignment-change-request__message">
-                                      {assignment.motivoCambio}
-                                    </p>
-                                  )}
-                                  <p className="assignment-change-request__note">
-                                    La escuela confirmará si puede asignarte la fecha que solicitaste.
-                                  </p>
-                                </div>
-                              );
-                            }
-
-                            if (past) {
-                              return (
-                                <p className="assignment-past-note">
-                                  Esta semana ya pasó
+                      return (
+                        <div
+                          key={assignment.id}
+                          className={`card assignment-card ${
+                            upcoming ? 'assignment-card--upcoming' : ''
+                          }`}
+                        >
+                          <div className="card__body">
+                            <div className="assignment-header">
+                              <div>
+                                <h4 className="assignment-title">
+                                  {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
+                                </h4>
+                                <p className="assignment-ambiente">
+                                  {getAmbienteLabel(assignment.ambiente)}
                                 </p>
-                              );
-                            }
-                            
-                            // Turno activo (no pasado, no cancelado, no en solicitud de cambio)
-                            const myFamily = Array.isArray(assignment.familias) 
-                              ? assignment.familias.find(f => f.uid === user.uid)
-                              : null;
-                            const iConfirmed = myFamily?.confirmed;
-                            const alreadyConfirmed = assignment.confirmadoPorFamilia;
-                            
-                            return (
-                              <>
-                                {alreadyConfirmed && (
-                                  <div className="assignment-confirmed mb-sm">
-                                    <span>✓</span>
-                                    <span>
-                                      {iConfirmed 
-                                        ? 'Ya confirmaste que traerás los snacks'
-                                        : `Ya confirmado por: ${assignment.confirmadoPor}`
-                                      }
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                <div className="assignment-buttons">
-                                  {!alreadyConfirmed && (
-                                    <button
-                                      onClick={() => handleConfirm(assignment.id)}
-                                      className="btn btn--primary"
-                                    >
-                                      ✓ Confirmar
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleOpenEditModal(assignment, 'edit')}
-                                    className="btn btn--outline"
-                                  >
-                                    Solicitar cambio de fecha
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEditModal(assignment, 'cancel')}
-                                    className="btn btn--outline btn--danger-outline"
-                                  >
-                                    ✗ Rechazar turno
-                                  </button>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-
-                      </div>
-                    </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === 'historial' && (
-                    <div className="assignments-list">
-                      {myAssignments.filter(a => isPast(a.fechaFin)).length === 0 ? (
-                        <p className="empty-state__text">No tienes turnos anteriores.</p>
-                      ) : (
-                        myAssignments.filter(a => isPast(a.fechaFin)).map(assignment => {
-                          const badge = getAssignmentBadge(assignment);
-                          return (
-                          <div
-                            key={assignment.id}
-                            className="card assignment-card assignment-card--past"
-                          >
-                            <div className="card__body">
-                              <div className="assignment-header">
-                                <div>
-                                  <h4 className="assignment-title">
-                                    {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
-                                  </h4>
-                                </div>
-                                <span className={`badge ${badge.className}`}>
-                                  {badge.label}
-                                </span>
                               </div>
-                              <p className="assignment-past-note">
-                                Turno finalizado
-                              </p>
+                              <span className={`badge ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                            </div>
+
+                            {upcoming && status.style === 'pending' && (
+                              <div className="assignment-warning">
+                                <strong>Este turno es esta semana.</strong> Recordá traer los snacks el lunes.
+                              </div>
+                            )}
+
+                            <div className="assignment-actions">
+                              {(() => {
+                                if (status.style === 'suspended') {
+                                  return (
+                                    <div className="assignment-suspended">
+                                      <span>Semana suspendida</span>
+                                      {assignment.motivoSuspension && (
+                                        <p className="assignment-suspended__message">
+                                          {assignment.motivoSuspension}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (status.style === 'cancelled') {
+                                  return (
+                                    <div className="assignment-cancelled">
+                                      <span>Turno rechazado</span>
+                                      {assignment.motivoCancelacion && (
+                                        <p className="assignment-cancelled__message">
+                                          {assignment.motivoCancelacion}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (status.style === 'completed') {
+                                  return (
+                                    <p className="assignment-past-note">
+                                      Turno completado
+                                    </p>
+                                  );
+                                }
+
+                                if (status.style === 'alert') {
+                                  return (
+                                    <div className="assignment-change-request">
+                                      <p>
+                                        <strong>Solicitud de cambio enviada</strong>
+                                      </p>
+                                      {assignment.motivoCambio && (
+                                        <p className="assignment-change-request__message">
+                                          {assignment.motivoCambio}
+                                        </p>
+                                      )}
+                                      <p className="assignment-change-request__note">
+                                        La escuela confirmará si puede asignarte la fecha que solicitaste.
+                                      </p>
+                                    </div>
+                                  );
+                                }
+
+                                if (past) {
+                                  return (
+                                    <p className="assignment-past-note">
+                                      Esta semana ya pasó
+                                    </p>
+                                  );
+                                }
+
+                                const myFamily = Array.isArray(assignment.familias)
+                                  ? assignment.familias.find((family) => family.uid === user.uid)
+                                  : null;
+                                const iConfirmed = myFamily?.confirmed;
+                                const alreadyConfirmed = status.isConfirmedState;
+                                const confirmedByName = assignment.confirmadoPor || 'otra persona responsable';
+
+                                return (
+                                  <>
+                                    {alreadyConfirmed && (
+                                      <div className="assignment-confirmed mb-sm">
+                                        <span aria-hidden="true">•</span>
+                                        <span>
+                                          {iConfirmed
+                                            ? 'Ya confirmaste que traerás los snacks'
+                                            : `Ya confirmado por: ${confirmedByName}`
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <div className="assignment-buttons">
+                                      {/* Estado PENDIENTE: puede confirmar o rechazar */}
+                                      {status.key === 'pending' && !alreadyConfirmed && (
+                                        <>
+                                          <button
+                                            onClick={() => handleConfirm(assignment.id)}
+                                            className="btn btn--primary"
+                                          >
+                                            Confirmar
+                                          </button>
+                                          <button
+                                            onClick={() => handleOpenEditModal(assignment, 'cancel')}
+                                            className="btn btn--outline btn--danger-outline"
+                                          >
+                                            Rechazar turno
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {/* Estado CONFIRMADO: solo puede solicitar cambio de fecha */}
+                                      {status.key === 'confirmed' && (
+                                        <button
+                                          onClick={() => handleOpenEditModal(assignment, 'edit')}
+                                          className="btn btn--outline"
+                                        >
+                                          Solicitar cambio de fecha
+                                        </button>
+                                      )}
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
-                        );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Lista de Snacks */}
@@ -455,38 +468,108 @@ export function MySnacks() {
                 <div className="card snack-list-card">
                   <div className="card__body">
                     <div className="snack-list-header">
-                      <h3 className="mb-md">Lista de snacks a traer</h3>
-                      {snackAmbientes.length > 1 && (
-                        <div className="snack-list-toggle">
-                          <button
-                            type="button"
-                            className={snackView === 'all' ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
-                            onClick={() => setSnackView('all')}
-                          >
-                            Todos
-                          </button>
-                          {snackAmbientes.map(ambiente => (
-                            <button
-                              key={ambiente}
-                              type="button"
-                              className={snackView === ambiente ? 'btn btn--sm btn--primary' : 'btn btn--sm btn--outline'}
-                              onClick={() => setSnackView(ambiente)}
-                            >
-                              {getAmbienteLabel(ambiente)}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <div>
+                        <h3 className="snack-list-heading">Qué alimentos llevar</h3>
+                        <p className="snack-list-subtitle">
+                          {snackAmbientes.length === 1
+                            ? `Lista correspondiente a ${snackAmbientesText}.`
+                            : `Tenés hijos en ${snackAmbientesText}. Revisá cada lista por separado.`
+                          }
+                        </p>
+                      </div>
                     </div>
                     {snackListError && (
                       <p className="form-help">{snackListError}</p>
                     )}
-                    {snackView === 'all'
-                      ? snackAmbientes.map(ambiente => renderSnackList(ambiente, snackAmbientes.length > 1))
-                      : renderSnackList(snackView, snackAmbientes.length > 1)}
+
+                    {snackAmbientes.length === 1
+                      ? renderSnackList(snackAmbientes[0], true)
+                      : (
+                        <div className="snack-accordion-list">
+                          {snackAmbientes.map((ambiente) => {
+                            const isOpen = Boolean(expandedSnackAmbientes[ambiente]);
+                            return (
+                              <div
+                                key={ambiente}
+                                className={`snack-accordion ${isOpen ? 'snack-accordion--open' : ''}`}
+                              >
+                                <button
+                                  type="button"
+                                  className="snack-accordion__trigger"
+                                  onClick={() => {
+                                    setExpandedSnackAmbientes((prev) => ({
+                                      ...prev,
+                                      [ambiente]: !prev[ambiente]
+                                    }));
+                                  }}
+                                >
+                                  <span className="snack-accordion__title">{getAmbienteLabel(ambiente)}</span>
+                                  <span className="snack-accordion__state">{isOpen ? 'Ocultar' : 'Ver lista'}</span>
+                                </button>
+                                {isOpen && (
+                                  <div className="snack-accordion__content">
+                                    {renderSnackList(ambiente, false)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
+
+              <div className="family-snacks-history">
+                <button
+                  type="button"
+                  className="family-snacks-history__trigger"
+                  onClick={() => setHistoryOpen((prev) => !prev)}
+                >
+                  <span>Historial de turnos</span>
+                  <span className="family-snacks-history__meta">
+                    {pastAssignments.length} {pastAssignments.length === 1 ? 'semana' : 'semanas'}
+                  </span>
+                </button>
+                {historyOpen && (
+                  <div className="family-snacks-history__content">
+                    {pastAssignments.length === 0 ? (
+                      <p className="empty-state__text">No tienes turnos anteriores.</p>
+                    ) : (
+                      <div className="assignments-list">
+                        {pastAssignments.map((assignment) => {
+                          const badge = getAssignmentBadge(assignment);
+                          return (
+                            <div
+                              key={assignment.id}
+                              className="card assignment-card assignment-card--past"
+                            >
+                              <div className="card__body">
+                                <div className="assignment-header">
+                                  <div>
+                                    <h4 className="assignment-title">
+                                      {formatWeek(assignment.fechaInicio, assignment.fechaFin)}
+                                    </h4>
+                                    <p className="assignment-ambiente">
+                                      {getAmbienteLabel(assignment.ambiente)}
+                                    </p>
+                                  </div>
+                                  <span className={`badge ${badge.className}`}>
+                                    {badge.label}
+                                  </span>
+                                </div>
+                                <p className="assignment-past-note">
+                                  Turno finalizado
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

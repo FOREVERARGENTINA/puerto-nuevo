@@ -840,6 +840,16 @@ const AppointmentsManager = () => {
     return set;
   })();
 
+  const daysWithAvailableSlots = (() => {
+    const set = new Set();
+    appointmentsForMonth.forEach(app => {
+      if (app.estado !== 'disponible') return;
+      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      set.add(appDate.getDate());
+    });
+    return set;
+  })();
+
   const days = (() => {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
     const offset = (startingDayOfWeek + 6) % 7;
@@ -886,121 +896,155 @@ const AppointmentsManager = () => {
           <h1 className="dashboard-title">Reuniones</h1>
           <p className="dashboard-subtitle">Calendario y administración de turnos para reuniones</p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+        <div className="appointments-header__actions">
           <button
             onClick={() => setShowCreateSlots(!showCreateSlots)}
-            className="btn btn--primary"
+            className={showCreateSlots ? 'btn btn--outline' : 'btn btn--primary'}
           >
-            {showCreateSlots ? 'Cancelar' : '+ Crear Turnos'}
+            {showCreateSlots ? 'Cerrar formulario' : '+ Crear Turnos'}
           </button>
         </div>
+      </div>
+
+      <div className="appointments-mobile-create-trigger">
+        <button
+          onClick={() => setShowCreateSlots(!showCreateSlots)}
+          className={showCreateSlots ? 'btn btn--outline' : 'btn btn--primary'}
+        >
+          {showCreateSlots ? 'Cerrar formulario' : 'Crear turnos'}
+        </button>
       </div>
 
       {showCreateSlots && (
         <div className="card create-slots-form-card">
           <div className="card__header">
-            <h2 className="card__title">Generar Turnos Disponibles</h2>
+            <div>
+              <h2 className="card__title">Generar turnos disponibles</h2>
+              <p className="card__subtitle">Definí día, rango y horarios para crear múltiples turnos en una sola acción.</p>
+            </div>
           </div>
           <div className="card__body">
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="diaSemana">Día de la Semana</label>
-                <select
-                  id="diaSemana"
-                  name="diaSemana"
-                  value={slotsForm.diaSemana}
-                  onChange={handleSlotFormChange}
-                >
-                  <option value="1">Lunes</option>
-                  <option value="2">Martes</option>
-                  <option value="3">Miércoles</option>
-                  <option value="4">Jueves</option>
-                  <option value="5">Viernes</option>
-                  <option value="6">Sábado</option>
-                  <option value="0">Domingo</option>
-                </select>
-              </div>
+            <div className="create-slots-layout">
+              <section className="create-slots-section">
+                <h3 className="create-slots-section__title">Período</h3>
+                <div className="create-slots-grid create-slots-grid--period">
+                  <div className="form-group">
+                    <label htmlFor="diaSemana">Día de la semana</label>
+                    <select
+                      id="diaSemana"
+                      name="diaSemana"
+                      value={slotsForm.diaSemana}
+                      onChange={handleSlotFormChange}
+                      className="form-select"
+                    >
+                      <option value="1">Lunes</option>
+                      <option value="2">Martes</option>
+                      <option value="3">Miércoles</option>
+                      <option value="4">Jueves</option>
+                      <option value="5">Viernes</option>
+                      <option value="6">Sábado</option>
+                      <option value="0">Domingo</option>
+                    </select>
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="fechaDesde">Desde</label>
-                <input
-                  type="date"
-                  id="fechaDesde"
-                  name="fechaDesde"
-                  value={slotsForm.fechaDesde}
-                  onChange={handleSlotFormChange}
-                  min={getTodayMinDate()}
-                />
-              </div>
+                  <div className="create-slots-subgrid">
+                    <div className="form-group">
+                      <label htmlFor="fechaDesde">Desde</label>
+                      <input
+                        className="form-input"
+                        type="date"
+                        id="fechaDesde"
+                        name="fechaDesde"
+                        value={slotsForm.fechaDesde}
+                        onChange={handleSlotFormChange}
+                        min={getTodayMinDate()}
+                      />
+                    </div>
 
-              <div className="form-group">
-                <label htmlFor="fechaHasta">Hasta</label>
-                <input
-                  type="date"
-                  id="fechaHasta"
-                  name="fechaHasta"
-                  value={slotsForm.fechaHasta}
-                  onChange={handleSlotFormChange}
-                  min={slotsForm.fechaDesde || getTodayMinDate()}
-                />
-              </div>
+                    <div className="form-group">
+                      <label htmlFor="fechaHasta">Hasta</label>
+                      <input
+                        className="form-input"
+                        type="date"
+                        id="fechaHasta"
+                        name="fechaHasta"
+                        value={slotsForm.fechaHasta}
+                        onChange={handleSlotFormChange}
+                        min={slotsForm.fechaDesde || getTodayMinDate()}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="create-slots-section">
+                <h3 className="create-slots-section__title">Horario</h3>
+                <div className="create-slots-grid create-slots-grid--time">
+                  <div className="form-group">
+                    <label htmlFor="horaInicio">Hora inicio</label>
+                    <input
+                      className="form-input"
+                      type="time"
+                      id="horaInicio"
+                      name="horaInicio"
+                      value={slotsForm.horaInicio}
+                      onChange={handleSlotFormChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="horaFin">Hora fin</label>
+                    <input
+                      className="form-input"
+                      type="time"
+                      id="horaFin"
+                      name="horaFin"
+                      value={slotsForm.horaFin}
+                      onChange={handleSlotFormChange}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="create-slots-section">
+                <h3 className="create-slots-section__title">Configuración</h3>
+                <div className="create-slots-grid create-slots-grid--setup">
+                  <div className="form-group">
+                    <label htmlFor="duracionMinutos">Duración (minutos)</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      id="duracionMinutos"
+                      name="duracionMinutos"
+                      value={slotsForm.duracionMinutos}
+                      onChange={handleSlotFormChange}
+                      min="15"
+                      step="5"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="intervaloMinutos">Buffer entre turnos (minutos)</label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      id="intervaloMinutos"
+                      name="intervaloMinutos"
+                      value={slotsForm.intervaloMinutos}
+                      onChange={handleSlotFormChange}
+                      min="0"
+                      step="5"
+                    />
+                  </div>
+                </div>
+              </section>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="horaInicio">Hora Inicio</label>
-                <input
-                  type="time"
-                  id="horaInicio"
-                  name="horaInicio"
-                  value={slotsForm.horaInicio}
-                  onChange={handleSlotFormChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="horaFin">Hora Fin</label>
-                <input
-                  type="time"
-                  id="horaFin"
-                  name="horaFin"
-                  value={slotsForm.horaFin}
-                  onChange={handleSlotFormChange}
-                />
-              </div>
+            <div className="create-slots-actions">
+              <button onClick={handleCreateSlots} className="btn btn--primary">
+                Generar turnos
+              </button>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="duracionMinutos">Duración (minutos)</label>
-                <input
-                  type="number"
-                  id="duracionMinutos"
-                  name="duracionMinutos"
-                  value={slotsForm.duracionMinutos}
-                  onChange={handleSlotFormChange}
-                  min="15"
-                  step="5"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="intervaloMinutos">Intervalo entre turnos (minutos)</label>
-                <input
-                  type="number"
-                  id="intervaloMinutos"
-                  name="intervaloMinutos"
-                  value={slotsForm.intervaloMinutos}
-                  onChange={handleSlotFormChange}
-                  min="0"
-                  step="5"
-                />
-              </div>
-            </div>
-
-            <button onClick={handleCreateSlots} className="btn btn--primary">
-              Generar Turnos
-            </button>
           </div>
         </div>
       )}
@@ -1206,12 +1250,15 @@ const AppointmentsManager = () => {
                   {days.map((day, index) => {
                     const isToday = day && new Date(currentMonthYear, currentMonthIndex, day).toISOString().split('T')[0] === todayDateString;
                     const hasAppointments = day && daysWithAppointments.has(day);
+                    const hasAvailableSlots = day && daysWithAvailableSlots.has(day);
                     return (
                       <div
                         key={index}
                         className={`event-calendar__day ${
                           day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
                         } ${day && hasAppointments ? 'event-calendar__day--has-event' : ''} ${
+                          day && hasAvailableSlots ? 'event-calendar__day--has-slot' : ''
+                        } ${
                           selectedDay === day ? 'event-calendar__day--selected' : ''
                         } ${isToday ? 'event-calendar__day--today' : ''}`}
                         onClick={() => day && setSelectedDay(selectedDay === day ? null : day)}
@@ -1459,8 +1506,8 @@ const AppointmentsManager = () => {
                   {notesFiles.length > 0 && (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 'var(--spacing-sm) 0 0' }}>
                       {notesFiles.map((file, index) => (
-                        <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{file.name}</span>
+                        <li key={`new-note-file-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Adjunto nuevo {index + 1}</span>
                           <button type="button" className="btn btn--link" onClick={() => removeNotesFile(index)}>
                             Quitar
                           </button>
@@ -1475,7 +1522,7 @@ const AppointmentsManager = () => {
                       <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
                         {notesExistingAttachments.map((file, index) => (
                           <li key={`existing-note-${index}`}>
-                            <a href={file.url} target="_blank" rel="noreferrer">{file.name || 'Archivo'}</a>
+                            <a href={file.url} target="_blank" rel="noreferrer">Adjunto {index + 1}</a>
                           </li>
                         ))}
                       </ul>
@@ -1638,14 +1685,6 @@ const AppointmentsManager = () => {
 };
 
 export default AppointmentsManager;
-
-
-
-
-
-
-
-
 
 
 

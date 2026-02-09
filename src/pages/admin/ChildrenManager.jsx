@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { appointmentsService } from '../../services/appointments.service';
+import { ROUTES } from '../../config/constants';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import ChildForm from '../../components/children/ChildForm';
 import ChildCard from '../../components/children/ChildCard';
+import Icon from '../../components/ui/Icon';
 
 const CHILDREN_PAGE_SIZE = 12;
 
@@ -251,6 +254,12 @@ const ChildrenManager = () => {
             <h1 className="dashboard-title">Alumnos</h1>
             <p className="dashboard-subtitle">Datos principales y responsables.</p>
           </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+            <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+              <Icon name="chevron-left" size={16} />
+              Volver
+            </Link>
+          </div>
         </div>
         <div className="card">
           <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
@@ -269,6 +278,12 @@ const ChildrenManager = () => {
           <div>
             <h1 className="dashboard-title">{editingChild ? 'Editar alumno' : 'Nuevo alumno'}</h1>
             <p className="dashboard-subtitle">Actualizá la información del alumno y sus responsables.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+            <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+              <Icon name="chevron-left" size={16} />
+              Volver
+            </Link>
           </div>
         </div>
         <div className="card new-form-card">
@@ -289,9 +304,15 @@ const ChildrenManager = () => {
           <h1 className="dashboard-title">Alumnos</h1>
           <p className="dashboard-subtitle">Organizá familias, datos médicos y responsables desde un mismo lugar.</p>
         </div>
-        <button onClick={handleCreate} className="btn btn--primary">
-          + Nuevo Alumno
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </Link>
+          <button onClick={handleCreate} className="btn btn--primary">
+            + Nuevo Alumno
+          </button>
+        </div>
       </div>
 
       <div className="filters-card card">
@@ -485,6 +506,3 @@ const ChildrenManager = () => {
 };
 
 export default ChildrenManager;
-
-
-

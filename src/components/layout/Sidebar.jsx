@@ -22,7 +22,8 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
       { path: '/admin/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/admin/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/admin/documentos', icon: 'file', label: 'Documentos' }
+      { path: '/admin/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/admin/galeria-institucional', icon: 'image', label: 'Galería' }
     ],
     [ROLES.COORDINACION]: [
       { path: '/admin', icon: 'home', label: 'Inicio' },
@@ -34,18 +35,21 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
       { path: '/admin/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/admin/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/admin/documentos', icon: 'file', label: 'Documentos' }
+      { path: '/admin/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/admin/galeria-institucional', icon: 'image', label: 'Galería' }
     ],
     [ROLES.DOCENTE]: [
       { path: '/docente', icon: 'home', label: 'Inicio' },
       { path: '/docente/eventos', icon: 'event', label: 'Eventos' },
       { path: '/docente/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/docente/horarios', icon: 'calendar', label: 'Horarios' }
+      { path: '/docente/horarios', icon: 'calendar', label: 'Horarios' },
+      { path: '/docente/galeria', icon: 'image', label: 'Galería' }
     ],
     [ROLES.TALLERISTA]: [
       { path: '/tallerista', icon: 'home', label: 'Inicio' },
       { path: '/tallerista/mi-taller', icon: 'book', label: 'Mi Taller' },
-      { path: '/tallerista/galeria', icon: 'image', label: 'Galería' },
+      { path: '/tallerista/galeria', icon: 'image', label: 'Galería Taller' },
+      { path: '/tallerista/galeria-institucional', icon: 'image', label: 'Galería Escuela' },
       { path: '/tallerista/eventos', icon: 'event', label: 'Eventos' },
       { path: '/tallerista/documentos', icon: 'file', label: 'Documentos' },
       { path: '/tallerista/horarios', icon: 'calendar', label: 'Horarios' }
@@ -54,17 +58,19 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/familia', icon: 'home', label: 'Inicio' },
       { path: '/familia/comunicados', icon: 'bell', label: 'Comunicados' },
       { path: '/familia/conversaciones', icon: 'chat', label: 'Conversaciones' },
-      { path: '/familia/hijos', icon: 'user', label: 'Mis Hijos' },
+      { path: '/familia/hijos', icon: 'user', label: 'Fichas de Alumnos' },
       { path: '/familia/turnos', icon: 'calendar', label: 'Reuniones' },
       { path: '/familia/talleres', icon: 'book', label: 'Talleres' },
       { path: '/familia/eventos', icon: 'event', label: 'Eventos' },
       { path: '/familia/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/familia/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/familia/horarios', icon: 'calendar', label: 'Horarios' }
+      { path: '/familia/horarios', icon: 'calendar', label: 'Horarios' },
+      { path: '/familia/galeria', icon: 'image', label: 'Galería' }
     ],
     [ROLES.ASPIRANTE]: [
       { path: '/aspirante', icon: 'home', label: 'Inicio' },
-      { path: '/aspirante/documentos', icon: 'file', label: 'Documentos' }
+      { path: '/aspirante/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/aspirante/galeria', icon: 'image', label: 'Galería' }
     ]
   };
 
@@ -89,7 +95,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
                 title={item.label}
                 onClick={() => onNavigate && onNavigate()}
               >
-                <Icon name={item.icon} size={20} className="sidebar__icon" />
+                <Icon name={item.icon} size={16} className="sidebar__icon" />
                 <span className="sidebar__label">{item.label}</span>
               </NavLink>
             </li>

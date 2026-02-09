@@ -14,8 +14,20 @@ export function Layout({ children }) {
 
   return (
     <>
-      <Navbar onToggleSidebar={toggleSidebar} isSidebarOpen={sidebarOpen} />
+      <Navbar
+        onToggleSidebar={toggleSidebar}
+        onCloseSidebar={closeSidebar}
+        isSidebarOpen={sidebarOpen}
+      />
       <div className="layout-container">
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            aria-label="Cerrar menú"
+            onClick={closeSidebar}
+          />
+        )}
         <Sidebar isOpen={sidebarOpen} onNavigate={closeSidebar} />
         <div className="layout-main">
           <Breadcrumbs />

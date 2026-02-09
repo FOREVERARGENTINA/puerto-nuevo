@@ -20,6 +20,10 @@ export function AspiranteDashboard() {
               <h3 className="card__title">Documentos</h3>
               <p>Ver y descargar documentación del proceso de admisión</p>
             </Link>
+            <Link to={ROUTES.INSTITUTIONAL_GALLERY_ASPIRANTE} className="card card--clickable link-unstyled">
+              <h3 className="card__title">Galería</h3>
+              <p>Recorridos virtuales e información visual de la escuela</p>
+            </Link>
             <div className="card" style={{ opacity: 0.6 }}>
               <h3 className="card__title">Mi Estado</h3>
               <p>Ver etapa actual del proceso (próximamente)</p>

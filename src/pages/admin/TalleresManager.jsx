@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import { useAuth } from '../../hooks/useAuth';
+import Icon from '../../components/ui/Icon';
 
 const GALLERY_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 const GALLERY_MAX_FILE_SIZE_LABEL = '50MB';
@@ -131,43 +132,6 @@ const TalleresManager = () => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-
-    if (isNew) {
-      setEditingTaller(null);
-      setSelectedTaller(null);
-      setFormData({
-        nombre: '',
-        descripcion: '',
-        talleristaId: '',
-        horarios: [],
-        ambiente: ''
-      });
-      setActiveTab('config');
-      return;
-    }
-
-    const found = talleres.find(t => t.id === tallerId);
-    if (!found) {
-      setEditingTaller(null);
-      setSelectedTaller(null);
-      return;
-    }
-
-    setEditingTaller(found);
-    const talleristaId = Array.isArray(found.talleristaId) ? found.talleristaId[0] : (found.talleristaId || '');
-    setFormData({
-      nombre: found.nombre || '',
-      descripcion: found.descripcion || '',
-      talleristaId,
-      horarios: found.horarios || [],
-      ambiente: found.ambiente || ''
-    });
-    setActiveTab('config');
-    selectTallerForContent(found);
-  }, [loading, talleres, tallerId, isNew]);
-
   const canManageContent = (taller) => {
     if (!taller) return false;
     if (isAdmin) return true;
@@ -252,6 +216,43 @@ const TalleresManager = () => {
     });
     await Promise.all([loadAlbums(taller.id), loadLegacyGallery(taller.id), loadTallerEvents(taller.id)]);
   };
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (isNew) {
+      setEditingTaller(null);
+      setSelectedTaller(null);
+      setFormData({
+        nombre: '',
+        descripcion: '',
+        talleristaId: '',
+        horarios: [],
+        ambiente: ''
+      });
+      setActiveTab('config');
+      return;
+    }
+
+    const found = talleres.find(t => t.id === tallerId);
+    if (!found) {
+      setEditingTaller(null);
+      setSelectedTaller(null);
+      return;
+    }
+
+    setEditingTaller(found);
+    const talleristaId = Array.isArray(found.talleristaId) ? found.talleristaId[0] : (found.talleristaId || '');
+    setFormData({
+      nombre: found.nombre || '',
+      descripcion: found.descripcion || '',
+      talleristaId,
+      horarios: found.horarios || [],
+      ambiente: found.ambiente || ''
+    });
+    setActiveTab('config');
+    selectTallerForContent(found);
+  }, [loading, talleres, tallerId, isNew]);
 
   const resetForm = () => {
     if (editingTaller) {
@@ -434,6 +435,37 @@ const TalleresManager = () => {
       }
     });
   };
+
+  const handleToggleEstado = (taller) => {
+    if (!taller) return;
+    const newEstado = taller.estado === 'activo' ? 'inactivo' : 'activo';
+    confirmDialog.openDialog({
+      title: `${newEstado === 'activo' ? 'Habilitar taller' : 'Deshabilitar taller'}`,
+      message: `¿Estás seguro de ${newEstado === 'activo' ? 'habilitar' : 'deshabilitar'} este taller?`,
+      type: newEstado === 'activo' ? 'success' : 'danger',
+      onConfirm: async () => {
+        const result = await talleresService.updateTaller(taller.id, { estado: newEstado });
+        if (result.success) {
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: `Taller ${newEstado === 'activo' ? 'habilitado' : 'deshabilitado'} correctamente`,
+            type: 'success'
+          });
+          // actualizar estado en UI rápidamente
+          setEditingTaller(prev => prev ? { ...prev, estado: newEstado } : prev);
+          setSelectedTaller(prev => prev ? { ...prev, estado: newEstado } : prev);
+          await loadData();
+        } else {
+          alertDialog.openDialog({
+            title: 'Error',
+            message: result.error || 'No se pudo actualizar el estado.',
+            type: 'error'
+          });
+        }
+      }
+    });
+  };
+
   const validateFiles = (files, allowedExtensions, blockedExtensions, allowedMimePrefixes, allowedMimeTypes, maxSizeBytes) => {
     const validFiles = [];
     let hasInvalidType = false;
@@ -931,11 +963,6 @@ const TalleresManager = () => {
     await loadTallerEvents(selectedTaller.id);
     setEventSaving(false);
   };
-  const getTalleristaName = (talleristaUid) => {
-    const tallerista = talleristas.find(t => t.id === talleristaUid);
-    return tallerista?.email || 'No asignado';
-  };
-
   const diasSemanaOptions = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
   const bloquesHorariosOptions = [
@@ -961,7 +988,8 @@ const TalleresManager = () => {
         <p className="dashboard-subtitle">{headerSubtitle}</p>
       </div>
       <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-        <button onClick={() => navigate('/admin/talleres')} className="btn btn--outline">
+        <button onClick={() => navigate('/admin/talleres')} className="btn btn--outline btn--back">
+          <Icon name="chevron-left" size={16} />
           Volver al listado
         </button>
       </div>
@@ -1197,17 +1225,29 @@ const TalleresManager = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
-              <button type="submit" className="btn btn--primary">
+            <div className="talleres-form__actions">
+              <button type="submit" className="btn btn--sm btn--success">
                 {editingTaller ? 'Actualizar' : 'Crear'}
               </button>
-              <button type="button" onClick={resetForm} className="btn btn--outline">
+              <button type="button" onClick={resetForm} className="btn btn--sm btn--warning">
                 Restablecer
               </button>
               {editingTaller && (
-                <button type="button" onClick={() => handleDelete(editingTaller.id)} className="btn btn--danger">
-                  Eliminar taller
-                </button>
+                <>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--info"
+                      onClick={() => handleToggleEstado(editingTaller)}
+                      title={editingTaller.estado === 'activo' ? 'Deshabilitar taller' : 'Habilitar taller'}
+                    >
+                      {editingTaller.estado === 'activo' ? 'Deshabilitar' : 'Habilitar'}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => handleDelete(editingTaller.id)} className="btn btn--sm btn--danger">
+                    Eliminar
+                  </button>
+                </>
               )}
             </div>
           </form>

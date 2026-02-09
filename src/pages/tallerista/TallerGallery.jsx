@@ -4,10 +4,16 @@ import { talleresService } from '../../services/talleres.service';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
+import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
+import {
+  compressImage,
+  validateVideoFile,
+  parseVideoUrl
+} from '../../utils/galleryHelpers';
 
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-const MAX_FILE_SIZE_LABEL = '50MB';
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = '20MB';
 const ALLOWED_EXTENSIONS = new Set([
   'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
   'mp4', 'mov', 'webm', 'ogv'
@@ -29,7 +35,11 @@ export function TallerGallery() {
   const [albumsLoading, setAlbumsLoading] = useState(false);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [files, setFiles] = useState([]);
+  const [externalVideos, setExternalVideos] = useState([]);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'url'
   const [deletingId, setDeletingId] = useState(null);
 
   const confirmDialog = useDialog();
@@ -130,7 +140,7 @@ export function TallerGallery() {
     return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
   };
 
-  const handleFilesChange = (e) => {
+  const handleFilesChange = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length === 0) return;
 
@@ -151,8 +161,71 @@ export function TallerGallery() {
       });
     }
 
-    if (validFiles.length > 0) {
-      setFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length === 0) {
+      e.target.value = null;
+      return;
+    }
+
+    // Separar imágenes y videos
+    const images = validFiles.filter(f => f.type.startsWith('image/'));
+    const videos = validFiles.filter(f => f.type.startsWith('video/'));
+
+    // Validar videos por duración
+    const validatedVideos = [];
+    for (const video of videos) {
+      const validation = await validateVideoFile(video);
+
+      if (!validation.valid) {
+        if (validation.error === 'duration') {
+          const minutes = Math.floor(validation.duration / 60);
+          const seconds = validation.duration % 60;
+          alertDialog.openDialog({
+            title: 'Video muy largo',
+            message: `El video "${video.name}" dura ${minutes}:${seconds.toString().padStart(2, '0')} min.\n\nPara mantener la plataforma rápida, videos largos deben compartirse vía YouTube (no listado).\n\nMáximo: 2 minutos`,
+            type: 'warning'
+          });
+        } else if (validation.error === 'size') {
+          const sizeMB = (validation.size / (1024 * 1024)).toFixed(1);
+          alertDialog.openDialog({
+            title: 'Video muy pesado',
+            message: `El video "${video.name}" pesa ${sizeMB}MB.\n\nPara mantener la plataforma rápida, el tamaño máximo es ${MAX_FILE_SIZE_LABEL}.\n\nConsidera usar YouTube para videos grandes.`,
+            type: 'warning'
+          });
+        }
+      } else {
+        validatedVideos.push(video);
+      }
+    }
+
+    // Comprimir imágenes
+    let processedImages = images;
+    if (images.length > 0) {
+      setCompressing(true);
+      try {
+        const compressionPromises = images.map(async (img) => {
+          const compressed = await compressImage(img);
+          return compressed;
+        });
+
+        processedImages = await Promise.all(compressionPromises);
+
+        if (images.length > 0) {
+          alertDialog.openDialog({
+            title: 'Imágenes optimizadas',
+            message: `${images.length} imagen(es) optimizada(s) automáticamente`,
+            type: 'success'
+          });
+        }
+      } catch (error) {
+        console.error('Error compressing images:', error);
+        processedImages = images;
+      } finally {
+        setCompressing(false);
+      }
+    }
+
+    if (processedImages.length > 0 || validatedVideos.length > 0) {
+      setFiles(prev => [...prev, ...processedImages, ...validatedVideos]);
     }
 
     e.target.value = null;
@@ -188,6 +261,8 @@ export function TallerGallery() {
     if (!selectedTaller?.id || !album?.id) return;
     setSelectedAlbum(album);
     setFiles([]);
+    setExternalVideos([]);
+    setVideoUrl('');
     await loadAlbumMedia(selectedTaller.id, album.id);
   };
 
@@ -195,38 +270,121 @@ export function TallerGallery() {
     setSelectedAlbum(null);
     setGallery([]);
     setFiles([]);
+    setExternalVideos([]);
+    setVideoUrl('');
+  };
+
+  const handleAddVideoUrl = () => {
+    if (!videoUrl.trim()) {
+      alertDialog.openDialog({
+        title: 'URL requerida',
+        message: 'Ingrese una URL de video',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const parsed = parseVideoUrl(videoUrl);
+
+    if (!parsed.valid) {
+      alertDialog.openDialog({
+        title: 'URL no válida',
+        message: parsed.error || 'URL de video no válida. Solo se aceptan YouTube y Vimeo.',
+        type: 'error'
+      });
+      return;
+    }
+
+    setExternalVideos(prev => [...prev, {
+      ...parsed,
+      originalUrl: videoUrl.trim()
+    }]);
+
+    setVideoUrl('');
+    alertDialog.openDialog({
+      title: 'Video agregado',
+      message: `Video de ${parsed.provider === 'youtube' ? 'YouTube' : 'Vimeo'} agregado correctamente`,
+      type: 'success'
+    });
+  };
+
+  const handleRemoveExternalVideo = (index) => {
+    setExternalVideos(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleUpload = async () => {
     if (!selectedTaller?.id || !selectedAlbum?.id) return;
-    if (files.length === 0) {
+
+    const hasFiles = files.length > 0;
+    const hasUrls = externalVideos.length > 0;
+
+    if (!hasFiles && !hasUrls) {
       alertDialog.openDialog({
-        title: 'Archivos requeridos',
-        message: 'Selecciona al menos un archivo para subir.',
+        title: 'Contenido requerido',
+        message: 'Selecciona archivos o agrega URLs de video.',
         type: 'warning'
       });
       return;
     }
 
     setUploading(true);
-    const result = await talleresService.uploadAlbumMedia(selectedTaller.id, selectedAlbum.id, files, user?.uid);
-    if (result.success) {
-      setFiles([]);
-      await loadAlbumMedia(selectedTaller.id, selectedAlbum.id);
-      await loadAlbums(selectedTaller.id);
-      alertDialog.openDialog({
-        title: 'Exito',
-        message: 'Archivos subidos correctamente',
-        type: 'success'
-      });
-    } else {
+
+    try {
+      let uploadResults = [];
+      let hasError = false;
+
+      // Subir archivos
+      if (hasFiles) {
+        const result = await talleresService.uploadAlbumMedia(selectedTaller.id, selectedAlbum.id, files, user?.uid);
+        if (result.success) {
+          uploadResults = [...uploadResults, ...(result.items || [])];
+        } else {
+          hasError = true;
+          alertDialog.openDialog({
+            title: 'Error',
+            message: result.error || 'No se pudieron subir los archivos.',
+            type: 'error'
+          });
+        }
+      }
+
+      // Guardar URLs externas
+      if (hasUrls && !hasError) {
+        for (const video of externalVideos) {
+          const result = await talleresService.saveExternalVideo(selectedTaller.id, selectedAlbum.id, video, user?.uid);
+          if (result.success) {
+            uploadResults.push({ id: result.id, type: 'external-video' });
+          } else {
+            hasError = true;
+            alertDialog.openDialog({
+              title: 'Error',
+              message: `No se pudo guardar el video: ${result.error}`,
+              type: 'error'
+            });
+          }
+        }
+      }
+
+      if (uploadResults.length > 0) {
+        setFiles([]);
+        setExternalVideos([]);
+        await loadAlbumMedia(selectedTaller.id, selectedAlbum.id);
+        await loadAlbums(selectedTaller.id);
+        alertDialog.openDialog({
+          title: 'Éxito',
+          message: `${uploadResults.length} elemento(s) subido(s) correctamente`,
+          type: 'success'
+        });
+      }
+    } catch (error) {
       alertDialog.openDialog({
         title: 'Error',
-        message: result.error || 'No se pudo subir el archivo.',
+        message: 'Error inesperado: ' + error.message,
         type: 'error'
       });
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   const handleDelete = (item) => {
@@ -355,36 +513,128 @@ export function TallerGallery() {
 
                   <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
                     <div className="card__body">
-                      <div className="form-group">
-                        <label>Subir archivos</label>
-                        <input
-                          type="file"
-                          multiple
-                          className="form-input"
-                          accept="image/*,video/*,.heic,.heif,.webp,.webm,.mov"
-                          onChange={handleFilesChange}
-                          disabled={uploading}
-                        />
+                      {/* Tabs */}
+                      <div className="tabs" style={{ marginBottom: 'var(--spacing-md)' }}>
+                        <button
+                          className={`tab ${uploadMode === 'file' ? 'active' : ''}`}
+                          onClick={() => setUploadMode('file')}
+                        >
+                          Subir Archivos
+                        </button>
+                        <button
+                          className={`tab ${uploadMode === 'url' ? 'active' : ''}`}
+                          onClick={() => setUploadMode('url')}
+                        >
+                          Video Externo
+                        </button>
                       </div>
-                      {files.length > 0 && (
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                          {files.map((file, index) => (
-                            <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>{file.name}</span>
-                              <button type="button" className="btn btn--link" onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}>
-                                Quitar
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
+
+                      {/* File Upload Mode */}
+                      {uploadMode === 'file' && (
+                        <div className="form-group">
+                          <label>Subir archivos</label>
+                          <input
+                            type="file"
+                            multiple
+                            className="form-input"
+                            accept="image/*,video/*,.heic,.heif,.webp,.webm,.mov"
+                            onChange={handleFilesChange}
+                            disabled={uploading || compressing}
+                          />
+                          <small style={{ display: 'block', marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
+                            Imágenes (se optimizan auto), videos cortos (&lt;2 min) • Máx {MAX_FILE_SIZE_LABEL}
+                          </small>
+                          {compressing && (
+                            <p style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-primary)' }}>
+                              ⏳ Optimizando imágenes...
+                            </p>
+                          )}
+                        </div>
                       )}
+
+                      {/* URL Upload Mode */}
+                      {uploadMode === 'url' && (
+                        <div className="form-group">
+                          <label>URL de video (YouTube o Vimeo)</label>
+                          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
+                            Para videos largos, subilo a YouTube o Vimeo como 'No listado' y pegá la URL acá.
+                          </p>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <input
+                              type="url"
+                              className="form-input"
+                              placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
+                              value={videoUrl}
+                              onChange={(e) => setVideoUrl(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddVideoUrl()}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn--secondary"
+                              onClick={handleAddVideoUrl}
+                              disabled={!videoUrl.trim()}
+                            >
+                              Agregar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Files List */}
+                      {files.length > 0 && (
+                        <div style={{ marginTop: 'var(--spacing-md)' }}>
+                          <strong>Archivos seleccionados ({files.length})</strong>
+                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
+                            {files.map((file, index) => (
+                              <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) 0' }}>
+                                <span>{file.name}</span>
+                                <button
+                                  type="button"
+                                  className="btn btn--link"
+                                  onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}
+                                  disabled={uploading}
+                                >
+                                  Quitar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* External Videos List */}
+                      {externalVideos.length > 0 && (
+                        <div style={{ marginTop: 'var(--spacing-md)' }}>
+                          <strong>Videos externos agregados ({externalVideos.length})</strong>
+                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
+                            {externalVideos.map((video, index) => (
+                              <li key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) 0' }}>
+                                <span>
+                                  {video.provider === 'youtube' ? 'YouTube' : 'Vimeo'}: {video.videoId}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="btn btn--link"
+                                  onClick={() => handleRemoveExternalVideo(index)}
+                                  disabled={uploading}
+                                >
+                                  Quitar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Upload Button */}
                       <button
                         type="button"
                         className="btn btn--primary"
                         onClick={handleUpload}
-                        disabled={uploading || files.length === 0}
+                        disabled={uploading || (files.length === 0 && externalVideos.length === 0)}
+                        style={{ marginTop: 'var(--spacing-md)' }}
                       >
-                        {uploading ? 'Subiendo...' : 'Subir al album'}
+                        {uploading ? 'Subiendo...' : `Subir ${files.length + externalVideos.length} elemento(s)`}
                       </button>
                     </div>
                   </div>
@@ -398,13 +648,62 @@ export function TallerGallery() {
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--spacing-md)' }}>
                       {gallery.map(item => (
-                        <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                        <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
                           {item.tipo === 'imagen' ? (
                             <img
                               src={item.url}
                               alt="Galeria"
                               style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                             />
+                          ) : item.tipo === 'video-externo' ? (
+                            <div style={{ position: 'relative', width: '100%', height: '200px', backgroundColor: '#000' }}>
+                              {item.thumbUrl ? (
+                                <img
+                                  src={item.thumbUrl}
+                                  alt="Video thumbnail"
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>
+                                  <span style={{ fontSize: '2rem' }}>▶</span>
+                                </div>
+                              )}
+                              <span style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                background: item.provider === 'youtube' ? '#ff0000' : '#1ab7ea',
+                                color: '#fff',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold'
+                              }}>
+                                {item.provider === 'youtube' ? 'YT' : 'VIMEO'}
+                              </span>
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  textDecoration: 'none',
+                                  fontSize: '3rem',
+                                  opacity: 0.8,
+                                  transition: 'opacity 0.2s'
+                                }}
+                              >
+                                ▶
+                              </a>
+                            </div>
                           ) : (
                             <video
                               src={item.url}
@@ -413,6 +712,11 @@ export function TallerGallery() {
                             />
                           )}
                           <div style={{ padding: 'var(--spacing-sm)' }}>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
+                              {item.tipo === 'video-externo'
+                                ? `Video externo (${item.provider === 'youtube' ? 'YouTube' : 'Vimeo'})`
+                                : ''}
+                            </p>
                             <p style={{ fontSize: '0.75rem', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
                               {item.createdAt?.toDate?.().toLocaleDateString?.('es-AR') || 'Fecha desconocida'}
                             </p>
@@ -469,6 +773,32 @@ export function TallerGallery() {
           )}
         </div>
       </div>
+
+      <LoadingModal
+        isOpen={compressing}
+        message="Optimizando imágenes"
+        subMessage="Reduciendo tamaño para carga más rápida"
+        type="optimize"
+      />
+
+      <LoadingModal
+        isOpen={uploading}
+        message="Subiendo contenido"
+        subMessage="Por favor espere..."
+        type="upload"
+      />
+
+      <LoadingModal
+        isOpen={!!deletingId}
+        message="Eliminando archivo"
+        subMessage="Por favor espere..."
+      />
+
+      <LoadingModal
+        isOpen={albumSaving}
+        message="Creando álbum"
+        subMessage="Por favor espere..."
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

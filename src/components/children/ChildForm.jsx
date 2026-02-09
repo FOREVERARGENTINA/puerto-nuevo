@@ -2,8 +2,23 @@ import { useState, useEffect } from 'react';
 import { usersService } from '../../services/users.service';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../../config/firebase';
+import { useAuth } from '../../hooks/useAuth';
+
+const DEFAULT_DATOS_MEDICOS = {
+  alergias: '',
+  medicamentos: '',
+  indicaciones: '',
+  contactosEmergencia: '',
+  obraSocial: '',
+  numeroAfiliado: '',
+  clinicaCercana: '',
+  telefonoClinica: ''
+};
 
 const ChildForm = ({ child = null, onSubmit, onCancel }) => {
+  const { isSuperAdmin, isCoordinacion } = useAuth();
+  const canEditMedical = isSuperAdmin || isCoordinacion;
+
   const [formData, setFormData] = useState({
     nombreCompleto: '',
     fechaNacimiento: '',
@@ -11,10 +26,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
     responsables: [],
     documentos: [],
     datosMedicos: {
-      alergias: '',
-      medicamentos: '',
-      indicaciones: '',
-      contactosEmergencia: ''
+      ...DEFAULT_DATOS_MEDICOS
     }
   });
 
@@ -47,11 +59,9 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
         ambiente: child.ambiente || 'taller1',
         responsables: child.responsables || [],
         documentos: child.documentos || [],
-        datosMedicos: child.datosMedicos || {
-          alergias: '',
-          medicamentos: '',
-          indicaciones: '',
-          contactosEmergencia: ''
+        datosMedicos: {
+          ...DEFAULT_DATOS_MEDICOS,
+          ...(child.datosMedicos || {})
         }
       });
     }
@@ -75,11 +85,12 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
 
   const handleMedicalDataChange = (e) => {
     const { name, value } = e.target;
+    const nextValue = name === 'telefonoClinica' ? value.replace(/\D/g, '') : value;
     setFormData(prev => ({
       ...prev,
       datosMedicos: {
         ...prev.datosMedicos,
-        [name]: value
+        [name]: nextValue
       }
     }));
   };
@@ -302,6 +313,11 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
 
         <div className="form-section">
           <h3>Datos Médicos</h3>
+          {!canEditMedical && (
+            <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
+              Solo coordinación y superadmin pueden editar estos datos.
+            </p>
+          )}
 
           <div className="form-group">
             <label htmlFor="alergias" className="form-label">Alergias</label>
@@ -312,6 +328,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               onChange={handleMedicalDataChange}
               rows="3"
               className="form-textarea"
+              disabled={!canEditMedical}
             />
           </div>
 
@@ -324,6 +341,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               onChange={handleMedicalDataChange}
               rows="3"
               className="form-textarea"
+              disabled={!canEditMedical}
             />
           </div>
 
@@ -336,6 +354,69 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               onChange={handleMedicalDataChange}
               rows="3"
               className="form-textarea"
+              disabled={!canEditMedical}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="obraSocial" className="form-label required">Obra social / prepaga</label>
+            <input
+              type="text"
+              id="obraSocial"
+              name="obraSocial"
+              value={formData.datosMedicos.obraSocial}
+              onChange={handleMedicalDataChange}
+              className="form-input"
+              placeholder="Ej: IOMA, OSDE, Swiss Medical"
+              required
+              disabled={!canEditMedical}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="numeroAfiliado" className="form-label required">Número de afiliado</label>
+            <input
+              type="text"
+              id="numeroAfiliado"
+              name="numeroAfiliado"
+              value={formData.datosMedicos.numeroAfiliado}
+              onChange={handleMedicalDataChange}
+              className="form-input"
+              required
+              disabled={!canEditMedical}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="clinicaCercana" className="form-label required">
+              Clínica u hospital cercano (San Martín)
+            </label>
+            <input
+              type="text"
+              id="clinicaCercana"
+              name="clinicaCercana"
+              value={formData.datosMedicos.clinicaCercana}
+              onChange={handleMedicalDataChange}
+              className="form-input"
+              required
+              disabled={!canEditMedical}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="telefonoClinica" className="form-label required">Teléfono de la clínica/hospital</label>
+            <input
+              type="tel"
+              id="telefonoClinica"
+              name="telefonoClinica"
+              value={formData.datosMedicos.telefonoClinica}
+              onChange={handleMedicalDataChange}
+              className="form-input"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Solo números, sin espacios"
+              required
+              disabled={!canEditMedical}
             />
           </div>
 
@@ -349,6 +430,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               rows="3"
               className="form-textarea"
               placeholder="Nombre: Teléfono&#10;Nombre: Teléfono"
+              disabled={!canEditMedical}
             />
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentUploader } from '../../components/documents/DocumentUploader';
 import { DocumentViewer } from '../../components/documents/DocumentViewer';
+import Icon from '../../components/ui/Icon';
 
 export function DocumentsAdmin() {
   const navigate = useNavigate();
@@ -15,7 +16,8 @@ export function DocumentsAdmin() {
           <p className="dashboard-subtitle">Gestión de documentos institucionales</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-          <button onClick={() => navigate(-1)} className="btn btn--outline">
+          <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
             Volver
           </button>
         </div>
@@ -23,18 +25,16 @@ export function DocumentsAdmin() {
 
       <div className="card">
         <div className="card__body">
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)', borderBottom: '1px solid var(--border-color)' }}>
+          <div className="documents-admin-tabs">
             <button
               onClick={() => setActiveTab('ver')}
-              className={activeTab === 'ver' ? 'btn btn--primary' : 'btn btn--outline'}
-              style={{ borderRadius: '4px 4px 0 0', borderBottom: activeTab === 'ver' ? '2px solid var(--primary-color)' : 'none' }}
+              className={`btn ${activeTab === 'ver' ? 'btn--primary' : 'btn--outline'} documents-admin-tab`}
             >
               Ver Documentos
             </button>
             <button
               onClick={() => setActiveTab('subir')}
-              className={activeTab === 'subir' ? 'btn btn--primary' : 'btn btn--outline'}
-              style={{ borderRadius: '4px 4px 0 0', borderBottom: activeTab === 'subir' ? '2px solid var(--primary-color)' : 'none' }}
+              className={`btn ${activeTab === 'subir' ? 'btn--primary' : 'btn--outline'} documents-admin-tab`}
             >
               Subir Documento
             </button>

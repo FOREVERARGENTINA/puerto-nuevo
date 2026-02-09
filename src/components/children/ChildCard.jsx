@@ -41,6 +41,17 @@
 
   const age = child.fechaNacimiento ? calculateAge(child.fechaNacimiento) : null;
   const hasAlerts = child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos);
+  const hasMedicalInfo = child.datosMedicos && (
+    child.datosMedicos.alergias ||
+    child.datosMedicos.medicamentos ||
+    child.datosMedicos.indicaciones ||
+    child.datosMedicos.obraSocial ||
+    child.datosMedicos.numeroAfiliado
+  );
+  const hasEmergencyInfo = isAdmin && child.datosMedicos && (
+    child.datosMedicos.clinicaCercana ||
+    child.datosMedicos.telefonoClinica
+  );
   const medicalBadgeText = 'Info médica';
   const familiesTitle = 'Familias';
   const medicalTitle = 'Información médica';
@@ -74,6 +85,26 @@
           </div>
         </div>
 
+        {isAdmin && hasEmergencyInfo && (
+          <div className="child-card__section child-card__section--medical">
+            <span className="child-card__section-title">Emergencia</span>
+            <div className="child-card__medical-grid">
+              {child.datosMedicos.clinicaCercana && (
+                <div className="child-card__medical-item">
+                  <strong>Clínica u hospital cercano:</strong>
+                  <span>{child.datosMedicos.clinicaCercana}</span>
+                </div>
+              )}
+              {child.datosMedicos.telefonoClinica && (
+                <div className="child-card__medical-item">
+                  <strong>Teléfono:</strong>
+                  <span>{child.datosMedicos.telefonoClinica}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {child.responsables && child.responsables.length > 0 && (
           <div className="child-card__section">
             <span className="child-card__section-title">{familiesTitle} ({child.responsables.length})</span>
@@ -90,7 +121,7 @@
           </div>
         )}
 
-        {child.datosMedicos && (child.datosMedicos.alergias || child.datosMedicos.medicamentos || child.datosMedicos.indicaciones) && (
+        {hasMedicalInfo && (
           <div className="child-card__section child-card__section--medical">
             <span className="child-card__section-title">{medicalTitle}</span>
             <div className="child-card__medical-grid">
@@ -110,6 +141,18 @@
                 <div className="child-card__medical-item">
                   <strong>Indicaciones:</strong>
                   <span>{child.datosMedicos.indicaciones}</span>
+                </div>
+              )}
+              {child.datosMedicos.obraSocial && (
+                <div className="child-card__medical-item">
+                  <strong>Obra social / prepaga:</strong>
+                  <span>{child.datosMedicos.obraSocial}</span>
+                </div>
+              )}
+              {child.datosMedicos.numeroAfiliado && (
+                <div className="child-card__medical-item">
+                  <strong>Número de afiliado:</strong>
+                  <span>{child.datosMedicos.numeroAfiliado}</span>
                 </div>
               )}
             </div>
@@ -161,7 +204,7 @@
                           {entry.note.attachments.map((file, fileIndex) => (
                             <li key={`${child.id}-meeting-file-${index}-${fileIndex}`}>
                               <a href={file.url} target="_blank" rel="noreferrer">
-                                {file.name || 'Archivo'}
+                                {`Adjunto ${fileIndex + 1}`}
                               </a>
                             </li>
                           ))}
