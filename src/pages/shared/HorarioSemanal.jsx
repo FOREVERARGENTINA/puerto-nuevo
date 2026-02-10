@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -58,7 +58,7 @@ export const HorarioSemanal = () => {
   const [talleristas, setTalleristas] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const canExportPdf = pathname.startsWith('/admin/') || pathname.startsWith('/familia/');
+  const canExportPdf = pathname.startsWith('/portal/');
 
   const ambientes = useMemo(
     () => [
@@ -430,3 +430,4 @@ export const HorarioSemanal = () => {
     </div>
   );
 };
+

@@ -37,7 +37,7 @@ export function FamilyDashboard() {
                 <p>Consultas privadas con la escuela</p>
               </div>
             </Link>
-            <Link to="/familia/turnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card admin-dashboard-card--featured family-card-success">
+            <Link to="/portal/familia/turnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card admin-dashboard-card--featured family-card-success">
               <div className="admin-dashboard-card__icon">
                 <Icon name="calendar" size={18} />
               </div>
@@ -55,7 +55,7 @@ export function FamilyDashboard() {
             <h2 className="section-title">Información de alumnos</h2>
           </div>
           <div className="grid-cards-sm admin-dashboard-grid">
-            <Link to="/familia/hijos" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-primary">
+            <Link to="/portal/familia/hijos" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-primary">
               <div className="admin-dashboard-card__icon">
                 <Icon name="user" size={18} />
               </div>
@@ -64,7 +64,7 @@ export function FamilyDashboard() {
                 <p>Datos personales y médicos</p>
               </div>
             </Link>
-            <Link to="/familia/talleres" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-warning">
+            <Link to="/portal/familia/talleres" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-warning">
               <div className="admin-dashboard-card__icon">
                 <Icon name="book" size={18} />
               </div>
@@ -73,7 +73,7 @@ export function FamilyDashboard() {
                 <p>Calendarios y galerías de fotos</p>
               </div>
             </Link>
-            <Link to="/familia/horarios" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-info">
+            <Link to="/portal/familia/horarios" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-info">
               <div className="admin-dashboard-card__icon">
                 <Icon name="calendar" size={18} />
               </div>
@@ -100,7 +100,7 @@ export function FamilyDashboard() {
             <h2 className="section-title">Participación familiar</h2>
           </div>
           <div className="grid-cards-sm admin-dashboard-grid">
-            <Link to="/familia/snacks" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-accent">
+            <Link to="/portal/familia/snacks" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-accent">
               <div className="admin-dashboard-card__icon">
                 <Icon name="snack" size={18} />
               </div>
@@ -109,7 +109,7 @@ export function FamilyDashboard() {
                 <p>Confirmar semanas asignadas</p>
               </div>
             </Link>
-            <Link to="/familia/eventos" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-success">
+            <Link to="/portal/familia/eventos" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-success">
               <div className="admin-dashboard-card__icon">
                 <Icon name="event" size={18} />
               </div>
@@ -133,3 +133,4 @@ export function FamilyDashboard() {
     </div>
   );
 }
+

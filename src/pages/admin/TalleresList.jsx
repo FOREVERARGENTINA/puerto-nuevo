@@ -57,7 +57,7 @@ const TalleresList = () => {
         <p className="dashboard-subtitle">Listado y acceso a la configuración de cada taller.</p>
       </div>
       <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-        <button onClick={() => navigate('/admin/talleres/nuevo')} className="btn btn--primary">
+        <button onClick={() => navigate('/portal/admin/talleres/nuevo')} className="btn btn--primary">
           Crear taller
         </button>
         <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
@@ -114,13 +114,13 @@ const TalleresList = () => {
                 return (
                   <div
                     key={taller.id}
-                    onClick={() => navigate(`/admin/talleres/${taller.id}`)}
+                    onClick={() => navigate(`/portal/admin/talleres/${taller.id}`)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        navigate(`/admin/talleres/${taller.id}`);
+                        navigate(`/portal/admin/talleres/${taller.id}`);
                       }
                     }}
                     style={{
@@ -293,3 +293,4 @@ const TalleresList = () => {
 };
 
 export default TalleresList;
+

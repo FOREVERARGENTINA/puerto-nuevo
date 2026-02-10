@@ -1,10 +1,14 @@
-﻿{
-  "name": "Puerto Nuevo Montessori",
+{
+  "name": "Montessori Puerto Nuevo",
   "short_name": "Puerto Nuevo",
+  "description": "Plataforma Montessori Puerto Nuevo",
+  "lang": "es-AR",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f5f2",
-  "theme_color": "#2c6b6f",
+  "background_color": "#F5F2ED",
+  "theme_color": "#2C6B6F",
   "icons": [
     {
       "src": "/pwa/icon-192.png",

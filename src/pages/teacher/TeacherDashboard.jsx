@@ -28,7 +28,7 @@ export function TeacherDashboard() {
               <h3 className="card__title">Documentos</h3>
               <p>Acceder a documentos pedagógicos e institucionales</p>
             </Link>
-            <Link to="/docente/horarios" className="card card--clickable link-unstyled">
+            <Link to="/portal/docente/horarios" className="card card--clickable link-unstyled">
               <h3 className="card__title">Horario Semanal</h3>
               <p>Ver calendario semanal de ambientes y talleres</p>
             </Link>
@@ -41,3 +41,4 @@ export function TeacherDashboard() {
     </div>
   );
 }
+

@@ -1,16 +1,29 @@
-﻿import {
+import {
   collection,
   doc,
   getDocs,
   addDoc,
   query,
   where,
+  limit,
   serverTimestamp,
   updateDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const readReceiptsCollection = collection(db, 'documentReadReceipts');
+
+async function createReadReceipt(documentId, userId) {
+  const receiptData = {
+    documentId,
+    userId,
+    status: 'read',
+    createdAt: serverTimestamp(),
+    readAt: serverTimestamp()
+  };
+
+  await addDoc(readReceiptsCollection, receiptData);
+}
 
 export const documentReadReceiptsService = {
   /**
@@ -52,37 +65,49 @@ export const documentReadReceiptsService = {
    */
   async markAsRead(documentId, userId) {
     try {
-      const q = query(
+      const alreadyReadQuery = query(
         readReceiptsCollection,
         where('documentId', '==', documentId),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        where('status', '==', 'read'),
+        limit(1)
       );
 
-      const snapshot = await getDocs(q);
+      const alreadyReadSnapshot = await getDocs(alreadyReadQuery);
+      if (!alreadyReadSnapshot.empty) {
+        return { success: true };
+      }
 
-      if (snapshot.empty) {
-        const receiptData = {
-          documentId,
-          userId,
+      const pendingQuery = query(
+        readReceiptsCollection,
+        where('documentId', '==', documentId),
+        where('userId', '==', userId),
+        where('status', '==', 'pending'),
+        limit(1)
+      );
+
+      const pendingSnapshot = await getDocs(pendingQuery);
+
+      if (pendingSnapshot.empty) {
+        await createReadReceipt(documentId, userId);
+        return { success: true };
+      }
+
+      const receiptDoc = pendingSnapshot.docs[0];
+      if (!receiptDoc?.id) {
+        await createReadReceipt(documentId, userId);
+        return { success: true };
+      }
+
+      try {
+        await updateDoc(doc(readReceiptsCollection, receiptDoc.id), {
           status: 'read',
-          createdAt: serverTimestamp(),
           readAt: serverTimestamp()
-        };
-        await addDoc(readReceiptsCollection, receiptData);
-        return { success: true };
+        });
+      } catch (updateError) {
+        // Fallback para receipts legacy que no se pueden actualizar por reglas o datos.
+        await createReadReceipt(documentId, userId);
       }
-
-      const receiptDoc = snapshot.docs[0];
-      const currentStatus = receiptDoc.data()?.status;
-
-      if (currentStatus === 'read') {
-        return { success: true };
-      }
-
-      await updateDoc(doc(readReceiptsCollection, receiptDoc.id), {
-        status: 'read',
-        readAt: serverTimestamp()
-      });
 
       return { success: true };
     } catch (error) {
@@ -98,14 +123,33 @@ export const documentReadReceiptsService = {
    */
   async getUserReceipt(documentId, userId) {
     try {
+      const readQuery = query(
+        readReceiptsCollection,
+        where('documentId', '==', documentId),
+        where('userId', '==', userId),
+        where('status', '==', 'read'),
+        limit(1)
+      );
+
+      const readSnapshot = await getDocs(readQuery);
+      if (!readSnapshot.empty) {
+        const receipt = {
+          id: readSnapshot.docs[0].id,
+          ...readSnapshot.docs[0].data()
+        };
+
+        return { success: true, receipt };
+      }
+
       const q = query(
         readReceiptsCollection,
         where('documentId', '==', documentId),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        limit(1)
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         return { success: true, receipt: null };
       }

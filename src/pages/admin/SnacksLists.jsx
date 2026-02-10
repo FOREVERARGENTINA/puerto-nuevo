@@ -102,7 +102,7 @@ export function SnacksLists() {
           <h1 className="dashboard-title">Listas de snacks</h1>
           <p className="dashboard-subtitle">Editá los alimentos por taller</p>
         </div>
-        <Link to="/admin/snacks" className="btn btn--outline btn--back">
+        <Link to="/portal/admin/snacks" className="btn btn--outline btn--back">
           <Icon name="chevron-left" size={16} />
           Volver a snacks
         </Link>
@@ -194,3 +194,4 @@ export function SnacksLists() {
     </div>
   );
 }
+

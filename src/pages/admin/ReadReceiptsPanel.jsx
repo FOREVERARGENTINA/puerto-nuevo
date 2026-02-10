@@ -367,7 +367,7 @@ export function ReadReceiptsPanel() {
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           <span className="badge badge--info">{communications.length} comunicados</span>
-          <button className="btn btn--primary" onClick={() => navigate('/admin/comunicar/nuevo')}>
+          <button className="btn btn--primary" onClick={() => navigate('/portal/admin/comunicar/nuevo')}>
             Crear comunicado
           </button>
         </div>
@@ -871,4 +871,5 @@ export function ReadReceiptsPanel() {
     </>
   );
 }
+
 

@@ -304,6 +304,8 @@ export function useNotifications() {
 
   const relevantCommunications = user
     ? unreadCommunications.filter((comm) => {
+        if (role === ROLES.TALLERISTA) return false;
+
         if (!comm.destinatarios || !Array.isArray(comm.destinatarios)) return false;
 
         const isRecipient = comm.destinatarios.includes(user.uid);
@@ -319,16 +321,18 @@ export function useNotifications() {
 
   const communicationsUrl =
     role === ROLES.FAMILY
-      ? '/familia/comunicados'
+      ? '/portal/familia/comunicados'
       : role === ROLES.DOCENTE
-        ? '/docente'
-        : '/admin';
+        ? '/portal/docente'
+        : role === ROLES.TALLERISTA
+          ? '/portal/tallerista'
+        : '/portal/admin';
 
-  const snacksUrl = '/familia/snacks';
-  const appointmentsUrl = '/familia/turnos';
+  const snacksUrl = '/portal/familia/snacks';
+  const appointmentsUrl = '/portal/familia/turnos';
   const conversationsUrl = role === ROLES.FAMILY
-    ? '/familia/conversaciones'
-    : '/admin/conversaciones';
+    ? '/portal/familia/conversaciones'
+    : '/portal/admin/conversaciones';
 
   const conversationNotifications = conversations
     .filter((conv) => {
@@ -451,7 +455,15 @@ export function useNotifications() {
       message: doc.documentId ? 'Documento de lectura obligatoria' : 'Confirma tu lectura',
       timestamp: doc.createdAt?.toDate() || new Date(),
       urgent: true,
-      actionUrl: role === ROLES.FAMILY ? '/familia/documentos' : '/shared/documentos',
+      actionUrl: role === ROLES.FAMILY
+        ? '/portal/familia/documentos'
+        : role === ROLES.DOCENTE
+          ? '/portal/docente/documentos'
+          : role === ROLES.TALLERISTA
+            ? '/portal/tallerista/documentos'
+            : role === ROLES.ASPIRANTE
+              ? '/portal/aspirante/documentos'
+              : '/portal/admin/documentos',
       metadata: { documentId: doc.documentId, receiptId: doc.id }
     })),
     ...(

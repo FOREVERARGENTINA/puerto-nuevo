@@ -1182,7 +1182,7 @@ const AppointmentsManager = () => {
                                     app.estado === 'bloqueado' ? 'secondary' :
                                     app.estado === 'reservado' ? 'warning' :
                                     app.estado === 'asistio' ? 'info' :
-                                    'danger'
+                                    'error'
                                   }`}>
                                     {getStatusLabel(app.estado)}
                                   </span>
@@ -1353,7 +1353,7 @@ const AppointmentsManager = () => {
                   selectedAppointment.estado === 'bloqueado' ? 'secondary' :
                   selectedAppointment.estado === 'reservado' ? 'warning' :
                   selectedAppointment.estado === 'asistio' ? 'info' :
-                  'danger'
+                  'error'
                 }`}>{getStatusLabel(selectedAppointment.estado)}</span></p>
                 {selectedAppointment.estado !== 'disponible' && (
                   <>

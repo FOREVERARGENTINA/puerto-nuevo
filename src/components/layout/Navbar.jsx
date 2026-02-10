@@ -46,7 +46,7 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
           value: summaryLoading
             ? '...'
             : `${summary.nextWeekUnassigned} ${summary.nextWeekUnassigned === 1 ? 'snack sin asignar' : 'snacks sin asignar'}`,
-          route: '/admin/snacks',
+          route: '/portal/admin/snacks',
           isAction: true
         },
         {
@@ -62,7 +62,7 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
 
   const handleLogout = async () => {
     await authService.logout();
-    window.location.href = '/login';
+    window.location.href = '/portal/login';
   };
 
   useEffect(() => {
@@ -217,3 +217,4 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
     </nav>
   );
 }
+

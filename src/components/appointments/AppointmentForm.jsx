@@ -1,11 +1,16 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertDialog } from '../common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+
+const normalizeAppointmentMode = (value) => (
+  value === 'virtual' || value === 'presencial' ? value : ''
+);
 
 const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     hijoId: '',
-    nota: ''
+    nota: '',
+    modalidad: normalizeAppointmentMode(appointment?.modalidad)
   });
   const [loading, setLoading] = useState(false);
   const alertDialog = useDialog();
@@ -17,6 +22,13 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     }
   }, [userChildren]);
 
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      modalidad: normalizeAppointmentMode(appointment?.modalidad)
+    }));
+  }, [appointment?.id, appointment?.modalidad]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -27,6 +39,14 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.modalidad) {
+      alertDialog.openDialog({
+        title: 'Campo Requerido',
+        message: 'Por favor selecciona la modalidad',
+        type: 'warning'
+      });
+      return;
+    }
     if (!formData.hijoId) {
       alertDialog.openDialog({
         title: 'Campo Requerido',
@@ -39,7 +59,8 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     await onSubmit({
       appointmentId: appointment.id,
       hijoId: formData.hijoId,
-      nota: formData.nota
+      nota: formData.nota,
+      modalidad: formData.modalidad
     });
     setLoading(false);
   };
@@ -56,9 +77,10 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     });
   };
 
-  const appointmentModeLabel = appointment?.modalidad === 'virtual'
+  const selectedMode = formData.modalidad || normalizeAppointmentMode(appointment?.modalidad);
+  const appointmentModeLabel = selectedMode === 'virtual'
     ? 'Virtual'
-    : appointment?.modalidad === 'presencial'
+    : selectedMode === 'presencial'
       ? 'Presencial'
       : 'Sin definir';
 
@@ -73,7 +95,6 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
         </div>
 
         <div className="card__body">
-          {/* Appointment Details Section */}
           <div className="appointment-booking-summary">
             <div className="booking-summary-inline">
               <span className="booking-summary-chip">
@@ -99,8 +120,25 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="appointment-form">
+            <div className="form-group">
+              <label htmlFor="modalidad" className="form-label">
+                <span>Modalidad *</span>
+              </label>
+              <select
+                id="modalidad"
+                name="modalidad"
+                value={formData.modalidad}
+                onChange={handleChange}
+                required
+                className="form-select"
+              >
+                <option value="">Seleccionar modalidad...</option>
+                <option value="presencial">Presencial</option>
+                <option value="virtual">Virtual</option>
+              </select>
+            </div>
+
             <div className="form-group">
               <label htmlFor="hijoId" className="form-label">
                 <span>Alumno *</span>
@@ -178,5 +216,3 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 };
 
 export default AppointmentForm;
-
-

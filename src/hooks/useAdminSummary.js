@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { AMBIENTES } from '../config/constants';
+import { AMBIENTES, ROLES } from '../config/constants';
+import { useAuth } from './useAuth';
 
 /**
  * Hook optimizado para el resumen del navbar en tiempo real
  * Usa listeners de Firestore con queries limitadas para no quemar recursos
  */
 export function useAdminSummary(enabled = false) {
+  const { role } = useAuth();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
     todayEvents: 0,
@@ -160,11 +162,23 @@ export function useAdminSummary(enabled = false) {
 
       // 3. LISTENER DE CONVERSACIONES SIN LEER
       // Query: conversaciones donde lastMessageIsFromFamily = true Y schoolHasRead = false
-      const conversationsQuery = query(
-        collection(db, 'conversations'),
-        where('lastMessageIsFromFamily', '==', true),
-        where('schoolHasRead', '==', false)
-      );
+      let conversationsQuery;
+      if (role === ROLES.COORDINACION) {
+        // Reglas Firestore: coordinación solo puede leer conversaciones de su área.
+        conversationsQuery = query(
+          collection(db, 'conversations'),
+          where('destinatarioEscuela', '==', 'coordinacion'),
+          where('lastMessageIsFromFamily', '==', true),
+          where('schoolHasRead', '==', false)
+        );
+      } else {
+        // Superadmin puede consultar sin filtro por área.
+        conversationsQuery = query(
+          collection(db, 'conversations'),
+          where('lastMessageIsFromFamily', '==', true),
+          where('schoolHasRead', '==', false)
+        );
+      }
 
       unsubscribeConversations = onSnapshot(
         conversationsQuery,
@@ -188,7 +202,7 @@ export function useAdminSummary(enabled = false) {
       if (unsubscribeSnacks) unsubscribeSnacks();
       if (unsubscribeConversations) unsubscribeConversations();
     };
-  }, [enabled]);
+  }, [enabled, role]);
 
   return { summary, loading };
 }

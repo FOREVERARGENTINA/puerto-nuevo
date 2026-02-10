@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { ROUTES } from '../../config/constants';
 
@@ -46,7 +46,7 @@ export function AdminDashboard() {
                 <p>Revisar lecturas pendientes</p>
               </div>
             </Link>
-            <Link to="/admin/turnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card admin-dashboard-card--featured">
+            <Link to="/portal/admin/turnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card admin-dashboard-card--featured">
               <div className="admin-dashboard-card__icon">
                 <Icon name="calendar" size={18} />
               </div>
@@ -74,7 +74,7 @@ export function AdminDashboard() {
                 <p>Gestionar calendario</p>
               </div>
             </Link>
-            <Link to="/admin/horarios" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
+            <Link to="/portal/admin/horarios" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
               <div className="admin-dashboard-card__icon">
                 <Icon name="calendar" size={18} />
               </div>
@@ -83,7 +83,7 @@ export function AdminDashboard() {
                 <p>Ver horarios</p>
               </div>
             </Link>
-            <Link to="/admin/snacks" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
+            <Link to="/portal/admin/snacks" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
               <div className="admin-dashboard-card__icon">
                 <Icon name="snack" size={18} />
               </div>
@@ -120,7 +120,7 @@ export function AdminDashboard() {
                 <p>Crear usuarios y roles</p>
               </div>
             </Link>
-            <Link to="/admin/alumnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
+            <Link to="/portal/admin/alumnos" className="card card--compact card--clickable link-unstyled admin-dashboard-card">
               <div className="admin-dashboard-card__icon">
                 <Icon name="user" size={18} />
               </div>
@@ -153,3 +153,4 @@ export function AdminDashboard() {
     </div>
   );
 }
+

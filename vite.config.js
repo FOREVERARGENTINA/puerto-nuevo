@@ -14,34 +14,8 @@ export default defineConfig({
         'pwa/icon-192.png',
         'pwa/icon-512.png'
       ],
-      manifest: {
-        name: 'Montessori Puerto Nuevo',
-        short_name: 'Puerto Nuevo',
-        description: 'Plataforma Montessori Puerto Nuevo',
-        theme_color: '#2C6B6F',
-        background_color: '#F5F2ED',
-        display: 'standalone',
-        start_url: '/',
-        scope: '/',
-        icons: [
-          {
-            src: '/pwa/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa/icon-512-maskable.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-          }
-        ]
-      },
+      // Manifest canonico en public/manifest.webmanifest para control total (iOS + locale)
+      manifest: false,
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
@@ -100,7 +74,8 @@ export default defineConfig({
         }
       }
     },
-    // Ajustar límite de warning (no subirlo por defecto)
+    // Ajustar limite de warning (no subirlo por defecto)
     chunkSizeWarningLimit: 600
   }
 })
+

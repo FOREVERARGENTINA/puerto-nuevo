@@ -221,6 +221,38 @@ proyecto/
 └── package.json
 ```
 
+### Archivos de Configuración Esenciales
+
+**Siempre incluir en la raíz del proyecto:**
+
+```
+.editorconfig          # Fuerza UTF-8 y formato consistente
+.gitignore            # Excluir node_modules, .env, etc.
+package.json          # Dependencias y scripts
+README.md             # Documentación del proyecto
+```
+
+**Ejemplo .editorconfig mínimo:**
+```ini
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{js,html,css}]
+indent_style = space
+indent_size = 2
+```
+
+**Por qué .editorconfig es crítico:**
+- ✅ Previene mojibakes (problemas de codificación)
+- ✅ Consistencia entre editores (VS Code, Codex, Cursor, etc.)
+- ✅ Fuerza UTF-8 en TODOS los agentes de IA
+- ✅ Sin configuración manual por desarrollador
+
 ### Reglas de Nomenclatura
 
 - **Archivos**: kebab-case.css (minúsculas con guiones)
@@ -1427,6 +1459,9 @@ const clean = DOMPurify.sanitize(userInput);
 
 ### Red Flags Automáticos (Rechaza Propuesta):
 
+- ❌ Cambiar codificación de archivos UTF-8 a otra cosa
+- ❌ Convertir caracteres especiales (á, ñ, etc.) a entidades HTML sin razón
+- ❌ Agregar BOM (Byte Order Mark) a archivos UTF-8
 - ❌ React para landing page estática
 - ❌ Microservicios para <1000 usuarios
 - ❌ GraphQL sin justificación clara
@@ -1437,6 +1472,23 @@ const clean = DOMPurify.sanitize(userInput);
 - ❌ Validación solo cliente sin server-side
 
 ### Al Generar Código:
+
+**⚠️ CODIFICACIÓN UTF-8 (CRÍTICO - PREVENIR MOJIBAKES):**
+- **SIEMPRE usar UTF-8** al leer y escribir archivos
+- **NUNCA cambiar la codificación** de archivos existentes
+- **RESPETAR caracteres especiales** del español (á, é, í, ó, ú, ñ, ¿, ¡)
+- **NUNCA convertir** á → &aacute; en HTML (usar UTF-8 directo)
+- **VERIFICAR .editorconfig** del proyecto (charset = utf-8)
+- **Al editar archivos existentes:**
+  1. Leer el archivo completo primero
+  2. Preservar la codificación UTF-8 original
+  3. Mantener line endings (LF en Unix, CRLF en Windows según proyecto)
+  4. No modificar caracteres especiales existentes
+- **Archivos con contenido en español:**
+  - HTML: meta tags, títulos, descripciones
+  - JavaScript: strings con días/meses, mensajes
+  - JSON: configuración con texto
+  - Email templates: contenido en español
 
 **Separación estricta:**
 - HTML limpio, semántico, sin inline styles/scripts

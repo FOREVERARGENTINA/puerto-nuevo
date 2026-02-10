@@ -45,7 +45,7 @@ service firebase.storage {
 
     match /documents/{category}/{fileName} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && (request.auth.token.role in ['superadmin', 'coordinacion'] || (request.auth.token.role == 'tallerista' && category == 'taller'));
+      allow write: if isAuthenticated() && request.auth.token.role in ['superadmin', 'coordinacion', 'docente'];
     }
 
     match /communications/{commId}/{fileName} {

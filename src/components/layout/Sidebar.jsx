@@ -13,64 +13,64 @@ export function Sidebar({ isOpen = false, onNavigate }) {
   // Definir menús según rol
   const menuItems = {
     [ROLES.SUPERADMIN]: [
-      { path: '/admin', icon: 'home', label: 'Inicio' },
-      { path: '/admin/usuarios', icon: 'users', label: 'Usuarios' },
-      { path: '/admin/comunicar', icon: 'send', label: 'Comunicados' },
-      { path: '/admin/conversaciones', icon: 'chat', label: 'Conversaciones' },
-      { path: '/admin/alumnos', icon: 'user', label: 'Alumnos' },
-      { path: '/admin/turnos', icon: 'calendar', label: 'Reuniones' },
-      { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
-      { path: '/admin/snacks', icon: 'snack', label: 'Snacks' },
-      { path: '/admin/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/admin/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/admin/galeria-institucional', icon: 'image', label: 'Galería' }
+      { path: '/portal/admin', icon: 'home', label: 'Inicio' },
+      { path: '/portal/admin/usuarios', icon: 'users', label: 'Usuarios' },
+      { path: '/portal/admin/comunicar', icon: 'send', label: 'Comunicados' },
+      { path: '/portal/admin/conversaciones', icon: 'chat', label: 'Conversaciones' },
+      { path: '/portal/admin/alumnos', icon: 'user', label: 'Alumnos' },
+      { path: '/portal/admin/turnos', icon: 'calendar', label: 'Reuniones' },
+      { path: '/portal/admin/talleres', icon: 'book', label: 'Talleres' },
+      { path: '/portal/admin/snacks', icon: 'snack', label: 'Snacks' },
+      { path: '/portal/admin/eventos', icon: 'event', label: 'Eventos' },
+      { path: '/portal/admin/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/admin/galeria-institucional', icon: 'image', label: 'Galería' }
     ],
     [ROLES.COORDINACION]: [
-      { path: '/admin', icon: 'home', label: 'Inicio' },
-      { path: '/admin/usuarios', icon: 'users', label: 'Usuarios' },
-      { path: '/admin/comunicar', icon: 'send', label: 'Comunicados' },
-      { path: '/admin/conversaciones', icon: 'chat', label: 'Conversaciones' },
-      { path: '/admin/alumnos', icon: 'user', label: 'Alumnos' },
-      { path: '/admin/turnos', icon: 'calendar', label: 'Reuniones' },
-      { path: '/admin/talleres', icon: 'book', label: 'Talleres' },
-      { path: '/admin/snacks', icon: 'snack', label: 'Snacks' },
-      { path: '/admin/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/admin/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/admin/galeria-institucional', icon: 'image', label: 'Galería' }
+      { path: '/portal/admin', icon: 'home', label: 'Inicio' },
+      { path: '/portal/admin/usuarios', icon: 'users', label: 'Usuarios' },
+      { path: '/portal/admin/comunicar', icon: 'send', label: 'Comunicados' },
+      { path: '/portal/admin/conversaciones', icon: 'chat', label: 'Conversaciones' },
+      { path: '/portal/admin/alumnos', icon: 'user', label: 'Alumnos' },
+      { path: '/portal/admin/turnos', icon: 'calendar', label: 'Reuniones' },
+      { path: '/portal/admin/talleres', icon: 'book', label: 'Talleres' },
+      { path: '/portal/admin/snacks', icon: 'snack', label: 'Snacks' },
+      { path: '/portal/admin/eventos', icon: 'event', label: 'Eventos' },
+      { path: '/portal/admin/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/admin/galeria-institucional', icon: 'image', label: 'Galería' }
     ],
     [ROLES.DOCENTE]: [
-      { path: '/docente', icon: 'home', label: 'Inicio' },
-      { path: '/docente/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/docente/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/docente/horarios', icon: 'calendar', label: 'Horarios' },
-      { path: '/docente/galeria', icon: 'image', label: 'Galería' }
+      { path: '/portal/docente', icon: 'home', label: 'Inicio' },
+      { path: '/portal/docente/eventos', icon: 'event', label: 'Eventos' },
+      { path: '/portal/docente/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/docente/horarios', icon: 'calendar', label: 'Horarios' },
+      { path: '/portal/docente/galeria', icon: 'image', label: 'Galería' }
     ],
     [ROLES.TALLERISTA]: [
-      { path: '/tallerista', icon: 'home', label: 'Inicio' },
-      { path: '/tallerista/mi-taller', icon: 'book', label: 'Mi Taller' },
-      { path: '/tallerista/galeria', icon: 'image', label: 'Galería Taller' },
-      { path: '/tallerista/galeria-institucional', icon: 'image', label: 'Galería Escuela' },
-      { path: '/tallerista/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/tallerista/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/tallerista/horarios', icon: 'calendar', label: 'Horarios' }
+      { path: '/portal/tallerista', icon: 'home', label: 'Inicio' },
+      { path: '/portal/tallerista/mi-taller', icon: 'book', label: 'Mi Taller' },
+      { path: '/portal/tallerista/galeria', icon: 'image', label: 'Galería Taller' },
+      { path: '/portal/tallerista/galeria-institucional', icon: 'image', label: 'Galería Escuela' },
+      { path: '/portal/tallerista/eventos', icon: 'event', label: 'Eventos' },
+      { path: '/portal/tallerista/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/tallerista/horarios', icon: 'calendar', label: 'Horarios' }
     ],
     [ROLES.FAMILY]: [
-      { path: '/familia', icon: 'home', label: 'Inicio' },
-      { path: '/familia/comunicados', icon: 'bell', label: 'Comunicados' },
-      { path: '/familia/conversaciones', icon: 'chat', label: 'Conversaciones' },
-      { path: '/familia/hijos', icon: 'user', label: 'Fichas de Alumnos' },
-      { path: '/familia/turnos', icon: 'calendar', label: 'Reuniones' },
-      { path: '/familia/talleres', icon: 'book', label: 'Talleres' },
-      { path: '/familia/eventos', icon: 'event', label: 'Eventos' },
-      { path: '/familia/snacks', icon: 'snack', label: 'Snacks' },
-      { path: '/familia/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/familia/horarios', icon: 'calendar', label: 'Horarios' },
-      { path: '/familia/galeria', icon: 'image', label: 'Galería' }
+      { path: '/portal/familia', icon: 'home', label: 'Inicio' },
+      { path: '/portal/familia/comunicados', icon: 'bell', label: 'Comunicados' },
+      { path: '/portal/familia/conversaciones', icon: 'chat', label: 'Conversaciones' },
+      { path: '/portal/familia/hijos', icon: 'user', label: 'Fichas de Alumnos' },
+      { path: '/portal/familia/turnos', icon: 'calendar', label: 'Reuniones' },
+      { path: '/portal/familia/talleres', icon: 'book', label: 'Talleres' },
+      { path: '/portal/familia/eventos', icon: 'event', label: 'Eventos' },
+      { path: '/portal/familia/snacks', icon: 'snack', label: 'Snacks' },
+      { path: '/portal/familia/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/familia/horarios', icon: 'calendar', label: 'Horarios' },
+      { path: '/portal/familia/galeria', icon: 'image', label: 'Galería' }
     ],
     [ROLES.ASPIRANTE]: [
-      { path: '/aspirante', icon: 'home', label: 'Inicio' },
-      { path: '/aspirante/documentos', icon: 'file', label: 'Documentos' },
-      { path: '/aspirante/galeria', icon: 'image', label: 'Galería' }
+      { path: '/portal/aspirante', icon: 'home', label: 'Inicio' },
+      { path: '/portal/aspirante/documentos', icon: 'file', label: 'Documentos' },
+      { path: '/portal/aspirante/galeria', icon: 'image', label: 'Galería' }
     ]
   };
 
@@ -88,7 +88,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
             <li key={item.path} className="sidebar__item">
               <NavLink
                 to={item.path}
-                end={item.path === '/admin' || item.path === '/familia' || item.path === '/docente' || item.path === '/tallerista' || item.path === '/aspirante'}
+                end={item.path === '/portal/admin' || item.path === '/portal/familia' || item.path === '/portal/docente' || item.path === '/portal/tallerista' || item.path === '/portal/aspirante'}
                 className={({ isActive }) =>
                   `sidebar__link ${isActive ? 'sidebar__link--active' : ''}`
                 }
@@ -110,3 +110,4 @@ export function Sidebar({ isOpen = false, onNavigate }) {
     </aside>
   );
 }
+

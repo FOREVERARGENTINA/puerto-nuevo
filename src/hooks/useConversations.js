@@ -55,11 +55,10 @@ export function useConversations({ user, role, limitCount = 200 }) {
       // SUPERADMIN ve TODO (nivel 6)
       q = query(collectionRef, orderBy('actualizadoAt', 'desc'));
     } else if (role === ROLES.COORDINACION) {
-      // COORDINACION ve coordinacion + administracion (nivel 5)
-      // Ve todo menos "direccion"
+      // Reglas Firestore: coordinación solo puede leer conversaciones del área "coordinacion".
       q = query(
         collectionRef,
-        where('destinatarioEscuela', 'in', ['coordinacion', 'administracion']),
+        where('destinatarioEscuela', '==', 'coordinacion'),
         orderBy('actualizadoAt', 'desc')
       );
     } else {

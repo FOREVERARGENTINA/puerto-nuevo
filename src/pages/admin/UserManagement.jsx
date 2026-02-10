@@ -8,6 +8,16 @@ import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
 import Icon from '../../components/ui/Icon';
 
+const USER_ROLE_OPTIONS = [
+  { value: ROLES.FAMILY, label: 'Familia' },
+  { value: ROLES.DOCENTE, label: 'Docente' },
+  { value: ROLES.FACTURACION, label: 'Facturación' },
+  { value: ROLES.TALLERISTA, label: 'Tallerista' },
+  { value: ROLES.COORDINACION, label: 'Coordinación' },
+  { value: ROLES.SUPERADMIN, label: 'SuperAdmin' },
+  { value: ROLES.ASPIRANTE, label: 'Aspirante' }
+];
+
 export function UserManagement() {
   const { user, isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
@@ -49,6 +59,17 @@ export function UserManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [tallerFilter, setTallerFilter] = useState('');
   const hasFilters = Boolean(searchTerm || roleFilter || statusFilter || tallerFilter);
+  const isCoordinacion = user?.role === ROLES.COORDINACION;
+  const assignableRoleOptions = isCoordinacion
+    ? USER_ROLE_OPTIONS.filter(option => option.value !== ROLES.SUPERADMIN)
+    : USER_ROLE_OPTIONS;
+
+  const canManageTargetUser = (targetUser) => {
+    if (!isAdmin || !targetUser?.id) return false;
+    if (targetUser.id === user?.uid) return false;
+    if (isCoordinacion && targetUser.role === ROLES.SUPERADMIN) return false;
+    return true;
+  };
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -102,6 +123,11 @@ export function UserManagement() {
       return;
     }
 
+    if (isCoordinacion && formData.role === ROLES.SUPERADMIN) {
+      setError('Coordinación no puede crear usuarios con rol SuperAdmin');
+      return;
+    }
+
     if (formData.role === ROLES.DOCENTE && !formData.tallerAsignado) {
       setError('Debes seleccionar un taller para docentes');
       return;
@@ -137,6 +163,11 @@ export function UserManagement() {
 
   // Abrir modal de edición (solo superadmin)
   const openEditUser = (u) => {
+    if (!canManageTargetUser(u)) {
+      setError('No tienes permisos para editar este usuario');
+      return;
+    }
+
     setEditingUser(u);
     setEditFormData({
       email: u.email || '',
@@ -160,6 +191,18 @@ export function UserManagement() {
     setSuccess('');
     setLoadingMessage('Actualizando usuario...');
     setUpdating(true);
+
+    if (!canManageTargetUser(editingUser)) {
+      setError('No tienes permisos para editar este usuario');
+      setUpdating(false);
+      return;
+    }
+
+    if (isCoordinacion && editFormData.role === ROLES.SUPERADMIN) {
+      setError('Coordinación no puede asignar rol SuperAdmin');
+      setUpdating(false);
+      return;
+    }
 
     try {
       // If email or displayName changed, update in Auth first
@@ -204,6 +247,10 @@ export function UserManagement() {
 
   const handleDeleteUser = (u) => {
     if (!u?.id) return;
+    if (!canManageTargetUser(u)) {
+      setError('No tienes permisos para eliminar este usuario');
+      return;
+    }
     confirmDialog.openDialog({
       title: 'Eliminar usuario',
       message: `¿Seguro que deseas eliminar a ${u.email}? Esta acción eliminará su acceso y su perfil.`,
@@ -419,13 +466,11 @@ export function UserManagement() {
                         required
                         className="form-input"
                       >
-                        <option value={ROLES.FAMILY}>Familia</option>
-                        <option value={ROLES.DOCENTE}>Docente</option>
-                        <option value={ROLES.FACTURACION}>Facturación</option>
-                        <option value={ROLES.TALLERISTA}>Tallerista</option>
-                        <option value={ROLES.COORDINACION}>Coordinación</option>
-                        <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
-                        <option value={ROLES.ASPIRANTE}>Aspirante</option>
+                        {assignableRoleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -505,13 +550,11 @@ export function UserManagement() {
                         onChange={handleEditInputChange}
                         className="form-input"
                       >
-                        <option value={ROLES.FAMILY}>Familia</option>
-                        <option value={ROLES.DOCENTE}>Docente</option>
-                        <option value={ROLES.FACTURACION}>Facturación</option>
-                        <option value={ROLES.TALLERISTA}>Tallerista</option>
-                        <option value={ROLES.COORDINACION}>Coordinación</option>
-                        <option value={ROLES.SUPERADMIN}>SuperAdmin</option>
-                        <option value={ROLES.ASPIRANTE}>Aspirante</option>
+                        {assignableRoleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -597,22 +640,24 @@ export function UserManagement() {
                     </td>
                     <td style={{ width: 180 }}>
                       {isAdmin ? (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn--sm btn--outline"
-                            onClick={() => openEditUser(u)}
-                            disabled={u.id === user?.uid}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="btn btn--sm btn--danger"
-                            onClick={() => handleDeleteUser(u)}
-                            disabled={u.id === user?.uid}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
+                        canManageTargetUser(u) ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn--sm btn--outline"
+                              onClick={() => openEditUser(u)}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="btn btn--sm btn--danger"
+                              onClick={() => handleDeleteUser(u)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ) : (
+                          <span>-</span>
+                        )
                       ) : (
                         <span>-</span>
                       )}

@@ -54,8 +54,8 @@ service cloud.firestore {
     }
 
     function canUploadDocuments() {
-      // SuperAdmin, Coordinación, Docentes, Talleristas
-      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
+      // SuperAdmin, Coordinacion y Docentes
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
     }
 
     function canCreateEvents() {
@@ -466,3 +466,4 @@ service cloud.firestore {
     }
   }
 }
+

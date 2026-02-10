@@ -10,7 +10,7 @@ import {
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { readReceiptsService } from '../services/readReceipts.service';
-import { ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
+import { ADMIN_ROLES, COMMUNICATION_TYPES, ROLES } from '../config/constants';
 
 export function useCommunications(limitCount = 50) {
   const { user, role } = useAuth();
@@ -22,6 +22,15 @@ export function useCommunications(limitCount = 50) {
 
   useEffect(() => {
     if (!user || !role) {
+      return;
+    }
+
+    if (role === ROLES.TALLERISTA) {
+      setCommunications([]);
+      setUnreadCommunications([]);
+      setUnreadRequired([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 

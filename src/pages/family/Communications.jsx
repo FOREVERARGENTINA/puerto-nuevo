@@ -79,12 +79,12 @@ export function Communications() {
   }, [communications, user]);
 
   const openCommunication = (comm) => {
-    navigate(`/familia/comunicados/${comm.id}`);
+    navigate(`/portal/familia/comunicados/${comm.id}`);
   };
 
   const handleOpenFirstUnread = () => {
     if (unreadRequired.length > 0) {
-      navigate(`/familia/comunicados/${unreadRequired[0].id}`);
+      navigate(`/portal/familia/comunicados/${unreadRequired[0].id}`);
     }
   };
 
@@ -205,4 +205,5 @@ export function Communications() {
     </div>
   );
 }
+
 

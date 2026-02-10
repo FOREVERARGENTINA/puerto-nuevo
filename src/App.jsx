@@ -7,6 +7,7 @@ import { RoleGuard } from './components/auth/RoleGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
+import { UnderConstruction } from './pages/UnderConstruction';
 import { ROLES } from './config/constants';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
@@ -84,13 +85,16 @@ function App() {
         <PwaInstallPrompt />
         <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<UnderConstruction />} />
+
           {/* Login */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/accion" element={<AuthAction />} />
+          <Route path="/portal/login" element={<Login />} />
+          <Route path="/portal/auth/accion" element={<AuthAction />} />
 
           {/* Admin Routes */}
           <Route
-            path="/admin"
+            path="/portal/admin"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -102,7 +106,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/usuarios"
+            path="/portal/admin/usuarios"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -114,7 +118,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/comunicar"
+            path="/portal/admin/comunicar"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -126,7 +130,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/comunicar/nuevo"
+            path="/portal/admin/comunicar/nuevo"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -138,7 +142,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/confirmaciones"
+            path="/portal/admin/confirmaciones"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -150,7 +154,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/alumnos"
+            path="/portal/admin/alumnos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -162,7 +166,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/turnos"
+            path="/portal/admin/turnos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -174,7 +178,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/talleres"
+            path="/portal/admin/talleres"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -186,7 +190,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/talleres/:tallerId"
+            path="/portal/admin/talleres/:tallerId"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -198,7 +202,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/snacks"
+            path="/portal/admin/snacks"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -210,7 +214,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/snacks/listas"
+            path="/portal/admin/snacks/listas"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -222,7 +226,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/documentos"
+            path="/portal/admin/documentos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -234,7 +238,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/galeria-institucional"
+            path="/portal/admin/galeria-institucional"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -246,7 +250,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/eventos"
+            path="/portal/admin/eventos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -258,7 +262,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/conversaciones"
+            path="/portal/admin/conversaciones"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -270,7 +274,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/conversaciones/nuevo"
+            path="/portal/admin/conversaciones/nuevo"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -282,7 +286,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/conversaciones/:id"
+            path="/portal/admin/conversaciones/:id"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -294,7 +298,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/horarios"
+            path="/portal/admin/horarios"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -308,7 +312,7 @@ function App() {
 
           {/* Family Routes */}
           <Route
-            path="/familia"
+            path="/portal/familia"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -320,7 +324,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/comunicados"
+            path="/portal/familia/comunicados"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -332,7 +336,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/comunicados/:id"
+            path="/portal/familia/comunicados/:id"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -344,7 +348,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/conversaciones"
+            path="/portal/familia/conversaciones"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -356,7 +360,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/conversaciones/nueva"
+            path="/portal/familia/conversaciones/nueva"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -368,7 +372,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/conversaciones/:id"
+            path="/portal/familia/conversaciones/:id"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -380,7 +384,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/hijos"
+            path="/portal/familia/hijos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -392,7 +396,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/turnos"
+            path="/portal/familia/turnos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -404,7 +408,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/eventos"
+            path="/portal/familia/eventos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -416,7 +420,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/talleres"
+            path="/portal/familia/talleres"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -428,7 +432,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/snacks"
+            path="/portal/familia/snacks"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -442,7 +446,7 @@ function App() {
 
           {/* Family Documents Route */}
           <Route
-            path="/familia/documentos"
+            path="/portal/familia/documentos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -454,7 +458,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/horarios"
+            path="/portal/familia/horarios"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -466,7 +470,7 @@ function App() {
             }
           />
           <Route
-            path="/familia/galeria"
+            path="/portal/familia/galeria"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -480,7 +484,7 @@ function App() {
 
           {/* Teacher Routes */}
           <Route
-            path="/docente"
+            path="/portal/docente"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -492,7 +496,7 @@ function App() {
             }
           />
           <Route
-            path="/docente/documentos"
+            path="/portal/docente/documentos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -504,7 +508,7 @@ function App() {
             }
           />
           <Route
-            path="/docente/eventos"
+            path="/portal/docente/eventos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -516,7 +520,7 @@ function App() {
             }
           />
           <Route
-            path="/docente/horarios"
+            path="/portal/docente/horarios"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -528,7 +532,7 @@ function App() {
             }
           />
           <Route
-            path="/docente/galeria"
+            path="/portal/docente/galeria"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -542,7 +546,7 @@ function App() {
 
           {/* Tallerista Routes */}
           <Route
-            path="/tallerista"
+            path="/portal/tallerista"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -554,7 +558,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/mi-taller"
+            path="/portal/tallerista/mi-taller"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -566,7 +570,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/galeria"
+            path="/portal/tallerista/galeria"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -578,7 +582,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/documentos"
+            path="/portal/tallerista/documentos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -590,7 +594,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/eventos"
+            path="/portal/tallerista/eventos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -602,7 +606,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/horarios"
+            path="/portal/tallerista/horarios"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -614,7 +618,7 @@ function App() {
             }
           />
           <Route
-            path="/tallerista/galeria-institucional"
+            path="/portal/tallerista/galeria-institucional"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -628,7 +632,7 @@ function App() {
 
           {/* Aspirante Routes */}
           <Route
-            path="/aspirante"
+            path="/portal/aspirante"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -640,7 +644,7 @@ function App() {
             }
           />
           <Route
-            path="/aspirante/documentos"
+            path="/portal/aspirante/documentos"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -652,7 +656,7 @@ function App() {
             }
           />
           <Route
-            path="/aspirante/galeria"
+            path="/portal/aspirante/galeria"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -666,7 +670,7 @@ function App() {
 
           {/* Unauthorized */}
           <Route
-            path="/unauthorized"
+            path="/portal/unauthorized"
             element={
               <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
                 <div className="card">
@@ -675,7 +679,7 @@ function App() {
                   </div>
                   <div className="card__body">
                     <p>No tienes permisos para acceder a esta sección.</p>
-                    <a href="/login" className="btn btn--primary" style={{ marginTop: 'var(--spacing-md)' }}>
+                    <a href="/portal/login" className="btn btn--primary" style={{ marginTop: 'var(--spacing-md)' }}>
                       Volver al Login
                     </a>
                   </div>
@@ -683,9 +687,6 @@ function App() {
               </div>
             }
           />
-
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* 404 */}
           <Route
@@ -698,7 +699,7 @@ function App() {
                   </div>
                   <div className="card__body">
                     <p>La página que buscas no existe.</p>
-                    <a href="/login" className="btn btn--primary" style={{ marginTop: 'var(--spacing-md)' }}>
+                    <a href="/" className="btn btn--primary" style={{ marginTop: 'var(--spacing-md)' }}>
                       Ir al inicio
                     </a>
                   </div>

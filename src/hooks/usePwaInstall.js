@@ -8,7 +8,10 @@ export function usePwaInstall() {
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase();
-    const ios = /iphone|ipad|ipod/.test(ua);
+    const isIosDevice = /iphone|ipad|ipod/.test(ua);
+    // iPadOS moderno reporta "Macintosh" en userAgent
+    const isTouchMac = /macintosh/.test(ua) && window.navigator.maxTouchPoints > 1;
+    const ios = isIosDevice || isTouchMac;
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     setIsIos(ios);
     setIsStandalone(standalone);

@@ -44,7 +44,7 @@ export const PERMISSIONS = {
 // Mapeo de roles a permisos (basado en documento de Emilse)
 export const ROLE_PERMISSIONS = {
   [ROLES.SUPERADMIN]: [
-    // SuperAdmin tiene TODOS los permisos
+    // SuperAdmin tiene todos los permisos
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_CHILDREN,
     PERMISSIONS.MANAGE_ROLES,
@@ -62,45 +62,36 @@ export const ROLE_PERMISSIONS = {
   ],
 
   [ROLES.COORDINACION]: [
-    // Emilse, Camila, Rosana
     PERMISSIONS.MANAGE_CHILDREN,
     PERMISSIONS.SEND_COMMUNICATIONS,
-    PERMISSIONS.APPROVE_COMMUNICATIONS,  // Pueden aprobar comunicaciones oficiales
-    PERMISSIONS.VIEW_MEDICAL_INFO,        // Ven información médica completa
-    PERMISSIONS.MANAGE_APPOINTMENTS,      // Administran turnos
+    PERMISSIONS.APPROVE_COMMUNICATIONS,
+    PERMISSIONS.VIEW_MEDICAL_INFO,
+    PERMISSIONS.MANAGE_APPOINTMENTS,
     PERMISSIONS.CREATE_APPOINTMENT_SLOTS,
     PERMISSIONS.UPLOAD_DOCUMENTS,
     PERMISSIONS.MANAGE_TALLERES
   ],
 
   [ROLES.DOCENTE]: [
-    // Emilse, Camila, Rosana, Vanesa, Gise, Javi
-    PERMISSIONS.SEND_COMMUNICATIONS,      // Pueden enviar comunicados
-    PERMISSIONS.VIEW_MEDICAL_INFO,        // Vanesa y Gise ven info médica
+    PERMISSIONS.SEND_COMMUNICATIONS,
+    PERMISSIONS.VIEW_MEDICAL_INFO,
     PERMISSIONS.UPLOAD_DOCUMENTS,
     PERMISSIONS.EDIT_TALLER_INFO
   ],
 
   [ROLES.FACTURACION]: [
-    // Rol administrativo - gestiona comunicados y conversaciones
-    PERMISSIONS.SEND_COMMUNICATIONS,      // Puede enviar comunicados
-    PERMISSIONS.UPLOAD_DOCUMENTS          // Puede subir documentos
-    // Más permisos se agregarán según necesidad
+    PERMISSIONS.SEND_COMMUNICATIONS,
+    PERMISSIONS.UPLOAD_DOCUMENTS
   ],
 
   [ROLES.TALLERISTA]: [
-    // Camila como nexo - NO ENVÍAN MENSAJES (esto es clave)
-    PERMISSIONS.UPLOAD_DOCUMENTS,
+    // Tallerista sin permiso de carga documental institucional
     PERMISSIONS.EDIT_TALLER_INFO
   ],
 
-  [ROLES.FAMILY]: [
-    // Familias - permisos básicos
-  ],
+  [ROLES.FAMILY]: [],
 
-  [ROLES.ASPIRANTE]: [
-    // Aspirantes - permisos muy limitados
-  ]
+  [ROLES.ASPIRANTE]: []
 };
 
 // Jerarquía de roles (para permisos)
@@ -216,49 +207,49 @@ export const CATEGORIES_BY_AREA = {
 
 // Rutas de la aplicación
 export const ROUTES = {
-  LOGIN: '/login',
+  LOGIN: '/portal/login',
   HOME: '/',
 
   // Admin
-  ADMIN_DASHBOARD: '/admin',
-  USER_MANAGEMENT: '/admin/usuarios',
-  SEND_COMMUNICATION: '/admin/comunicar',
-  READ_RECEIPTS: '/admin/confirmaciones',
-  TALLERES_MANAGER: '/admin/talleres',
-  ADMIN_DOCUMENTS: '/admin/documentos',
-  EVENTS_MANAGER: '/admin/eventos',
-  ADMIN_CONVERSATIONS: '/admin/conversaciones',
-  ADMIN_CONVERSATION_NEW: '/admin/conversaciones/nuevo',
-  ADMIN_SNACKS_LISTS: '/admin/snacks/listas',
-  INSTITUTIONAL_GALLERY_ADMIN: '/admin/galeria-institucional',
+  ADMIN_DASHBOARD: '/portal/admin',
+  USER_MANAGEMENT: '/portal/admin/usuarios',
+  SEND_COMMUNICATION: '/portal/admin/comunicar',
+  READ_RECEIPTS: '/portal/admin/confirmaciones',
+  TALLERES_MANAGER: '/portal/admin/talleres',
+  ADMIN_DOCUMENTS: '/portal/admin/documentos',
+  EVENTS_MANAGER: '/portal/admin/eventos',
+  ADMIN_CONVERSATIONS: '/portal/admin/conversaciones',
+  ADMIN_CONVERSATION_NEW: '/portal/admin/conversaciones/nuevo',
+  ADMIN_SNACKS_LISTS: '/portal/admin/snacks/listas',
+  INSTITUTIONAL_GALLERY_ADMIN: '/portal/admin/galeria-institucional',
 
   // Family
-  FAMILY_DASHBOARD: '/familia',
-  MY_CHILDREN: '/familia/hijos',
-  COMMUNICATIONS: '/familia/comunicados',
-  APPOINTMENTS: '/familia/turnos',
-  DOCUMENTS: '/familia/documentos',
-  FAMILY_CONVERSATIONS: '/familia/conversaciones',
-  FAMILY_CONVERSATION_NEW: '/familia/conversaciones/nueva',
-  INSTITUTIONAL_GALLERY_FAMILY: '/familia/galeria',
+  FAMILY_DASHBOARD: '/portal/familia',
+  MY_CHILDREN: '/portal/familia/hijos',
+  COMMUNICATIONS: '/portal/familia/comunicados',
+  APPOINTMENTS: '/portal/familia/turnos',
+  DOCUMENTS: '/portal/familia/documentos',
+  FAMILY_CONVERSATIONS: '/portal/familia/conversaciones',
+  FAMILY_CONVERSATION_NEW: '/portal/familia/conversaciones/nueva',
+  INSTITUTIONAL_GALLERY_FAMILY: '/portal/familia/galeria',
 
   // Teacher
-  TEACHER_DASHBOARD: '/docente',
-  MY_TALLER: '/docente/mi-taller',
-  TEACHER_DOCUMENTS: '/docente/documentos',
-  INSTITUTIONAL_GALLERY_TEACHER: '/docente/galeria',
+  TEACHER_DASHBOARD: '/portal/docente',
+  MY_TALLER: '/portal/docente/mi-taller',
+  TEACHER_DOCUMENTS: '/portal/docente/documentos',
+  INSTITUTIONAL_GALLERY_TEACHER: '/portal/docente/galeria',
 
   // Tallerista
-  TALLERISTA_DASHBOARD: '/tallerista',
-  MY_TALLER_ESPECIAL: '/tallerista/mi-taller',
-  TALLER_GALLERY: '/tallerista/galeria',
-  TALLER_DOCUMENTS: '/tallerista/documentos',
-  INSTITUTIONAL_GALLERY_TALLERISTA: '/tallerista/galeria-institucional',
+  TALLERISTA_DASHBOARD: '/portal/tallerista',
+  MY_TALLER_ESPECIAL: '/portal/tallerista/mi-taller',
+  TALLER_GALLERY: '/portal/tallerista/galeria',
+  TALLER_DOCUMENTS: '/portal/tallerista/documentos',
+  INSTITUTIONAL_GALLERY_TALLERISTA: '/portal/tallerista/galeria-institucional',
 
   // Aspirante
-  ASPIRANTE_DASHBOARD: '/aspirante',
-  ASPIRANTE_DOCUMENTS: '/aspirante/documentos',
-  INSTITUTIONAL_GALLERY_ASPIRANTE: '/aspirante/galeria'
+  ASPIRANTE_DASHBOARD: '/portal/aspirante',
+  ASPIRANTE_DOCUMENTS: '/portal/aspirante/documentos',
+  INSTITUTIONAL_GALLERY_ASPIRANTE: '/portal/aspirante/galeria'
 };
 
 // Mapeo de roles a rutas de dashboard
@@ -347,3 +338,4 @@ export const CAN_UPLOAD_TO_GALLERY = [
   ROLES.COORDINACION,
   ROLES.DOCENTE
 ];
+

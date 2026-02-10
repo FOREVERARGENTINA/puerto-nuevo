@@ -400,7 +400,7 @@ const TalleresManager = () => {
         loadData();
       } else if (result.id) {
         await loadData();
-        navigate(`/admin/talleres/${result.id}`);
+        navigate(`/portal/admin/talleres/${result.id}`);
       }
     } else {
       alertDialog.openDialog({
@@ -424,7 +424,7 @@ const TalleresManager = () => {
             message: 'Taller eliminado correctamente',
             type: 'success'
           });
-          navigate('/admin/talleres');
+          navigate('/portal/admin/talleres');
         } else {
           alertDialog.openDialog({
             title: 'Error',
@@ -988,7 +988,7 @@ const TalleresManager = () => {
         <p className="dashboard-subtitle">{headerSubtitle}</p>
       </div>
       <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-        <button onClick={() => navigate('/admin/talleres')} className="btn btn--outline btn--back">
+        <button onClick={() => navigate('/portal/admin/talleres')} className="btn btn--outline btn--back">
           <Icon name="chevron-left" size={16} />
           Volver al listado
         </button>
@@ -1757,3 +1757,4 @@ const TalleresManager = () => {
 };
 
 export default TalleresManager;
+

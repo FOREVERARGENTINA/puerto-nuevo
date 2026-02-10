@@ -411,7 +411,7 @@ async function getGlobalRecipients() {
   const usersSnapshot = await admin
     .firestore()
     .collection('users')
-    .where('role', 'in', ['family', 'teacher', 'tallerista', 'admin', 'direccion', 'coordinacion'])
+    .where('role', 'in', ['family', 'teacher', 'admin', 'direccion', 'coordinacion'])
     .where('disabled', '==', false)
     .get();
 
@@ -451,18 +451,6 @@ async function getAmbienteRecipients(ambiente) {
 
 async function getTallerRecipients(tallerEspecial) {
   const recipients = [];
-
-  const talleristasSnapshot = await admin
-    .firestore()
-    .collection('users')
-    .where('role', '==', 'tallerista')
-    .where('tallerAsignado', '==', tallerEspecial)
-    .where('disabled', '==', false)
-    .get();
-
-  talleristasSnapshot.docs.forEach(doc => {
-    recipients.push(doc.id);
-  });
 
   const childrenSnapshot = await admin
     .firestore()

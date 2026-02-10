@@ -26,6 +26,8 @@ export function AdminConversationDetail() {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [reassignTo, setReassignTo] = useState('');
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignFeedback, setReassignFeedback] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -68,6 +70,12 @@ export function AdminConversationDetail() {
     }
   }, [conversation, user]);
 
+  useEffect(() => {
+    if (!reassignFeedback) return;
+    const timeoutId = setTimeout(() => setReassignFeedback(null), 2800);
+    return () => clearTimeout(timeoutId);
+  }, [reassignFeedback]);
+
   const isClosed = conversation?.estado === CONVERSATION_STATUS.CERRADA;
 
   const handleSend = async (e) => {
@@ -108,13 +116,25 @@ export function AdminConversationDetail() {
   };
 
   const handleReassign = async () => {
-    if (!conversation || !reassignTo) return;
+    if (!conversation || !reassignTo || reassigning) return;
+    setReassigning(true);
+    setReassignFeedback(null);
     const result = await conversationsService.reassignConversation(conversation.id, reassignTo);
     if (!result.success) {
       setError(result.error || 'No se pudo reasignar');
+      setReassignFeedback({
+        type: 'error',
+        message: result.error || 'No se pudo reasignar la conversación'
+      });
     } else {
+      setError(null);
+      setReassignFeedback({
+        type: 'success',
+        message: `Conversación reasignada a ${getAreaLabel(reassignTo)}.`
+      });
       setReassignTo('');
     }
+    setReassigning(false);
   };
 
   const headerMeta = useMemo(() => {
@@ -157,13 +177,50 @@ export function AdminConversationDetail() {
           </div>
           <p className="dashboard-subtitle">Asunto: {conversation.asunto || 'Sin asunto'}</p>
         </div>
-        <div>
+        <div className="conversation-header__actions">
+          <div className="conversation-header__reassign">
+            <label htmlFor="reassign-area">Reasignar a</label>
+            <div className="conversation-header__reassign-controls">
+              <select
+                id="reassign-area"
+                className="form-select"
+                value={reassignTo}
+                onChange={(e) => setReassignTo(e.target.value)}
+                disabled={isClosed || reassigning}
+              >
+                <option value="">Seleccionar área</option>
+                <option value={ESCUELA_AREAS.COORDINACION}>Coordinación</option>
+                <option value={ESCUELA_AREAS.ADMINISTRACION}>Administración</option>
+                <option value={ESCUELA_AREAS.DIRECCION}>Dirección</option>
+              </select>
+              <button
+                className="btn btn--outline"
+                type="button"
+                onClick={handleReassign}
+                disabled={!reassignTo || isClosed || reassigning}
+              >
+                {reassigning ? 'Reasignando...' : 'Reasignar'}
+              </button>
+            </div>
+          </div>
           <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--outline btn--back">
             <Icon name="chevron-left" size={16} />
             Volver
           </Link>
         </div>
       </div>
+
+      {reassignFeedback && (
+        <div
+          className={`alert conversation-reassign-feedback ${
+            reassignFeedback.type === 'error' ? 'alert--error' : 'alert--success'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {reassignFeedback.message}
+        </div>
+      )}
 
       <div className="conversation-thread">
         {messages.length === 0 ? (
@@ -195,25 +252,6 @@ export function AdminConversationDetail() {
       </div>
 
       <div className="conversation-admin-actions">
-        <div className="form-group">
-          <label>Reasignar a</label>
-          <div className="flex gap-sm">
-            <select
-              className="form-select"
-              value={reassignTo}
-              onChange={(e) => setReassignTo(e.target.value)}
-              disabled={isClosed}
-            >
-              <option value="">Seleccionar área</option>
-              <option value={ESCUELA_AREAS.COORDINACION}>Coordinación</option>
-              <option value={ESCUELA_AREAS.ADMINISTRACION}>Administración</option>
-              <option value={ESCUELA_AREAS.DIRECCION}>Dirección</option>
-            </select>
-            <button className="btn btn--outline" type="button" onClick={handleReassign} disabled={!reassignTo || isClosed}>
-              Reasignar
-            </button>
-          </div>
-        </div>
         <button className="btn btn--danger" type="button" onClick={handleClose} disabled={isClosed}>
           Marcar como resuelta y cerrar
         </button>

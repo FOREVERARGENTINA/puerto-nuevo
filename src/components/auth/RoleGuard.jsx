@@ -18,7 +18,7 @@ export function RoleGuard({ allowedRoles, children }) {
   }
 
   if (!allowedRoles.includes(role)) {
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to="/portal/unauthorized" replace />;
   }
 
   return children;

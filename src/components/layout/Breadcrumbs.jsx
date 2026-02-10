@@ -3,6 +3,7 @@ import Icon from '../ui/Icon';
 
 const ROUTE_NAMES = {
   '': 'Inicio',
+  portal: 'Portal',
   admin: 'Administración',
   familia: 'Familia',
   docente: 'Docente',
@@ -43,17 +44,24 @@ export function Breadcrumbs() {
     .split('/')
     .filter((segment) => segment !== '');
 
-  if (pathSegments.length === 0 || location.pathname === '/login') {
+  if (pathSegments.length === 0 || location.pathname === '/portal/login') {
     return null;
   }
 
-  const isRoleRootRoute = ROOT_ROLE_SEGMENTS.has(pathSegments[0]);
+  // Detectar si es una ruta de portal
+  const isPortalRoute = pathSegments[0] === 'portal';
+  const roleSegmentIndex = isPortalRoute ? 1 : 0;
+  const roleSegment = pathSegments[roleSegmentIndex];
+  const isRoleRootRoute = ROOT_ROLE_SEGMENTS.has(roleSegment);
 
   const visibleSegments = pathSegments
     .map((segment, originalIndex) => ({ segment, originalIndex }))
     .filter(({ segment, originalIndex }) => {
       if (isDocumentId(segment)) return false;
-      if (originalIndex === 0 && ROOT_ROLE_SEGMENTS.has(segment)) return false;
+      // Filtrar 'portal' del breadcrumb
+      if (segment === 'portal') return false;
+      // Filtrar el segmento de rol si está en la posición correcta
+      if (originalIndex === roleSegmentIndex && ROOT_ROLE_SEGMENTS.has(segment)) return false;
       return true;
     });
 
@@ -73,7 +81,9 @@ export function Breadcrumbs() {
     return null;
   }
 
-  const roleRootPath = isRoleRootRoute ? `/${pathSegments[0]}` : '/';
+  const roleRootPath = isRoleRootRoute
+    ? (isPortalRoute ? `/portal/${roleSegment}` : `/${roleSegment}`)
+    : '/';
   const mobileBackPath = breadcrumbs.length > 1
     ? breadcrumbs[breadcrumbs.length - 2].path
     : roleRootPath;
@@ -83,7 +93,7 @@ export function Breadcrumbs() {
       <div className="breadcrumbs__inner">
         <ol className="breadcrumbs__list">
           <li className="breadcrumbs__item">
-            <Link to="/" className="breadcrumbs__link">
+            <Link to={roleRootPath} className="breadcrumbs__link">
               Inicio
             </Link>
             <span className="breadcrumbs__separator">›</span>

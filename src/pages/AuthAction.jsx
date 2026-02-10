@@ -93,7 +93,7 @@ export function AuthAction() {
             {!loading && state === 'error' && (
               <>
                 <div className="alert alert--error" role="alert">{error}</div>
-                <Link to="/login" className="btn btn--primary btn--full">
+                <Link to="/portal/login" className="btn btn--primary btn--full">
                   Ir al login
                 </Link>
               </>
@@ -152,7 +152,7 @@ export function AuthAction() {
                 <div className="alert alert--success" role="alert">
                   Contraseña cambiada. Ya puedes iniciar sesión.
                 </div>
-                <Link to="/login" className="btn btn--primary btn--full">
+                <Link to="/portal/login" className="btn btn--primary btn--full">
                   Ir al login
                 </Link>
               </>

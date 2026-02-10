@@ -61,7 +61,7 @@ export function CommunicationDetail() {
 
   // Marcar como leído automáticamente al abrir el comunicado.
   useEffect(() => {
-    if (!communication || !user || hasRead) return;
+    if (!communication || !user || hasRead || communication.requiereLecturaObligatoria) return;
 
     let cancelled = false;
 

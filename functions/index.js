@@ -13,6 +13,19 @@ const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
 
+const getUserRole = async (uid) => {
+  const authUser = await admin.auth().getUser(uid);
+  let role = authUser.customClaims?.role || null;
+
+  // Fallback para cuentas legacy sin custom claim pero con rol en Firestore.
+  if (!role) {
+    const userDoc = await admin.firestore().collection('users').doc(uid).get();
+    role = userDoc.exists ? userDoc.data()?.role || null : null;
+  }
+
+  return role;
+};
+
 /**
  * Cloud Function: setUserRole
  * Asigna un custom claim (rol) a un usuario
@@ -46,7 +59,16 @@ exports.setUserRole = onCallWithCors(async (request) => {
     throw new HttpsError('invalid-argument', `Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
   }
 
+  if (callerRole === 'coordinacion' && role === 'superadmin') {
+    throw new HttpsError('permission-denied', 'Coordinación no puede asignar rol superadmin');
+  }
+
   try {
+    const targetRole = await getUserRole(uid);
+    if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
+      throw new HttpsError('permission-denied', 'Coordinación no puede modificar a un superadmin');
+    }
+
     // Asignar custom claim
     await admin.auth().setCustomUserClaims(uid, { role });
 
@@ -65,6 +87,9 @@ exports.setUserRole = onCallWithCors(async (request) => {
       role
     };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     console.error('Error asignando rol:', error);
     throw new HttpsError('internal', `Error asignando rol: ${error.message}`);
   }
@@ -96,6 +121,10 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
   const validRoles = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
   if (!validRoles.includes(role)) {
     throw new HttpsError('invalid-argument', `Rol inválido`);
+  }
+
+  if (callerRole === 'coordinacion' && role === 'superadmin') {
+    throw new HttpsError('permission-denied', 'Coordinación no puede crear usuarios superadmin');
   }
 
   try {
@@ -131,6 +160,9 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
       role
     };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     console.error('Error creando usuario:', error);
     throw new HttpsError('internal', `Error creando usuario: ${error.message}`);
   }
@@ -157,6 +189,11 @@ exports.updateUserAuth = onCallWithCors(async (request) => {
   }
 
   try {
+    const targetRole = await getUserRole(uid);
+    if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
+      throw new HttpsError('permission-denied', 'Coordinación no puede editar a un superadmin');
+    }
+
     const updateParams = {};
     if (email) updateParams.email = email;
     if (displayName) updateParams.displayName = displayName;
@@ -180,6 +217,9 @@ exports.updateUserAuth = onCallWithCors(async (request) => {
 
     return { success: true, message: 'Usuario actualizado en Auth y Firestore' };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     console.error('Error actualizando usuario en Auth:', error);
     throw new HttpsError('internal', `Error actualizando usuario: ${error.message}`);
   }
@@ -243,8 +283,7 @@ exports.deleteUser = onCallWithCors(async (request) => {
   }
 
   try {
-    const targetUser = await admin.auth().getUser(uid);
-    const targetRole = targetUser.customClaims?.role || null;
+    const targetRole = await getUserRole(uid);
 
     if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
       throw new HttpsError('permission-denied', 'Coordinación no puede eliminar a un superadmin');
@@ -257,6 +296,9 @@ exports.deleteUser = onCallWithCors(async (request) => {
 
     return { success: true, message: 'Usuario eliminado correctamente', uid };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     console.error('Error eliminando usuario:', error);
     throw new HttpsError('internal', `Error eliminando usuario: ${error.message}`);
   }

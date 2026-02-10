@@ -1,0 +1,19 @@
+# Reglas para Agentes de IA (Codex, Claude Code, Cursor, etc.)
+
+## ⚠️ CRÍTICO: Codificación UTF-8
+- SIEMPRE usar UTF-8 al leer y escribir TODOS los archivos
+- NUNCA cambiar la codificación de archivos existentes
+- Los archivos contienen español con tildes (á, é, í, ó, ú, ñ)
+- Respetar el .editorconfig (charset = utf-8)
+
+## Al editar cualquier archivo:
+1. Leer el archivo completo primero
+2. Preservar UTF-8 estrictamente
+3. NO convertir á → &aacute; ni caracteres especiales
+4. Mantener line endings LF (Unix)
+
+## Archivos con español:
+- *.html - meta tags, títulos, descripciones
+- *.js - strings con días/meses, mensajes de usuario
+- *.json - configuración con texto en español
+- functions/ - templates de email con español

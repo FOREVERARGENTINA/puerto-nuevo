@@ -28,7 +28,7 @@ export function TalleristaDashboard() {
               <h3 className="card__title">Documentos</h3>
               <p>Subir y gestionar documentos del taller</p>
             </Link>
-            <Link to="/tallerista/horarios" className="card card--clickable link-unstyled">
+            <Link to="/portal/tallerista/horarios" className="card card--clickable link-unstyled">
               <h3 className="card__title">Horario Semanal</h3>
               <p>Ver calendario semanal de ambientes y talleres</p>
             </Link>
@@ -38,3 +38,4 @@ export function TalleristaDashboard() {
     </div>
   );
 }
+

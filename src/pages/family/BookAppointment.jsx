@@ -113,11 +113,15 @@ const BookAppointment = () => {
 
   const handleBookingSubmit = async (data) => {
     const selectedChild = userChildren.find(child => child.id === data.hijoId);
+    const selectedMode = data.modalidad === 'presencial' || data.modalidad === 'virtual'
+      ? data.modalidad
+      : null;
 
     const result = await appointmentsService.updateAppointment(data.appointmentId, {
       familiaUid: user.uid,
       familiasUids: [user.uid],
       hijoId: data.hijoId,
+      ...(selectedMode ? { modalidad: selectedMode } : {}),
       nota: data.nota,
       estado: 'reservado',
       familiaEmail: user.email || '',

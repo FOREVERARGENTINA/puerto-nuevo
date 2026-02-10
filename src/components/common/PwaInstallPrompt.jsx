@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
 import { useAuth } from '../../hooks/useAuth';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
@@ -38,7 +38,7 @@ export function PwaInstallPrompt() {
   }, [canInstall, user, loading]);
 
   useEffect(() => {
-    if (loading || !user || !shouldShowIosInstall) {
+    if (loading || !shouldShowIosInstall) {
       setShowIosBanner(false);
       return;
     }
@@ -55,7 +55,7 @@ export function PwaInstallPrompt() {
         clearTimeout(iosTimerRef.current);
       }
     };
-  }, [shouldShowIosInstall, user, loading]);
+  }, [shouldShowIosInstall, loading]);
 
   useEffect(() => {
     const handleInstalled = () => {
