@@ -1,0 +1,6 @@
+﻿User-agent: *
+Allow: /
+Disallow: /portal/
+Disallow: /__/
+
+Sitemap: https://montessoripuertonuevo.com.ar/sitemap.xml

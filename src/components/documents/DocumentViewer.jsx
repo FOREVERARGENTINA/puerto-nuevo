@@ -305,6 +305,7 @@ export function DocumentViewer({ isAdmin = false }) {
                   <div
                     key={doc.id}
                     className={`card documents-item ${isPending ? 'documents-item--pending' : ''} ${isRead ? 'documents-item--read' : ''}`}
+                    data-categoria={doc.categoria}
                   >
                     <div className="documents-item__layout">
                       <div className="documents-item__content">

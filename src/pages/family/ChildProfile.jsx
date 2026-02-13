@@ -4,6 +4,7 @@ import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { appointmentsService } from '../../services/appointments.service';
 import ChildCard from '../../components/children/ChildCard';
+import './ChildProfile.css';
 
 const ChildProfile = () => {
   const { user } = useAuth();
@@ -108,7 +109,7 @@ const ChildProfile = () => {
 
   if (loading) {
     return (
-      <div className="container page-container">
+      <div className="container page-container family-children-page">
         <div className="dashboard-header dashboard-header--compact">
           <div>
             <h1 className="dashboard-title">Fichas de Alumnos</h1>
@@ -126,7 +127,7 @@ const ChildProfile = () => {
   }
 
   return (
-    <div className="container page-container">
+    <div className="container page-container family-children-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Fichas de Alumnos</h1>

@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { DocumentUploader } from '../../components/documents/DocumentUploader';
 import { DocumentViewer } from '../../components/documents/DocumentViewer';
 import Icon from '../../components/ui/Icon';
+import './DocumentsAdmin.css';
 
 export function DocumentsAdmin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('ver');
 
   return (
-    <div className="container page-container">
+    <div className="container page-container documents-admin-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Documentos</h1>

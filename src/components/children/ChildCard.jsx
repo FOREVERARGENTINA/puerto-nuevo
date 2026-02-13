@@ -80,11 +80,6 @@
     <div className={cardClassName}>
       {/* Header con nombre y badges */}
       <div className="child-card__header">
-        {!isAdmin && (
-          <div className="child-card__avatar">
-            {child.nombreCompleto.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-          </div>
-        )}
         <div className="child-card__title">
           <h3 className="child-card__name">{child.nombreCompleto}</h3>
           <div className="child-card__badges">
@@ -192,18 +187,13 @@
               </p>
             )}
             {!meetingNotesLoading && hasMeetingNotes && (
-              <div style={{ display: 'grid', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>
+              <div className="child-card__meeting-list">
                 {meetingNotes.map((entry, index) => (
                   <div
                     key={`${child.id}-meeting-${index}`}
-                    style={{
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: 'var(--spacing-sm)',
-                      backgroundColor: 'var(--color-background-alt)'
-                    }}
+                    className="child-card__meeting-entry"
                   >
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+                    <div className="child-card__meeting-meta">
                       <span className="badge badge--outline">{formatDateTime(entry?.appointment?.fechaHora)}</span>
                       {isAdmin && entry?.note?.visibilidad && (
                         <span className="badge badge--secondary">
@@ -211,15 +201,15 @@
                         </span>
                       )}
                     </div>
-                    <div style={{ marginTop: 'var(--spacing-xs)', display: 'grid', gap: '2px' }}>
+                    <div className="child-card__meeting-content">
                       <div><strong>Resumen:</strong> {entry?.note?.resumen}</div>
                       {entry?.note?.acuerdos && <div><strong>Acuerdos:</strong> {entry.note.acuerdos}</div>}
                       {entry?.note?.proximosPasos && <div><strong>Próximos pasos:</strong> {entry.note.proximosPasos}</div>}
                     </div>
                     {Array.isArray(entry?.note?.attachments) && entry.note.attachments.length > 0 && (
-                      <div style={{ marginTop: 'var(--spacing-xs)' }}>
+                      <div className="child-card__meeting-attachments">
                         <strong>Adjuntos:</strong>
-                        <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                        <ul>
                           {entry.note.attachments.map((file, fileIndex) => (
                             <li key={`${child.id}-meeting-file-${index}-${fileIndex}`}>
                               <a href={file.url} target="_blank" rel="noreferrer">
@@ -240,38 +230,21 @@
         {child.documentos && child.documentos.length > 0 && (
           <div className="child-card__section">
             <span className="child-card__section-title">{documentsTitle} ({child.documentos.length})</span>
-            <div style={{ display: 'grid', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-xs)' }}>
+            <div className="child-card__doc-list">
               {child.documentos.map((doc, index) => (
                 <a
                   key={index}
                   href={doc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--spacing-xs)',
-                    padding: 'var(--spacing-xs)',
-                    backgroundColor: 'var(--color-background-alt)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-soft)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-alt)'}
+                  className="child-card__doc-item"
                 >
-                  {!isAdmin && <span style={{ fontSize: '1.2rem' }}>Doc</span>}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {doc.nombre}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--color-text-light)' }}>
-                      {doc.descripcion}
-                    </div>
+                  {!isAdmin && <span className="child-card__doc-icon">DOC</span>}
+                  <div className="child-card__doc-info">
+                    <div className="child-card__doc-name">{doc.nombre}</div>
+                    <div className="child-card__doc-desc">{doc.descripcion}</div>
                   </div>
-                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)' }}>Ver</span>
+                  <span className="child-card__doc-action">Ver</span>
                 </a>
               ))}
             </div>

@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
+import './EventsCalendar.css';
 
 export function EventsCalendar() {
   const { user, isFamily } = useAuth();
@@ -384,9 +385,10 @@ export function EventsCalendar() {
                       {filteredEvents.map(event => {
                         const pastEvent = isPastEvent(event);
                         return (
-                        <div 
-                          key={event.id} 
+                        <div
+                          key={event.id}
                           className={`event-item event-item--clickable ${pastEvent ? 'event-item--past' : ''}`}
+                          data-tipo={event.tipo}
                           onClick={() => handleEventClick(event)}
                         >
                           <div className="event-item__date">

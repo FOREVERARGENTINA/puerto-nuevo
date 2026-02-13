@@ -2800,6 +2800,96 @@
   color: var(--color-text, #495057);
 }
 
+/* Notas de reuniones — base (sin inline styles) */
+.child-card__meeting-list {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.child-card__meeting-entry {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-background-alt);
+}
+
+.child-card__meeting-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.child-card__meeting-content {
+  display: grid;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.child-card__meeting-attachments {
+  margin-top: var(--spacing-xs);
+}
+
+.child-card__meeting-attachments ul {
+  margin: var(--spacing-xs) 0 0;
+  padding-left: 1.1rem;
+}
+
+/* Documentos — base (sin inline styles) */
+.child-card__doc-list {
+  display: grid;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.child-card__doc-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  background-color: var(--color-background-alt);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color var(--transition-fast);
+}
+
+.child-card__doc-item:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.child-card__doc-icon {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
+}
+
+.child-card__doc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.child-card__doc-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-card__doc-desc {
+  font-size: 10px;
+  color: var(--color-text-light);
+}
+
+.child-card__doc-action {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+}
+
 /* Footer con acciones */
 .child-card__footer {
   display: flex;

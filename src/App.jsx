@@ -7,7 +7,7 @@ import { RoleGuard } from './components/auth/RoleGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
-import { UnderConstruction } from './pages/UnderConstruction';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import { ROLES } from './config/constants';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
@@ -58,6 +58,7 @@ const InstitutionalGallery = lazy(() => import('./pages/shared/InstitutionalGall
 
 // Lazy load páginas aspirante
 const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
+const UnderConstruction = lazy(() => import('./pages/UnderConstruction').then(m => ({ default: m.UnderConstruction })));
 
 // Importar CSS
 import './styles/design-system.css';
@@ -66,16 +67,7 @@ import './styles/components.css';
 import './styles/sections/gallery.css';
 
 // Componente de loading
-const PageLoader = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh'
-  }}>
-    <div>Cargando...</div>
-  </div>
-);
+const PageLoader = () => <LoadingScreen message="Cargando..." />;
 
 function App() {
   return (

@@ -1,0 +1,496 @@
+/* ============================================================
+   DOCUMENTS ADMIN — /portal/admin/documentos
+   Montessori Puerto Nuevo · Enfoque: gestión documental premium
+   ============================================================ */
+
+.documents-admin-page {
+  /* Tokens locales */
+  --da-surface:          var(--color-background-alt);
+  --da-surface-warm:     var(--color-background-warm);
+  --da-border:           var(--color-border);
+  --da-shadow:           0 2px 8px rgba(30, 77, 80, 0.07);
+  --da-shadow-hover:     0 8px 24px rgba(30, 77, 80, 0.13);
+  --da-radius:           var(--radius-lg);
+
+  /* Colores por categoría */
+  --da-cat-institucional:  var(--color-primary);
+  --da-cat-pedagogico:     var(--color-secondary);
+  --da-cat-administrativo: var(--color-accent);
+  --da-cat-taller:         var(--color-info);
+}
+
+[data-theme="dark"] .documents-admin-page {
+  --da-shadow:       0 2px 8px rgba(0, 0, 0, 0.28);
+  --da-shadow-hover: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Page Header ─────────────────────────────────────────── */
+
+.documents-admin-page .dashboard-header--compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--da-border);
+  margin-bottom: var(--spacing-lg);
+}
+
+.documents-admin-page .dashboard-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.4px;
+  color: var(--color-text);
+}
+
+.documents-admin-page .dashboard-subtitle {
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+}
+
+/* ─── Card contenedor principal ──────────────────────────── */
+
+.documents-admin-page > .card {
+  background: var(--da-surface);
+  border: 1px solid var(--da-border);
+  border-radius: var(--da-radius);
+  box-shadow: var(--da-shadow);
+}
+
+.documents-admin-page > .card > .card__body {
+  padding: var(--spacing-lg);
+}
+
+/* ─── Tabs Ver / Subir ───────────────────────────────────── */
+
+.documents-admin-page .documents-admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--da-border);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: 0;
+}
+
+.documents-admin-page .documents-admin-tab {
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: -2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.documents-admin-page .documents-admin-tab:hover {
+  color: var(--color-text);
+  background: transparent;
+  border-bottom-color: var(--da-border);
+}
+
+/* Tab activo — sobrescribe btn--primary */
+.documents-admin-page .documents-admin-tab.btn--primary {
+  background: transparent;
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+  box-shadow: none;
+}
+
+.documents-admin-page .documents-admin-tab.btn--primary:hover {
+  background: transparent;
+  color: var(--color-primary);
+}
+
+/* Tab inactivo — sobrescribe btn--outline */
+.documents-admin-page .documents-admin-tab.btn--outline {
+  border-color: transparent;
+  color: var(--color-text-light);
+}
+
+/* ─── Alerta info de subida ──────────────────────────────── */
+
+.documents-admin-page .alert--info {
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* ─── Toolbar de filtros ─────────────────────────────────── */
+
+.documents-admin-page .documents-toolbar {
+  margin-bottom: var(--spacing-md);
+}
+
+.documents-admin-page .documents-filter-group label,
+.documents-admin-page .documents-filter-group .form-label {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-light);
+  margin-bottom: 4px;
+}
+
+/* Normalizar form-control → mismo aspecto que form-input */
+.documents-admin-page .form-control {
+  display: block;
+  width: 100%;
+  height: 36px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background: var(--da-surface-warm);
+  border: 1px solid var(--da-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  appearance: auto;
+}
+
+.documents-admin-page .form-control:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(44, 107, 111, 0.12);
+}
+
+.documents-admin-page textarea.form-control {
+  height: auto;
+  resize: vertical;
+}
+
+/* ─── Banner de filtro por día ───────────────────────────── */
+
+.documents-admin-page .documents-day-filter-banner {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-light);
+  border-left-color: var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ─── Lista de documentos ────────────────────────────────── */
+
+.documents-admin-page .documents-list {
+  gap: var(--spacing-sm);
+}
+
+/* ─── Tarjeta de documento ───────────────────────────────── */
+
+.documents-admin-page .documents-item.card {
+  background: var(--da-surface);
+  border: 1px solid var(--da-border);
+  border-radius: var(--radius-md);
+  border-left-width: 3px;
+  border-left-color: var(--da-border);
+  box-shadow: var(--da-shadow);
+  padding: var(--spacing-md);
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.documents-admin-page .documents-item.card:hover {
+  transform: translateX(3px);
+  box-shadow: var(--da-shadow-hover);
+  border-color: var(--da-border);
+}
+
+/* Colores por categoría via data-categoria */
+.documents-admin-page .documents-item[data-categoria="institucional"] {
+  border-left-color: var(--da-cat-institucional);
+}
+.documents-admin-page .documents-item[data-categoria="pedagogico"] {
+  border-left-color: var(--da-cat-pedagogico);
+}
+.documents-admin-page .documents-item[data-categoria="administrativo"] {
+  border-left-color: var(--da-cat-administrativo);
+}
+.documents-admin-page .documents-item[data-categoria="taller"] {
+  border-left-color: var(--da-cat-taller);
+}
+
+/* Pendiente / Leído mantienen su borde (más prominente) */
+.documents-admin-page .documents-item--pending {
+  border-left-color: var(--color-warning) !important;
+  border-left-width: 4px;
+}
+.documents-admin-page .documents-item--read {
+  border-left-color: var(--color-success) !important;
+  border-left-width: 4px;
+}
+
+/* ─── Ícono de tipo de archivo ───────────────────────────── */
+
+.documents-admin-page .documents-item__icon {
+  width: 26px;
+  height: 26px;
+  background: rgba(44, 107, 111, 0.08);
+  border-color: rgba(44, 107, 111, 0.15);
+  color: var(--color-primary);
+}
+
+/* ─── Tag de tipo (PDF, Word, etc.) ─────────────────────── */
+
+.documents-admin-page .documents-item__type {
+  font-size: 0.65rem;
+  letter-spacing: 0.4px;
+  background: var(--da-surface-warm);
+  border-color: var(--da-border);
+  color: var(--color-text-light);
+}
+
+/* ─── Título ─────────────────────────────────────────────── */
+
+.documents-admin-page .documents-item__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+}
+
+/* ─── Descripción ────────────────────────────────────────── */
+
+.documents-admin-page .documents-item__description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  line-height: var(--line-height-normal);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* ─── Badges de categoría y roles ───────────────────────── */
+
+.documents-admin-page .documents-item__category {
+  font-size: 0.65rem;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.documents-admin-page .documents-item__role {
+  font-size: 0.65rem;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+/* ─── Meta (subido por + fecha) ──────────────────────────── */
+
+.documents-admin-page .documents-item__meta {
+  font-size: 11px;
+  color: var(--color-text-light);
+  letter-spacing: 0.1px;
+}
+
+/* ─── Acciones ───────────────────────────────────────────── */
+
+.documents-admin-page .documents-item__actions .btn--sm {
+  font-size: var(--font-size-xs);
+  height: 32px;
+  padding: 0 var(--spacing-md);
+  white-space: nowrap;
+}
+
+/* ─── Calendar panel (hereda estilos de EventsManager) ───── */
+
+.documents-admin-page .documents-calendar-panel {
+  background: var(--da-surface);
+  border: 1px solid var(--da-border);
+  border-radius: var(--da-radius);
+  box-shadow: var(--da-shadow);
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.documents-admin-page .documents-calendar-panel .card__header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--da-border);
+  background: var(--color-background);
+  border-radius: var(--da-radius) var(--da-radius) 0 0;
+}
+
+.documents-admin-page .documents-calendar-panel .card__body {
+  padding: var(--spacing-md);
+}
+
+.documents-admin-page .documents-calendar-panel .card__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Mini-lista del día seleccionado */
+
+.documents-admin-page .documents-calendar-day-list {
+  border-top: 1px solid var(--da-border);
+}
+
+.documents-admin-page .documents-calendar-day-list__title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-sm);
+}
+
+.documents-admin-page .documents-calendar-day-list__item {
+  background: var(--color-background);
+  border-color: var(--da-border);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.documents-admin-page .documents-calendar-day-list__item:hover {
+  background: var(--color-primary-soft);
+}
+
+.documents-admin-page .documents-calendar-day-list__name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.documents-admin-page .documents-calendar-day-list__meta {
+  font-size: 10px;
+  color: var(--color-text-light);
+}
+
+.documents-admin-page .documents-calendar-day-list__open {
+  font-size: var(--font-size-xs);
+  height: 28px;
+  padding: 0 var(--spacing-sm);
+}
+
+/* ─── DocumentUploader ───────────────────────────────────── */
+
+.document-uploader {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.document-uploader .form-group {
+  margin-bottom: 0;
+}
+
+.document-uploader .form-group > label:first-child {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-light);
+  margin-bottom: 4px;
+}
+
+.document-uploader__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.document-uploader__roles-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--da-border);
+  border-radius: var(--radius-md);
+  background: var(--da-surface-warm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  user-select: none;
+}
+
+.document-uploader__roles-item:hover {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-soft);
+}
+
+.document-uploader__roles-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.document-uploader__family-section {
+  padding: var(--spacing-md);
+  background: var(--color-primary-soft);
+  border: 1px solid rgba(44, 107, 111, 0.2);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.document-uploader__family-section .form-group {
+  margin-bottom: 0;
+}
+
+.document-uploader__family-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.document-uploader__family-section-header input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.document-uploader__help {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 3px 0 0 0;
+  line-height: var(--line-height-normal);
+}
+
+.document-uploader__file-info {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  margin: 4px 0 0 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.document-uploader .btn--primary {
+  width: auto;
+  align-self: flex-start;
+}
+
+.document-uploader .btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .documents-admin-page .dashboard-header--compact {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .documents-admin-page .documents-admin-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .document-uploader__roles {
+    gap: var(--spacing-xs);
+  }
+}

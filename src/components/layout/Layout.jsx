@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { Breadcrumbs } from './Breadcrumbs';
@@ -40,8 +40,9 @@ export function Layout({ children }) {
             opacity: 0.6,
             marginTop: 'var(--spacing-xl)'
           }}>
-            Diseñado por <a 
-              href="https://frandoweb.com" 
+            &copy; 2026 Puerto Nuevo. Dise&ntilde;o y desarrollo{' '}
+            <a 
+              href="https://www.frandoweb.com" 
               target="_blank" 
               rel="noopener noreferrer"
               style={{ 
@@ -53,7 +54,7 @@ export function Layout({ children }) {
               onMouseEnter={(e) => e.target.style.opacity = '0.8'}
               onMouseLeave={(e) => e.target.style.opacity = '1'}
             >
-              FrandoWeb.com
+              www.Frandoweb.com
             </a>
           </footer>
         </div>
@@ -61,3 +62,5 @@ export function Layout({ children }) {
     </>
   );
 }
+
+

@@ -1,0 +1,340 @@
+/* ============================================================
+   EVENT DETAIL MODAL — componente compartido
+   Montessori Puerto Nuevo · Enfoque: detalle de evento premium
+   ============================================================ */
+
+/* ─── Variables por tipo ─────────────────────────────────── */
+
+.event-detail-modal {
+  --edm-accent:       var(--color-primary);
+  --edm-accent-soft:  var(--color-primary-soft);
+  --edm-accent-light: var(--color-primary-light);
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  /* Barra de color en la parte superior del modal */
+  border-top: 4px solid var(--edm-accent) !important;
+}
+
+.event-detail-modal--general {
+  --edm-accent:       var(--color-info);
+  --edm-accent-soft:  rgba(82, 155, 191, 0.08);
+  --edm-accent-light: rgba(82, 155, 191, 0.3);
+}
+
+.event-detail-modal--reuniones {
+  --edm-accent:       var(--color-warning);
+  --edm-accent-soft:  rgba(230, 168, 48, 0.08);
+  --edm-accent-light: rgba(230, 168, 48, 0.3);
+}
+
+.event-detail-modal--talleres {
+  --edm-accent:       var(--color-success);
+  --edm-accent-soft:  rgba(78, 160, 112, 0.08);
+  --edm-accent-light: rgba(78, 160, 112, 0.3);
+}
+
+.event-detail-modal--snacks {
+  --edm-accent:       var(--color-primary);
+  --edm-accent-soft:  var(--color-primary-soft);
+  --edm-accent-light: var(--color-primary-light);
+}
+
+/* ─── Header personalizado ────────────────────────────────── */
+
+.event-detail-modal-header {
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background-alt);
+}
+
+.event-detail-modal-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.event-detail-modal-badge {
+  font-size: 0.65rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.event-detail-modal-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-light);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: center;
+  transition: background var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.event-detail-modal-close:hover {
+  background: var(--color-background-warm);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.event-detail-modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+  line-height: var(--line-height-tight);
+  margin: 0;
+}
+
+/* ─── Banda de fecha y hora ───────────────────────────────── */
+
+.event-detail-meta-band {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  background: var(--edm-accent-soft);
+  border: 1px solid var(--edm-accent-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+/* Bloque de fecha con caja numérica */
+.event-detail-meta-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 180px;
+}
+
+.event-detail-meta-date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 52px;
+  background: var(--edm-accent);
+  border-radius: var(--radius-md);
+  color: var(--color-background);
+  flex-shrink: 0;
+}
+
+.event-detail-meta-date-day {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.event-detail-meta-date-month {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+.event-detail-meta-date-full {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Bloque de hora */
+.event-detail-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding-left: var(--spacing-md);
+  border-left: 1px solid var(--edm-accent-light);
+}
+
+.event-detail-meta-icon {
+  color: var(--edm-accent);
+  flex-shrink: 0;
+}
+
+.event-detail-meta-label {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-light);
+}
+
+.event-detail-meta-value {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+}
+
+.event-detail-meta-value--hora {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--edm-accent);
+  letter-spacing: -0.5px;
+}
+
+/* ─── Secciones de contenido ──────────────────────────────── */
+
+.event-detail-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.event-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.event-detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ─── Descripción ────────────────────────────────────────── */
+
+.event-detail-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* ─── Adjuntos ───────────────────────────────────────────── */
+
+.event-detail-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.event-detail-attachment {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-background-alt);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--edm-accent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition: background var(--transition-fast),
+              transform var(--transition-fast),
+              box-shadow var(--transition-fast);
+}
+
+.event-detail-attachment:hover {
+  background: var(--edm-accent-soft);
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  text-decoration: none;
+}
+
+.event-detail-attachment > span {
+  flex: 1;
+  color: var(--color-primary);
+}
+
+.event-detail-attachment-icon {
+  flex-shrink: 0;
+  color: var(--color-text-light);
+}
+
+/* ─── Estado vacío ───────────────────────────────────────── */
+
+.event-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  background: var(--color-background-warm);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+}
+
+.event-detail-empty svg,
+.event-detail-empty .icon {
+  color: var(--edm-accent);
+  opacity: 0.5;
+}
+
+/* ─── Footer ─────────────────────────────────────────────── */
+
+.event-detail-modal .modal-footer {
+  background: var(--color-background-alt);
+  border-top: 1px solid var(--color-border);
+}
+
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--spacing-sm);
+}
+
+.modal-footer-actions-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* ─── Dark mode ──────────────────────────────────────────── */
+
+[data-theme="dark"] .event-detail-modal-header {
+  background: var(--color-background);
+}
+
+[data-theme="dark"] .event-detail-modal .modal-footer {
+  background: var(--color-background);
+}
+
+[data-theme="dark"] .event-detail-attachment {
+  background: var(--color-background);
+}
+
+[data-theme="dark"] .event-detail-empty {
+  background: var(--color-background);
+}
+
+@media (max-width: 768px) {
+  .event-detail-modal-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+  }
+
+  .event-detail-modal {
+    max-height: calc(100dvh - 2 * var(--spacing-sm));
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentsService } from '../../services/appointments.service';
 import { childrenService } from '../../services/children.service';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
+import './BookAppointment.css';
 
 const BookAppointment = () => {
   const { user } = useAuth();
@@ -342,15 +343,26 @@ const BookAppointment = () => {
         </div>
       </div>
 
+      {/*
+        DOM order matches the desired mobile stack:
+          1. upcoming-panel  (Próximo turno)
+          2. calendar-panel  (Calendario + Horarios en mobile-slots)
+          3. list-panel      (Horarios — desktop only, hidden on mobile)
+          4. extras-panel    (Cómo reservar + Historial)
+        CSS grid places panels into 3 columns on desktop via explicit grid-column.
+      */}
       <div className="appointments-manager-layout appointments-manager-layout--family">
-        <div className="appointments-secondary-panel appointments-secondary-panel--family">
-          {upcomingAppointments.length > 0 && (
-            <div className="card appointments-upcoming-card">
-              <div className="card__body">
-                <section className="appointments-section appointments-section--upcoming">
-                  <div className="appointments-section__header">
-                    <h2 className="card__title">Próximos turnos</h2>
-                  </div>
+
+        {/* ── 1: Próximo turno ── */}
+        <div className="appointments-upcoming-panel">
+          <div className="card appointments-upcoming-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--upcoming">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Próximos turnos</h2>
+                </div>
+
+                {upcomingAppointments.length > 0 ? (
                   <div className="upcoming-appointments-list">
                     {upcomingAppointments.slice(0, 3).map(app => (
                       <div key={app.id} className="upcoming-appointment-item">
@@ -368,121 +380,10 @@ const BookAppointment = () => {
                       </div>
                     ))}
                   </div>
-                </section>
-              </div>
-            </div>
-          )}
-
-          <div className="card appointments-guide-card">
-            <div className="card__body">
-              <section className="appointments-section appointments-section--guide">
-                <div className="appointments-section__header">
-                  <h2 className="card__title">Cómo reservar</h2>
-                  <div className="appointments-section__actions">
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--outline appointments-section__toggle"
-                      onClick={() => setIsGuideOpen(prev => !prev)}
-                      aria-expanded={isGuideOpen}
-                      aria-controls="appointments-guide-content"
-                    >
-                      {isGuideOpen ? 'Ocultar' : 'Ver'}
-                    </button>
-                  </div>
-                </div>
-                {isGuideOpen && (
-                  <div id="appointments-guide-content">
-                    <ol className="appointments-guide-list">
-                      <li>Elegí un día en el calendario con disponibilidad.</li>
-                      <li>Seleccioná un horario en la lista de turnos.</li>
-                      <li>Completá el formulario y confirmá.</li>
-                    </ol>
-                    <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>
-                  </div>
-                )}
-              </section>
-            </div>
-          </div>
-
-          <div className="card appointments-history-card">
-            <div className="card__body">
-              <section className="appointments-section appointments-section--history">
-                <div className="appointments-section__header">
-                  <h2 className="card__title">Historial</h2>
-                  <div className="appointments-section__actions">
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--outline appointments-section__toggle"
-                      onClick={() => setIsHistoryOpen(prev => !prev)}
-                      aria-expanded={isHistoryOpen}
-                      aria-controls="appointments-history-content"
-                    >
-                      {isHistoryOpen ? 'Ocultar' : 'Ver'}
-                    </button>
-                  </div>
-                </div>
-
-                {isHistoryOpen && (
-                  <div id="appointments-history-content">
-                    {appointmentHistory.length === 0 ? (
-                      <div className="empty-state empty-state--compact">
-                        <p className="empty-state__text">Todavía no hay turnos para mostrar.</p>
-                      </div>
-                    ) : (
-                      <div className="my-appointments-list">
-                        {appointmentHistory.map(app => {
-                          const appDate = getAppointmentDate(app.fechaHora);
-                          const isPast = appDate < new Date();
-                          const note = appointmentNotes[app.id];
-
-                          return (
-                            <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
-                              <div className="appointment-datetime">
-                                {formatDateTime(app.fechaHora)}
-                              </div>
-                              <div className="appointment-meta">
-                                <span className={`badge badge--${
-                                  app.estado === 'reservado' ? 'warning' :
-                                  app.estado === 'asistio' ? 'success' :
-                                  'secondary'
-                                }`}>
-                                  {app.estado === 'reservado' ? 'Confirmado' : app.estado}
-                                </span>
-                                <span className="appointment-note-preview">{getAppointmentModeLabel(app.modalidad)}</span>
-                                {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
-                              </div>
-                              {app.estado === 'asistio' && note && (
-                                <div style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
-                                  <div><strong>Resumen:</strong> {note.resumen}</div>
-                                  {note.acuerdos && <div><strong>Acuerdos:</strong> {note.acuerdos}</div>}
-                                  {note.proximosPasos && <div><strong>Próximos pasos:</strong> {note.proximosPasos}</div>}
-                                  {Array.isArray(note.attachments) && note.attachments.length > 0 && (
-                                    <div style={{ marginTop: 'var(--spacing-xs)' }}>
-                                      <strong>Adjuntos:</strong>
-                                      <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
-                                        {note.attachments.map((file, index) => (
-                                          <li key={`${app.id}-note-${index}`}>
-                                            <a href={file.url} target="_blank" rel="noreferrer">Adjunto {index + 1}</a>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              {app.estado === 'reservado' && !isPast && (
-                                <button
-                                  onClick={() => handleCancelAppointment(app.id)}
-                                  className="btn btn--sm btn--outline btn--danger-outline"
-                                >
-                                  Cancelar
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                ) : (
+                  <div className="empty-state empty-state--compact">
+                    <p className="empty-state__text">No tenés turnos reservados.</p>
+                    <p className="form-help">Seleccioná un día en el calendario para ver horarios disponibles.</p>
                   </div>
                 )}
               </section>
@@ -490,6 +391,7 @@ const BookAppointment = () => {
           </div>
         </div>
 
+        {/* ── 2: Calendario ── */}
         <div className="card events-calendar-panel appointments-calendar-panel">
           <div className="card__header">
             <div>
@@ -623,6 +525,7 @@ const BookAppointment = () => {
           </div>
         </div>
 
+        {/* ── 3: Horarios disponibles (desktop only) ── */}
         <div className="appointments-list-panel appointments-list-panel--family-main">
           <div className="card appointments-availability-card">
             <div className="card__body">
@@ -664,12 +567,131 @@ const BookAppointment = () => {
             </div>
           </div>
         </div>
+
+        {/* ── 4: Cómo reservar + Historial ── */}
+        <div className="appointments-extras-panel">
+          <div className="card appointments-guide-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--guide">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Cómo reservar</h2>
+                  <div className="appointments-section__actions">
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline appointments-section__toggle"
+                      onClick={() => setIsGuideOpen(prev => !prev)}
+                      aria-expanded={isGuideOpen}
+                      aria-controls="appointments-guide-content"
+                    >
+                      {isGuideOpen ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
+                </div>
+                {isGuideOpen && (
+                  <div id="appointments-guide-content">
+                    <ol className="appointments-guide-list">
+                      <li>Elegí un día en el calendario con disponibilidad.</li>
+                      <li>Seleccioná un horario en la lista de turnos.</li>
+                      <li>Completá el formulario y confirmá.</li>
+                    </ol>
+                    <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
+          <div className="card appointments-history-card">
+            <div className="card__body">
+              <section className="appointments-section appointments-section--history">
+                <div className="appointments-section__header">
+                  <h2 className="card__title">Historial</h2>
+                  <div className="appointments-section__actions">
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline appointments-section__toggle"
+                      onClick={() => setIsHistoryOpen(prev => !prev)}
+                      aria-expanded={isHistoryOpen}
+                      aria-controls="appointments-history-content"
+                    >
+                      {isHistoryOpen ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
+                </div>
+                {isHistoryOpen && (
+                  <div id="appointments-history-content">
+                    {appointmentHistory.length === 0 ? (
+                      <div className="empty-state empty-state--compact">
+                        <p className="empty-state__text">Todavía no hay turnos para mostrar.</p>
+                      </div>
+                    ) : (
+                      <div className="my-appointments-list">
+                        {appointmentHistory.map(app => {
+                          const appDate = getAppointmentDate(app.fechaHora);
+                          const isPast = appDate < new Date();
+                          const note = appointmentNotes[app.id];
+                          return (
+                            <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
+                              <div className="appointment-datetime">
+                                {formatDateTime(app.fechaHora)}
+                              </div>
+                              <div className="appointment-meta">
+                                <span className={`badge badge--${
+                                  app.estado === 'reservado' ? 'warning' :
+                                  app.estado === 'asistio' ? 'success' :
+                                  'secondary'
+                                }`}>
+                                  {app.estado === 'reservado' ? 'Confirmado' : app.estado}
+                                </span>
+                                <span className="appointment-note-preview">{getAppointmentModeLabel(app.modalidad)}</span>
+                                {app.nota && <span className="appointment-note-preview">{app.nota}</span>}
+                              </div>
+                              {app.estado === 'asistio' && note && (
+                                <div style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
+                                  <div><strong>Resumen:</strong> {note.resumen}</div>
+                                  {note.acuerdos && <div><strong>Acuerdos:</strong> {note.acuerdos}</div>}
+                                  {note.proximosPasos && <div><strong>Próximos pasos:</strong> {note.proximosPasos}</div>}
+                                  {Array.isArray(note.attachments) && note.attachments.length > 0 && (
+                                    <div style={{ marginTop: 'var(--spacing-xs)' }}>
+                                      <strong>Adjuntos:</strong>
+                                      <ul style={{ margin: 'var(--spacing-xs) 0 0', paddingLeft: '1.1rem' }}>
+                                        {note.attachments.map((file, index) => (
+                                          <li key={`${app.id}-note-${index}`}>
+                                            <a href={file.url} target="_blank" rel="noreferrer">Adjunto {index + 1}</a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {app.estado === 'reservado' && !isPast && (
+                                <button
+                                  onClick={() => handleCancelAppointment(app.id)}
+                                  className="btn btn--sm btn--outline btn--danger-outline"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 };
 
 export default BookAppointment;
+
 
 
 

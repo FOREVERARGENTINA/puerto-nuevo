@@ -1,0 +1,489 @@
+/* ============================================================
+   FAMILY CHILDREN PROFILE PAGE — /portal/familia/hijos
+   Montessori Puerto Nuevo · Paleta: Petróleo + Coral + Crema
+   ============================================================ */
+
+.family-children-page {
+  /* Tokens locales — sin colores hardcodeados */
+  --fc-surface:              var(--color-background-alt);
+  --fc-surface-warm:         var(--color-background-warm);
+  --fc-border:               var(--color-border);
+  --fc-shadow:               0 2px 10px rgba(30, 77, 80, 0.07);
+  --fc-shadow-hover:         0 12px 30px rgba(30, 77, 80, 0.13);
+  --fc-avatar-size:          56px;
+  --fc-header-bg:            linear-gradient(160deg, var(--color-primary-soft) 0%, transparent 70%);
+  --fc-section-bg:           #f7f5f0;
+  --fc-section-medical-bg:   #fff8f2;
+  --fc-section-alert-bg:     #fff4f4;
+  --fc-section-notes-bg:     #f3f8f9;
+  --fc-meeting-border:       rgba(44, 107, 111, 0.14);
+  --fc-doc-hover-bg:         rgba(44, 107, 111, 0.05);
+  --fc-accent-border:        rgba(230, 126, 94, 0.22);
+  --fc-alert-border:         rgba(231, 76, 60, 0.22);
+}
+
+[data-theme="dark"] .family-children-page {
+  --fc-surface:              var(--color-background-alt);
+  --fc-surface-warm:         var(--color-background-warm);
+  --fc-border:               var(--color-border);
+  --fc-shadow:               0 2px 10px rgba(0, 0, 0, 0.28);
+  --fc-shadow-hover:         0 14px 34px rgba(0, 0, 0, 0.45);
+  --fc-header-bg:            linear-gradient(160deg, rgba(44, 107, 111, 0.18) 0%, transparent 70%);
+  --fc-section-bg:           #1f2e30;
+  --fc-section-medical-bg:   #2a2116;
+  --fc-section-alert-bg:     #2a1818;
+  --fc-section-notes-bg:     #1c2d2e;
+  --fc-meeting-border:       rgba(91, 165, 168, 0.2);
+  --fc-doc-hover-bg:         rgba(91, 165, 168, 0.09);
+  --fc-accent-border:        rgba(230, 126, 94, 0.3);
+  --fc-alert-border:         rgba(231, 76, 60, 0.35);
+}
+
+/* ─── Page Header ─────────────────────────────────────────── */
+
+.family-children-page .dashboard-header--compact {
+  padding-bottom: var(--spacing-lg);
+}
+
+.family-children-page .dashboard-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  letter-spacing: -0.4px;
+  line-height: var(--line-height-tight);
+}
+
+.family-children-page .dashboard-subtitle {
+  color: var(--color-text-light);
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Grid de tarjetas ───────────────────────────────────── */
+
+.family-children-page .children-grid {
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 640px) {
+  .family-children-page .children-grid {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
+}
+
+/* ─── Tarjetas individuales ──────────────────────────────── */
+
+.family-children-page .child-card {
+  background: var(--fc-surface);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--fc-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal),
+              box-shadow var(--transition-normal);
+
+  /* Entrada escalonada */
+  animation: fc-card-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.family-children-page .child-card:nth-child(2) { animation-delay: 0.07s; }
+.family-children-page .child-card:nth-child(3) { animation-delay: 0.14s; }
+.family-children-page .child-card:nth-child(4) { animation-delay: 0.21s; }
+.family-children-page .child-card:nth-child(n+5) { animation-delay: 0.28s; }
+
+@keyframes fc-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.family-children-page .child-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--fc-shadow-hover);
+}
+
+/* ─── Card header ────────────────────────────────────────── */
+
+.family-children-page .child-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--fc-header-bg);
+  border-bottom: 1px solid var(--fc-border);
+}
+
+/* ─── Avatar ─────────────────────────────────────────────── */
+
+.family-children-page .child-card__avatar {
+  width: var(--fc-avatar-size);
+  height: var(--fc-avatar-size);
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-primary-dark) 100%
+  );
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(30, 77, 80, 0.28);
+}
+
+[data-theme="dark"] .family-children-page .child-card__avatar {
+  background: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-accent-dark) 100%
+  );
+  box-shadow: 0 4px 14px rgba(230, 126, 94, 0.28);
+}
+
+/* ─── Nombre y badges ────────────────────────────────────── */
+
+.family-children-page .child-card__title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.family-children-page .child-card__name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0;
+  line-height: var(--line-height-tight);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.family-children-page .child-card__badges {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+/* Badges redefinidos para contexto familiar */
+.family-children-page .badge--primary {
+  background: rgba(44, 107, 111, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(44, 107, 111, 0.22);
+  font-size: var(--font-size-xs);
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.2px;
+}
+
+.family-children-page .badge--outline {
+  background: transparent;
+  border: 1px solid var(--fc-border);
+  color: var(--color-text-light);
+  font-size: var(--font-size-xs);
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-full);
+}
+
+.family-children-page .badge--warning {
+  background: rgba(230, 126, 94, 0.1);
+  border: 1px solid rgba(230, 126, 94, 0.28);
+  color: var(--color-accent-dark);
+  font-size: var(--font-size-xs);
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-full);
+}
+
+/* ─── Body de la tarjeta ─────────────────────────────────── */
+
+.family-children-page .child-card__body {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  gap: var(--spacing-md);
+}
+
+/* ─── Label / Valor ──────────────────────────────────────── */
+
+.family-children-page .child-card__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.family-children-page .child-card__value {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  margin-top: 2px;
+}
+
+/* ─── Secciones ──────────────────────────────────────────── */
+
+.family-children-page .child-card__section {
+  background: var(--fc-section-bg);
+  border-left: 3px solid var(--color-primary-light);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.family-children-page .child-card__section--medical {
+  background: var(--fc-section-medical-bg);
+  border-left-color: var(--color-accent);
+}
+
+.family-children-page .child-card__section-title {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ─── Familias responsables ──────────────────────────────── */
+
+.family-children-page .child-card__family-item {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(44, 107, 111, 0.06);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(44, 107, 111, 0.12);
+}
+
+/* ─── Datos médicos ──────────────────────────────────────── */
+
+.family-children-page .child-card__medical-item {
+  background: var(--fc-surface);
+  border: 1px solid var(--fc-accent-border);
+  border-radius: var(--radius-sm);
+}
+
+.family-children-page .child-card__medical-item--alert {
+  background: var(--fc-section-alert-bg);
+  border-color: var(--fc-alert-border);
+}
+
+.family-children-page .child-card__medical-item strong {
+  color: var(--color-text-light);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.family-children-page .child-card__medical-item span {
+  color: var(--color-text);
+}
+
+/* ─── Notas de reuniones ─────────────────────────────────── */
+
+.family-children-page .child-card__meeting-list {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.family-children-page .child-card__meeting-entry {
+  background: var(--fc-section-notes-bg);
+  border: 1px solid var(--fc-meeting-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  position: relative;
+}
+
+.family-children-page .child-card__meeting-entry::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.family-children-page .child-card__meeting-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.family-children-page .child-card__meeting-content {
+  display: grid;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  line-height: var(--line-height-normal);
+}
+
+.family-children-page .child-card__meeting-content strong {
+  color: var(--color-text-light);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-right: 4px;
+}
+
+.family-children-page .child-card__meeting-attachments {
+  margin-top: var(--spacing-xs);
+}
+
+.family-children-page .child-card__meeting-attachments strong {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.family-children-page .child-card__meeting-attachments ul {
+  margin: 4px 0 0;
+  padding-left: 1.1rem;
+}
+
+.family-children-page .child-card__meeting-attachments a {
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Documentos ─────────────────────────────────────────── */
+
+.family-children-page .child-card__doc-list {
+  display: grid;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.family-children-page .child-card__doc-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--fc-surface);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.family-children-page .child-card__doc-item:hover {
+  background: var(--fc-doc-hover-bg);
+  border-color: var(--color-primary-light);
+}
+
+.family-children-page .child-card__doc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(44, 107, 111, 0.1);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.family-children-page .child-card__doc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.family-children-page .child-card__doc-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.family-children-page .child-card__doc-desc {
+  font-size: 11px;
+  color: var(--color-text-light);
+  margin-top: 1px;
+}
+
+.family-children-page .child-card__doc-action {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+/* ─── Texto auxiliar ─────────────────────────────────────── */
+
+.family-children-page .muted-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+}
+
+/* ─── Estado vacío ───────────────────────────────────────── */
+
+.family-children-page .empty-state {
+  text-align: center;
+  padding: var(--spacing-3xl) var(--spacing-xl);
+  background: var(--fc-surface);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--fc-shadow);
+}
+
+.family-children-page .empty-state p {
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-xs);
+}
+
+.family-children-page .empty-state p:first-child {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ─── Carga inicial ──────────────────────────────────────── */
+
+.family-children-page .card {
+  background: var(--fc-surface);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--fc-shadow);
+}
+
+/* ─── Responsive: 1 columna en móvil ─────────────────────── */
+
+@media (max-width: 639px) {
+  .family-children-page .child-card__header {
+    padding: var(--spacing-md);
+  }
+
+  .family-children-page .child-card__body {
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+  }
+}

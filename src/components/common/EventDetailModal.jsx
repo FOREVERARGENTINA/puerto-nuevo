@@ -1,5 +1,6 @@
-import { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal';
+import { Modal, ModalBody, ModalFooter } from './Modal';
 import Icon from '../ui/Icon';
+import './EventDetailModal.css';
 
 export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
   if (!event) return null;
@@ -27,7 +28,17 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
     return labels[tipo] || tipo;
   };
 
-  const formatDate = (timestamp) => {
+  const getEventTypeBadge = (tipo) => {
+    const badges = {
+      general: 'badge--info',
+      reuniones: 'badge--warning',
+      talleres: 'badge--success',
+      snacks: 'badge--primary'
+    };
+    return badges[tipo] || 'badge--neutral';
+  };
+
+  const formatDateFull = (timestamp) => {
     if (!timestamp) return '';
     const date = normalizeEventDate(timestamp);
     return new Intl.DateTimeFormat('es-AR', {
@@ -38,49 +49,70 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
     }).format(date);
   };
 
+  const formatDateShort = (timestamp) => {
+    if (!timestamp) return { day: '', month: '' };
+    const date = normalizeEventDate(timestamp);
+    return {
+      day: date.getDate(),
+      month: new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(date).replace('.', '')
+    };
+  };
+
   const eventDate = normalizeEventDate(event.fecha);
   const hasDescription = event.descripcion && event.descripcion.trim().length > 0;
   const hasMedia = event.media && event.media.length > 0;
   const hasContent = hasDescription || hasMedia;
+  const dateShort = formatDateShort(event.fecha);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalHeader>
-        <div className="event-detail-header">
-          <h2>{event.titulo}</h2>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      overlayClassName="event-detail-modal-overlay"
+      className={`event-detail-modal event-detail-modal--${event.tipo || 'general'}`}
+    >
+      {/* Header personalizado con título y close */}
+      <div className="event-detail-modal-header">
+        <div className="event-detail-modal-header-top">
+          <span className={`badge badge--sm ${getEventTypeBadge(event.tipo)} event-detail-modal-badge`}>
+            {getEventTypeLabel(event.tipo)}
+          </span>
+          <button
+            onClick={onClose}
+            className="event-detail-modal-close"
+            aria-label="Cerrar"
+          >
+            &times;
+          </button>
         </div>
-      </ModalHeader>
+        <h2 className="event-detail-modal-title">{event.titulo}</h2>
+      </div>
 
       <ModalBody>
-        {/* Mini cabecera con fecha, hora y tipo */}
-        <div className="event-detail-banner">
-          <div className="event-detail-banner-content">
-            {eventDate && (
-              <div className="event-detail-banner-item">
-                <Icon name="calendar" size={18} />
-                <div className="event-detail-banner-text">
-                  <span className="event-detail-banner-label">Fecha</span>
-                  <span className="event-detail-banner-value">{formatDate(event.fecha)}</span>
-                </div>
+        {/* Banda de fecha / hora */}
+        <div className="event-detail-meta-band">
+          {eventDate && (
+            <div className="event-detail-meta-date">
+              <div className="event-detail-meta-date-box">
+                <span className="event-detail-meta-date-day">{dateShort.day}</span>
+                <span className="event-detail-meta-date-month">{dateShort.month}</span>
               </div>
-            )}
-            {event.hora && (
-              <div className="event-detail-banner-item">
-                <Icon name="clock" size={18} />
-                <div className="event-detail-banner-text">
-                  <span className="event-detail-banner-label">Horario</span>
-                  <span className="event-detail-banner-value">{event.hora}</span>
-                </div>
-              </div>
-            )}
-            <div className="event-detail-banner-item">
-              <Icon name="event" size={18} />
-              <div className="event-detail-banner-text">
-                <span className="event-detail-banner-label">Tipo</span>
-                <span className="event-detail-banner-value">{getEventTypeLabel(event.tipo)}</span>
+              <div className="event-detail-meta-date-full">
+                <span className="event-detail-meta-label">Fecha</span>
+                <span className="event-detail-meta-value">{formatDateFull(event.fecha)}</span>
               </div>
             </div>
-          </div>
+          )}
+          {event.hora && (
+            <div className="event-detail-meta-item">
+              <Icon name="clock" size={20} className="event-detail-meta-icon" />
+              <div>
+                <span className="event-detail-meta-label">Horario</span>
+                <span className="event-detail-meta-value event-detail-meta-value--hora">{event.hora}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {hasDescription && (
@@ -93,7 +125,7 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
         {hasMedia && (
           <div className="event-detail-section">
             <h3 className="event-detail-section-title">
-              <Icon name="paperclip" size={16} />
+              <Icon name="paperclip" size={14} />
               {event.media.length === 1 ? 'Archivo adjunto' : `${event.media.length} archivos adjuntos`}
             </h3>
             <div className="event-detail-attachments">
@@ -116,8 +148,8 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
 
         {!hasContent && (
           <div className="event-detail-empty">
-            <Icon name="info" size={24} />
-            <p>Este evento no tiene información adicional.</p>
+            <Icon name="calendar" size={32} />
+            <p>No hay información adicional para este evento.</p>
           </div>
         )}
       </ModalBody>
@@ -125,7 +157,7 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
       <ModalFooter>
         {adminActions ? (
           <div className="modal-footer-actions">
-            <button onClick={onClose} className="btn btn--outline">
+            <button onClick={onClose} className="btn btn--outline btn--sm">
               Cerrar
             </button>
             <div className="modal-footer-actions-right">
@@ -133,7 +165,7 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
             </div>
           </div>
         ) : (
-          <button onClick={onClose} className="btn btn--outline">
+          <button onClick={onClose} className="btn btn--outline btn--sm">
             Cerrar
           </button>
         )}

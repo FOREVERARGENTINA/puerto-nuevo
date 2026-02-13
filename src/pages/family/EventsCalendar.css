@@ -1,0 +1,334 @@
+/* ============================================================
+   EVENTS CALENDAR — /portal/familia/eventos
+   Montessori Puerto Nuevo · Enfoque: vista familiar de eventos
+   ============================================================ */
+
+.events-calendar-page {
+  /* Tokens locales */
+  --ec-surface:          var(--color-background-alt);
+  --ec-surface-warm:     var(--color-background-warm);
+  --ec-border:           var(--color-border);
+  --ec-shadow:           0 2px 8px rgba(30, 77, 80, 0.07);
+  --ec-shadow-hover:     0 8px 24px rgba(30, 77, 80, 0.13);
+  --ec-radius:           var(--radius-lg);
+
+  /* Colores por tipo de evento */
+  --ec-tipo-general:    var(--color-info);
+  --ec-tipo-reuniones:  var(--color-warning);
+  --ec-tipo-talleres:   var(--color-success);
+  --ec-tipo-snacks:     var(--color-primary);
+}
+
+[data-theme="dark"] .events-calendar-page {
+  --ec-shadow:       0 2px 8px rgba(0, 0, 0, 0.28);
+  --ec-shadow-hover: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Page Header ─────────────────────────────────────────── */
+
+.events-calendar-page .dashboard-header--compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--ec-border);
+  margin-bottom: var(--spacing-lg);
+}
+
+.events-calendar-page .dashboard-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.4px;
+  color: var(--color-text);
+}
+
+.events-calendar-page .dashboard-subtitle {
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+}
+
+/* ─── Panel Calendario ────────────────────────────────────── */
+
+.events-calendar-page .events-calendar-panel {
+  background: var(--ec-surface);
+  border: 1px solid var(--ec-border);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow);
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.events-calendar-page .events-calendar-panel .card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--ec-border);
+  background: var(--color-background);
+  border-radius: var(--ec-radius) var(--ec-radius) 0 0;
+}
+
+.events-calendar-page .events-calendar-panel .card__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.events-calendar-page .events-calendar-panel .card__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin-top: 2px;
+}
+
+.events-calendar-page .events-calendar-panel .card__body {
+  padding: var(--spacing-md);
+}
+
+/* Botón limpiar filtro día */
+.events-calendar-page .events-calendar-clear {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  height: 30px;
+  justify-content: center;
+  color: var(--color-text-light);
+}
+
+/* ─── Panel Lista de Eventos ──────────────────────────────── */
+
+.events-calendar-page .events-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.events-calendar-page .events-list-header {
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--ec-border);
+}
+
+.events-calendar-page .events-list-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  letter-spacing: -0.2px;
+}
+
+.events-calendar-page .events-list-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.events-calendar-page .events-list-next {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  margin-top: var(--spacing-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.events-calendar-page .events-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* ─── Tarjeta de evento ───────────────────────────────────── */
+
+.events-calendar-page .event-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--ec-surface);
+  border: 1px solid var(--ec-border);
+  border-left: 3px solid var(--ec-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--ec-shadow);
+  overflow: hidden;
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.events-calendar-page .event-item--clickable {
+  cursor: pointer;
+}
+
+.events-calendar-page .event-item--clickable:hover {
+  transform: translateX(3px);
+  box-shadow: var(--ec-shadow-hover);
+}
+
+/* Evento pasado */
+.events-calendar-page .event-item--past {
+  opacity: 0.6;
+}
+
+.events-calendar-page .event-item--past:hover {
+  opacity: 0.85;
+}
+
+/* Acento de color según tipo */
+.events-calendar-page .event-item[data-tipo="general"] {
+  border-left-color: var(--ec-tipo-general);
+}
+.events-calendar-page .event-item[data-tipo="reuniones"] {
+  border-left-color: var(--ec-tipo-reuniones);
+}
+.events-calendar-page .event-item[data-tipo="talleres"] {
+  border-left-color: var(--ec-tipo-talleres);
+}
+.events-calendar-page .event-item[data-tipo="snacks"] {
+  border-left-color: var(--ec-tipo-snacks);
+}
+
+/* ─── Caja fecha ─────────────────────────────────────────── */
+
+.events-calendar-page .event-item__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: var(--spacing-sm);
+  background: var(--ec-surface-warm);
+  border-right: 1px solid var(--ec-border);
+  gap: 1px;
+}
+
+.events-calendar-page .event-item__day {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.events-calendar-page .event-item__month {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-light);
+}
+
+/* Caja fecha coloreada según tipo */
+.events-calendar-page .event-item[data-tipo="general"] .event-item__date {
+  background: rgba(82, 155, 191, 0.08);
+}
+.events-calendar-page .event-item[data-tipo="reuniones"] .event-item__date {
+  background: rgba(230, 168, 48, 0.08);
+}
+.events-calendar-page .event-item[data-tipo="talleres"] .event-item__date {
+  background: rgba(78, 160, 112, 0.08);
+}
+.events-calendar-page .event-item[data-tipo="snacks"] .event-item__date {
+  background: var(--color-primary-soft);
+}
+
+/* ─── Contenido del evento ────────────────────────────────── */
+
+.events-calendar-page .event-item__content {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.events-calendar-page .event-item__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.events-calendar-page .event-item__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.events-calendar-page .event-item__time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.events-calendar-page .event-item__indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.events-calendar-page .event-item__past-badge {
+  font-size: 0.6rem;
+  letter-spacing: 0.2px;
+}
+
+/* ─── Flecha ────────────────────────────────────────────────  */
+
+.events-calendar-page .event-item__arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-sm) 0 0;
+  color: var(--color-text-light);
+  flex-shrink: 0;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.events-calendar-page .event-item--clickable:hover .event-item__arrow {
+  color: var(--color-primary);
+  transform: translateX(2px);
+}
+
+/* ─── Estado vacío ───────────────────────────────────────── */
+
+.events-calendar-page .empty-state--compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+}
+
+.events-calendar-page .empty-state__icon {
+  color: var(--color-text-muted);
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .events-calendar-page .events-calendar-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .events-calendar-page .dashboard-header--compact {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .events-calendar-page .events-calendar-panel {
+    position: static;
+    order: -1;
+  }
+}

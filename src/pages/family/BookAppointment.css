@@ -1,0 +1,97 @@
+﻿/* BookAppointment.css
+   Usa selectores de mayor especificidad que components.css
+   para asegurar que el override mobile-first siempre gane.
+
+   DOM order (para mobile stack correcto):
+     1. .appointments-upcoming-panel   - Proximo turno
+     2. .appointments-calendar-panel   - Calendario + Horarios (mobile-slots)
+     3. .appointments-list-panel       - Horarios (solo desktop)
+     4. .appointments-extras-panel     - Como reservar + Historial
+*/
+
+/* BASE: single-column (mobile-first)
+   .page-container anade especificidad (0,2,0) > (0,1,0) de
+   components.css, garantizando que este override siempre gane.
+*/
+.page-container .appointments-manager-layout--family {
+  grid-template-columns: 1fr;
+}
+
+/* Orden mobile explicito para evitar colisiones con components.css */
+.page-container .appointments-manager-layout--family .appointments-upcoming-panel {
+  order: 1;
+}
+
+.page-container .appointments-manager-layout--family .appointments-calendar-panel {
+  order: 2;
+}
+
+.page-container .appointments-manager-layout--family .appointments-list-panel--family-main {
+  order: 3;
+}
+
+.page-container .appointments-manager-layout--family .appointments-extras-panel {
+  order: 4;
+}
+
+/* Extras panel apilado en mobile */
+.page-container .appointments-extras-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* En mobile el panel de horarios del desktop se oculta;
+   los horarios ya aparecen dentro del calendario (mobile-slots) */
+@media (max-width: 768px) {
+  .page-container .appointments-list-panel--family-main {
+    display: none;
+  }
+}
+
+/* DESKTOP:
+   Fila 1: 3 columnas iguales (Calendario, Horarios, Proximo turno)
+   Fila 2: 2 columnas al 50% (Como reservar, Historial)
+*/
+@media (min-width: 769px) {
+  .page-container .appointments-manager-layout--family {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--spacing-lg);
+  }
+
+  /* 1) Calendario */
+  .page-container .appointments-calendar-panel {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  /* 2) Horarios (desktop) */
+  .page-container .appointments-list-panel--family-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* 3) Proximo turno / fallback */
+  .page-container .appointments-upcoming-panel {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  /* Abajo: 2 columnas (50/50) para acordeones */
+  .page-container .appointments-extras-panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-lg);
+    align-items: start;
+  }
+
+  /* En desktop el trigger colapsable dentro del calendario
+     es redundante con el panel de horarios */
+  .page-container .appointments-mobile-slots {
+    display: none;
+  }
+}

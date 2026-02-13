@@ -174,8 +174,8 @@ export function DocumentUploader({ onUploadSuccess }) {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+    <form onSubmit={handleSubmit} className="document-uploader">
+      <div className="form-group">
         <label htmlFor="titulo">Título *</label>
         <input
           type="text"
@@ -188,7 +188,7 @@ export function DocumentUploader({ onUploadSuccess }) {
         />
       </div>
 
-      <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+      <div className="form-group">
         <label htmlFor="descripcion">Descripción</label>
         <textarea
           id="descripcion"
@@ -200,7 +200,7 @@ export function DocumentUploader({ onUploadSuccess }) {
         />
       </div>
 
-      <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+      <div className="form-group">
         <label htmlFor="categoria">Categoría *</label>
         <select
           id="categoria"
@@ -218,11 +218,11 @@ export function DocumentUploader({ onUploadSuccess }) {
         </select>
       </div>
 
-      <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+      <div className="form-group">
         <label>Roles que pueden ver este documento *</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>
+        <div className="document-uploader__roles">
           {rolesOptions.map(role => (
-            <label key={role.value} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+            <label key={role.value} className="document-uploader__roles-item">
               <input
                 type="checkbox"
                 checked={formData.roles.includes(role.value)}
@@ -236,9 +236,9 @@ export function DocumentUploader({ onUploadSuccess }) {
 
       {/* Lectura obligatoria para familias */}
       {formData.roles.includes('family') && (
-        <div className="card" style={{ padding: 'var(--spacing-md)', backgroundColor: 'rgba(var(--color-primary-rgb, 72, 130, 132), 0.05)', marginBottom: 'var(--spacing-md)', border: '1px solid var(--color-border)' }}>
-          <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', fontWeight: 600 }}>
+        <div className="document-uploader__family-section">
+          <div className="form-group">
+            <label className="document-uploader__family-section-header">
               <input
                 type="checkbox"
                 checked={formData.requiereLectura}
@@ -246,14 +246,14 @@ export function DocumentUploader({ onUploadSuccess }) {
               />
               Requiere confirmación de lectura por familias
             </label>
-            <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+            <p className="document-uploader__help">
               Las familias deberán confirmar que leyeron este documento
             </p>
           </div>
 
           {formData.requiereLectura && (
             <>
-              <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+              <div className="form-group">
                 <label htmlFor="ambiente">Destinatarios *</label>
                 <select
                   id="ambiente"
@@ -269,12 +269,12 @@ export function DocumentUploader({ onUploadSuccess }) {
                     </option>
                   ))}
                 </select>
-                <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+                <p className="document-uploader__help">
                   Selecciona qué familias deben leer este documento
                 </p>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group">
                 <label htmlFor="fechaLimite">Fecha límite de lectura (opcional)</label>
                 <input
                   type="date"
@@ -285,7 +285,7 @@ export function DocumentUploader({ onUploadSuccess }) {
                   className="form-control"
                   min={new Date().toISOString().split('T')[0]}
                 />
-                <p style={{ marginTop: 'var(--spacing-xs)', fontSize: '0.875rem', color: 'var(--color-text-light)' }}>
+                <p className="document-uploader__help">
                   Si se especifica, se enviará recordatorio a quienes no hayan leído
                 </p>
               </div>
@@ -294,7 +294,7 @@ export function DocumentUploader({ onUploadSuccess }) {
         </div>
       )}
 
-      <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+      <div className="form-group">
         <label htmlFor="file">Archivo *</label>
         <input
           type="file"
@@ -305,11 +305,11 @@ export function DocumentUploader({ onUploadSuccess }) {
           required
         />
         {selectedFile && (
-          <p style={{ marginTop: 'var(--spacing-xs)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Archivo seleccionado: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+          <p className="document-uploader__file-info">
+            {selectedFile.name} — {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
           </p>
         )}
-        <p style={{ marginTop: 'var(--spacing-xs)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+        <p className="document-uploader__help">
           Formatos: PDF, Word, Excel, Imágenes • Máximo 10MB
         </p>
       </div>
@@ -318,7 +318,6 @@ export function DocumentUploader({ onUploadSuccess }) {
         type="submit"
         className="btn btn--primary"
         disabled={uploading}
-        style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}
       >
         {uploading ? 'Subiendo...' : 'Subir documento'}
       </button>

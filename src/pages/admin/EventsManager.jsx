@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
 import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
+import './EventsManager.css';
 
 export function EventsManager() {
   const [events, setEvents] = useState([]);
@@ -785,9 +786,10 @@ export function EventsManager() {
                           {group.events.map(event => {
                             const pastEvent = isPastEvent(event);
                             return (
-                            <div 
-                              key={event.id} 
+                            <div
+                              key={event.id}
                               className={`card card--compact card--clickable ${pastEvent ? 'events-list-card--past' : ''}`}
+                              data-tipo={event.tipo}
                               onClick={() => handleViewEvent(event)}
                             >
                               <div className="card__header card__header--compact">
