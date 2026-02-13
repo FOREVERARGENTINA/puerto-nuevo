@@ -1,7 +1,9 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+﻿const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
+const { escapeHtml, toSafeHtmlParagraph, toPlainText, renderAttachmentList } = require('../utils/sanitize');
+const { maskEmail } = require('../utils/logging');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 
@@ -21,13 +23,11 @@ exports.onCommunicationCreated = onDocumentCreated(
     const commId = event.params.commId;
 
     console.log('Debug: RESEND_API_KEY present?', !!resendApiKey.value());
+    console.log(`Nuevo comunicado creado: ${commId}`);
 
-    console.log(`Nuevo comunicado creado: ${commId}`, commData);
-
-    // PASO 1: EXPANDIR DESTINATARIOS (SIEMPRE, ANTES DE CUALQUIER ENVÍO)
-    // Esto asegura que el comunicado esté correcto en Firestore aunque falle el envío de emails
-    let destinatarios = commData.destinatarios || [];
-    let parentToStudents = {};
+    // Paso 1: expandir destinatarios antes de cualquier envio.
+    let destinatarios = Array.isArray(commData.destinatarios) ? commData.destinatarios : [];
+    const parentToStudents = {};
 
     try {
       if (commData.type === 'global') {
@@ -39,310 +39,164 @@ exports.onCommunicationCreated = onDocumentCreated(
       }
 
       if (destinatarios.length > 0) {
-        // Expandir posibles IDs de alumno a sus responsables (UIDs)
         const db = admin.firestore();
         const finalSet = new Set();
 
-        // Intentamos leer cada id como alumno; si existe, añadimos sus responsables
-        const childFetches = await Promise.all(destinatarios.map(id => db.collection('children').doc(id).get()));
+        // Promise.allSettled evita que una sola lectura fallida tumbe toda la expansion.
+        const childFetches = await Promise.allSettled(
+          destinatarios.map((id) => db.collection('children').doc(id).get())
+        );
 
         for (let idx = 0; idx < destinatarios.length; idx++) {
           const id = destinatarios[idx];
-          const childSnap = childFetches[idx];
+          const childFetch = childFetches[idx];
+          const childSnap = childFetch && childFetch.status === 'fulfilled' ? childFetch.value : null;
+
+          if (childFetch && childFetch.status === 'rejected') {
+            console.warn(`No se pudo cargar children/${id} para ${commId}:`, childFetch.reason?.message || childFetch.reason);
+          }
 
           if (childSnap && childSnap.exists) {
             const childData = childSnap.data();
-            const childName = childData.nombreCompleto || childData.name || `${childData.firstName || ''} ${childData.lastName || ''}`.trim() || id;
+            const childName =
+              childData.nombreCompleto ||
+              childData.name ||
+              `${childData.firstName || ''} ${childData.lastName || ''}`.trim() ||
+              id;
 
-            if (childData.responsables && Array.isArray(childData.responsables)) {
-              childData.responsables.forEach(uid => {
+            if (Array.isArray(childData.responsables)) {
+              childData.responsables.forEach((uid) => {
                 finalSet.add(uid);
                 parentToStudents[uid] = parentToStudents[uid] || [];
                 parentToStudents[uid].push(childName);
               });
             }
           } else {
-            // No es alumno -> asumimos es UID de usuario
+            // Si no existe como child, tratarlo como uid de usuario.
             finalSet.add(id);
           }
         }
 
         const finalRecipients = Array.from(finalSet);
 
-        // CRÍTICO: Actualizar destinatarios en Firestore ANTES de intentar enviar emails
-        await snapshot.ref.update({
-          destinatarios: finalRecipients
+        // Update transaccional para evitar perder cambios por carreras en escritura concurrente.
+        destinatarios = await db.runTransaction(async (tx) => {
+          const latestSnap = await tx.get(snapshot.ref);
+          if (!latestSnap.exists) return finalRecipients;
+
+          const latestData = latestSnap.data() || {};
+          const existingRecipients = Array.isArray(latestData.destinatarios) ? latestData.destinatarios : [];
+          const mergedRecipients = Array.from(new Set([...existingRecipients, ...finalRecipients]));
+
+          tx.update(snapshot.ref, {
+            destinatarios: mergedRecipients,
+          });
+
+          return mergedRecipients;
         });
 
-        console.log(`Destinatarios expandidos para ${commId}: ${finalRecipients.length} usuarios (incluyendo responsables de alumnos)`);
-
-        // Reasignamos destinatarios para el proceso de envío más abajo
-        destinatarios = finalRecipients;
+        console.log(`Destinatarios expandidos para ${commId}: ${destinatarios.length} usuarios`);
       } else {
         console.log(`Comunicado ${commId} no tiene destinatarios`);
       }
     } catch (error) {
       console.error(`Error expandiendo destinatarios para ${commId}:`, error);
-      // Aunque falle la expansión, continuamos para registrar el error
     }
 
-    // PASO 2: ENVÍO POR EMAIL Y PUSH (SI CORRESPONDE)
-    // Los errores aquí NO deben afectar que el comunicado ya esté guardado correctamente
-    // NO enviar si hay adjuntos pendientes (se enviarán cuando se complete la subida)
-    console.log(`📧 Verificando envío de emails para ${commId}: sendByEmail=${commData.sendByEmail}, hasPendingAttachments=${commData.hasPendingAttachments}, destinatarios=${destinatarios.length}`);
+    // Paso 2: envio por email y push, sin afectar persistencia del comunicado.
+    console.log(
+      `Verificando envio de emails para ${commId}: sendByEmail=${commData.sendByEmail}, hasPendingAttachments=${commData.hasPendingAttachments}, destinatarios=${destinatarios.length}`
+    );
 
     if (commData.hasPendingAttachments) {
-      console.log(`⏸️ Comunicado ${commId} tiene adjuntos pendientes. Envío de emails pospuesto hasta que se completen.`);
-    } else if (!commData.sendByEmail) {
-      console.log(`📭 Comunicado ${commId} no requiere envío por email (sendByEmail=false).`);
-    } else if (destinatarios.length === 0) {
-      console.log(`⚠️ Comunicado ${commId} no tiene destinatarios. No se enviará email.`);
-    } else if (commData.sendByEmail && destinatarios.length > 0) {
-      try {
-        console.log(`📨 Comunicado ${commId} solicita envío por email. Iniciando envío...`);
-        const commRef = admin.firestore().collection('communications').doc(commId);
-
-        // Enviar en batches para controlar rate limits
-        const BATCH_SIZE = 50;
-        let totalSent = 0;
-        let totalFailed = 0;
-
-        for (let i = 0; i < destinatarios.length; i += BATCH_SIZE) {
-          const batchUids = destinatarios.slice(i, i + BATCH_SIZE);
-
-          // Obtener usuarios por batch
-          const usersSnap = await admin.firestore().collection('users')
-            .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
-            .get();
-
-          const tokens = [];
-
-          // Procesar secuencialmente para respetar rate limit
-          for (const uDoc of usersSnap.docs) {
-            const u = uDoc.data();
-            const uid = uDoc.id;
-            const email = u.email || null;
-
-            // Idempotencia: si ya se envió, saltar
-            const statusRef = commRef.collection('emailStatus').doc(uid);
-            const statusSnap = await statusRef.get();
-            if (statusSnap.exists && statusSnap.data().status === 'sent') {
-              console.log(`Email ya enviado a ${uid}, se omite`);
-              continue;
-            }
-
-            // Marcar pending
-            await statusRef.set({
-              status: 'pending',
-              email: email,
-              attempts: 0,
-              lastError: null,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-
-            if (email) {
-              try {
-                if (resendApiKey.value()) {
-                  const studentList = parentToStudents[uid] ? parentToStudents[uid].join(', ') : null;
-
-                  // Incluir adjuntos si existen
-                  const attachmentsHtml = Array.isArray(commData.attachments) && commData.attachments.length > 0
-                    ? `<h4>Archivos adjuntos</h4><ul>${commData.attachments.map(a => `<li><a href="${a.url}">${a.name}</a></li>`).join('')}</ul>`
-                    : '';
-
-                  const payload = {
-                    from: 'onboarding@resend.dev',
-                    to: email,
-                    subject: (commData.title || 'Comunicado de la escuela') + (studentList ? ` - ${studentList}` : ''),
-                    html: `${studentList ? `<p><strong>Comunicado para: ${studentList}</strong></p>` : ''}<p>${commData.body || ''}</p>${attachmentsHtml}`
-                  };
-
-                  // Usar retry con backoff para manejar rate limits
-                  const result = await resendLimiter.retryWithBackoff(async () => {
-                    const res = await fetch('https://api.resend.com/emails', {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${resendApiKey.value()}`,
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify(payload)
-                    });
-
-                    if (!res.ok) {
-                      const text = await res.text();
-                      throw new Error(`Resend error: ${res.status} ${text}`);
-                    }
-
-                    return await res.json();
-                  });
-
-                  await statusRef.update({
-                    status: 'sent',
-                    attempts: admin.firestore.FieldValue.increment(1),
-                    resendMessageId: result.id || null,
-                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                  });
-
-                  console.log(`✓ Email enviado a ${email} (uid: ${uid})`);
-                  totalSent++;
-                } else {
-                  await statusRef.update({
-                    status: 'queued',
-                    lastError: 'RESEND_API_KEY not configured',
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                  });
-                  console.log(`RESEND_API_KEY no configurada: ${email} marcado como queued`);
-                }
-              } catch (err) {
-                console.error(`✗ Error enviando email a ${email} (uid: ${uid}):`, err);
-                totalFailed++;
-                await statusRef.update({
-                  status: 'failed',
-                  attempts: admin.firestore.FieldValue.increment(1),
-                  lastError: err.message ? err.message.slice(0, 1024) : String(err),
-                  failedAt: admin.firestore.FieldValue.serverTimestamp(),
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-              }
-            }
-
-            // Collect FCM tokens for push notifications
-            if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
-              tokens.push(...u.fcmTokens);
-            }
-          }
-
-          // Send push notifications
-          if (tokens.length > 0) {
-            try {
-              const message = {
-                notification: {
-                  title: commData.title || 'Nuevo comunicado',
-                  body: (commData.body || '').slice(0, 200)
-                },
-                tokens: tokens
-              };
-
-              const response = await admin.messaging().sendMulticast(message);
-              console.log(`Push enviados: success ${response.successCount}, failure ${response.failureCount}`);
-            } catch (err) {
-              console.error('Error enviando push:', err);
-            }
-          }
-        }
-
-        // Resumen final
-        console.log(`📊 Resumen envío ${commId}: ${totalSent} enviados ✓, ${totalFailed} fallidos ✗, ${destinatarios.length} total`);
-      } catch (emailError) {
-        console.error(`Error enviando emails para ${commId}:`, emailError);
-        // Continuamos - el comunicado ya está guardado correctamente en Firestore
-      }
-    }
-  }
-);
-
-// Trigger para actualizaciones: enviar (o reintentar) emails cuando se agreguen adjuntos u ocurra algún cambio relevante
-const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
-
-exports.onCommunicationUpdated = onDocumentUpdated(
-  {
-    document: 'communications/{commId}',
-    secrets: [resendApiKey]
-  },
-  async (event) => {
-    const beforeSnap = event.data?.before;
-    const afterSnap = event.data?.after;
-    if (!afterSnap) return;
-
-    const before = beforeSnap ? beforeSnap.data() : {};
-    const after = afterSnap.data();
-    const commId = event.params.commId;
-
-    // Solo proceder si está marcado para envío por email y hay destinatarios
-    if (!after.sendByEmail || !after.destinatarios || after.destinatarios.length === 0) return;
-
-    // Detectar si se completaron los adjuntos pendientes
-    const hadPendingAttachments = before.hasPendingAttachments === true;
-    const nowHasNoPendingAttachments = after.hasPendingAttachments === false;
-    const attachmentsWereAdded = Array.isArray(after.attachments) && after.attachments.length > 0;
-
-    // Solo enviar si se completaron adjuntos pendientes
-    if (!hadPendingAttachments || !nowHasNoPendingAttachments || !attachmentsWereAdded) {
-      console.log(`Comunicación ${commId} actualizada pero no requiere envío de emails (pending: ${hadPendingAttachments}, completed: ${nowHasNoPendingAttachments}, hasAttachments: ${attachmentsWereAdded})`);
+      console.log(`Comunicado ${commId} tiene adjuntos pendientes. Envio de emails pospuesto.`);
       return;
     }
 
-    console.log(`Comunicación ${commId} completó subida de ${after.attachments.length} adjuntos; iniciando envío de emails...`);
+    if (!commData.sendByEmail) {
+      console.log(`Comunicado ${commId} no requiere envio por email (sendByEmail=false).`);
+      return;
+    }
+
+    if (destinatarios.length === 0) {
+      console.log(`Comunicado ${commId} no tiene destinatarios. No se enviara email.`);
+      return;
+    }
 
     try {
+      console.log(`Comunicado ${commId} solicita envio por email. Iniciando envio...`);
       const commRef = admin.firestore().collection('communications').doc(commId);
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = 10;
+      let totalSent = 0;
+      let totalFailed = 0;
 
-      for (let i = 0; i < after.destinatarios.length; i += BATCH_SIZE) {
-        const batchUids = after.destinatarios.slice(i, i + BATCH_SIZE);
-
-        const usersSnap = await admin.firestore().collection('users')
+      for (let i = 0; i < destinatarios.length; i += BATCH_SIZE) {
+        const batchUids = destinatarios.slice(i, i + BATCH_SIZE);
+        const usersSnap = await admin
+          .firestore()
+          .collection('users')
           .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
           .get();
 
         const tokens = [];
 
-        // Procesar secuencialmente para respetar rate limit
         for (const uDoc of usersSnap.docs) {
           const u = uDoc.data();
           const uid = uDoc.id;
           const email = u.email || null;
 
-          // Idempotencia: si ya se envió, saltar
           const statusRef = commRef.collection('emailStatus').doc(uid);
           const statusSnap = await statusRef.get();
-          const statusData = statusSnap.exists ? statusSnap.data() : null;
-
-          // Solo saltar si ya se envió
-          if (statusData && statusData.status === 'sent') {
+          if (statusSnap.exists && statusSnap.data().status === 'sent') {
             console.log(`Email ya enviado a ${uid}, se omite`);
             continue;
           }
 
-          // Construir HTML del email con adjuntos
-          const attachmentsHtml = Array.isArray(after.attachments) && after.attachments.length > 0
-            ? `<h4>Archivos adjuntos</h4><ul>${after.attachments.map(a => `<li><a href="${a.url}">${a.name}</a></li>`).join('')}</ul>`
-            : '';
-
-          // Marcar pending
-          await statusRef.set({
-            status: 'pending',
-            email: email,
-            attempts: 0,
-            lastError: null,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
+          await statusRef.set(
+            {
+              status: 'pending',
+              email: email,
+              attempts: 0,
+              lastError: null,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
 
           if (email) {
             try {
               if (resendApiKey.value()) {
+                const studentList = parentToStudents[uid] ? parentToStudents[uid].join(', ') : null;
+                const safeStudentList = studentList ? escapeHtml(studentList) : null;
+                const safeBodyHtml = toSafeHtmlParagraph(commData.body || '');
+                const attachmentList = renderAttachmentList(commData.attachments);
+                const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+
                 const payload = {
-                  from: 'onboarding@resend.dev',
+                  from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
                   to: email,
-                  subject: (after.title || 'Comunicado de la escuela'),
-                  html: `${after.body || ''}${attachmentsHtml}`
+                  subject:
+                    (commData.title || 'Comunicado de la escuela') + (studentList ? ` - ${studentList}` : ''),
+                  html: `${
+                    safeStudentList ? `<p><strong>Comunicado para: ${safeStudentList}</strong></p>` : ''
+                  }<p>${safeBodyHtml}</p>${attachmentsHtml}`,
                 };
 
-                // Usar retry con backoff para manejar rate limits
                 const result = await resendLimiter.retryWithBackoff(async () => {
                   const res = await fetch('https://api.resend.com/emails', {
                     method: 'POST',
                     headers: {
-                      'Authorization': `Bearer ${resendApiKey.value()}`,
-                      'Content-Type': 'application/json'
+                      Authorization: `Bearer ${resendApiKey.value()}`,
+                      'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
                   });
 
                   if (!res.ok) {
                     const text = await res.text();
-                    throw new Error(`Resend error: ${res.status} ${text}`);
+                    const error = new Error(`Resend error: ${res.status} ${text}`);
+                    error.status = res.status;
+                    throw error;
                   }
 
                   return await res.json();
@@ -353,45 +207,215 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                   attempts: admin.firestore.FieldValue.increment(1),
                   resendMessageId: result.id || null,
                   sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
 
-                console.log(`✓ Email con adjuntos enviado a ${email} (uid: ${uid})`);
+                console.log(`Email enviado a ${maskEmail(email)} (uid: ${uid})`);
+                totalSent++;
               } else {
                 await statusRef.update({
                   status: 'queued',
                   lastError: 'RESEND_API_KEY not configured',
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                console.log(`RESEND_API_KEY no configurada: ${email} marcado como queued`);
+                console.log(`RESEND_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
               }
             } catch (err) {
-              console.error(`✗ Error enviando email con adjuntos a ${email} (uid: ${uid}):`, err);
+              console.error(`Error enviando email a ${maskEmail(email)} (uid: ${uid}):`, err);
+              totalFailed++;
               await statusRef.update({
                 status: 'failed',
                 attempts: admin.firestore.FieldValue.increment(1),
                 lastError: err.message ? err.message.slice(0, 1024) : String(err),
                 failedAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
               });
             }
           }
 
-          // Collect FCM tokens for push notifications
           if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
             tokens.push(...u.fcmTokens);
           }
         }
 
-        // Send push notifications summarizing attachments
         if (tokens.length > 0) {
           try {
+            const pushTitle = toPlainText(commData.title || 'Nuevo comunicado');
+            const pushBody = toPlainText(commData.body || '').slice(0, 200);
             const message = {
               notification: {
-                title: after.title || 'Nuevo comunicado',
-                body: ((after.body || '') + (after.attachments && after.attachments.length ? ' • Adjuntos disponibles' : '')).slice(0, 200)
+                title: pushTitle || 'Nuevo comunicado',
+                body: pushBody,
               },
-              tokens: tokens
+              tokens,
+            };
+
+            const response = await admin.messaging().sendMulticast(message);
+            console.log(`Push enviados: success ${response.successCount}, failure ${response.failureCount}`);
+          } catch (err) {
+            console.error('Error enviando push:', err);
+          }
+        }
+      }
+
+      console.log(
+        `Resumen envio ${commId}: ${totalSent} enviados, ${totalFailed} fallidos, ${destinatarios.length} total`
+      );
+    } catch (emailError) {
+      console.error(`Error enviando emails para ${commId}:`, emailError);
+    }
+  }
+);
+
+exports.onCommunicationUpdated = onDocumentUpdated(
+  {
+    document: 'communications/{commId}',
+    secrets: [resendApiKey],
+  },
+  async (event) => {
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+    if (!afterSnap) return;
+
+    const before = beforeSnap ? beforeSnap.data() : {};
+    const after = afterSnap.data();
+    const commId = event.params.commId;
+
+    if (!after.sendByEmail || !Array.isArray(after.destinatarios) || after.destinatarios.length === 0) return;
+
+    const hadPendingAttachments = before.hasPendingAttachments === true;
+    const nowHasNoPendingAttachments = after.hasPendingAttachments === false;
+    const attachmentsWereAdded = Array.isArray(after.attachments) && after.attachments.length > 0;
+
+    if (!hadPendingAttachments || !nowHasNoPendingAttachments || !attachmentsWereAdded) {
+      console.log(
+        `Comunicacion ${commId} actualizada pero no requiere envio de emails (pending: ${hadPendingAttachments}, completed: ${nowHasNoPendingAttachments}, hasAttachments: ${attachmentsWereAdded})`
+      );
+      return;
+    }
+
+    console.log(
+      `Comunicacion ${commId} completo subida de ${after.attachments.length} adjuntos; iniciando envio de emails...`
+    );
+
+    try {
+      const commRef = admin.firestore().collection('communications').doc(commId);
+      const BATCH_SIZE = 10;
+
+      for (let i = 0; i < after.destinatarios.length; i += BATCH_SIZE) {
+        const batchUids = after.destinatarios.slice(i, i + BATCH_SIZE);
+
+        const usersSnap = await admin
+          .firestore()
+          .collection('users')
+          .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
+          .get();
+
+        const tokens = [];
+
+        for (const uDoc of usersSnap.docs) {
+          const u = uDoc.data();
+          const uid = uDoc.id;
+          const email = u.email || null;
+
+          const statusRef = commRef.collection('emailStatus').doc(uid);
+          const statusSnap = await statusRef.get();
+          const statusData = statusSnap.exists ? statusSnap.data() : null;
+
+          if (statusData && statusData.status === 'sent') {
+            console.log(`Email ya enviado a ${uid}, se omite`);
+            continue;
+          }
+
+          const safeBodyHtml = toSafeHtmlParagraph(after.body || '');
+          const attachmentList = renderAttachmentList(after.attachments);
+          const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+
+          await statusRef.set(
+            {
+              status: 'pending',
+              email: email,
+              attempts: 0,
+              lastError: null,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          if (email) {
+            try {
+              if (resendApiKey.value()) {
+                const payload = {
+                  from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
+                  to: email,
+                  subject: after.title || 'Comunicado de la escuela',
+                  html: `<p>${safeBodyHtml}</p>${attachmentsHtml}`,
+                };
+
+                const result = await resendLimiter.retryWithBackoff(async () => {
+                  const res = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${resendApiKey.value()}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                  });
+
+                  if (!res.ok) {
+                    const text = await res.text();
+                    const error = new Error(`Resend error: ${res.status} ${text}`);
+                    error.status = res.status;
+                    throw error;
+                  }
+
+                  return await res.json();
+                });
+
+                await statusRef.update({
+                  status: 'sent',
+                  attempts: admin.firestore.FieldValue.increment(1),
+                  resendMessageId: result.id || null,
+                  sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                console.log(`Email con adjuntos enviado a ${maskEmail(email)} (uid: ${uid})`);
+              } else {
+                await statusRef.update({
+                  status: 'queued',
+                  lastError: 'RESEND_API_KEY not configured',
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                console.log(`RESEND_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
+              }
+            } catch (err) {
+              console.error(`Error enviando email con adjuntos a ${maskEmail(email)} (uid: ${uid}):`, err);
+              await statusRef.update({
+                status: 'failed',
+                attempts: admin.firestore.FieldValue.increment(1),
+                lastError: err.message ? err.message.slice(0, 1024) : String(err),
+                failedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            }
+          }
+
+          if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
+            tokens.push(...u.fcmTokens);
+          }
+        }
+
+        if (tokens.length > 0) {
+          try {
+            const pushTitle = toPlainText(after.title || 'Nuevo comunicado');
+            const plainBody = toPlainText(after.body || '');
+            const message = {
+              notification: {
+                title: pushTitle || 'Nuevo comunicado',
+                body: (plainBody + (after.attachments && after.attachments.length ? ' - Adjuntos disponibles' : '')).slice(0, 200),
+              },
+              tokens,
             };
 
             const response = await admin.messaging().sendMulticast(message);
@@ -415,7 +439,7 @@ async function getGlobalRecipients() {
     .where('disabled', '==', false)
     .get();
 
-  return usersSnapshot.docs.map(doc => doc.id);
+  return usersSnapshot.docs.map((doc) => doc.id);
 }
 
 async function getAmbienteRecipients(ambiente) {
@@ -427,9 +451,9 @@ async function getAmbienteRecipients(ambiente) {
     .where('ambiente', '==', ambiente)
     .get();
 
-  childrenSnapshot.docs.forEach(doc => {
+  childrenSnapshot.docs.forEach((doc) => {
     const childData = doc.data();
-    if (childData.responsables && Array.isArray(childData.responsables)) {
+    if (Array.isArray(childData.responsables)) {
       recipients.push(...childData.responsables);
     }
   });
@@ -442,7 +466,7 @@ async function getAmbienteRecipients(ambiente) {
     .where('disabled', '==', false)
     .get();
 
-  teachersSnapshot.docs.forEach(doc => {
+  teachersSnapshot.docs.forEach((doc) => {
     recipients.push(doc.id);
   });
 
@@ -458,12 +482,13 @@ async function getTallerRecipients(tallerEspecial) {
     .where('talleresEspeciales', 'array-contains', tallerEspecial)
     .get();
 
-  childrenSnapshot.docs.forEach(doc => {
+  childrenSnapshot.docs.forEach((doc) => {
     const childData = doc.data();
-    if (childData.responsables && Array.isArray(childData.responsables)) {
+    if (Array.isArray(childData.responsables)) {
       recipients.push(...childData.responsables);
     }
   });
 
   return [...new Set(recipients)];
 }
+

@@ -1,4 +1,4 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+﻿const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 
 // Inicializar Admin SDK
@@ -10,8 +10,50 @@ const { onConversationMessageCreated } = require('./src/triggers/onConversationM
 const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned');
 const { onDocumentWithMandatoryReading } = require('./src/triggers/onDocumentCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
+const { maskEmail } = require('./src/utils/logging');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
+const VALID_ROLES = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
+
+const ensureDataObject = (data) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new HttpsError('invalid-argument', 'request.data debe ser un objeto');
+  }
+  return data;
+};
+
+const requireNonEmptyString = (value, field, maxLength = 256) => {
+  if (typeof value !== 'string') {
+    throw new HttpsError('invalid-argument', `${field} debe ser string`);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new HttpsError('invalid-argument', `${field} es requerido`);
+  }
+
+  if (trimmed.length > maxLength) {
+    throw new HttpsError('invalid-argument', `${field} supera el largo permitido`);
+  }
+
+  return trimmed;
+};
+
+const optionalString = (value, field, maxLength = 256) => {
+  if (value == null) return null;
+  return requireNonEmptyString(value, field, maxLength);
+};
+
+const normalizeAndValidateEmail = (emailValue) => {
+  const email = requireNonEmptyString(emailValue, 'email', 320).toLowerCase();
+  const basicEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!basicEmailPattern.test(email)) {
+    throw new HttpsError('invalid-argument', 'email invalido');
+  }
+
+  return email;
+};
 
 const getUserRole = async (uid) => {
   const authUser = await admin.auth().getUser(uid);
@@ -28,51 +70,39 @@ const getUserRole = async (uid) => {
 
 /**
  * Cloud Function: setUserRole
- * Asigna un custom claim (rol) a un usuario
- * Solo puede ser llamada por usuarios con rol admin, direccion o coordinacion
+ * Asigna un custom claim (rol) a un usuario.
+ * Solo puede ser llamada por usuarios con rol admin.
  */
 exports.setUserRole = onCallWithCors(async (request) => {
-  // Verificar que el usuario que llama está autenticado
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado para asignar roles');
   }
 
-  // Verificar que quien llama tiene permisos de admin
   const callerRole = request.auth.token.role;
   if (!callerRole || !['superadmin', 'coordinacion'].includes(callerRole)) {
-    throw new HttpsError(
-      'permission-denied',
-      'Solo administradores pueden asignar roles'
-    );
+    throw new HttpsError('permission-denied', 'Solo administradores pueden asignar roles');
   }
 
-  const { uid, role } = request.data;
+  const data = ensureDataObject(request.data);
+  const uid = requireNonEmptyString(data.uid, 'uid', 128);
+  const role = requireNonEmptyString(data.role, 'role', 64);
 
-  // Validar parámetros
-  if (!uid || !role) {
-    throw new HttpsError('invalid-argument', 'uid y role son requeridos');
-  }
-
-  // Validar que el rol es válido
-  const validRoles = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
-  if (!validRoles.includes(role)) {
-    throw new HttpsError('invalid-argument', `Rol inválido. Debe ser uno de: ${validRoles.join(', ')}`);
+  if (!VALID_ROLES.includes(role)) {
+    throw new HttpsError('invalid-argument', `Rol invalido. Debe ser uno de: ${VALID_ROLES.join(', ')}`);
   }
 
   if (callerRole === 'coordinacion' && role === 'superadmin') {
-    throw new HttpsError('permission-denied', 'Coordinación no puede asignar rol superadmin');
+    throw new HttpsError('permission-denied', 'Coordinacion no puede asignar rol superadmin');
   }
 
   try {
     const targetRole = await getUserRole(uid);
     if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
-      throw new HttpsError('permission-denied', 'Coordinación no puede modificar a un superadmin');
+      throw new HttpsError('permission-denied', 'Coordinacion no puede modificar a un superadmin');
     }
 
-    // Asignar custom claim
     await admin.auth().setCustomUserClaims(uid, { role });
 
-    // Actualizar Firestore (para queries)
     await admin.firestore().collection('users').doc(uid).set(
       { role },
       { merge: true }
@@ -84,7 +114,7 @@ exports.setUserRole = onCallWithCors(async (request) => {
       success: true,
       message: `Rol ${role} asignado correctamente`,
       uid,
-      role
+      role,
     };
   } catch (error) {
     if (error instanceof HttpsError) {
@@ -97,11 +127,10 @@ exports.setUserRole = onCallWithCors(async (request) => {
 
 /**
  * Cloud Function: createUserWithRole
- * Crea un usuario nuevo con email/password y le asigna un rol
- * Solo para admin/direccion
+ * Crea un usuario nuevo con email/password y le asigna un rol.
+ * Solo para superadmin/coordinacion.
  */
 exports.createUserWithRole = onCallWithCors(async (request) => {
-  // Verificar autenticación y permisos
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado');
   }
@@ -111,34 +140,33 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
     throw new HttpsError('permission-denied', 'Solo administradores pueden crear usuarios');
   }
 
-  const { email, password, role, displayName } = request.data;
+  const data = ensureDataObject(request.data);
+  const email = normalizeAndValidateEmail(data.email);
+  const password = requireNonEmptyString(data.password, 'password', 1024);
+  const role = requireNonEmptyString(data.role, 'role', 64);
+  const displayName = optionalString(data.displayName, 'displayName', 128);
 
-  // Validar parámetros
-  if (!email || !password || !role) {
-    throw new HttpsError('invalid-argument', 'email, password y role son requeridos');
+  if (password.length < 8) {
+    throw new HttpsError('invalid-argument', 'password debe tener al menos 8 caracteres');
   }
 
-  const validRoles = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
-  if (!validRoles.includes(role)) {
-    throw new HttpsError('invalid-argument', `Rol inválido`);
+  if (!VALID_ROLES.includes(role)) {
+    throw new HttpsError('invalid-argument', 'Rol invalido');
   }
 
   if (callerRole === 'coordinacion' && role === 'superadmin') {
-    throw new HttpsError('permission-denied', 'Coordinación no puede crear usuarios superadmin');
+    throw new HttpsError('permission-denied', 'Coordinacion no puede crear usuarios superadmin');
   }
 
   try {
-    // Crear usuario en Authentication
     const userRecord = await admin.auth().createUser({
       email,
       password,
-      displayName: displayName || email.split('@')[0]
+      displayName: displayName || email.split('@')[0],
     });
 
-    // Asignar custom claim
     await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
-    // Crear perfil en Firestore
     await admin.firestore().collection('users').doc(userRecord.uid).set({
       email,
       displayName: displayName || email.split('@')[0],
@@ -147,17 +175,17 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
       fcmTokens: [],
       disabled: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: request.auth.uid
+      createdBy: request.auth.uid,
     });
 
-    console.log(`Usuario ${email} creado con rol ${role} por ${request.auth.uid}`);
+    console.log(`Usuario ${maskEmail(email)} creado con rol ${role} por ${request.auth.uid}`);
 
     return {
       success: true,
       message: 'Usuario creado correctamente',
       uid: userRecord.uid,
       email,
-      role
+      role,
     };
   } catch (error) {
     if (error instanceof HttpsError) {
@@ -170,8 +198,8 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
 
 /**
  * Cloud Function: updateUserAuth
- * Actualiza email y displayName en Firebase Authentication y Firestore
- * Permitido solo para superadmin y coordinacion
+ * Actualiza email y displayName en Firebase Authentication y Firestore.
+ * Permitido solo para superadmin y coordinacion.
  */
 exports.updateUserAuth = onCallWithCors(async (request) => {
   if (!request.auth) {
@@ -183,15 +211,15 @@ exports.updateUserAuth = onCallWithCors(async (request) => {
     throw new HttpsError('permission-denied', 'Solo administradores pueden actualizar Auth');
   }
 
-  const { uid, email, displayName } = request.data;
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'uid es requerido');
-  }
+  const data = ensureDataObject(request.data);
+  const uid = requireNonEmptyString(data.uid, 'uid', 128);
+  const email = data.email == null ? null : normalizeAndValidateEmail(data.email);
+  const displayName = optionalString(data.displayName, 'displayName', 128);
 
   try {
     const targetRole = await getUserRole(uid);
     if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
-      throw new HttpsError('permission-denied', 'Coordinación no puede editar a un superadmin');
+      throw new HttpsError('permission-denied', 'Coordinacion no puede editar a un superadmin');
     }
 
     const updateParams = {};
@@ -202,10 +230,8 @@ exports.updateUserAuth = onCallWithCors(async (request) => {
       throw new HttpsError('invalid-argument', 'email o displayName son requeridos');
     }
 
-    // Actualizar en Firebase Auth
     await admin.auth().updateUser(uid, updateParams);
 
-    // Actualizar en Firestore
     const updates = {};
     if (email) updates.email = email;
     if (displayName) updates.displayName = displayName;
@@ -227,20 +253,13 @@ exports.updateUserAuth = onCallWithCors(async (request) => {
 
 /**
  * Cloud Function: checkUserEmail
- * Verifica si un email existe en la colección users (Firestore)
- * Uso público para recuperar contraseña
+ * Verifica si un email existe en la coleccion users (Firestore).
  */
 exports.checkUserEmail = onCallWithCors(async (request) => {
-  const { email } = request.data || {};
-  if (!email) {
-    throw new HttpsError('invalid-argument', 'email es requerido');
-  }
-
-  const rawEmail = String(email).trim();
-  if (!rawEmail) {
-    throw new HttpsError('invalid-argument', 'email es requerido');
-  }
+  const data = ensureDataObject(request.data || {});
+  const rawEmail = requireNonEmptyString(data.email, 'email', 320);
   const normalizedEmail = rawEmail.toLowerCase();
+
   let snapshot = await admin.firestore()
     .collection('users')
     .where('email', '==', rawEmail)
@@ -260,8 +279,7 @@ exports.checkUserEmail = onCallWithCors(async (request) => {
 
 /**
  * Cloud Function: deleteUser
- * Elimina un usuario en Auth y su perfil en Firestore
- * Permitido solo para superadmin y coordinacion
+ * Elimina un usuario en Auth y su perfil en Firestore.
  */
 exports.deleteUser = onCallWithCors(async (request) => {
   if (!request.auth) {
@@ -273,10 +291,8 @@ exports.deleteUser = onCallWithCors(async (request) => {
     throw new HttpsError('permission-denied', 'Solo administradores pueden eliminar usuarios');
   }
 
-  const { uid } = request.data || {};
-  if (!uid) {
-    throw new HttpsError('invalid-argument', 'uid es requerido');
-  }
+  const data = ensureDataObject(request.data || {});
+  const uid = requireNonEmptyString(data.uid, 'uid', 128);
 
   if (uid === request.auth.uid) {
     throw new HttpsError('failed-precondition', 'No puedes eliminar tu propio usuario');
@@ -286,7 +302,7 @@ exports.deleteUser = onCallWithCors(async (request) => {
     const targetRole = await getUserRole(uid);
 
     if (callerRole === 'coordinacion' && targetRole === 'superadmin') {
-      throw new HttpsError('permission-denied', 'Coordinación no puede eliminar a un superadmin');
+      throw new HttpsError('permission-denied', 'Coordinacion no puede eliminar a un superadmin');
     }
 
     await admin.auth().deleteUser(uid);

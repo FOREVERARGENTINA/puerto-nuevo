@@ -82,7 +82,7 @@ exports.onAppointmentAssigned = onDocumentUpdated(
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                from: 'onboarding@resend.dev',
+                from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
                 to: email,
                 subject,
                 html

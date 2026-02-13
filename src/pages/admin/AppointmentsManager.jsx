@@ -875,6 +875,16 @@ const AppointmentsManager = () => {
     return set;
   })();
 
+  const daysWithBookedSlots = (() => {
+    const set = new Set();
+    appointmentsForMonth.forEach(app => {
+      if (app.estado !== 'reservado' && app.estado !== 'asistio' && app.estado !== 'bloqueado') return;
+      const appDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+      set.add(appDate.getDate());
+    });
+    return set;
+  })();
+
   const days = (() => {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
     const offset = (startingDayOfWeek + 6) % 7;
@@ -1293,13 +1303,21 @@ const AppointmentsManager = () => {
                     const isToday = day && new Date(currentMonthYear, currentMonthIndex, day).toISOString().split('T')[0] === todayDateString;
                     const hasAppointments = day && daysWithAppointments.has(day);
                     const hasAvailableSlots = day && daysWithAvailableSlots.has(day);
+                    const hasBookedSlots = day && daysWithBookedSlots.has(day);
+                    const dayStatusClass = hasBookedSlots && hasAvailableSlots
+                      ? 'event-calendar__day--has-mixed-slot'
+                      : hasBookedSlots
+                        ? 'event-calendar__day--has-booked-slot'
+                        : hasAvailableSlots
+                          ? 'event-calendar__day--has-slot'
+                          : '';
                     return (
                       <div
                         key={index}
                         className={`event-calendar__day ${
                           day ? 'event-calendar__day--active' : 'event-calendar__day--empty'
                         } ${day && hasAppointments ? 'event-calendar__day--has-event' : ''} ${
-                          day && hasAvailableSlots ? 'event-calendar__day--has-slot' : ''
+                          day ? dayStatusClass : ''
                         } ${
                           selectedDay === day ? 'event-calendar__day--selected' : ''
                         } ${isToday ? 'event-calendar__day--today' : ''}`}

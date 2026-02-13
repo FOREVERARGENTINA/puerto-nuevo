@@ -47,6 +47,17 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/set-state-in-effect': 'off',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Property[key.name='html'] > BinaryExpression",
+          message: 'No concatenar strings en html:. Usa TemplateLiteral + helpers de sanitizacion.',
+        },
+        {
+          selector: "CallExpression[callee.object.object.name='snapshot'][callee.object.property.name='ref'][callee.property.name='update']",
+          message: 'No usar snapshot.ref.update(...) en paths criticos. Usa runTransaction con merge seguro.',
+        },
+      ],
     },
   },
 ])

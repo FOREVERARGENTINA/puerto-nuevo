@@ -1,0 +1,465 @@
+/* SendCommunication.css — formulario mejorado, paleta Montessori Puerto Nuevo */
+/* Prefijo sc- para no colisionar con clases globales */
+
+/* ─── SECCIONES ─────────────────────────────────────── */
+
+.sc-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.sc-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sc-section__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sc-section__title {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* ─── SELECTOR DE TIPO ──────────────────────────────── */
+
+.sc-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.sc-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--spacing-md) var(--spacing-sm);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-alt);
+  color: var(--color-text-light);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  min-height: auto;
+  min-width: 0;
+}
+
+.sc-type-card:hover:not(:disabled) {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sc-type-card--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(44, 107, 111, 0.12);
+}
+
+.sc-type-card--active .sc-type-card__desc {
+  color: var(--color-primary-light);
+}
+
+.sc-type-card__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: inherit;
+}
+
+.sc-type-card__desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+/* ─── SELECTOR DE AMBIENTE ──────────────────────────── */
+
+.sc-ambiente-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  max-width: 300px;
+}
+
+.sc-ambiente-btn {
+  padding: 10px var(--spacing-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-light);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-height: auto;
+  min-width: 0;
+}
+
+.sc-ambiente-btn:hover:not(:disabled) {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sc-ambiente-btn--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ─── ZONA DE CARGA DE ARCHIVOS ─────────────────────── */
+
+.sc-upload {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-lg) var(--spacing-md);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+}
+
+.sc-upload:hover {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-soft);
+}
+
+.sc-upload__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.sc-upload__icon {
+  color: var(--color-primary-light);
+}
+
+.sc-upload__cta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+.sc-upload__cta strong {
+  color: var(--color-primary);
+}
+
+.sc-upload__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+/* ─── LISTA DE ARCHIVOS ─────────────────────────────── */
+
+.sc-files {
+  list-style: none;
+  padding: 0;
+  margin: var(--spacing-sm) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sc-file {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-background-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.sc-file__icon {
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+.sc-file__name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sc-file__size {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  flex-shrink: 0;
+}
+
+.sc-file__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: unset;
+  min-height: unset;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-light);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.sc-file__remove:hover {
+  background: var(--color-error);
+  color: #fff;
+}
+
+/* ─── OPCIONES CON TOGGLE ───────────────────────────── */
+
+.sc-options {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.sc-toggle-field {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-background-alt);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+.sc-toggle-field + .sc-toggle-field {
+  border-top: 1px solid var(--color-border);
+}
+
+.sc-toggle-field:hover {
+  background: var(--color-primary-soft);
+}
+
+/* wrapper del switch */
+.sc-toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.sc-toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sc-toggle-track {
+  display: block;
+  width: 40px;
+  height: 22px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  position: relative;
+  transition: background var(--transition-fast);
+}
+
+.sc-toggle-thumb {
+  display: block;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.sc-toggle-switch input:checked + .sc-toggle-track {
+  background: var(--color-primary);
+}
+
+.sc-toggle-switch input:checked + .sc-toggle-track .sc-toggle-thumb {
+  transform: translateX(18px);
+}
+
+.sc-toggle-switch input:disabled + .sc-toggle-track {
+  opacity: 0.5;
+}
+
+.sc-toggle-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sc-toggle-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+}
+
+.sc-toggle-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+/* toggle visual sin input (para el header de evento) */
+.sc-toggle-vis .sc-toggle-track {
+  pointer-events: none;
+}
+
+.sc-toggle-track--on {
+  background: var(--color-primary) !important;
+}
+
+.sc-toggle-track--on .sc-toggle-thumb {
+  transform: translateX(18px);
+}
+
+/* ─── SECCIÓN DE EVENTO ─────────────────────────────── */
+
+.sc-event-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--color-background-alt);
+  user-select: none;
+}
+
+.sc-event-header:hover {
+  border-color: var(--color-secondary-light);
+  background: var(--color-background-warm);
+}
+
+.sc-event-header--active {
+  border-color: var(--color-secondary);
+  background: var(--color-background-warm);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.sc-event-header__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sc-event-header__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.sc-event-header__desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.sc-event-header__chevron {
+  font-size: 10px;
+  color: var(--color-text-light);
+  flex-shrink: 0;
+}
+
+.sc-event-body {
+  padding: var(--spacing-lg);
+  border: 1.5px solid var(--color-secondary);
+  border-top: none;
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+  background: var(--color-background-warm);
+}
+
+/* ─── ACCIONES ──────────────────────────────────────── */
+
+.sc-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-xl);
+}
+
+/* ─── LABEL OPCIONAL ────────────────────────────────── */
+
+.sc-label-optional {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  font-weight: var(--font-weight-normal);
+  margin-left: 4px;
+}
+
+/* ─── RECIPIENT-CARD SIN DOBLE BORDE ───────────────── */
+/* recipient-card ya viene con su propio borde; dentro de sc-section
+   la tarjeta de sección provee el contenedor visual, así que lo aplanamos */
+
+.sc-section .recipient-card {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin-top: 0;
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .sc-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-ambiente-grid {
+    max-width: 100%;
+  }
+
+  .sc-actions {
+    flex-direction: column-reverse;
+  }
+}

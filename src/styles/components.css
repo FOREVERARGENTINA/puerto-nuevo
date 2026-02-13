@@ -5928,6 +5928,26 @@
   background: rgba(16, 185, 129, 0.22);
 }
 
+.event-calendar__day--has-booked-slot {
+  background: rgba(230, 126, 94, 0.18);
+  color: #8f3e2a;
+  box-shadow: inset 0 -2px 0 #e67e5e;
+}
+
+.event-calendar__day--has-booked-slot:hover {
+  background: rgba(230, 126, 94, 0.26);
+}
+
+.event-calendar__day--has-mixed-slot {
+  background: rgba(245, 158, 11, 0.2);
+  color: #8a5a00;
+  box-shadow: inset 0 -2px 0 #f59e0b;
+}
+
+.event-calendar__day--has-mixed-slot:hover {
+  background: rgba(245, 158, 11, 0.28);
+}
+
 .event-calendar__day--has-upcoming-event {
   background: rgba(239, 68, 68, 0.16);
   color: #a51f3f;

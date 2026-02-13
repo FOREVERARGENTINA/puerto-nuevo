@@ -23,9 +23,20 @@
       "Bash(mv:*)",
       "Bash(node:*)",
       "Bash(npm run check:encoding:*)",
-      "Bash(npm run fix:encoding:*)"
+      "Bash(npm run fix:encoding:*)",
+      "Bash(claude plugins uninstall:*)",
+      "WebSearch",
+      "Bash(npx:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\casa\\\\AppData\\\\Local\\\\npm-cache\\\\_npx\")",
+      "Bash(npm test)",
+      "Skill(frontend-design)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "firebase"
+  ],
+  "enabledPlugins": {}
 }

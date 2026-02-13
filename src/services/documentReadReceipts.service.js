@@ -104,7 +104,7 @@ export const documentReadReceiptsService = {
           status: 'read',
           readAt: serverTimestamp()
         });
-      } catch (updateError) {
+      } catch (_updateError) {
         // Fallback para receipts legacy que no se pueden actualizar por reglas o datos.
         await createReadReceipt(documentId, userId);
       }

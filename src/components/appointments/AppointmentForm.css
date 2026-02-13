@@ -1,0 +1,115 @@
+/* AppointmentForm.css — formulario mejorado, paleta Montessori Puerto Nuevo */
+
+/* ─── SECCIONES ─────────────────────────────────────── */
+
+.sc-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.sc-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sc-section__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sc-section__title {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* ─── SELECTOR DE MODALIDAD (2 tarjetas) ────────────── */
+
+.sc-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.sc-mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-alt);
+  color: var(--color-text-light);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  min-height: auto;
+  min-width: 0;
+}
+
+.sc-mode-card:hover:not(:disabled) {
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sc-mode-card--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(44, 107, 111, 0.12);
+}
+
+.sc-mode-card__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: inherit;
+}
+
+.sc-mode-card__desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.sc-mode-card--active .sc-mode-card__desc {
+  color: var(--color-primary-light);
+}
+
+/* ─── ACCIONES ──────────────────────────────────────── */
+
+.sc-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-xl);
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .sc-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-actions {
+    flex-direction: column-reverse;
+  }
+}

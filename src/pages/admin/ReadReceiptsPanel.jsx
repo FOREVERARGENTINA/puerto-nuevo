@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../../components/ui/Icon';
 import { communicationsService } from '../../services/communications.service';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
@@ -716,12 +717,22 @@ export function ReadReceiptsPanel() {
                 </p>
 
                 {selectedComm.attachments && selectedComm.attachments.length > 0 && (
-                  <div style={{ marginTop: 'var(--spacing-md)' }}>
-                    <strong>Archivos adjuntos:</strong>
-                    <ul>
+                  <div style={{ marginTop: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)' }}>
+                    <strong style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>Archivos adjuntos:</strong>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                       {selectedComm.attachments.map((att, idx) => (
-                        <li key={idx} style={{ marginTop: 'var(--spacing-xs)' }}>
-                          <a href={att.url} target="_blank" rel="noopener noreferrer">{att.name}</a>
+                        <li key={idx} style={{ marginBottom: 'var(--spacing-xs)' }}>
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn--text"
+                            style={{ padding: 'var(--spacing-xs) 0' }}
+                            title={att.name || `Archivo adjunto ${idx + 1}`}
+                          >
+                            <Icon name="file" size={16} />
+                            {`Archivo adjunto ${idx + 1}`}
+                          </a>
                         </li>
                       ))}
                     </ul>

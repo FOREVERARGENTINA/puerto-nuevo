@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AlertDialog } from '../common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+import Icon from '../ui/Icon';
+import './AppointmentForm.css';
 
 const normalizeAppointmentMode = (value) => (
   value === 'virtual' || value === 'presencial' ? value : ''
@@ -31,10 +33,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -42,7 +41,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     if (!formData.modalidad) {
       alertDialog.openDialog({
         title: 'Campo Requerido',
-        message: 'Por favor selecciona la modalidad',
+        message: 'Por favor seleccioná la modalidad',
         type: 'warning'
       });
       return;
@@ -50,7 +49,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     if (!formData.hijoId) {
       alertDialog.openDialog({
         title: 'Campo Requerido',
-        message: 'Por favor selecciona un alumno',
+        message: 'Por favor seleccioná un alumno',
         type: 'warning'
       });
       return;
@@ -77,12 +76,21 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     });
   };
 
-  const selectedMode = formData.modalidad || normalizeAppointmentMode(appointment?.modalidad);
-  const appointmentModeLabel = selectedMode === 'virtual'
-    ? 'Virtual'
-    : selectedMode === 'presencial'
-      ? 'Presencial'
-      : 'Sin definir';
+  /* ── Íconos de modalidad ── */
+  const PresencialIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+
+  const VirtualIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M10 8l5 3-5 3V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
 
   return (
     <div className="appointment-form-container">
@@ -95,6 +103,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
         </div>
 
         <div className="card__body">
+          {/* Resumen del turno */}
           <div className="appointment-booking-summary">
             <div className="booking-summary-inline">
               <span className="booking-summary-chip">
@@ -110,75 +119,103 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                   </span>
                 </>
               )}
-              <>
-                <span className="booking-summary-separator" aria-hidden="true">•</span>
-                <span className="booking-summary-chip">
-                  <span className="booking-summary-label">Modalidad</span>
-                  <span className="booking-summary-value">{appointmentModeLabel}</span>
-                </span>
-              </>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="appointment-form">
-            <div className="form-group">
-              <label htmlFor="modalidad" className="form-label">
-                <span>Modalidad *</span>
-              </label>
-              <select
-                id="modalidad"
-                name="modalidad"
-                value={formData.modalidad}
-                onChange={handleChange}
-                required
-                className="form-select"
-              >
-                <option value="">Seleccionar modalidad...</option>
-                <option value="presencial">Presencial</option>
-                <option value="virtual">Virtual</option>
-              </select>
-            </div>
 
-            <div className="form-group">
-              <label htmlFor="hijoId" className="form-label">
-                <span>Alumno *</span>
-              </label>
-              <select
-                id="hijoId"
-                name="hijoId"
-                value={formData.hijoId}
-                onChange={handleChange}
-                required
-                className="form-select"
-              >
-                <option value="">Seleccionar alumno...</option>
-                {userChildren && userChildren.map(child => (
-                  <option key={child.id} value={child.id}>
-                    {child.nombreCompleto}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* ── SECCIÓN 1: Modalidad ── */}
+            <div className="sc-section">
+              <div className="sc-section__header">
+                <span className="sc-section__num">1</span>
+                <h3 className="sc-section__title">Modalidad</h3>
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="nota" className="form-label">
-                <span>Nota (opcional)</span>
-              </label>
-              <textarea
-                id="nota"
-                name="nota"
-                value={formData.nota}
-                onChange={handleChange}
-                rows="4"
-                placeholder="Motivo de la consulta, tema a tratar, etc."
-                className="form-textarea"
-              />
-              <div className="form-helper-text">
-                Agregá contexto opcional para preparar mejor la reunión.
+              <div className="sc-mode-grid">
+                <button
+                  type="button"
+                  className={`sc-mode-card${formData.modalidad === 'presencial' ? ' sc-mode-card--active' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, modalidad: 'presencial' }))}
+                  disabled={loading}
+                >
+                  <PresencialIcon />
+                  <span className="sc-mode-card__label">Presencial</span>
+                  <span className="sc-mode-card__desc">En la escuela</span>
+                </button>
+                <button
+                  type="button"
+                  className={`sc-mode-card${formData.modalidad === 'virtual' ? ' sc-mode-card--active' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, modalidad: 'virtual' }))}
+                  disabled={loading}
+                >
+                  <VirtualIcon />
+                  <span className="sc-mode-card__label">Virtual</span>
+                  <span className="sc-mode-card__desc">Por videollamada</span>
+                </button>
               </div>
             </div>
 
-            <div className="form-actions appointment-form-actions">
+            {/* ── SECCIÓN 2: Alumno y nota ── */}
+            <div className="sc-section">
+              <div className="sc-section__header">
+                <span className="sc-section__num">2</span>
+                <h3 className="sc-section__title">Detalles</h3>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="hijoId" className="required">Alumno</label>
+                <select
+                  id="hijoId"
+                  name="hijoId"
+                  value={formData.hijoId}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  className="form-select"
+                >
+                  <option value="">Seleccionar alumno...</option>
+                  {userChildren && userChildren.map(child => (
+                    <option key={child.id} value={child.id}>
+                      {child.nombreCompleto}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="nota">
+                  Nota
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', fontWeight: 'var(--font-weight-normal)', marginLeft: 4 }}>(opcional)</span>
+                </label>
+                <textarea
+                  id="nota"
+                  name="nota"
+                  value={formData.nota}
+                  onChange={handleChange}
+                  rows="4"
+                  placeholder="Motivo de la consulta, tema a tratar, etc."
+                  className="form-textarea"
+                  disabled={loading}
+                />
+                <p className="form-help">Agregá contexto opcional para preparar mejor la reunión.</p>
+              </div>
+            </div>
+
+            {/* ── Acciones ── */}
+            <div className="sc-actions">
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={loading}
+              >
+                <Icon name="check-circle" size={16} />
+                {loading ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Reservando...
+                  </>
+                ) : 'Confirmar reserva'}
+              </button>
               <button
                 type="button"
                 onClick={onCancel}
@@ -187,19 +224,8 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
               >
                 Cancelar
               </button>
-              <button
-                type="submit"
-                className="btn btn--primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="spinner-small"></span>
-                    Reservando...
-                  </>
-                ) : 'Confirmar reserva'}
-              </button>
             </div>
+
           </form>
         </div>
       </div>

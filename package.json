@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint . && npm run lint:guardrails",
+    "lint:guardrails": "node scripts/lint-guardrails.cjs",
     "preview": "vite preview",
     "migrate:talleristaId": "node scripts/migrateTalleristaId.js",
     "migrate:talleristaId:apply": "node scripts/migrateTalleristaId.js --apply",

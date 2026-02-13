@@ -2,6 +2,7 @@
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
+const { escapeHtml, toSafeHtmlParagraph, renderAttachmentList } = require('../utils/sanitize');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 
@@ -37,7 +38,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
         .where('role', 'in', roles)
         .where('disabled', '==', false)
         .get();
-      recipientUids = usersSnap.docs.map(doc => doc.id);
+      recipientUids = usersSnap.docs.map((doc) => doc.id);
     } else if (conversation.familiaUid) {
       recipientUids = [conversation.familiaUid];
     }
@@ -62,20 +63,24 @@ exports.onConversationMessageCreated = onDocumentCreated(
       for (const uDoc of usersSnap.docs) {
         const u = uDoc.data();
         const email = u.email || null;
+
         if (email && resendApiKey.value()) {
           try {
+            const safeTitle = escapeHtml(title);
+            const safeAsunto = escapeHtml(conversation.asunto || 'Conversacion');
+            const safeMessageHtml = toSafeHtmlParagraph(message.texto || '');
+            const attachmentList = renderAttachmentList(message.adjuntos);
+
             const payload = {
-              from: 'onboarding@resend.dev',
+              from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
               to: email,
-              subject: `${title} - ${conversation.asunto || 'Conversación'}`,
+              subject: `${title} - ${conversation.asunto || 'Conversacion'}`,
               html: `
-                <p>${title}</p>
-                <p><strong>Asunto:</strong> ${conversation.asunto || 'Conversación'}</p>
-                <p>${message.texto || ''}</p>
-                ${Array.isArray(message.adjuntos) && message.adjuntos.length > 0
-                  ? `<p><strong>Adjuntos:</strong></p><ul>${message.adjuntos.map(a => `<li><a href="${a.url}">${a.name}</a></li>`).join('')}</ul>`
-                  : ''}
-                <p>Ingresá a la plataforma para responder.</p>
+                <p>${safeTitle}</p>
+                <p><strong>Asunto:</strong> ${safeAsunto}</p>
+                <p>${safeMessageHtml}</p>
+                ${attachmentList ? `<p><strong>Adjuntos:</strong></p>${attachmentList}` : ''}
+                <p>Ingresa a la plataforma para responder.</p>
               `
             };
 
@@ -83,7 +88,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
               const res = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: {
-                  'Authorization': `Bearer ${resendApiKey.value()}`,
+                  Authorization: `Bearer ${resendApiKey.value()}`,
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
@@ -96,7 +101,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
               return await res.json();
             });
           } catch (err) {
-            console.error('Error enviando email de conversación:', err);
+            console.error('Error enviando email de conversacion:', err);
           }
         }
 
@@ -111,12 +116,12 @@ exports.onConversationMessageCreated = onDocumentCreated(
         await admin.messaging().sendMulticast({
           notification: {
             title,
-            body: body
+            body
           },
           tokens
         });
       } catch (err) {
-        console.error('Error enviando push de conversación:', err);
+        console.error('Error enviando push de conversacion:', err);
       }
     }
   }

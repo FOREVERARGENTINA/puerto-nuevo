@@ -210,9 +210,10 @@ export function CommunicationDetail() {
                       rel="noopener noreferrer"
                       className="btn btn--text"
                       style={{ padding: 'var(--spacing-xs) 0' }}
+                      title={attachment.name || `Archivo adjunto ${i + 1}`}
                     >
                       <Icon name="file" size={16} />
-                      {attachment.name}
+                      {`Archivo adjunto ${i + 1}`}
                     </a>
                   </li>
                 ))}
