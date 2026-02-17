@@ -1,5 +1,6 @@
-﻿import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, Timestamp, limit } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, where, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
+import { useLocation } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { useCommunications } from './useCommunications';
@@ -99,8 +100,22 @@ const readDismissedIds = (storageKey) => {
   }
 };
 
+const mergeDismissedIds = (...entries) => {
+  const merged = entries.flatMap((entry) => normalizeDismissedIds(entry));
+  return Array.from(new Set(merged)).slice(-120);
+};
+
+const writeDismissedIds = (storageKey, ids) => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(normalizeDismissedIds(ids)));
+  } catch {
+    // no-op
+  }
+};
+
 export function useNotifications() {
   const { user, role } = useAuth();
+  const location = useLocation();
   const { unreadCommunications } = useCommunications();
   const { conversations } = useConversations({ user, role });
   const [dismissedSnackAssignedKeys, setDismissedSnackAssignedKeys] = useState([]);
@@ -123,9 +138,41 @@ export function useNotifications() {
     const snackKey = `pn:dismissedSnackAssigned:${user.uid}`;
     const appointmentKey = `pn:dismissedAppointmentAssigned:${user.uid}`;
 
-    setDismissedSnackAssignedKeys(readDismissedIds(snackKey));
-    setDismissedAppointmentAssignedKeys(readDismissedIds(appointmentKey));
+    const localSnackIds = readDismissedIds(snackKey);
+    const localAppointmentIds = readDismissedIds(appointmentKey);
+
+    setDismissedSnackAssignedKeys(localSnackIds);
+    setDismissedAppointmentAssignedKeys(localAppointmentIds);
     setDismissedHydrated(true);
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
+        const currentLocalSnackIds = readDismissedIds(snackKey);
+        const currentLocalAppointmentIds = readDismissedIds(appointmentKey);
+        const remoteData = snapshot.exists() ? snapshot.data() : {};
+        const mergedSnackIds = mergeDismissedIds(
+          currentLocalSnackIds,
+          remoteData.dismissedSnackAssignedKeys
+        );
+        const mergedAppointmentIds = mergeDismissedIds(
+          currentLocalAppointmentIds,
+          remoteData.dismissedAppointmentAssignedKeys
+        );
+
+        setDismissedSnackAssignedKeys(mergedSnackIds);
+        setDismissedAppointmentAssignedKeys(mergedAppointmentIds);
+        writeDismissedIds(snackKey, mergedSnackIds);
+        writeDismissedIds(appointmentKey, mergedAppointmentIds);
+        setDismissedHydrated(true);
+      },
+      () => {
+        setDismissedHydrated(true);
+      }
+    );
+
+    return unsubscribe;
   }, [user?.uid]);
 
   useEffect(() => {
@@ -499,6 +546,59 @@ export function useNotifications() {
     return b.timestamp - a.timestamp;
   });
 
+  const persistDismissedIds = async (updates) => {
+    if (!user?.uid) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), updates);
+    } catch {
+      // Si el perfil no existe o no hay permisos de update, mantenemos fallback local.
+    }
+  };
+
+  // Si la familia entra a Turnos/Snacks por menú (sin click en campana),
+  // marcamos como leídas las notificaciones "asignado" correspondientes.
+  useEffect(() => {
+    if (!user?.uid || role !== ROLES.FAMILY) return;
+    if (!location.pathname.startsWith('/portal/familia/snacks')) return;
+
+    const keysToDismiss = assignedSnackNotifications
+      .map(getSnackAssignedDismissKey)
+      .filter(Boolean);
+
+    if (keysToDismiss.length === 0) return;
+
+    const snackStorageKey = `pn:dismissedSnackAssigned:${user.uid}`;
+    setDismissedSnackAssignedKeys((current) => {
+      const hasNew = keysToDismiss.some((key) => !current.includes(key));
+      if (!hasNew) return current;
+      const next = mergeDismissedIds(current, keysToDismiss);
+      writeDismissedIds(snackStorageKey, next);
+      void persistDismissedIds({ dismissedSnackAssignedKeys: next });
+      return next;
+    });
+  }, [location.pathname, role, user?.uid, assignedSnackNotifications]);
+
+  useEffect(() => {
+    if (!user?.uid || role !== ROLES.FAMILY) return;
+    if (!location.pathname.startsWith('/portal/familia/turnos')) return;
+
+    const keysToDismiss = assignedNotifications
+      .map(getAppointmentAssignedDismissKey)
+      .filter(Boolean);
+
+    if (keysToDismiss.length === 0) return;
+
+    const appointmentStorageKey = `pn:dismissedAppointmentAssigned:${user.uid}`;
+    setDismissedAppointmentAssignedKeys((current) => {
+      const hasNew = keysToDismiss.some((key) => !current.includes(key));
+      if (!hasNew) return current;
+      const next = mergeDismissedIds(current, keysToDismiss);
+      writeDismissedIds(appointmentStorageKey, next);
+      void persistDismissedIds({ dismissedAppointmentAssignedKeys: next });
+      return next;
+    });
+  }, [location.pathname, role, user?.uid, assignedNotifications]);
+
   return {
     notifications,
     totalCount: notifications.length,
@@ -510,28 +610,28 @@ export function useNotifications() {
       if (notification.type === 'snack-asignado') {
         const key = getSnackAssignedDismissKey(notification);
         if (!key) return;
-        if (dismissedSnackAssignedKeys.includes(key)) return;
-        const next = Array.from(new Set([...dismissedSnackAssignedKeys, key])).slice(-120);
-        try {
-          localStorage.setItem(`pn:dismissedSnackAssigned:${user.uid}`, JSON.stringify(next));
-        } catch {
-          // no-op
-        }
-        setDismissedSnackAssignedKeys(next);
+        const snackStorageKey = `pn:dismissedSnackAssigned:${user.uid}`;
+        setDismissedSnackAssignedKeys((current) => {
+          if (current.includes(key)) return current;
+          const next = mergeDismissedIds(current, [key]);
+          writeDismissedIds(snackStorageKey, next);
+          void persistDismissedIds({ dismissedSnackAssignedKeys: next });
+          return next;
+        });
         return;
       }
 
       if (notification.type === 'turno-asignado') {
         const key = getAppointmentAssignedDismissKey(notification);
         if (!key) return;
-        if (dismissedAppointmentAssignedKeys.includes(key)) return;
-        const next = Array.from(new Set([...dismissedAppointmentAssignedKeys, key])).slice(-120);
-        try {
-          localStorage.setItem(`pn:dismissedAppointmentAssigned:${user.uid}`, JSON.stringify(next));
-        } catch {
-          // no-op
-        }
-        setDismissedAppointmentAssignedKeys(next);
+        const appointmentStorageKey = `pn:dismissedAppointmentAssigned:${user.uid}`;
+        setDismissedAppointmentAssignedKeys((current) => {
+          if (current.includes(key)) return current;
+          const next = mergeDismissedIds(current, [key]);
+          writeDismissedIds(appointmentStorageKey, next);
+          void persistDismissedIds({ dismissedAppointmentAssignedKeys: next });
+          return next;
+        });
         return;
       }
     },
@@ -546,3 +646,4 @@ export function useNotifications() {
     }
   };
 }
+

@@ -2,6 +2,7 @@
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { Breadcrumbs } from './Breadcrumbs';
+import '../../styles/layout.css';
 
 /**
  * Layout - Wrapper global para páginas autenticadas
@@ -32,30 +33,24 @@ export function Layout({ children }) {
         <div className="layout-main">
           <Breadcrumbs />
           <main className="main-content">{children}</main>
-          <footer style={{ 
-            textAlign: 'center', 
-            padding: 'var(--spacing-sm)', 
-            fontSize: 'var(--font-size-xs)', 
-            color: 'var(--color-text-light)',
-            opacity: 0.6,
-            marginTop: 'var(--spacing-xl)'
-          }}>
-            &copy; 2026 Puerto Nuevo. Dise&ntilde;o y desarrollo{' '}
-            <a 
-              href="https://www.frandoweb.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ 
-                color: 'var(--color-primary)', 
-                textDecoration: 'none',
-                fontWeight: 500,
-                transition: 'opacity 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-              onMouseLeave={(e) => e.target.style.opacity = '1'}
-            >
-              www.Frandoweb.com
-            </a>
+          <footer className="layout-footer">
+            <div className="layout-footer__content">
+              <span className="layout-footer__text">
+                &copy; 2026 Montessori Puerto Nuevo
+              </span>
+              <span className="layout-footer__text">
+                Diseño y desarrollo:{' '}
+                <a 
+                  href="https://www.frandoweb.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="layout-footer__link"
+                  aria-label="Visitar Frandoweb - Diseño y desarrollo del sitio"
+                >
+                  www.Frandoweb.com
+                </a>
+              </span>
+            </div>
           </footer>
         </div>
       </div>

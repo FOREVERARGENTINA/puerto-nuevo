@@ -1786,6 +1786,10 @@
   text-align: center;
 }
 
+.login-page .login-card__logo-mobile {
+  display: none;
+}
+
 .login-card__subtitle {
   font-size: var(--font-size-md);
   color: var(--color-text-light);
@@ -1885,6 +1889,23 @@
   .login-split__right {
     min-height: 100vh;
     padding: var(--spacing-lg);
+  }
+
+  .login-page .login-card__logo-mobile {
+    display: block;
+    max-width: 210px;
+    width: 100%;
+    height: auto;
+    margin: 0 auto var(--spacing-md);
+    background: rgba(255, 255, 255, 0.92);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 14px;
+    border: 1px solid rgba(47, 111, 106, 0.22);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .login-page .login-card__title {
+    display: none;
   }
 }
 

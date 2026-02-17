@@ -296,6 +296,7 @@ const BookAppointment = () => {
   }
 
   const upcomingAppointments = getUpcomingAppointments();
+  const hasUpcomingAppointments = upcomingAppointments.length > 0;
   const selectedDateAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
   const upcomingAppointmentIds = new Set(upcomingAppointments.map(app => app.id));
   const appointmentHistory = myAppointments
@@ -345,13 +346,18 @@ const BookAppointment = () => {
 
       {/*
         DOM order matches the desired mobile stack:
-          1. upcoming-panel  (Próximo turno)
-          2. calendar-panel  (Calendario + Horarios en mobile-slots)
-          3. list-panel      (Horarios — desktop only, hidden on mobile)
-          4. extras-panel    (Cómo reservar + Historial)
+          - Con próximo turno: upcoming -> calendario -> extras
+          - Sin próximo turno: calendario -> extras -> upcoming (fallback)
+          - list-panel (Horarios) se mantiene para desktop.
         CSS grid places panels into 3 columns on desktop via explicit grid-column.
       */}
-      <div className="appointments-manager-layout appointments-manager-layout--family">
+      <div
+        className={`appointments-manager-layout appointments-manager-layout--family ${
+          hasUpcomingAppointments
+            ? 'appointments-manager-layout--family-has-upcoming'
+            : 'appointments-manager-layout--family-no-upcoming'
+        }`}
+      >
 
         {/* ── 1: Próximo turno ── */}
         <div className="appointments-upcoming-panel">
@@ -382,7 +388,7 @@ const BookAppointment = () => {
                   </div>
                 ) : (
                   <div className="empty-state empty-state--compact">
-                    <p className="empty-state__text">No tenés turnos reservados.</p>
+                    <p className="empty-state__text">No tenés turnos reservados por ahora.</p>
                     <p className="form-help">Seleccioná un día en el calendario para ver horarios disponibles.</p>
                   </div>
                 )}
@@ -592,6 +598,7 @@ const BookAppointment = () => {
                     <ol className="appointments-guide-list">
                       <li>Elegí un día en el calendario con disponibilidad.</li>
                       <li>Seleccioná un horario en la lista de turnos.</li>
+                      <li>Elegí modalidad: virtual o presencial.</li>
                       <li>Completá el formulario y confirmá.</li>
                     </ol>
                     <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>

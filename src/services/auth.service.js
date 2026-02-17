@@ -8,6 +8,9 @@ import { httpsCallable } from 'firebase/functions';
 import { auth } from '../config/firebase';
 import { functions } from '../config/firebase';
 
+const PASSWORD_RESET_URL =
+  import.meta.env.VITE_PASSWORD_RESET_URL || 'https://www.montessoripuertonuevo.com.ar/auth/accion';
+
 export const authService = {
   // Login
   async login(email, password) {
@@ -32,7 +35,10 @@ export const authService = {
   // Reset password
   async resetPassword(email) {
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, email, {
+        url: PASSWORD_RESET_URL,
+        handleCodeInApp: false
+      });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

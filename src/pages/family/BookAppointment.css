@@ -17,23 +17,6 @@
   grid-template-columns: 1fr;
 }
 
-/* Orden mobile explicito para evitar colisiones con components.css */
-.page-container .appointments-manager-layout--family .appointments-upcoming-panel {
-  order: 1;
-}
-
-.page-container .appointments-manager-layout--family .appointments-calendar-panel {
-  order: 2;
-}
-
-.page-container .appointments-manager-layout--family .appointments-list-panel--family-main {
-  order: 3;
-}
-
-.page-container .appointments-manager-layout--family .appointments-extras-panel {
-  order: 4;
-}
-
 /* Extras panel apilado en mobile */
 .page-container .appointments-extras-panel {
   display: flex;
@@ -44,6 +27,41 @@
 /* En mobile el panel de horarios del desktop se oculta;
    los horarios ya aparecen dentro del calendario (mobile-slots) */
 @media (max-width: 768px) {
+  /* Mobile con próximos turnos: arriba "Próximos turnos". */
+  .page-container .appointments-manager-layout--family-has-upcoming .appointments-upcoming-panel {
+    order: 1;
+  }
+
+  .page-container .appointments-manager-layout--family-has-upcoming .appointments-calendar-panel {
+    order: 2;
+  }
+
+  .page-container .appointments-manager-layout--family-has-upcoming .appointments-list-panel--family-main {
+    order: 3;
+  }
+
+  .page-container .appointments-manager-layout--family-has-upcoming .appointments-extras-panel {
+    order: 4;
+  }
+
+  /* Mobile sin próximos turnos: primero calendario/horarios, luego colapsables,
+     y al final el bloque de "Próximos turnos" (estado vacío). */
+  .page-container .appointments-manager-layout--family-no-upcoming .appointments-calendar-panel {
+    order: 1;
+  }
+
+  .page-container .appointments-manager-layout--family-no-upcoming .appointments-list-panel--family-main {
+    order: 2;
+  }
+
+  .page-container .appointments-manager-layout--family-no-upcoming .appointments-extras-panel {
+    order: 3;
+  }
+
+  .page-container .appointments-manager-layout--family-no-upcoming .appointments-upcoming-panel {
+    order: 4;
+  }
+
   .page-container .appointments-list-panel--family-main {
     display: none;
   }

@@ -83,6 +83,8 @@ function App() {
           {/* Login */}
           <Route path="/portal/login" element={<Login />} />
           <Route path="/portal/auth/accion" element={<AuthAction />} />
+          <Route path="/auth/accion" element={<AuthAction />} />
+          <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
 
           {/* Admin Routes */}
           <Route

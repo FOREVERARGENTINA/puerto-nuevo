@@ -17,6 +17,9 @@ export default defineConfig({
       // Manifest canonico en public/manifest.webmanifest para control total (iOS + locale)
       manifest: false,
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
         globIgnores: [

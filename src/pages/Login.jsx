@@ -51,6 +51,11 @@ export function Login() {
         </div>
         <div className="login-split__right">
           <div className="login-card">
+            <img
+              src={logoLogin}
+              alt="Puerto Nuevo"
+              className="login-card__logo-mobile"
+            />
             <h2 className="login-card__title">Acceso al portal</h2>
             <p className="login-card__subtitle">Ingresa a tu cuenta</p>
             <LoginForm />
