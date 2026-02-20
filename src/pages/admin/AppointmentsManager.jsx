@@ -74,8 +74,7 @@ const AppointmentsManager = () => {
     horaInicio: '09:00',
     horaFin: '17:00',
     duracionMinutos: 30,
-    intervaloMinutos: 0,
-    modalidad: ''
+    intervaloMinutos: 0
   });
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -352,11 +351,10 @@ const AppointmentsManager = () => {
       horaInicio,
       horaFin,
       duracionMinutos,
-      intervaloMinutos,
-      modalidad
+      intervaloMinutos
     } = slotsForm;
     
-    if (!diaSemana || !fechaDesde || !fechaHasta || !horaInicio || !horaFin || !modalidad) {
+    if (!diaSemana || !fechaDesde || !fechaHasta || !horaInicio || !horaFin) {
       alert('Por favor completa todos los campos');
       return;
     }
@@ -384,8 +382,7 @@ const AppointmentsManager = () => {
       while (currentTime < endTime) {
         slots.push({
           fechaHora: Timestamp.fromDate(new Date(currentTime)),
-          duracionMinutos: parseInt(duracionMinutos),
-          modalidad
+          duracionMinutos: parseInt(duracionMinutos)
         });
         
         currentTime.setMinutes(currentTime.getMinutes() + parseInt(duracionMinutos) + parseInt(intervaloMinutos));
@@ -411,7 +408,7 @@ const AppointmentsManager = () => {
 
     confirmDialog.openDialog({
       title: 'Crear Turnos',
-      message: `Se crearán ${slots.length} turnos disponibles (${getAppointmentModeLabel(slotsForm.modalidad)}). ¿Deseas continuar?`,
+      message: `Se crearán ${slots.length} turnos disponibles. ¿Deseas continuar?`,
       onConfirm: async () => {
         const result = await appointmentsService.createTimeSlots(slots);
         if (result.success) {
@@ -593,7 +590,7 @@ const AppointmentsManager = () => {
       return;
     }
     setAssignError('');
-    setAssignMode(selectedAppointment?.modalidad || '');
+    setAssignMode('');
     setShowAssignModal(true);
   };
 
@@ -1070,21 +1067,6 @@ const AppointmentsManager = () => {
                       min="0"
                       step="5"
                     />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="modalidad">Modalidad de reunión *</label>
-                    <select
-                      id="modalidad"
-                      name="modalidad"
-                      className="form-input"
-                      value={slotsForm.modalidad}
-                      onChange={handleSlotFormChange}
-                    >
-                      <option value="">Seleccionar modalidad...</option>
-                      <option value="presencial">Presencial</option>
-                      <option value="virtual">Virtual</option>
-                    </select>
                   </div>
                 </div>
               </section>

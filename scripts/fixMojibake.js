@@ -10,7 +10,6 @@
  *  - Limit collections:  node scripts/fixMojibake.js --collections=children,users
  */
 import fs from 'fs';
-import path from 'path';
 import admin from 'firebase-admin';
 
 const argv = process.argv.slice(2);
@@ -25,7 +24,12 @@ const includeCollections = collectionsArg
 const keyArg = argv.find(arg => arg.startsWith('--key='));
 const keyPath = keyArg
   ? keyArg.split('=')[1]
-  : process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve('functions', 'service-account-key.json');
+  : process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+if (!keyPath) {
+  console.error('Missing credentials. Set GOOGLE_APPLICATION_CREDENTIALS or pass --key=path/to/key.json');
+  process.exit(1);
+}
 
 if (!fs.existsSync(keyPath)) {
   console.error(`Service account key not found at ${keyPath}. Set GOOGLE_APPLICATION_CREDENTIALS or pass --key=...`);

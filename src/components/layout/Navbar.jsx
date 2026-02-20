@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useTheme } from '../../hooks/useTheme';
 import { useAdminSummary } from '../../hooks/useAdminSummary';
 import { authService } from '../../services/auth.service';
@@ -21,6 +22,13 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
   const { user, isAdmin } = useAuth();
   const { notifications, totalCount, dismissNotification } = useNotifications();
   const { canInstall, shouldShowIosInstall, promptInstall } = usePwaInstall();
+  const {
+    shouldOfferPush,
+    isPushEnabled,
+    isActivatingPush,
+    iosNeedsInstall,
+    enablePush
+  } = usePushNotifications(user);
   const { theme } = useTheme();
   const { summary, loading: summaryLoading } = useAdminSummary(isAdmin);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -97,6 +105,19 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
     }
     if (shouldShowIosInstall) {
       setShowInstallHelp(true);
+    }
+  };
+
+  const handleEnablePush = async () => {
+    if (iosNeedsInstall) {
+      setShowInstallHelp(true);
+      return;
+    }
+
+    const enabled = await enablePush();
+    if (enabled) {
+      localStorage.setItem('push-permission-status', 'enabled');
+      setShowUserMenu(false);
     }
   };
 
@@ -185,6 +206,28 @@ export function Navbar({ onToggleSidebar, onCloseSidebar, isSidebarOpen }) {
                 <button type="button" className="user-menu__item user-menu__install" onClick={handleInstallClick}>
                   Instalar app
                 </button>
+              )}
+              {user?.uid && (shouldOfferPush || isPushEnabled || iosNeedsInstall) && (
+                <>
+                  {isPushEnabled && !iosNeedsInstall ? (
+                    <div className="user-menu__status user-menu__status--success" aria-live="polite">
+                      Notificaciones activas en este navegador
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="user-menu__item user-menu__install"
+                      onClick={handleEnablePush}
+                      disabled={isActivatingPush}
+                    >
+                      {iosNeedsInstall
+                        ? 'Instalar para notificaciones'
+                        : isActivatingPush
+                          ? 'Activando notificaciones...'
+                          : 'Activar notificaciones'}
+                    </button>
+                  )}
+                </>
               )}
               <button className="btn btn--outline btn--sm user-menu__logout" onClick={handleLogout}>
                 Cerrar Sesion

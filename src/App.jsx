@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
@@ -66,17 +66,57 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/sections/gallery.css';
 
-// Componente de loading
-const PageLoader = () => <LoadingScreen message="Cargando..." />;
+const LOADER_EXIT_MS = 180;
+
+function SuspenseFallbackSignal({ onShow, onHide }) {
+  useEffect(() => {
+    onShow();
+    return () => onHide();
+  }, [onShow, onHide]);
+
+  return null;
+}
 
 function App() {
+  const [isLoaderVisible, setIsLoaderVisible] = useState(false);
+  const [isLoaderExiting, setIsLoaderExiting] = useState(false);
+  const loaderExitTimerRef = useRef(null);
+
+  const showLoader = useCallback(() => {
+    if (loaderExitTimerRef.current) {
+      clearTimeout(loaderExitTimerRef.current);
+      loaderExitTimerRef.current = null;
+    }
+    setIsLoaderVisible(true);
+    setIsLoaderExiting(false);
+  }, []);
+
+  const hideLoader = useCallback(() => {
+    setIsLoaderExiting(true);
+    if (loaderExitTimerRef.current) {
+      clearTimeout(loaderExitTimerRef.current);
+    }
+    loaderExitTimerRef.current = setTimeout(() => {
+      setIsLoaderVisible(false);
+      setIsLoaderExiting(false);
+      loaderExitTimerRef.current = null;
+    }, LOADER_EXIT_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (loaderExitTimerRef.current) {
+      clearTimeout(loaderExitTimerRef.current);
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-        <PwaInstallPrompt />
-        <Suspense fallback={<PageLoader />}>
-        <Routes>
+        <div className="app-entry">
+          <BrowserRouter>
+          <PwaInstallPrompt />
+          <Suspense fallback={<SuspenseFallbackSignal onShow={showLoader} onHide={hideLoader} />}>
+          <Routes>
           {/* Landing Page */}
           <Route path="/" element={<UnderConstruction />} />
 
@@ -701,10 +741,12 @@ function App() {
               </div>
             }
           />
-        </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </AuthProvider>
+          </Routes>
+          </Suspense>
+          {isLoaderVisible && <LoadingScreen message="Cargando..." isExiting={isLoaderExiting} />}
+          </BrowserRouter>
+        </div>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

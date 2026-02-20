@@ -2,7 +2,6 @@
 
 **Fecha:** 2026-02-19
 **Estado:** Aprobado
-**Autor:** Claude Code + Equipo Puerto Nuevo
 
 ## Resumen Ejecutivo
 

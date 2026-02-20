@@ -7,8 +7,10 @@ admin.initializeApp();
 // Importar triggers
 const { onCommunicationCreated, onCommunicationUpdated } = require('./src/triggers/onCommunicationCreated');
 const { onConversationMessageCreated } = require('./src/triggers/onConversationMessageCreated');
+const { onConversationUpdated } = require('./src/triggers/onConversationUpdated');
 const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned');
 const { onDocumentWithMandatoryReading } = require('./src/triggers/onDocumentCreated');
+const { onEventCreated } = require('./src/triggers/onEventCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 const { maskEmail } = require('./src/utils/logging');
 
@@ -324,8 +326,10 @@ exports.deleteUser = onCallWithCors(async (request) => {
 exports.onCommunicationCreated = onCommunicationCreated;
 exports.onCommunicationUpdated = onCommunicationUpdated;
 exports.onConversationMessageCreated = onConversationMessageCreated;
+exports.onConversationUpdated = onConversationUpdated;
 exports.onAppointmentAssigned = onAppointmentAssigned;
 exports.onDocumentWithMandatoryReading = onDocumentWithMandatoryReading;
+exports.onEventCreated = onEventCreated;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

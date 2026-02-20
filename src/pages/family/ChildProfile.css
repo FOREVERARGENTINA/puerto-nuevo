@@ -42,21 +42,7 @@
 /* ─── Page Header ─────────────────────────────────────────── */
 
 .family-children-page .dashboard-header--compact {
-  padding-bottom: var(--spacing-lg);
-}
-
-.family-children-page .dashboard-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  letter-spacing: -0.4px;
-  line-height: var(--line-height-tight);
-}
-
-.family-children-page .dashboard-subtitle {
-  color: var(--color-text-light);
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 /* ─── Grid de tarjetas ───────────────────────────────────── */

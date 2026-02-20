@@ -259,10 +259,17 @@ export const conversationsService = {
 
   async closeConversation(conversationId, closedByUid) {
     try {
+      // Al cerrar una conversación, también limpiamos los contadores de mensajes sin leer
+      // para evitar que usuarios (familia/escuela) sigan viendo notificaciones pendientes.
       await updateDoc(doc(conversationsCollection, conversationId), {
         estado: CONVERSATION_STATUS.CERRADA,
         cerradoAt: serverTimestamp(),
         cerradoPor: closedByUid || null,
+        mensajesSinLeerFamilia: 0,
+        mensajesSinLeerEscuela: 0,
+        // opcional: actualizar timestamps de "visto" para coherencia con markConversationRead
+        ultimoMensajeVistoPorFamilia: serverTimestamp(),
+        ultimoMensajeVistoPorEscuela: serverTimestamp(),
         actualizadoAt: serverTimestamp()
       });
       return { success: true };

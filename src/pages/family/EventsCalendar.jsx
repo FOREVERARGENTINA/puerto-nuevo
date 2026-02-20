@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { eventsService } from '../../services/events.service';
 import { childrenService } from '../../services/children.service';
 import { useAuth } from '../../hooks/useAuth';
-import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
 import './EventsCalendar.css';
@@ -24,6 +22,10 @@ export function EventsCalendar() {
   ];
 
   const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  const headerTitle = isFamily ? 'Eventos' : 'Calendario de Eventos';
+  const headerSubtitle = isFamily
+    ? 'Actividades y fechas importantes de la escuela'
+    : 'Calendario institucional de actividades y fechas importantes';
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -249,24 +251,24 @@ export function EventsCalendar() {
 
   return (
     <div className="container page-container events-calendar-page">
-      <div className="dashboard-header dashboard-header--compact">
+      <div className="dashboard-header dashboard-header--compact communications-header">
         <div>
-          <h1 className="dashboard-title">Calendario de Eventos</h1>
-          <p className="dashboard-subtitle">Actividades y fechas importantes de la escuela</p>
+          <h1 className="dashboard-title">{headerTitle}</h1>
+          <p className="dashboard-subtitle">{headerSubtitle}</p>
         </div>
-        <Link to={ROUTES.FAMILY_DASHBOARD} className="btn btn--outline btn--back">
-          <Icon name="chevron-left" size={16} />
-          Volver
-        </Link>
+        <div className="communications-summary">
+          <span className="badge badge--info">
+            {visibleEvents.length} {visibleEvents.length === 1 ? 'evento' : 'eventos'}
+          </span>
+        </div>
       </div>
 
-      <div className="dashboard-content">
-        {loading ? (
-          <div className="empty-state">
-            <p>Cargando eventos...</p>
-          </div>
-        ) : (
-          <div className="events-manager-layout">
+      {loading ? (
+        <div className="empty-state">
+          <p>Cargando eventos...</p>
+        </div>
+      ) : (
+        <div className="events-manager-layout">
             {/* Panel del calendario */}
             <div className="card events-calendar-panel">
               <div className="card__header">
@@ -434,8 +436,7 @@ export function EventsCalendar() {
               )}
             </div>
           </div>
-        )}
-      </div>
+      )}
 
       <EventDetailModal
         event={selectedEvent}

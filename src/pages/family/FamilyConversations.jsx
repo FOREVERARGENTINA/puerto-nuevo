@@ -42,7 +42,7 @@ export function FamilyConversations() {
   }
 
   return (
-    <div className="page-container family-conversations-page">
+    <div className="container page-container family-conversations-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Conversaciones</h1>

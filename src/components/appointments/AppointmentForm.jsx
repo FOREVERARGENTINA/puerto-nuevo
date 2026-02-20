@@ -4,15 +4,27 @@ import { useDialog } from '../../hooks/useDialog';
 import Icon from '../ui/Icon';
 import './AppointmentForm.css';
 
-const normalizeAppointmentMode = (value) => (
-  value === 'virtual' || value === 'presencial' ? value : ''
+/* ── Íconos de modalidad (declarados a nivel de módulo para evitar creación durante render) ── */
+const PresencialIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const VirtualIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M10 8l5 3-5 3V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
 );
 
 const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     hijoId: '',
     nota: '',
-    modalidad: normalizeAppointmentMode(appointment?.modalidad)
+    modalidad: ''
   });
   const [loading, setLoading] = useState(false);
   const alertDialog = useDialog();
@@ -27,7 +39,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      modalidad: normalizeAppointmentMode(appointment?.modalidad)
+      modalidad: ''
     }));
   }, [appointment?.id, appointment?.modalidad]);
 
@@ -76,21 +88,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     });
   };
 
-  /* ── Íconos de modalidad ── */
-  const PresencialIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-
-  const VirtualIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M10 8l5 3-5 3V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
+  /* icons moved to module scope: PresencialIcon / VirtualIcon */
 
   return (
     <div className="appointment-form-container">
@@ -242,3 +240,4 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 };
 
 export default AppointmentForm;
+

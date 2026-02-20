@@ -494,3 +494,32 @@
     gap: var(--spacing-xs);
   }
 }
+
+@media (max-width: 900px) {
+  .documents-admin-page .documents-layout--admin {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .documents-admin-page .documents-calendar-panel {
+    position: static;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .documents-admin-page .documents-calendar-panel .card__body {
+    overflow-x: hidden;
+  }
+
+  .documents-admin-page .documents-calendar-panel .event-calendar,
+  .documents-admin-page .documents-calendar-panel .event-calendar__weekdays,
+  .documents-admin-page .documents-calendar-panel .event-calendar__days {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .documents-admin-page .documents-calendar-panel .event-calendar__day {
+    min-width: 0;
+  }
+}

@@ -32,7 +32,7 @@ export function EventDetailModal({ event, isOpen, onClose, adminActions }) {
     const badges = {
       general: 'badge--info',
       reuniones: 'badge--warning',
-      talleres: 'badge--success',
+      talleres: 'badge--primary', /* usar color de marca */
       snacks: 'badge--primary'
     };
     return badges[tipo] || 'badge--neutral';

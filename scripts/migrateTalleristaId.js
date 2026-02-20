@@ -7,13 +7,17 @@
  *  - Specify key:        node scripts/migrateTalleristaId.js --key=path/to/key.json
  */
 import fs from 'fs';
-import path from 'path';
 import admin from 'firebase-admin';
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
 const keyArg = argv.find(a => a.startsWith('--key='));
-const keyPath = keyArg ? keyArg.split('=')[1] : process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve('functions', 'service-account-key.json');
+const keyPath = keyArg ? keyArg.split('=')[1] : process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+if (!keyPath) {
+  console.error('Missing credentials. Set GOOGLE_APPLICATION_CREDENTIALS or pass --key=path/to/key.json');
+  process.exit(1);
+}
 
 if (!fs.existsSync(keyPath)) {
   console.error(`Service account key not found at ${keyPath}. Set GOOGLE_APPLICATION_CREDENTIALS or pass --key=...`);

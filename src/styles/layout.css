@@ -32,6 +32,12 @@
   font-weight: 400;
 }
 
+/* Make the credits line (FrandoWeb) slightly smaller than the main footer text */
+.layout-footer__content .layout-footer__text + .layout-footer__text {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
 .layout-footer__link {
   color: var(--color-primary);
   text-decoration: none;

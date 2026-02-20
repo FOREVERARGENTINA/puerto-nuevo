@@ -15,7 +15,7 @@
   /* Colores por tipo de evento */
   --ec-tipo-general:    var(--color-info);
   --ec-tipo-reuniones:  var(--color-warning);
-  --ec-tipo-talleres:   var(--color-success);
+  --ec-tipo-talleres:   var(--color-primary); /* usar color de marca en lugar de success (verde) */
   --ec-tipo-snacks:     var(--color-primary);
 }
 
@@ -27,25 +27,7 @@
 /* ─── Page Header ─────────────────────────────────────────── */
 
 .events-calendar-page .dashboard-header--compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--ec-border);
-  margin-bottom: var(--spacing-lg);
-}
-
-.events-calendar-page .dashboard-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.4px;
-  color: var(--color-text);
-}
-
-.events-calendar-page .dashboard-subtitle {
-  color: var(--color-text-light);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
 }
 
 /* ─── Panel Calendario ────────────────────────────────────── */
@@ -163,12 +145,28 @@
 }
 
 /* Evento pasado */
+/* No usar `opacity` en el contenedor (afecta badges). Aplicar dim selectivo para mantener
+   la legibilidad del badge "Evento pasado" y la caja fecha. */
 .events-calendar-page .event-item--past {
-  opacity: 0.6;
+  filter: grayscale(0.04) brightness(0.94);
+  transition: filter var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .events-calendar-page .event-item--past:hover {
-  opacity: 0.85;
+  filter: none;
+}
+
+/* Texto del contenido ligeramente atenuado, pero mantener badges con buen contraste */
+.events-calendar-page .event-item--past .event-item__title,
+.events-calendar-page .event-item--past .event-item__time,
+.events-calendar-page .event-item--past .event-item__indicator {
+  color: var(--color-text-light);
+}
+
+.events-calendar-page .event-item--past .event-item__past-badge {
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-background));
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-text) 16%, var(--color-border));
 }
 
 /* Acento de color según tipo */
@@ -216,16 +214,17 @@
 
 /* Caja fecha coloreada según tipo */
 .events-calendar-page .event-item[data-tipo="general"] .event-item__date {
-  background: rgba(82, 155, 191, 0.08);
+  /* Usar la variable de tipo para que responda a dark mode */
+  background: color-mix(in srgb, var(--ec-tipo-general) 8%, var(--color-background));
 }
 .events-calendar-page .event-item[data-tipo="reuniones"] .event-item__date {
-  background: rgba(230, 168, 48, 0.08);
+  background: color-mix(in srgb, var(--ec-tipo-reuniones) 8%, var(--color-background));
 }
 .events-calendar-page .event-item[data-tipo="talleres"] .event-item__date {
-  background: rgba(78, 160, 112, 0.08);
+  background: color-mix(in srgb, var(--ec-tipo-talleres) 8%, var(--color-background));
 }
 .events-calendar-page .event-item[data-tipo="snacks"] .event-item__date {
-  background: var(--color-primary-soft);
+  background: color-mix(in srgb, var(--ec-tipo-snacks) 8%, var(--color-background));
 }
 
 /* ─── Contenido del evento ────────────────────────────────── */
@@ -321,12 +320,6 @@
 }
 
 @media (max-width: 768px) {
-  .events-calendar-page .dashboard-header--compact {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-
   .events-calendar-page .events-calendar-panel {
     position: static;
     order: -1;

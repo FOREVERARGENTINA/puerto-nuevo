@@ -19,11 +19,11 @@ const ChildProfile = () => {
 
     setLoading(true);
     const result = await childrenService.getChildrenByResponsable(user.uid);
-    
+
     if (result.success) {
       setChildren(result.children);
 
-      // Cargar información de todas las familias responsables
+      // Cargar informacion de todas las familias responsables
       const uniqueResponsableIds = [...new Set(
         result.children.flatMap(child => child.responsables || [])
       )];
@@ -107,15 +107,24 @@ const ChildProfile = () => {
     };
   }, [children]);
 
+  const renderHeader = () => (
+    <div className="dashboard-header dashboard-header--compact communications-header">
+      <div>
+        <h1 className="dashboard-title">Fichas de Alumnos</h1>
+        <p className="dashboard-subtitle">Información y datos médicos de tus hijos.</p>
+      </div>
+      <div className="communications-summary">
+        <span className="badge badge--info">
+          {children.length} {children.length === 1 ? 'alumno' : 'alumnos'}
+        </span>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="container page-container family-children-page">
-        <div className="dashboard-header dashboard-header--compact">
-          <div>
-            <h1 className="dashboard-title">Fichas de Alumnos</h1>
-            <p className="dashboard-subtitle">Información completa de cada alumno.</p>
-          </div>
-        </div>
+        {renderHeader()}
         <div className="card">
           <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
             <div className="spinner spinner--lg"></div>
@@ -128,12 +137,7 @@ const ChildProfile = () => {
 
   return (
     <div className="container page-container family-children-page">
-      <div className="dashboard-header dashboard-header--compact">
-        <div>
-          <h1 className="dashboard-title">Fichas de Alumnos</h1>
-          <p className="dashboard-subtitle">Información y datos médicos de tus hijos.</p>
-        </div>
-      </div>
+      {renderHeader()}
 
       {children.length === 0 ? (
         <div className="empty-state card">
@@ -160,6 +164,3 @@ const ChildProfile = () => {
 };
 
 export default ChildProfile;
-
-
-

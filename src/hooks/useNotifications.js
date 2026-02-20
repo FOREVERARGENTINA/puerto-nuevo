@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
@@ -126,6 +126,7 @@ export function useNotifications() {
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [assignedAppointments, setAssignedAppointments] = useState([]);
   const [pendingDocuments, setPendingDocuments] = useState([]);
+  const [recentEventNotifications, setRecentEventNotifications] = useState([]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -198,16 +199,19 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!user) {
+      setRecentEventNotifications([]);
       return;
     }
 
     if (role !== ROLES.FAMILY) {
+      setRecentEventNotifications([]);
       return;
     }
 
     const now = new Date();
     const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const assignedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const eventsSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     let legacySnacks = [];
     let arraySnacks = [];
@@ -338,6 +342,47 @@ export function useNotifications() {
       setPendingDocuments(docs);
     });
 
+    let familyAmbientes = [];
+    let recentEvents = [];
+
+    const recomputeRecentEvents = () => {
+      const visibleEvents = recentEvents.filter((evt) => {
+        if (evt.communicationId) return false;
+        if (evt.scope !== 'taller') return true;
+        if (!familyAmbientes.length) return false;
+        if (evt.ambiente && familyAmbientes.includes(evt.ambiente)) return true;
+        return false;
+      });
+      setRecentEventNotifications(visibleEvents);
+    };
+
+    const familyChildrenQuery = query(
+      collection(db, 'children'),
+      where('responsables', 'array-contains', user.uid),
+      limit(80)
+    );
+
+    const unsubFamilyChildren = onSnapshot(familyChildrenQuery, (snapshot) => {
+      familyAmbientes = Array.from(new Set(
+        snapshot.docs
+          .map((doc) => doc.data()?.ambiente)
+          .filter(Boolean)
+      ));
+      recomputeRecentEvents();
+    });
+
+    const eventsQuery = query(
+      collection(db, 'events'),
+      where('createdAt', '>=', Timestamp.fromDate(eventsSince)),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+
+    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
+      recentEvents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      recomputeRecentEvents();
+    });
+
     return () => {
       unsubSnacksLegacy();
       unsubSnacksArray();
@@ -346,6 +391,8 @@ export function useNotifications() {
       unsubAssigned();
       unsubAssignedArray();
       unsubDocuments();
+      unsubFamilyChildren();
+      unsubEvents();
     };
   }, [user, role]);
 
@@ -377,6 +424,7 @@ export function useNotifications() {
 
   const snacksUrl = '/portal/familia/snacks';
   const appointmentsUrl = '/portal/familia/turnos';
+  const eventsUrl = '/portal/familia/eventos';
   const conversationsUrl = role === ROLES.FAMILY
     ? '/portal/familia/conversaciones'
     : '/portal/admin/conversaciones';
@@ -483,6 +531,20 @@ export function useNotifications() {
       metadata: { appointmentId: appt.id }
     }));
 
+  const recentEventItems = recentEventNotifications.map((event) => ({
+    id: `event-${event.id}`,
+    type: 'evento',
+    title: 'Nuevo evento',
+    message: event.titulo || 'Hay un nuevo evento en el calendario',
+    timestamp: toDateSafe(event.createdAt)
+      || toDateSafe(event.updatedAt)
+      || toDateSafe(event.fecha)
+      || new Date(),
+    urgent: false,
+    actionUrl: eventsUrl,
+    metadata: { eventId: event.id }
+  }));
+
   const notifications = [
     ...conversationNotifications,
     ...relevantCommunications.map((comm) => ({
@@ -495,6 +557,7 @@ export function useNotifications() {
       actionUrl: communicationsUrl,
       metadata: { commId: comm.id }
     })),
+    ...recentEventItems,
     ...pendingDocuments.map((doc) => ({
       id: `doc-${doc.id}`,
       type: 'documento',
@@ -638,6 +701,7 @@ export function useNotifications() {
     byType: {
       conversaciones: conversationNotifications.length,
       comunicados: relevantCommunications.length,
+      eventos: recentEventItems.length,
       documentos: pendingDocuments.length,
       snacks: upcomingSnacks.length,
       snacksAsignados: assignedSnacks.length,
@@ -646,4 +710,3 @@ export function useNotifications() {
     }
   };
 }
-

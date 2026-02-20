@@ -6,6 +6,41 @@ import { CATEGORIES_BY_AREA, ESCUELA_AREAS, ROUTES } from '../../config/constant
 import Icon from '../../components/ui/Icon';
 import './FamilyNewConversation.css';
 
+/* SVG icons moved to module scope to satisfy eslint (react-hooks/static-components) */
+const UploadIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const AreaIcons = {
+  coordinacion: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M6 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="4" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M1 20v-.5A4.5 4.5 0 0 1 5.5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <circle cx="20" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M23 20v-.5A4.5 4.5 0 0 0 18.5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  ),
+  facturacion: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M8 14h4M8 17h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  ),
+  direccion: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+};
+
 export function FamilyNewConversation() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -76,39 +111,7 @@ export function FamilyNewConversation() {
     return `${(kb / 1024).toFixed(1)} MB`;
   };
 
-  const UploadIcon = () => (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-
-  const AreaIcons = {
-    coordinacion: () => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M6 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        <circle cx="4" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
-        <path d="M1 20v-.5A4.5 4.5 0 0 1 5.5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-        <circle cx="20" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
-        <path d="M23 20v-.5A4.5 4.5 0 0 0 18.5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-      </svg>
-    ),
-    facturacion: () => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M3 10h18" stroke="currentColor" strokeWidth="1.5"/>
-        <path d="M8 14h4M8 17h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-      </svg>
-    ),
-    direccion: () => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  };
+  /* icons are declared at module scope (UploadIcon / AreaIcons) to satisfy eslint */
 
   return (
     <div className="container page-container">

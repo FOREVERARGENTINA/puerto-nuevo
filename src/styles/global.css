@@ -30,6 +30,21 @@ body {
               color var(--transition-normal);
 }
 
+/* Entrada sutil al cargar la app completa */
+.app-entry {
+  animation: app-entry-fade-in 260ms ease-out;
+  will-change: opacity;
+}
+
+@keyframes app-entry-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* TIPOGRAFÍA */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-family-headings);
@@ -234,5 +249,11 @@ select:focus-visible {
   .grid-cards,
   .grid-cards-sm {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-entry {
+    animation: none !important;
   }
 }

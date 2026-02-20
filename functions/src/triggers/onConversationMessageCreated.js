@@ -2,13 +2,14 @@
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
-const { escapeHtml, toSafeHtmlParagraph, renderAttachmentList } = require('../utils/sanitize');
+const { escapeHtml, toSafeHtmlParagraph, toPlainText, renderAttachmentList } = require('../utils/sanitize');
+const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 
 const AREA_ROLE_MAP = {
   coordinacion: ['coordinacion'],
-  administracion: ['superadmin'],
+  administracion: ['superadmin', 'facturacion'],
   direccion: ['superadmin']
 };
 
@@ -46,7 +47,6 @@ exports.onConversationMessageCreated = onDocumentCreated(
     if (recipientUids.length === 0) return;
 
     const batchSize = 10;
-    const tokens = [];
 
     const title = isFromFamily
       ? `Nueva consulta de ${conversation.familiaDisplayName || 'Familia'}`
@@ -105,23 +105,33 @@ exports.onConversationMessageCreated = onDocumentCreated(
           }
         }
 
-        if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
-          tokens.push(...u.fcmTokens);
-        }
       }
     }
 
-    if (tokens.length > 0) {
-      try {
-        await admin.messaging().sendMulticast({
-          notification: {
-            title,
-            body
-          },
-          tokens
-        });
-      } catch (err) {
-        console.error('Error enviando push de conversacion:', err);
+    // Fase 1: push solo cuando la escuela responde a la familia.
+    // Protección adicional: no enviar push si la conversación está cerrada (evita notificaciones inválidas)
+    if (!isFromFamily && conversation.familiaUid) {
+      if (conversation.estado === 'cerrada') {
+        console.log(`[Push] Ignorar push para conversacion cerrada ${convId}`);
+      } else {
+        try {
+          const pushResult = await sendPushNotificationToUsers(
+            {
+              title: 'Nuevo mensaje de la escuela',
+              body: toPlainText(body || '').slice(0, 180) || 'Tienes una respuesta',
+              clickAction: `/portal/familia/conversaciones/${convId}`,
+            },
+            {
+              userIds: [conversation.familiaUid],
+              familyOnly: true,
+            }
+          );
+          console.log(
+            `[Push] Conversacion ${convId}: tokens=${pushResult.tokensTargeted}, success=${pushResult.successCount}, failure=${pushResult.failureCount}, cleaned=${pushResult.cleanedCount}`
+          );
+        } catch (err) {
+          console.error('Error enviando push de conversacion:', err);
+        }
       }
     }
   }

@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
 const { escapeHtml, toSafeHtmlParagraph, toPlainText, renderAttachmentList } = require('../utils/sanitize');
 const { maskEmail } = require('../utils/logging');
+const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 
@@ -103,7 +104,33 @@ exports.onCommunicationCreated = onDocumentCreated(
       console.error(`Error expandiendo destinatarios para ${commId}:`, error);
     }
 
-    // Paso 2: envio por email y push, sin afectar persistencia del comunicado.
+    // Paso 2: envio push (siempre) sin depender de email o adjuntos.
+    if (destinatarios.length > 0) {
+      try {
+        const pushTitle = toPlainText(commData.title || 'Nuevo comunicado') || 'Nuevo comunicado';
+        const pushBody = toPlainText(commData.body || '').slice(0, 200) || 'Hay un comunicado importante';
+
+        const pushResult = await sendPushNotificationToUsers(
+          {
+            title: pushTitle,
+            body: pushBody,
+            clickAction: `/portal/familia/comunicados/${commId}`,
+          },
+          {
+            userIds: destinatarios,
+            familyOnly: true,
+          }
+        );
+
+        console.log(
+          `[Push] Comunicado ${commId}: tokens=${pushResult.tokensTargeted}, success=${pushResult.successCount}, failure=${pushResult.failureCount}, cleaned=${pushResult.cleanedCount}`
+        );
+      } catch (pushError) {
+        console.error(`Error enviando push para comunicado ${commId}:`, pushError);
+      }
+    }
+
+    // Paso 3: envio por email, sin afectar persistencia del comunicado.
     console.log(
       `Verificando envio de emails para ${commId}: sendByEmail=${commData.sendByEmail}, hasPendingAttachments=${commData.hasPendingAttachments}, destinatarios=${destinatarios.length}`
     );
@@ -137,8 +164,6 @@ exports.onCommunicationCreated = onDocumentCreated(
           .collection('users')
           .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
           .get();
-
-        const tokens = [];
 
         for (const uDoc of usersSnap.docs) {
           const u = uDoc.data();
@@ -232,29 +257,6 @@ exports.onCommunicationCreated = onDocumentCreated(
               });
             }
           }
-
-          if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
-            tokens.push(...u.fcmTokens);
-          }
-        }
-
-        if (tokens.length > 0) {
-          try {
-            const pushTitle = toPlainText(commData.title || 'Nuevo comunicado');
-            const pushBody = toPlainText(commData.body || '').slice(0, 200);
-            const message = {
-              notification: {
-                title: pushTitle || 'Nuevo comunicado',
-                body: pushBody,
-              },
-              tokens,
-            };
-
-            const response = await admin.messaging().sendMulticast(message);
-            console.log(`Push enviados: success ${response.successCount}, failure ${response.failureCount}`);
-          } catch (err) {
-            console.error('Error enviando push:', err);
-          }
         }
       }
 
@@ -310,8 +312,6 @@ exports.onCommunicationUpdated = onDocumentUpdated(
           .collection('users')
           .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
           .get();
-
-        const tokens = [];
 
         for (const uDoc of usersSnap.docs) {
           const u = uDoc.data();
@@ -400,29 +400,6 @@ exports.onCommunicationUpdated = onDocumentUpdated(
               });
             }
           }
-
-          if (Array.isArray(u.fcmTokens) && u.fcmTokens.length > 0) {
-            tokens.push(...u.fcmTokens);
-          }
-        }
-
-        if (tokens.length > 0) {
-          try {
-            const pushTitle = toPlainText(after.title || 'Nuevo comunicado');
-            const plainBody = toPlainText(after.body || '');
-            const message = {
-              notification: {
-                title: pushTitle || 'Nuevo comunicado',
-                body: (plainBody + (after.attachments && after.attachments.length ? ' - Adjuntos disponibles' : '')).slice(0, 200),
-              },
-              tokens,
-            };
-
-            const response = await admin.messaging().sendMulticast(message);
-            console.log(`Push enviados: success ${response.successCount}, failure ${response.failureCount}`);
-          } catch (err) {
-            console.error('Error enviando push (actualizado):', err);
-          }
         }
       }
     } catch (emailError) {
@@ -435,7 +412,7 @@ async function getGlobalRecipients() {
   const usersSnapshot = await admin
     .firestore()
     .collection('users')
-    .where('role', 'in', ['family', 'teacher', 'admin', 'direccion', 'coordinacion'])
+    .where('role', 'in', ['family', 'docente', 'coordinacion', 'superadmin', 'facturacion'])
     .where('disabled', '==', false)
     .get();
 
@@ -461,7 +438,7 @@ async function getAmbienteRecipients(ambiente) {
   const teachersSnapshot = await admin
     .firestore()
     .collection('users')
-    .where('role', '==', 'teacher')
+    .where('role', '==', 'docente')
     .where('tallerAsignado', '==', ambiente)
     .where('disabled', '==', false)
     .get();

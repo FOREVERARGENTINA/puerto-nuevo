@@ -5,6 +5,8 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  arrayUnion,
+  arrayRemove,
   query,
   where,
   serverTimestamp
@@ -130,6 +132,42 @@ export const usersService = {
       const updateUser = httpsCallable(functions, 'updateUserAuth');
       const result = await updateUser({ uid, ...data });
       return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Agregar token FCM al perfil (array sin duplicados)
+  async addFcmToken(uid, token) {
+    if (!uid || !token) return { success: false, error: 'uid y token requeridos' };
+    try {
+      await setDoc(
+        doc(usersCollection, uid),
+        {
+          fcmTokens: arrayUnion(token),
+          fcmTokensUpdatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Quitar token FCM del perfil
+  async removeFcmToken(uid, token) {
+    if (!uid || !token) return { success: false, error: 'uid y token requeridos' };
+    try {
+      await setDoc(
+        doc(usersCollection, uid),
+        {
+          fcmTokens: arrayRemove(token),
+          fcmTokensUpdatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
     }

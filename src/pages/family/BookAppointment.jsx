@@ -249,6 +249,13 @@ const BookAppointment = () => {
     return 'Sin definir';
   };
 
+  const getSlotSummary = (appointment) => {
+    if (appointment?.modalidad === 'virtual' || appointment?.modalidad === 'presencial') {
+      return `${appointment.duracionMinutos} min • ${getAppointmentModeLabel(appointment.modalidad)}`;
+    }
+    return `${appointment.duracionMinutos} min`;
+  };
+
   const getUpcomingAppointments = () => {
     const now = new Date();
     return myAppointments
@@ -513,7 +520,7 @@ const BookAppointment = () => {
                         <div key={app.id} className="available-slot-item">
                           <div className="slot-time-info">
                             <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                            <div className="slot-duration">{app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}</div>
+                            <div className="slot-duration">{getSlotSummary(app)}</div>
                           </div>
                           <button
                             onClick={() => handleSelectSlot(app)}
@@ -557,7 +564,7 @@ const BookAppointment = () => {
                       <div key={app.id} className="available-slot-item">
                         <div className="slot-time-info">
                           <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                          <div className="slot-duration">{app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}</div>
+                          <div className="slot-duration">{getSlotSummary(app)}</div>
                         </div>
                         <button
                           onClick={() => handleSelectSlot(app)}
