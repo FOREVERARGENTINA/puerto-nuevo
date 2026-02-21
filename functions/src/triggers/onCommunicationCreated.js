@@ -196,15 +196,24 @@ exports.onCommunicationCreated = onDocumentCreated(
                 const safeBodyHtml = toSafeHtmlParagraph(commData.body || '');
                 const attachmentList = renderAttachmentList(commData.attachments);
                 const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+                const isFamilyRecipient = u.role === 'family';
+                const safePortalUrl = escapeHtml(getCommunicationPortalUrl(u.role, commId));
 
                 const payload = {
                   from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
                   to: email,
                   subject:
                     (commData.title || 'Comunicado de la escuela') + (studentList ? ` - ${studentList}` : ''),
-                  html: `${
-                    safeStudentList ? `<p><strong>Comunicado para: ${safeStudentList}</strong></p>` : ''
-                  }<p>${safeBodyHtml}</p>${attachmentsHtml}`,
+                  headers: {
+                    'Content-Language': 'es-AR',
+                  },
+                  html: buildCommunicationEmailHtml({
+                    safeStudentList,
+                    safeBodyHtml,
+                    attachmentsHtml,
+                    safePortalUrl,
+                    isFamilyRecipient,
+                  }),
                 };
 
                 const result = await resendLimiter.retryWithBackoff(async () => {
@@ -330,6 +339,8 @@ exports.onCommunicationUpdated = onDocumentUpdated(
           const safeBodyHtml = toSafeHtmlParagraph(after.body || '');
           const attachmentList = renderAttachmentList(after.attachments);
           const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+          const isFamilyRecipient = u.role === 'family';
+          const safePortalUrl = escapeHtml(getCommunicationPortalUrl(u.role, commId));
 
           await statusRef.set(
             {
@@ -349,7 +360,15 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                   from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
                   to: email,
                   subject: after.title || 'Comunicado de la escuela',
-                  html: `<p>${safeBodyHtml}</p>${attachmentsHtml}`,
+                  headers: {
+                    'Content-Language': 'es-AR',
+                  },
+                  html: buildCommunicationEmailHtml({
+                    safeBodyHtml,
+                    attachmentsHtml,
+                    safePortalUrl,
+                    isFamilyRecipient,
+                  }),
                 };
 
                 const result = await resendLimiter.retryWithBackoff(async () => {
@@ -407,6 +426,47 @@ exports.onCommunicationUpdated = onDocumentUpdated(
     }
   }
 );
+
+function getCommunicationPortalUrl(role, commId) {
+  if (role === 'family') {
+    return `https://montessoripuertonuevo.com.ar/portal/familia/comunicados/${encodeURIComponent(commId)}`;
+  }
+
+  return 'https://montessoripuertonuevo.com.ar/portal/admin/comunicar';
+}
+
+function buildCommunicationEmailHtml({
+  safeStudentList = null,
+  safeBodyHtml,
+  attachmentsHtml = '',
+  safePortalUrl,
+  isFamilyRecipient,
+}) {
+  const openingText = isFamilyRecipient
+    ? 'Hola, compartimos un nuevo comunicado para tu familia.'
+    : 'Hola, se publico un nuevo comunicado institucional.';
+  const ctaLabel = isFamilyRecipient ? 'Ver comunicado' : 'Abrir panel de comunicados';
+  const closingText = isFamilyRecipient
+    ? 'Cariños,<br>Equipo de Montessori Puerto Nuevo'
+    : 'Equipo de Montessori Puerto Nuevo';
+
+  return `
+    <div lang="es">
+    <p>${openingText}</p>
+    ${safeStudentList ? `<p><strong>Comunicado para:</strong> ${safeStudentList}</p>` : ''}
+    <p>${safeBodyHtml}</p>
+    ${attachmentsHtml}
+    <p style="margin:16px 0;">
+      <a href="${safePortalUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">${ctaLabel}</a>
+    </p>
+    <p style="font-size:0.92em;color:#555;">
+      Si no podes abrir el boton, copia este enlace:<br>
+      <a href="${safePortalUrl}" style="color:#1a73e8;">${safePortalUrl}</a>
+    </p>
+    <p style="color:#666;font-size:0.9em;">${closingText}</p>
+    </div>
+  `;
+}
 
 async function getGlobalRecipients() {
   const usersSnapshot = await admin

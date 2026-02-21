@@ -65,7 +65,7 @@ exports.onDocumentWithMandatoryReading = onDocumentCreated(
           },
           read: false,
           createdAt: now,
-          url: '/familia/documentos',
+          url: '/portal/familia/documentos',
         });
       });
 
@@ -105,21 +105,33 @@ exports.onDocumentWithMandatoryReading = onDocumentCreated(
             const fechaLimiteText = document.fechaLimite
               ? `<p><strong>Fecha limite:</strong> ${new Date(document.fechaLimite.toDate()).toLocaleDateString('es-AR')}</p>`
               : '';
+            const documentsUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/documentos';
+            const safeDocumentsUrl = escapeHtml(documentsUrl);
 
             const payload = {
               from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
               to: email,
-              subject: `Documento obligatorio: ${document.titulo}`,
+              subject: `Documento obligatorio: ${document.titulo || 'Documento'}`,
               html: `
-                <h2>Nuevo documento de lectura obligatoria</h2>
+                <div lang="es">
+                <h2>Nuevo documento para lectura obligatoria</h2>
                 <h3>${safeTitle}</h3>
                 ${safeDescription ? `<p>${safeDescription}</p>` : ''}
                 ${fechaLimiteText}
                 <p><strong>Este documento requiere confirmacion de lectura.</strong></p>
-                <p>Ingresa a la plataforma para leer el documento y confirmar tu lectura:</p>
-                <p><a href="https://montessoripuertonuevo.com.ar/familia/documentos" style="background-color: #488284; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Ver documento</a></p>
-                <p style="color: #666; font-size: 0.9em;">Puerto Nuevo Montessori</p>
+                <p style="margin:16px 0;">
+                  <a href="${safeDocumentsUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">Abrir documentos</a>
+                </p>
+                <p style="font-size:0.92em;color:#555;">
+                  Si no podes abrir el boton, copia este enlace:<br>
+                  <a href="${safeDocumentsUrl}" style="color:#1a73e8;">${safeDocumentsUrl}</a>
+                </p>
+                <p style="color:#666;font-size:0.9em;">Cariños,<br>Equipo de Montessori Puerto Nuevo</p>
+                </div>
               `,
+              headers: {
+                'Content-Language': 'es-AR',
+              },
             };
 
             await resendLimiter.retryWithBackoff(async () => {

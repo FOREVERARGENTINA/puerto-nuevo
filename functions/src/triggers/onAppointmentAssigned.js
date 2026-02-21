@@ -2,6 +2,7 @@ const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
+const { escapeHtml } = require('../utils/sanitize');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
 
@@ -52,7 +53,9 @@ exports.onAppointmentAssigned = onDocumentUpdated(
         })
       : 'Fecha por confirmar';
 
-    const subject = 'Turno reservado';
+    const subject = 'Turno reservado - Montessori Puerto Nuevo';
+    const appointmentUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
+    const safeAppointmentUrl = escapeHtml(appointmentUrl);
 
     const batchSize = 10;
     for (let i = 0; i < newRecipients.length; i += batchSize) {
@@ -66,11 +69,23 @@ exports.onAppointmentAssigned = onDocumentUpdated(
         const email = user.email || null;
         if (!email || !resendApiKey.value()) continue;
 
+        const safeFechaTexto = escapeHtml(fechaTexto);
+        const safeChildName = childName ? escapeHtml(childName) : '';
         const html = `
-          <p>La escuela te asignó un turno.</p>
-          <p><strong>Fecha:</strong> ${fechaTexto}</p>
-          ${childName ? `<p><strong>Alumno:</strong> ${childName}</p>` : ''}
-          <p>Ingresá a la plataforma para ver el detalle.</p>
+          <div lang="es">
+          <p>Hola,</p>
+          <p>Te confirmamos que tenés un turno reservado en la escuela.</p>
+          <p><strong>Fecha:</strong> ${safeFechaTexto}</p>
+          ${safeChildName ? `<p><strong>Alumno:</strong> ${safeChildName}</p>` : ''}
+          <p style="margin:16px 0;">
+            <a href="${safeAppointmentUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">Ver detalle del turno</a>
+          </p>
+          <p style="font-size:0.92em;color:#555;">
+            Si no podes abrir el boton, copia este enlace:<br>
+            <a href="${safeAppointmentUrl}" style="color:#1a73e8;">${safeAppointmentUrl}</a>
+          </p>
+          <p style="color:#666;font-size:0.9em;">Cariños,<br>Equipo de Puerto Nuevo</p>
+          </div>
         `;
 
         try {
@@ -85,6 +100,9 @@ exports.onAppointmentAssigned = onDocumentUpdated(
                 from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
                 to: email,
                 subject,
+                headers: {
+                  'Content-Language': 'es-AR'
+                },
                 html
               })
             });

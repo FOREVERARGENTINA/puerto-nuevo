@@ -70,18 +70,35 @@ exports.onConversationMessageCreated = onDocumentCreated(
             const safeAsunto = escapeHtml(conversation.asunto || 'Conversacion');
             const safeMessageHtml = toSafeHtmlParagraph(message.texto || '');
             const attachmentList = renderAttachmentList(message.adjuntos);
+            const conversationPath = isFromFamily
+              ? `/portal/admin/conversaciones/${encodeURIComponent(convId)}`
+              : `/portal/familia/conversaciones/${encodeURIComponent(convId)}`;
+            const safeConversationUrl = escapeHtml(`https://montessoripuertonuevo.com.ar${conversationPath}`);
+            const ctaLabel = isFromFamily ? 'Abrir conversacion' : 'Responder mensaje';
 
             const payload = {
               from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
               to: email,
               subject: `${title} - ${conversation.asunto || 'Conversacion'}`,
               html: `
-                <p>${safeTitle}</p>
+                <div lang="es">
+                <p><strong>${safeTitle}</strong></p>
                 <p><strong>Asunto:</strong> ${safeAsunto}</p>
                 <p>${safeMessageHtml}</p>
                 ${attachmentList ? `<p><strong>Adjuntos:</strong></p>${attachmentList}` : ''}
-                <p>Ingresa a la plataforma para responder.</p>
-              `
+                <p style="margin:16px 0;">
+                  <a href="${safeConversationUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">${ctaLabel}</a>
+                </p>
+                <p style="font-size:0.92em;color:#555;">
+                  Si no podes abrir el boton, copia este enlace:<br>
+                  <a href="${safeConversationUrl}" style="color:#1a73e8;">${safeConversationUrl}</a>
+                </p>
+                <p style="color:#666;font-size:0.9em;">Equipo de Montessori Puerto Nuevo</p>
+                </div>
+              `,
+              headers: {
+                'Content-Language': 'es-AR'
+              }
             };
 
             await resendLimiter.retryWithBackoff(async () => {
