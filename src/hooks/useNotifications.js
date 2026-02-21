@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, collectionGroup, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { useCommunications } from './useCommunications';
 import { useConversations } from './useConversations';
 import { ROLES, ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
+import { resolveCategoryLabel } from '../config/ambienteActivities';
 
 const SNACK_TERMINAL_STATES = new Set(['cancelado', 'completado', 'suspendido']);
 
@@ -37,6 +38,33 @@ const mergeById = (...collections) => {
     });
   });
   return Array.from(map.values());
+};
+
+const toRecipientUid = (rawValue) => {
+  if (typeof rawValue === 'string') {
+    const uid = rawValue.trim();
+    return uid || null;
+  }
+
+  if (rawValue && typeof rawValue.uid === 'string') {
+    const uid = rawValue.uid.trim();
+    return uid || null;
+  }
+
+  return null;
+};
+
+const isPermissionDenied = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    code === 'permission-denied' ||
+    code === 'firestore/permission-denied' ||
+    code.includes('permission-denied') ||
+    code.includes('permission_denied') ||
+    message.includes('missing or insufficient permissions')
+  );
 };
 
 const getSnackWeekStartDate = (snack) => {
@@ -128,6 +156,7 @@ export function useNotifications() {
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [recentEventNotifications, setRecentEventNotifications] = useState([]);
   const [recentResourceNotifications, setRecentResourceNotifications] = useState([]);
+  const [recentAmbienteActivityNotifications, setRecentAmbienteActivityNotifications] = useState([]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -199,15 +228,17 @@ export function useNotifications() {
   }, [user?.uid]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.uid) {
       setRecentEventNotifications([]);
       setRecentResourceNotifications([]);
+      setRecentAmbienteActivityNotifications([]);
       return;
     }
 
     if (role !== ROLES.FAMILY) {
       setRecentEventNotifications([]);
       setRecentResourceNotifications([]);
+      setRecentAmbienteActivityNotifications([]);
       return;
     }
 
@@ -216,6 +247,7 @@ export function useNotifications() {
     const assignedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const eventsSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const resourcesSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const activitiesSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     let legacySnacks = [];
     let arraySnacks = [];
@@ -349,6 +381,8 @@ export function useNotifications() {
     let familyAmbientes = [];
     let recentEvents = [];
     let recentResourcePosts = [];
+    let recentAmbienteActivities = [];
+    let disposed = false;
 
     const recomputeFamilyScopedNotifications = () => {
       const visibleEvents = recentEvents.filter((evt) => {
@@ -366,6 +400,13 @@ export function useNotifications() {
         return familyAmbientes.includes(post.ambiente);
       });
       setRecentResourceNotifications(visibleResources);
+
+      const visibleActivities = recentAmbienteActivities.filter((activity) => {
+        if (!familyAmbientes.length) return false;
+        if (!activity?.ambiente) return false;
+        return familyAmbientes.includes(activity.ambiente);
+      });
+      setRecentAmbienteActivityNotifications(visibleActivities);
     };
 
     const familyChildrenQuery = query(
@@ -374,14 +415,57 @@ export function useNotifications() {
       limit(80)
     );
 
-    const unsubFamilyChildren = onSnapshot(familyChildrenQuery, (snapshot) => {
-      familyAmbientes = Array.from(new Set(
-        snapshot.docs
-          .map((doc) => doc.data()?.ambiente)
-          .filter(Boolean)
-      ));
-      recomputeFamilyScopedNotifications();
-    });
+    const unsubFamilyChildren = onSnapshot(
+      familyChildrenQuery,
+      async (snapshot) => {
+        const primaryAmbientes = new Set(
+          snapshot.docs
+            .map((childDoc) => childDoc.data()?.ambiente)
+            .filter((ambiente) => ['taller1', 'taller2'].includes(ambiente))
+        );
+
+        if (primaryAmbientes.size === 2) {
+          familyAmbientes = Array.from(primaryAmbientes);
+          recomputeFamilyScopedNotifications();
+          return;
+        }
+
+        try {
+          const fallbackQuery = query(
+            collection(db, 'children'),
+            where('ambiente', 'in', ['taller1', 'taller2']),
+            limit(240)
+          );
+          const fallbackSnapshot = await getDocs(fallbackQuery);
+          if (disposed) return;
+
+          const fallbackAmbientes = new Set(primaryAmbientes);
+          fallbackSnapshot.forEach((childDoc) => {
+            const childData = childDoc.data() || {};
+            const responsables = Array.isArray(childData.responsables) ? childData.responsables : [];
+            const isResponsable = responsables.some((entry) => toRecipientUid(entry) === user.uid);
+            if (!isResponsable) return;
+
+            if (childData.ambiente === 'taller1' || childData.ambiente === 'taller2') {
+              fallbackAmbientes.add(childData.ambiente);
+            }
+          });
+
+          familyAmbientes = Array.from(fallbackAmbientes);
+          recomputeFamilyScopedNotifications();
+        } catch {
+          familyAmbientes = Array.from(primaryAmbientes);
+          recomputeFamilyScopedNotifications();
+        }
+      },
+      (error) => {
+        if (!isPermissionDenied(error)) {
+          console.error('[Notifications] Error leyendo ambientes de familia:', error);
+        }
+        familyAmbientes = [];
+        recomputeFamilyScopedNotifications();
+      }
+    );
 
     const eventsQuery = query(
       collection(db, 'events'),
@@ -390,10 +474,20 @@ export function useNotifications() {
       limit(30)
     );
 
-    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
-      recentEvents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      recomputeFamilyScopedNotifications();
-    });
+    const unsubEvents = onSnapshot(
+      eventsQuery,
+      (snapshot) => {
+        recentEvents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        recomputeFamilyScopedNotifications();
+      },
+      (error) => {
+        if (!isPermissionDenied(error)) {
+          console.error('[Notifications] Error leyendo eventos recientes:', error);
+        }
+        recentEvents = [];
+        recomputeFamilyScopedNotifications();
+      }
+    );
 
     const resourcesQuery = query(
       collectionGroup(db, 'resourcePosts'),
@@ -402,15 +496,51 @@ export function useNotifications() {
       limit(30)
     );
 
-    const unsubResources = onSnapshot(resourcesQuery, (snapshot) => {
-      recentResourcePosts = snapshot.docs.map((resourceDoc) => ({
-        id: resourceDoc.id,
-        ...resourceDoc.data()
-      }));
-      recomputeFamilyScopedNotifications();
-    });
+    const unsubResources = onSnapshot(
+      resourcesQuery,
+      (snapshot) => {
+        recentResourcePosts = snapshot.docs.map((resourceDoc) => ({
+          id: resourceDoc.id,
+          ...resourceDoc.data()
+        }));
+        recomputeFamilyScopedNotifications();
+      },
+      (error) => {
+        if (!isPermissionDenied(error)) {
+          console.error('[Notifications] Error leyendo recursos recientes:', error);
+        }
+        recentResourcePosts = [];
+        recomputeFamilyScopedNotifications();
+      }
+    );
+
+    const ambienteActivitiesQuery = query(
+      collection(db, 'ambienteActivities'),
+      where('createdAt', '>=', Timestamp.fromDate(activitiesSince)),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+
+    const unsubAmbienteActivities = onSnapshot(
+      ambienteActivitiesQuery,
+      (snapshot) => {
+        recentAmbienteActivities = snapshot.docs.map((activityDoc) => ({
+          id: activityDoc.id,
+          ...activityDoc.data()
+        }));
+        recomputeFamilyScopedNotifications();
+      },
+      (error) => {
+        if (!isPermissionDenied(error)) {
+          console.error('[Notifications] Error leyendo actividades de ambiente:', error);
+        }
+        recentAmbienteActivities = [];
+        recomputeFamilyScopedNotifications();
+      }
+    );
 
     return () => {
+      disposed = true;
       unsubSnacksLegacy();
       unsubSnacksArray();
       unsubAppointments();
@@ -421,8 +551,9 @@ export function useNotifications() {
       unsubFamilyChildren();
       unsubEvents();
       unsubResources();
+      unsubAmbienteActivities();
     };
-  }, [user, role]);
+  }, [user?.uid, role]);
 
   const relevantCommunications = user
     ? unreadCommunications.filter((comm) => {
@@ -600,6 +731,29 @@ export function useNotifications() {
     };
   });
 
+  const recentAmbienteActivityItems = recentAmbienteActivityNotifications.map((activity) => {
+    const ambiente = typeof activity?.ambiente === 'string' ? activity.ambiente : '';
+    const categoryLabel = resolveCategoryLabel(activity?.category, activity?.customCategory);
+    const actionUrl = `/portal/familia/actividades?ambiente=${encodeURIComponent(ambiente)}&activityId=${encodeURIComponent(activity.id)}`;
+
+    return {
+      id: `activity-${activity.id}`,
+      type: 'actividad-ambiente',
+      title: `Nueva actividad de ${categoryLabel}`,
+      message: activity?.title || 'Hay una nueva actividad disponible',
+      timestamp: toDateSafe(activity?.createdAt)
+        || toDateSafe(activity?.updatedAt)
+        || new Date(),
+      urgent: false,
+      actionUrl,
+      metadata: {
+        activityId: activity.id,
+        ambiente,
+        category: activity?.category || null
+      }
+    };
+  });
+
   const baseNotifications = [
     ...conversationNotifications,
     ...relevantCommunications.map((comm) => ({
@@ -614,6 +768,7 @@ export function useNotifications() {
     })),
     ...recentEventItems,
     ...recentResourceItems,
+    ...recentAmbienteActivityItems,
     ...pendingDocuments.map((doc) => ({
       id: `doc-${doc.id}`,
       type: 'documento',
@@ -779,6 +934,7 @@ export function useNotifications() {
       comunicados: relevantCommunications.length,
       eventos: recentEventItems.length,
       recursos: recentResourceItems.length,
+      actividades: recentAmbienteActivityItems.length,
       documentos: pendingDocuments.length,
       snacks: upcomingSnacks.length,
       snacksAsignados: assignedSnacks.length,

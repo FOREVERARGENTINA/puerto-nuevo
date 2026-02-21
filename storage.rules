@@ -62,6 +62,15 @@ service firebase.storage {
       allow delete: if isAdmin() || isTalleristaAssignedToTaller(tallerId);
     }
 
+    match /ambienteActivities/{activityId}/{ownerUid}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated()
+                            && (isAdmin() || (request.auth.token.role == 'docente' && ownerUid == request.auth.uid))
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAuthenticated()
+                    && (isAdmin() || (request.auth.token.role == 'docente' && ownerUid == request.auth.uid));
+    }
+
     match /documents/{category}/{fileName} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.token.role in ['superadmin', 'coordinacion', 'docente'];

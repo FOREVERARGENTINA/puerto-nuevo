@@ -221,6 +221,7 @@ export const ROUTES = {
   ADMIN_CONVERSATIONS: '/portal/admin/conversaciones',
   ADMIN_CONVERSATION_NEW: '/portal/admin/conversaciones/nuevo',
   ADMIN_SNACKS_LISTS: '/portal/admin/snacks/listas',
+  ADMIN_ACTIVITIES: '/portal/admin/actividades',
   INSTITUTIONAL_GALLERY_ADMIN: '/portal/admin/galeria-institucional',
 
   // Family
@@ -232,12 +233,14 @@ export const ROUTES = {
   FAMILY_CONVERSATIONS: '/portal/familia/conversaciones',
   FAMILY_CONVERSATION_NEW: '/portal/familia/conversaciones/nueva',
   INSTITUTIONAL_GALLERY_FAMILY: '/portal/familia/galeria',
+  FAMILY_ACTIVITIES: '/portal/familia/actividades',
 
   // Teacher
   TEACHER_DASHBOARD: '/portal/docente',
   MY_TALLER: '/portal/docente/mi-taller',
   TEACHER_DOCUMENTS: '/portal/docente/documentos',
   INSTITUTIONAL_GALLERY_TEACHER: '/portal/docente/galeria',
+  TEACHER_ACTIVITIES: '/portal/docente/actividades',
 
   // Tallerista
   TALLERISTA_DASHBOARD: '/portal/tallerista',

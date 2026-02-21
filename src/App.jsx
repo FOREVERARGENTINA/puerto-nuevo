@@ -41,6 +41,7 @@ const EventsCalendar = lazy(() => import('./pages/family/EventsCalendar').then(m
 const FamilyConversations = lazy(() => import('./pages/family/FamilyConversations').then(m => ({ default: m.FamilyConversations })));
 const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConversation').then(m => ({ default: m.FamilyNewConversation })));
 const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
+const AmbienteActivities = lazy(() => import('./pages/family/AmbienteActivities'));
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -55,6 +56,7 @@ const DocumentManager = lazy(() => import('./pages/tallerista/DocumentManager').
 const Documents = lazy(() => import('./pages/shared/Documents').then(m => ({ default: m.Documents })));
 const HorarioSemanal = lazy(() => import('./pages/shared/HorarioSemanal').then(m => ({ default: m.HorarioSemanal })));
 const InstitutionalGallery = lazy(() => import('./pages/shared/InstitutionalGallery'));
+const AmbienteActivitiesManager = lazy(() => import('./pages/shared/AmbienteActivitiesManager'));
 
 // Lazy load páginas aspirante
 const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
@@ -343,6 +345,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/portal/admin/actividades"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <AmbienteActivitiesManager />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Family Routes */}
           <Route
@@ -515,6 +529,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/portal/familia/actividades"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <AmbienteActivities />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Teacher Routes */}
           <Route
@@ -572,6 +598,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
                     <InstitutionalGallery />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/docente/actividades"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <AmbienteActivitiesManager />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

@@ -341,21 +341,18 @@
           "order": "DESCENDING"
         }
       ]
-    },
+    }
+  ],
+  "fieldOverrides": [
     {
       "collectionGroup": "resourcePosts",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
+      "fieldPath": "createdAt",
+      "indexes": [
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
+          "queryScope": "COLLECTION_GROUP",
           "order": "DESCENDING"
         }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }

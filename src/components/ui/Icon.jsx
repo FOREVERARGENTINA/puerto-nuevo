@@ -96,6 +96,14 @@ export default function Icon({ name, size = 20, className = '', ariaHidden = tru
         </svg>
       );
 
+    case 'edit':
+      return (
+        <svg {...common}>
+          <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5.5 17v3z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M14.5 7.5l3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
     case 'file':
       return (
         <svg {...common}>

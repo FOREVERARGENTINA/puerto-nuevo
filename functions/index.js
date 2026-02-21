@@ -12,6 +12,7 @@ const { onAppointmentAssigned } = require('./src/triggers/onAppointmentAssigned'
 const { onDocumentWithMandatoryReading } = require('./src/triggers/onDocumentCreated');
 const { onEventCreated } = require('./src/triggers/onEventCreated');
 const { onTallerResourcePostCreated } = require('./src/triggers/onTallerResourcePostCreated');
+const { onAmbienteActivityCreated } = require('./src/triggers/onAmbienteActivityCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 const { maskEmail } = require('./src/utils/logging');
 
@@ -332,6 +333,7 @@ exports.onAppointmentAssigned = onAppointmentAssigned;
 exports.onDocumentWithMandatoryReading = onDocumentWithMandatoryReading;
 exports.onEventCreated = onEventCreated;
 exports.onTallerResourcePostCreated = onTallerResourcePostCreated;
+exports.onAmbienteActivityCreated = onAmbienteActivityCreated;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

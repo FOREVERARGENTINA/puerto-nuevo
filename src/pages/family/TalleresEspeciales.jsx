@@ -92,7 +92,7 @@ export function TalleresEspeciales() {
   const [loadingResources, setLoadingResources] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(-1);
   const [showLightbox, setShowLightbox] = useState(false);
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTab, setActiveTab] = useState('galeria');
 
   const deepLinkConfig = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -103,12 +103,12 @@ export function TalleresEspeciales() {
   }, [location.search]);
 
   const header = (
-    <div className="dashboard-header dashboard-header--compact">
+    <div className="dashboard-header dashboard-header--compact family-talleres-header">
       <div>
         <h1 className="dashboard-title">Talleres</h1>
         <p className="dashboard-subtitle">Información y materiales de los talleres.</p>
       </div>
-      <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+      <div className="family-talleres-header__actions">
         <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
           <Icon name="chevron-left" size={16} />
           Volver
@@ -167,7 +167,7 @@ export function TalleresEspeciales() {
     setGallery([]);
     setSelectedMediaIndex(-1);
     setShowLightbox(false);
-    setActiveTab(options.preserveResourcesTab ? 'recursos' : 'info');
+    setActiveTab(options.preserveResourcesTab ? 'recursos' : 'galeria');
     setLoadingAlbums(true);
     const result = await talleresService.getAlbums(taller.id);
     if (result.success) {
@@ -288,7 +288,7 @@ export function TalleresEspeciales() {
 
   if (loading) {
     return (
-      <div className="container page-container">
+      <div className="container page-container family-talleres-page">
       {header}
         <div className="card">
           <div className="card__body">
@@ -301,7 +301,7 @@ export function TalleresEspeciales() {
 
   if (children.length === 0) {
     return (
-      <div className="container page-container">
+      <div className="container page-container family-talleres-page">
       {header}
         <div className="card">
           <div className="card__body">
@@ -316,7 +316,7 @@ export function TalleresEspeciales() {
 
   if (talleres.length === 0) {
     return (
-      <div className="container page-container">
+      <div className="container page-container family-talleres-page">
       {header}
         <div className="card">
           <div className="card__body">
@@ -330,7 +330,7 @@ export function TalleresEspeciales() {
   }
 
   return (
-    <div className="container page-container">
+    <div className="container page-container family-talleres-page">
       {header}
 
       {/* Selector de talleres */}
@@ -338,6 +338,9 @@ export function TalleresEspeciales() {
         <div className="card__body">
           <div className="family-talleres-selector__row">
             <div className="family-talleres-selector__control-wrap">
+              <label htmlFor="family-taller-select" className="family-talleres-selector__label">
+                Taller
+              </label>
               <select
                 id="family-taller-select"
                 className="form-control form-select family-talleres-selector__control"
@@ -358,184 +361,71 @@ export function TalleresEspeciales() {
                 ))}
               </select>
             </div>
+            {selectedTaller && (
+              <div className="family-talleres-selector__details">
+                {(selectedTaller.horariosCompactados?.length > 0 || selectedTaller.horario) && (
+                  <div className="family-talleres-selector__meta-row">
+                    <span className="family-talleres-selector__meta-label">Horarios</span>
+                    <div className="family-talleres-selector__pills">
+                      {selectedTaller.horariosCompactados?.length > 0
+                        ? selectedTaller.horariosCompactados.map((horario, index) => (
+                          <span key={`${horario.dia}-${horario.bloque}-${index}`} className="family-talleres-selector__pill">
+                            {horario.dia} {horario.bloque}
+                          </span>
+                        ))
+                        : selectedTaller.horario.split(',').map((slot, index) => (
+                          <span key={`${slot.trim()}-${index}`} className="family-talleres-selector__pill">
+                            {slot.trim()}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                {selectedTaller.descripcion && (
+                  <p className="family-talleres-selector__description">{selectedTaller.descripcion}</p>
+                )}
+                {selectedTaller.calendario && (
+                  <a
+                    href={selectedTaller.calendario}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="family-talleres-selector__calendar-link"
+                  >
+                    Ver calendario del taller
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Contenido del taller seleccionado */}
       {selectedTaller && (
-        <div style={{
-          background: 'white',
-          border: '2px solid #D4C4B5',
-          borderRadius: '12px',
-          overflow: 'hidden'
-        }}>
+        <div className="family-talleres-content-card">
           {/* Tabs Navigation */}
-          <div style={{
-            display: 'flex',
-            gap: '2px',
-            padding: 'var(--spacing-md) var(--spacing-md) 0',
-            background: '#F5F2ED'
-          }}>
-            <button
-              onClick={() => setActiveTab('info')}
-              style={{
-                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                background: activeTab === 'info' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: '8px 8px 0 0',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: activeTab === 'info' ? '600' : '500',
-                color: activeTab === 'info' ? '#2C6B6F' : '#6B7C7D',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Información
-            </button>
-            <button
-              onClick={() => setActiveTab('eventos')}
-              style={{
-                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                background: activeTab === 'eventos' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: '8px 8px 0 0',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: activeTab === 'eventos' ? '600' : '500',
-                color: activeTab === 'eventos' ? '#2C6B6F' : '#6B7C7D',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Eventos
-            </button>
+          <div className="family-talleres-content-tabs">
             <button
               onClick={() => setActiveTab('galeria')}
-              style={{
-                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                background: activeTab === 'galeria' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: '8px 8px 0 0',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: activeTab === 'galeria' ? '600' : '500',
-                color: activeTab === 'galeria' ? '#2C6B6F' : '#6B7C7D',
-                transition: 'all 0.2s ease'
-              }}
+              className={`family-talleres-content-tab ${activeTab === 'galeria' ? 'is-active' : ''}`}
             >
               Galería
             </button>
             <button
               onClick={() => setActiveTab('recursos')}
-              style={{
-                padding: 'var(--spacing-sm) var(--spacing-lg)',
-                background: activeTab === 'recursos' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: '8px 8px 0 0',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: activeTab === 'recursos' ? '600' : '500',
-                color: activeTab === 'recursos' ? '#2C6B6F' : '#6B7C7D',
-                transition: 'all 0.2s ease'
-              }}
+              className={`family-talleres-content-tab ${activeTab === 'recursos' ? 'is-active' : ''}`}
             >
               Recursos
             </button>
+            <button
+              onClick={() => setActiveTab('eventos')}
+              className={`family-talleres-content-tab ${activeTab === 'eventos' ? 'is-active' : ''}`}
+            >
+              Eventos
+            </button>
           </div>
 
-          <div style={{ padding: 'var(--spacing-lg)', background: 'white' }}>
-            {/* Tab: Info */}
-            {activeTab === 'info' && (
-              <div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                  gap: 'var(--spacing-lg)',
-                  marginBottom: selectedTaller.descripcion ? 'var(--spacing-lg)' : '0'
-                }}>
-                  {/* Horarios Card */}
-                  <div style={{
-                    padding: 'var(--spacing-md)',
-                    background: 'var(--color-primary-soft)',
-                    border: '1px solid #D4C4B5',
-                    borderRadius: '8px'
-                  }}>
-                    <h3 style={{ margin: '0 0 var(--spacing-sm) 0', fontSize: 'var(--font-size-sm)', fontWeight: '600', color: 'var(--color-primary)' }}>Horarios</h3>
-                    {selectedTaller.horariosCompactados?.length > 0 ? (
-                      <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                        {selectedTaller.horariosCompactados.map((h, idx) => (
-                          <span key={idx} style={{
-                            padding: '6px 12px',
-                            background: 'white',
-                            color: 'var(--color-primary)',
-                            border: '1px solid var(--color-primary)',
-                            borderRadius: 'var(--radius-sm)',
-                            fontSize: 'var(--font-size-sm)',
-                            fontWeight: '500'
-                          }}>
-                            {h.dia} {h.bloque}
-                          </span>
-                        ))}
-                      </div>
-                    ) : selectedTaller.horario ? (
-                      <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                        {selectedTaller.horario.split(',').map((s, i) => (
-                          <span key={i} style={{
-                            padding: '6px 12px',
-                            background: 'white',
-                            color: 'var(--color-primary)',
-                            border: '1px solid var(--color-primary)',
-                            borderRadius: 'var(--radius-sm)',
-                            fontSize: 'var(--font-size-sm)',
-                            fontWeight: '500'
-                          }}>{s.trim()}</span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>No especificado</p>
-                    )}
-                  </div>
-
-                  {/* Calendario Card */}
-                  {selectedTaller.calendario && (
-                    <div style={{
-                      padding: 'var(--spacing-md)',
-                      background: '#FFF9F0',
-                      border: '1px solid #D4C4B5',
-                      borderRadius: '8px'
-                    }}>
-                      <h3 style={{ margin: '0 0 var(--spacing-sm) 0', fontSize: 'var(--font-size-sm)', fontWeight: '600', color: 'var(--color-accent)' }}>Calendario</h3>
-                      <a
-                        href={selectedTaller.calendario}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn--primary"
-                        style={{ width: '100%' }}
-                      >
-                        Descargar Calendario
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* Descripción */}
-                {selectedTaller.descripcion && (
-                  <div style={{
-                    padding: 'var(--spacing-md)',
-                    background: 'var(--color-background)',
-                    border: '1px solid #D4C4B5',
-                    borderLeft: '3px solid var(--color-primary)',
-                    borderRadius: '6px',
-                    marginTop: 'var(--spacing-lg)'
-                  }}>
-                    <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', lineHeight: '1.6' }}>
-                      {selectedTaller.descripcion}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
+          <div className="family-talleres-content-panel">
             {/* Tab: Eventos */}
             {activeTab === 'eventos' && (
               <div>
