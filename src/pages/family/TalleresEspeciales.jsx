@@ -1,9 +1,9 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { childrenService } from '../../services/children.service';
 import { talleresService } from '../../services/talleres.service';
 import { eventsService } from '../../services/events.service';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { InstitutionalLightbox } from '../../components/gallery/shared/InstitutionalLightbox';
 
@@ -76,6 +76,7 @@ function getMergedHorariosByDay(horarios = []) {
 export function TalleresEspeciales() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [children, setChildren] = useState([]);
   const [talleres, setTalleres] = useState([]);
   const [selectedTaller, setSelectedTaller] = useState(null);
@@ -87,9 +88,19 @@ export function TalleresEspeciales() {
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [tallerEvents, setTallerEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [resourcePosts, setResourcePosts] = useState([]);
+  const [loadingResources, setLoadingResources] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(-1);
   const [showLightbox, setShowLightbox] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+
+  const deepLinkConfig = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      tallerId: params.get('tallerId') || '',
+      forceResourcesTab: params.get('tab') === 'recursos'
+    };
+  }, [location.search]);
 
   const header = (
     <div className="dashboard-header dashboard-header--compact">
@@ -106,7 +117,7 @@ export function TalleresEspeciales() {
     </div>
   );
 
-  const selectTaller = async (taller) => {
+  const selectTaller = async (taller, options = {}) => {
     // Normalización de horarios igual que en MyTallerEspecial
     const dayOrder = { Lunes: 1, Martes: 2, 'Miércoles': 3, Miercoles: 3, Jueves: 4, Viernes: 5 };
     let normalizedHorarios = [];
@@ -156,7 +167,7 @@ export function TalleresEspeciales() {
     setGallery([]);
     setSelectedMediaIndex(-1);
     setShowLightbox(false);
-    setActiveTab('info');
+    setActiveTab(options.preserveResourcesTab ? 'recursos' : 'info');
     setLoadingAlbums(true);
     const result = await talleresService.getAlbums(taller.id);
     if (result.success) {
@@ -165,6 +176,15 @@ export function TalleresEspeciales() {
       setAlbums([]);
     }
     setLoadingAlbums(false);
+
+    setLoadingResources(true);
+    const resourcesResult = await talleresService.getResourcePosts(taller.id);
+    if (resourcesResult.success) {
+      setResourcePosts(resourcesResult.posts || []);
+    } else {
+      setResourcePosts([]);
+    }
+    setLoadingResources(false);
 
     setLoadingEvents(true);
     const now = new Date();
@@ -249,7 +269,13 @@ export function TalleresEspeciales() {
         setTalleres(talleresFiltrados);
         
         if (talleresFiltrados.length > 0) {
-          selectTaller(talleresFiltrados[0]);
+          const preselected = deepLinkConfig.tallerId
+            ? talleresFiltrados.find((t) => t.id === deepLinkConfig.tallerId)
+            : null;
+          const initialTaller = preselected || talleresFiltrados[0];
+          await selectTaller(initialTaller, {
+            preserveResourcesTab: deepLinkConfig.forceResourcesTab
+          });
         }
       }
     }
@@ -257,8 +283,8 @@ export function TalleresEspeciales() {
   }
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    void loadData();
+  }, [user, deepLinkConfig.forceResourcesTab, deepLinkConfig.tallerId]);
 
   if (loading) {
     return (
@@ -319,7 +345,9 @@ export function TalleresEspeciales() {
                 onChange={(event) => {
                   const nextTaller = talleres.find((t) => t.id === event.target.value);
                   if (nextTaller && nextTaller.id !== selectedTaller?.id) {
-                    selectTaller(nextTaller);
+                    void selectTaller(nextTaller, {
+                      preserveResourcesTab: deepLinkConfig.forceResourcesTab
+                    });
                   }
                 }}
               >
@@ -396,6 +424,22 @@ export function TalleresEspeciales() {
               }}
             >
               Galería
+            </button>
+            <button
+              onClick={() => setActiveTab('recursos')}
+              style={{
+                padding: 'var(--spacing-sm) var(--spacing-lg)',
+                background: activeTab === 'recursos' ? 'white' : 'transparent',
+                border: 'none',
+                borderRadius: '8px 8px 0 0',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: activeTab === 'recursos' ? '600' : '500',
+                color: activeTab === 'recursos' ? '#2C6B6F' : '#6B7C7D',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Recursos
             </button>
           </div>
 
@@ -819,6 +863,79 @@ export function TalleresEspeciales() {
                 )}
               </div>
             )}
+
+            {activeTab === 'recursos' && (
+              <div>
+                {loadingResources ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+                    <p style={{ color: 'var(--color-text-light)' }}>Cargando recursos...</p>
+                  </div>
+                ) : resourcePosts.length > 0 ? (
+                  <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
+                    {resourcePosts.map((post) => {
+                      const createdAt = post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
+                      const createdLabel = Number.isNaN(createdAt?.getTime?.()) ? '' : createdAt.toLocaleDateString('es-AR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      });
+                      const items = Array.isArray(post.items) ? post.items : [];
+
+                      return (
+                        <div
+                          key={post.id}
+                          style={{
+                            padding: 'var(--spacing-md)',
+                            border: '1px solid #D4C4B5',
+                            borderLeft: '3px solid var(--color-primary)',
+                            borderRadius: '8px',
+                            background: 'white'
+                          }}
+                        >
+                          <h4 style={{ margin: '0 0 var(--spacing-xs) 0' }}>{post.title}</h4>
+                          {createdLabel && (
+                            <p style={{ margin: '0 0 var(--spacing-sm) 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
+                              Publicado el {createdLabel}
+                            </p>
+                          )}
+                          {post.description && (
+                            <p style={{ margin: '0 0 var(--spacing-sm) 0', fontSize: 'var(--font-size-sm)' }}>{post.description}</p>
+                          )}
+
+                          {items.length > 0 ? (
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--spacing-xs)' }}>
+                              {items.map((item, index) => (
+                                <li key={`${item.url || item.path || index}`}>
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                    {item.kind === 'link' ? 'Link' : 'Archivo'}: {item.label || item.url}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ margin: 0, color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>
+                              Sin elementos adjuntos.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: 'var(--spacing-xl)',
+                    background: 'var(--color-background)',
+                    borderRadius: '8px',
+                    border: '1px dashed #C4B5A0'
+                  }}>
+                    <p style={{ margin: 0, color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>
+                      Aún no hay recursos publicados para este taller
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -836,6 +953,7 @@ export function TalleresEspeciales() {
     </div>
   );
 }
+
 
 
 

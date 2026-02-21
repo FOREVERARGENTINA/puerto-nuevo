@@ -14,6 +14,18 @@ service firebase.storage {
       return request.auth.token.role in ['superadmin', 'coordinacion', 'docente', 'tallerista'];
     }
 
+    function uidMatchesLegacyAssignee(talleristaIdValue) {
+      return (talleristaIdValue is list && request.auth.uid in talleristaIdValue) ||
+             (talleristaIdValue is string && request.auth.uid == talleristaIdValue);
+    }
+
+    function isTalleristaAssignedToTaller(tallerId) {
+      let talleristaIdValue = firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId;
+      return isAuthenticated() &&
+             request.auth.token.role == 'tallerista' &&
+             uidMatchesLegacyAssignee(talleristaIdValue);
+    }
+
     match /public/{allPaths=**} {
       allow read: if isAuthenticated();
       allow write: if canUpload();
@@ -31,16 +43,23 @@ service firebase.storage {
 
     match /talleres/{tallerId}/gallery/{fileName} {
       allow read: if isAuthenticated();
-      allow create, update: if (isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId))
+      allow create, update: if (isAdmin() || isTalleristaAssignedToTaller(tallerId))
                             && request.resource.size < 20 * 1024 * 1024;
-      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId);
+      allow delete: if isAdmin() || isTalleristaAssignedToTaller(tallerId);
     }
 
     match /talleres/{tallerId}/albums/{albumId}/{fileName} {
       allow read: if isAuthenticated();
-      allow create, update: if (isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId))
+      allow create, update: if (isAdmin() || isTalleristaAssignedToTaller(tallerId))
                             && request.resource.size < 20 * 1024 * 1024;
-      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid in firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId);
+      allow delete: if isAdmin() || isTalleristaAssignedToTaller(tallerId);
+    }
+
+    match /talleres/{tallerId}/resources/{postId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || isTalleristaAssignedToTaller(tallerId))
+                            && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isAdmin() || isTalleristaAssignedToTaller(tallerId);
     }
 
     match /documents/{category}/{fileName} {

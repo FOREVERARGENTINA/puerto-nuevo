@@ -155,7 +155,7 @@ export function LoginForm() {
           className="btn btn--link btn--full login-forgot-btn"
           onClick={openResetModal}
         >
-          ¿Olvidaste tu contraseña?
+          ¿Necesitas cambiar o recuperar tu contraseña?
         </button>
       </form>
 

@@ -32,6 +32,16 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'family';
     }
 
+    function uidMatchesLegacyAssignee(talleristaIdValue) {
+      return (talleristaIdValue is list && request.auth.uid in talleristaIdValue) ||
+             (talleristaIdValue is string && request.auth.uid == talleristaIdValue);
+    }
+
+    function isTalleristaAssignedToTaller(tallerId) {
+      let talleristaIdValue = get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId;
+      return isTallerista() && uidMatchesLegacyAssignee(talleristaIdValue);
+    }
+
     // Roles administrativos (SuperAdmin y Coordinación)
     function isAdmin() {
       return isSuperAdmin() || isCoordinacion();
@@ -199,10 +209,9 @@ service cloud.firestore {
 
       // Crear: roles que pueden enviar comunicados o tallerista del taller
       allow create: if canCreateEvents() || (
-        isTallerista() &&
-        request.resource.data.source == 'taller' &&
         request.resource.data.tallerId != null &&
-        request.auth.uid in get(/databases/$(database)/documents/talleres/$(request.resource.data.tallerId)).data.talleristaId
+        request.resource.data.source == 'taller' &&
+        isTalleristaAssignedToTaller(request.resource.data.tallerId)
       );
 
       // Actualizar/Eliminar: solo admin
@@ -281,7 +290,7 @@ service cloud.firestore {
       // Actualizar: Admin o el tallerista asignado puede actualizar
       allow update: if canManageTalleres() || (
         isTallerista() &&
-        request.auth.uid in resource.data.talleristaId
+        uidMatchesLegacyAssignee(resource.data.talleristaId)
       );
 
       // Eliminar: Solo SuperAdmin y Coordinación
@@ -294,8 +303,7 @@ service cloud.firestore {
 
         // Crear/Actualizar: Admin o tallerista del taller
         allow create, update: if isAdmin() || (
-          isAuthenticated() &&
-          request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+          isTalleristaAssignedToTaller(tallerId)
         );
 
         // Eliminar: Admin o quien lo subió
@@ -312,8 +320,7 @@ service cloud.firestore {
 
         // Crear/Actualizar/Eliminar: Admin o tallerista del taller
         allow create, update, delete: if isAdmin() || (
-          isAuthenticated() &&
-          request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+          isTalleristaAssignedToTaller(tallerId)
         );
 
         // Subcoleccion: /talleres/{tallerId}/albums/{albumId}/media
@@ -323,8 +330,7 @@ service cloud.firestore {
 
           // Crear/Actualizar: Admin o tallerista del taller
           allow create, update: if isAdmin() || (
-            isAuthenticated() &&
-            request.auth.uid in get(/databases/$(database)/documents/talleres/$(tallerId)).data.talleristaId
+            isTalleristaAssignedToTaller(tallerId)
           );
 
           // Eliminar: Admin o quien lo subio
@@ -333,6 +339,28 @@ service cloud.firestore {
             resource.data.uploadedBy == request.auth.uid
           );
         }
+      }
+
+      // Subcoleccion: /talleres/{tallerId}/resourcePosts
+      match /resourcePosts/{postId} {
+        allow read: if isAuthenticated();
+
+        allow create: if isAdmin() || (
+          isTalleristaAssignedToTaller(tallerId) &&
+          request.resource.data.tallerId == tallerId &&
+          request.resource.data.createdBy == request.auth.uid &&
+          request.resource.data.ambiente == get(/databases/$(database)/documents/talleres/$(tallerId)).data.ambiente &&
+          request.resource.data.tallerNombre == get(/databases/$(database)/documents/talleres/$(tallerId)).data.nombre
+        );
+
+        allow update: if isAdmin() || (
+          isTalleristaAssignedToTaller(tallerId) &&
+          request.resource.data.tallerId == resource.data.tallerId &&
+          request.resource.data.ambiente == resource.data.ambiente &&
+          request.resource.data.tallerNombre == resource.data.tallerNombre
+        );
+
+        allow delete: if isAdmin() || isTalleristaAssignedToTaller(tallerId);
       }
     }
 

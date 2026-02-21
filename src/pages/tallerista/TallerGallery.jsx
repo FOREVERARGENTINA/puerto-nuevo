@@ -20,6 +20,25 @@ const ALLOWED_EXTENSIONS = new Set([
 ]);
 const BLOCKED_EXTENSIONS = new Set(['zip', 'exe', 'bat']);
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
+const RESOURCE_ALLOWED_EXTENSIONS = new Set([
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+  'txt', 'csv', 'rtf', 'odt', 'ods', 'odp'
+]);
+const RESOURCE_ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/rtf',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation'
+]);
 
 export function TallerGallery() {
   const { user } = useAuth();
@@ -41,6 +60,15 @@ export function TallerGallery() {
   const [videoUrl, setVideoUrl] = useState('');
   const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'url'
   const [deletingId, setDeletingId] = useState(null);
+  const [workspaceTab, setWorkspaceTab] = useState('gallery');
+  const [resourcePosts, setResourcePosts] = useState([]);
+  const [resourcePostsLoading, setResourcePostsLoading] = useState(false);
+  const [resourcePublishing, setResourcePublishing] = useState(false);
+  const [resourceDeletingId, setResourceDeletingId] = useState(null);
+  const [resourceForm, setResourceForm] = useState({ title: '', description: '' });
+  const [resourceFiles, setResourceFiles] = useState([]);
+  const [resourceLinkInput, setResourceLinkInput] = useState('');
+  const [resourceLinks, setResourceLinks] = useState([]);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -67,11 +95,29 @@ export function TallerGallery() {
     setGalleryLoading(false);
   };
 
+  const loadResourcePosts = async (tallerId) => {
+    setResourcePostsLoading(true);
+    const result = await talleresService.getResourcePosts(tallerId);
+    if (result.success) {
+      setResourcePosts(result.posts || []);
+    } else {
+      setResourcePosts([]);
+    }
+    setResourcePostsLoading(false);
+  };
+
   const selectTaller = async (taller) => {
     setSelectedTaller(taller);
     setSelectedAlbum(null);
     setGallery([]);
-    await loadAlbums(taller.id);
+    setResourceForm({ title: '', description: '' });
+    setResourceFiles([]);
+    setResourceLinks([]);
+    setResourceLinkInput('');
+    await Promise.all([
+      loadAlbums(taller.id),
+      loadResourcePosts(taller.id)
+    ]);
   };
 
   const loadTalleres = useCallback(async () => {
@@ -312,6 +358,192 @@ export function TallerGallery() {
     setExternalVideos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleResourceFilesChange = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const validFiles = [];
+    const rejectedMessages = [];
+
+    selectedFiles.forEach((file) => {
+      const lowerName = (file.name || '').toLowerCase();
+      const extension = lowerName.includes('.') ? lowerName.split('.').pop() : '';
+      const mimeType = (file.type || '').toLowerCase();
+
+      if (extension && BLOCKED_EXTENSIONS.has(extension)) {
+        rejectedMessages.push(`${file.name}: extension no permitida`);
+        return;
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        rejectedMessages.push(`${file.name}: supera ${MAX_FILE_SIZE_LABEL}`);
+        return;
+      }
+
+      const validByExtension = extension && RESOURCE_ALLOWED_EXTENSIONS.has(extension);
+      const validByMimeType = mimeType && RESOURCE_ALLOWED_MIME_TYPES.has(mimeType);
+      if (!validByExtension && !validByMimeType) {
+        rejectedMessages.push(`${file.name}: tipo no permitido`);
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    if (rejectedMessages.length > 0) {
+      alertDialog.openDialog({
+        title: 'Algunos archivos no son validos',
+        message: rejectedMessages.slice(0, 4).join('\n'),
+        type: 'warning'
+      });
+    }
+
+    if (validFiles.length > 0) {
+      setResourceFiles((prev) => [...prev, ...validFiles]);
+    }
+
+    e.target.value = null;
+  };
+
+  const handleAddResourceLink = () => {
+    const raw = resourceLinkInput.trim();
+    if (!raw) return;
+
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      alertDialog.openDialog({
+        title: 'Link no valido',
+        message: 'Ingrese una URL valida con http o https.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      alertDialog.openDialog({
+        title: 'Link no valido',
+        message: 'Solo se permiten links con protocolo http o https.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const normalizedUrl = parsed.toString();
+    const exists = resourceLinks.some((link) => link.url === normalizedUrl);
+    if (exists) {
+      setResourceLinkInput('');
+      return;
+    }
+
+    setResourceLinks((prev) => [
+      ...prev,
+      {
+        url: normalizedUrl,
+        label: parsed.hostname
+      }
+    ]);
+    setResourceLinkInput('');
+  };
+
+  const handleRemoveResourceFile = (index) => {
+    setResourceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveResourceLink = (index) => {
+    setResourceLinks((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePublishResourcePost = async () => {
+    if (!selectedTaller?.id || !user?.uid) return;
+
+    const title = resourceForm.title.trim();
+    if (!title) {
+      alertDialog.openDialog({
+        title: 'Titulo requerido',
+        message: 'Ingrese un titulo para la publicacion.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    if (resourceFiles.length === 0 && resourceLinks.length === 0) {
+      alertDialog.openDialog({
+        title: 'Contenido requerido',
+        message: 'Agrega al menos un archivo o un link.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setResourcePublishing(true);
+    const result = await talleresService.createResourcePost(selectedTaller.id, {
+      title,
+      description: resourceForm.description,
+      files: resourceFiles,
+      links: resourceLinks,
+      createdBy: user.uid,
+      createdByName: user.displayName || user.email || ''
+    });
+
+    if (!result.success) {
+      setResourcePublishing(false);
+      alertDialog.openDialog({
+        title: 'Error al publicar',
+        message: result.error || 'No se pudo publicar el recurso.',
+        type: 'error'
+      });
+      return;
+    }
+
+    setResourceForm({ title: '', description: '' });
+    setResourceFiles([]);
+    setResourceLinks([]);
+    setResourceLinkInput('');
+    await loadResourcePosts(selectedTaller.id);
+    setResourcePublishing(false);
+    alertDialog.openDialog({
+      title: 'Publicado',
+      message: 'El recurso se publico correctamente.',
+      type: 'success'
+    });
+  };
+
+  const handleDeleteResourcePost = (post) => {
+    if (!selectedTaller?.id || !post?.id) return;
+
+    confirmDialog.openDialog({
+      title: 'Eliminar publicacion',
+      message: 'Se eliminara esta publicacion y sus archivos adjuntos. Esta accion no se puede deshacer.',
+      type: 'danger',
+      onConfirm: async () => {
+        setResourceDeletingId(post.id);
+        const result = await talleresService.deleteResourcePost(selectedTaller.id, post.id, post.items || []);
+        setResourceDeletingId(null);
+
+        if (!result.success) {
+          alertDialog.openDialog({
+            title: 'No se pudo eliminar',
+            message: result.error || 'Error eliminando la publicacion.',
+            type: 'error'
+          });
+          return;
+        }
+
+        if (Array.isArray(result.warnings) && result.warnings.length > 0) {
+          alertDialog.openDialog({
+            title: 'Publicacion eliminada con avisos',
+            message: result.warnings.slice(0, 3).join('\n'),
+            type: 'warning'
+          });
+        }
+
+        await loadResourcePosts(selectedTaller.id);
+      }
+    });
+  };
+
   const handleUpload = async () => {
     if (!selectedTaller?.id || !selectedAlbum?.id) return;
 
@@ -472,6 +704,26 @@ export function TallerGallery() {
             <div>
               <h2 style={{ marginBottom: 'var(--spacing-md)' }}>{selectedTaller.nombre}</h2>
 
+              <div className="tabs" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <button
+                  className={`tab ${workspaceTab === 'gallery' ? 'active' : ''}`}
+                  onClick={() => setWorkspaceTab('gallery')}
+                >
+                  Galeria
+                </button>
+                <button
+                  className={`tab ${workspaceTab === 'resources' ? 'active' : ''}`}
+                  onClick={() => {
+                    setWorkspaceTab('resources');
+                    setSelectedAlbum(null);
+                  }}
+                >
+                  Recursos
+                </button>
+              </div>
+
+              {workspaceTab === 'gallery' && (
+                <>
               <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
                 <div className="card__body">
                   <div className="form-group">
@@ -763,6 +1015,178 @@ export function TallerGallery() {
                             <div className="talleres-album-card__meta">{createdLabel}</div>
                           )}
                           </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+                </>
+              )}
+
+              {workspaceTab === 'resources' && (
+                <div>
+                  <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                    <div className="card__body">
+                      <div className="form-group">
+                        <label>Titulo *</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={resourceForm.title}
+                          onChange={(e) => setResourceForm((prev) => ({ ...prev, title: e.target.value }))}
+                          placeholder="Ej: Recursos para casa"
+                          maxLength={120}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Descripcion</label>
+                        <textarea
+                          className="form-input"
+                          rows={3}
+                          value={resourceForm.description}
+                          onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="Contexto breve para las familias"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Archivos (documentos)</label>
+                        <input
+                          type="file"
+                          multiple
+                          className="form-input"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp"
+                          onChange={handleResourceFilesChange}
+                          disabled={resourcePublishing}
+                        />
+                        <small style={{ color: 'var(--color-text-light)' }}>
+                          Formatos permitidos: PDF, Office, OpenDocument, TXT y CSV. Maximo {MAX_FILE_SIZE_LABEL}.
+                        </small>
+                      </div>
+
+                      {resourceFiles.length > 0 && (
+                        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                          <strong>Archivos agregados ({resourceFiles.length})</strong>
+                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
+                            {resourceFiles.map((file, index) => (
+                              <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', padding: 'var(--spacing-xs) 0' }}>
+                                <span>{file.name}</span>
+                                <button type="button" className="btn btn--link" onClick={() => handleRemoveResourceFile(index)}>
+                                  Quitar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="form-group">
+                        <label>Links</label>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                          <input
+                            type="url"
+                            className="form-input"
+                            placeholder="https://..."
+                            value={resourceLinkInput}
+                            onChange={(e) => setResourceLinkInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddResourceLink();
+                              }
+                            }}
+                          />
+                          <button type="button" className="btn btn--secondary" onClick={handleAddResourceLink}>
+                            Agregar
+                          </button>
+                        </div>
+                      </div>
+
+                      {resourceLinks.length > 0 && (
+                        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                          <strong>Links agregados ({resourceLinks.length})</strong>
+                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
+                            {resourceLinks.map((link, index) => (
+                              <li key={`${link.url}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', padding: 'var(--spacing-xs) 0' }}>
+                                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                                  {link.label || link.url}
+                                </a>
+                                <button type="button" className="btn btn--link" onClick={() => handleRemoveResourceLink(index)}>
+                                  Quitar
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={handlePublishResourcePost}
+                        disabled={resourcePublishing}
+                      >
+                        {resourcePublishing ? 'Publicando...' : 'Publicar recurso'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {resourcePostsLoading ? (
+                    <p>Cargando recursos...</p>
+                  ) : resourcePosts.length === 0 ? (
+                    <div className="alert alert--info">
+                      <p>Aun no hay recursos publicados.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
+                      {resourcePosts.map((post) => {
+                        const createdAt = post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
+                        const createdLabel = Number.isNaN(createdAt?.getTime?.()) ? '' : createdAt.toLocaleDateString('es-AR');
+                        const items = Array.isArray(post.items) ? post.items : [];
+
+                        return (
+                          <div key={post.id} className="card">
+                            <div className="card__body">
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', alignItems: 'flex-start', marginBottom: 'var(--spacing-sm)' }}>
+                                <div>
+                                  <h3 className="card__title" style={{ marginBottom: 'var(--spacing-xs)' }}>{post.title}</h3>
+                                  {createdLabel && (
+                                    <p style={{ margin: 0, color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                                      Publicado el {createdLabel}
+                                    </p>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btn btn--danger btn--sm"
+                                  onClick={() => handleDeleteResourcePost(post)}
+                                  disabled={resourceDeletingId === post.id}
+                                >
+                                  {resourceDeletingId === post.id ? 'Eliminando...' : 'Eliminar'}
+                                </button>
+                              </div>
+
+                              {post.description && (
+                                <p style={{ marginTop: 0, marginBottom: 'var(--spacing-sm)' }}>{post.description}</p>
+                              )}
+
+                              {items.length > 0 ? (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--spacing-xs)' }}>
+                                  {items.map((item, index) => (
+                                    <li key={`${item.url || item.path || index}`}>
+                                      <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                        {item.kind === 'link' ? 'Link' : 'Archivo'}: {item.label || item.url}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p style={{ margin: 0, color: 'var(--color-text-light)' }}>Sin elementos.</p>
+                              )}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>

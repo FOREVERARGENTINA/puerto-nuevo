@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { useAuth } from './useAuth';
@@ -127,6 +127,7 @@ export function useNotifications() {
   const [assignedAppointments, setAssignedAppointments] = useState([]);
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [recentEventNotifications, setRecentEventNotifications] = useState([]);
+  const [recentResourceNotifications, setRecentResourceNotifications] = useState([]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -200,11 +201,13 @@ export function useNotifications() {
   useEffect(() => {
     if (!user) {
       setRecentEventNotifications([]);
+      setRecentResourceNotifications([]);
       return;
     }
 
     if (role !== ROLES.FAMILY) {
       setRecentEventNotifications([]);
+      setRecentResourceNotifications([]);
       return;
     }
 
@@ -212,6 +215,7 @@ export function useNotifications() {
     const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const assignedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const eventsSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const resourcesSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     let legacySnacks = [];
     let arraySnacks = [];
@@ -344,8 +348,9 @@ export function useNotifications() {
 
     let familyAmbientes = [];
     let recentEvents = [];
+    let recentResourcePosts = [];
 
-    const recomputeRecentEvents = () => {
+    const recomputeFamilyScopedNotifications = () => {
       const visibleEvents = recentEvents.filter((evt) => {
         if (evt.communicationId) return false;
         if (evt.scope !== 'taller') return true;
@@ -354,6 +359,13 @@ export function useNotifications() {
         return false;
       });
       setRecentEventNotifications(visibleEvents);
+
+      const visibleResources = recentResourcePosts.filter((post) => {
+        if (!familyAmbientes.length) return false;
+        if (!post?.ambiente) return false;
+        return familyAmbientes.includes(post.ambiente);
+      });
+      setRecentResourceNotifications(visibleResources);
     };
 
     const familyChildrenQuery = query(
@@ -368,7 +380,7 @@ export function useNotifications() {
           .map((doc) => doc.data()?.ambiente)
           .filter(Boolean)
       ));
-      recomputeRecentEvents();
+      recomputeFamilyScopedNotifications();
     });
 
     const eventsQuery = query(
@@ -380,7 +392,22 @@ export function useNotifications() {
 
     const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
       recentEvents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      recomputeRecentEvents();
+      recomputeFamilyScopedNotifications();
+    });
+
+    const resourcesQuery = query(
+      collectionGroup(db, 'resourcePosts'),
+      where('createdAt', '>=', Timestamp.fromDate(resourcesSince)),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+
+    const unsubResources = onSnapshot(resourcesQuery, (snapshot) => {
+      recentResourcePosts = snapshot.docs.map((resourceDoc) => ({
+        id: resourceDoc.id,
+        ...resourceDoc.data()
+      }));
+      recomputeFamilyScopedNotifications();
     });
 
     return () => {
@@ -393,6 +420,7 @@ export function useNotifications() {
       unsubDocuments();
       unsubFamilyChildren();
       unsubEvents();
+      unsubResources();
     };
   }, [user, role]);
 
@@ -545,7 +573,34 @@ export function useNotifications() {
     metadata: { eventId: event.id }
   }));
 
-  const notifications = [
+  const recentResourceItems = recentResourceNotifications.map((post) => {
+    const tallerId = typeof post?.tallerId === 'string' ? post.tallerId : '';
+    const actionUrl = tallerId
+      ? `/portal/familia/talleres?tallerId=${encodeURIComponent(tallerId)}&tab=recursos`
+      : '/portal/familia/talleres?tab=recursos';
+    const itemCount = Number.isFinite(post?.itemCount) ? post.itemCount : 0;
+    const postTitle = post?.title || 'Nuevo recurso disponible';
+
+    return {
+      id: `resource-${tallerId || 'sin-taller'}-${post.id}`,
+      type: 'taller-recurso',
+      title: 'Nuevo recurso del taller',
+      message: itemCount > 1
+        ? `${postTitle} (${itemCount} recursos)`
+        : postTitle,
+      timestamp: toDateSafe(post?.createdAt)
+        || toDateSafe(post?.updatedAt)
+        || new Date(),
+      urgent: false,
+      actionUrl,
+      metadata: {
+        postId: post.id,
+        tallerId
+      }
+    };
+  });
+
+  const baseNotifications = [
     ...conversationNotifications,
     ...relevantCommunications.map((comm) => ({
       id: `comm-${comm.id}`,
@@ -558,6 +613,7 @@ export function useNotifications() {
       metadata: { commId: comm.id }
     })),
     ...recentEventItems,
+    ...recentResourceItems,
     ...pendingDocuments.map((doc) => ({
       id: `doc-${doc.id}`,
       type: 'documento',
@@ -603,7 +659,27 @@ export function useNotifications() {
         metadata: { assignmentId: snack.id }
       })),
     ...upcomingNotifications
-  ].sort((a, b) => {
+  ];
+
+  const dedupedNotifications = Array.from(
+    baseNotifications.reduce((map, notification) => {
+      if (!notification?.id) return map;
+      const previous = map.get(notification.id);
+      if (!previous) {
+        map.set(notification.id, notification);
+        return map;
+      }
+
+      const prevTime = previous.timestamp?.getTime?.() || 0;
+      const nextTime = notification.timestamp?.getTime?.() || 0;
+      if (nextTime >= prevTime) {
+        map.set(notification.id, notification);
+      }
+      return map;
+    }, new Map()).values()
+  );
+
+  const notifications = dedupedNotifications.sort((a, b) => {
     if (a.urgent && !b.urgent) return -1;
     if (!a.urgent && b.urgent) return 1;
     return b.timestamp - a.timestamp;
@@ -702,6 +778,7 @@ export function useNotifications() {
       conversaciones: conversationNotifications.length,
       comunicados: relevantCommunications.length,
       eventos: recentEventItems.length,
+      recursos: recentResourceItems.length,
       documentos: pendingDocuments.length,
       snacks: upcomingSnacks.length,
       snacksAsignados: assignedSnacks.length,
