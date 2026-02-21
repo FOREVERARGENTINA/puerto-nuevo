@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { LoadingModal } from '../../components/common/LoadingModal';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { useDialog } from '../../hooks/useDialog';
 import {
   compressImage,
@@ -186,11 +187,14 @@ export function TallerGallery() {
     return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
   };
 
-  const handleFilesChange = async (e) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length === 0) return;
+  const handleFilesChange = async (selectedFiles) => {
+    const parsedFiles = Array.isArray(selectedFiles) ? selectedFiles : [];
+    if (parsedFiles.length === 0) return;
 
-    const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(selectedFiles);
+    const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(parsedFiles);
+    if (validFiles.length === 0 && !(hasInvalidType || hasBlockedType || hasOversize)) {
+      return;
+    }
 
     if (hasInvalidType || hasBlockedType || hasOversize) {
       let message = '';
@@ -208,7 +212,6 @@ export function TallerGallery() {
     }
 
     if (validFiles.length === 0) {
-      e.target.value = null;
       return;
     }
 
@@ -273,8 +276,6 @@ export function TallerGallery() {
     if (processedImages.length > 0 || validatedVideos.length > 0) {
       setFiles(prev => [...prev, ...processedImages, ...validatedVideos]);
     }
-
-    e.target.value = null;
   };
 
   const handleCreateAlbum = async () => {
@@ -358,14 +359,14 @@ export function TallerGallery() {
     setExternalVideos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleResourceFilesChange = (e) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length === 0) return;
+  const handleResourceFilesChange = (selectedFiles) => {
+    const parsedFiles = Array.isArray(selectedFiles) ? selectedFiles : [];
+    if (parsedFiles.length === 0) return;
 
     const validFiles = [];
     const rejectedMessages = [];
 
-    selectedFiles.forEach((file) => {
+    parsedFiles.forEach((file) => {
       const lowerName = (file.name || '').toLowerCase();
       const extension = lowerName.includes('.') ? lowerName.split('.').pop() : '';
       const mimeType = (file.type || '').toLowerCase();
@@ -401,8 +402,6 @@ export function TallerGallery() {
     if (validFiles.length > 0) {
       setResourceFiles((prev) => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
   const handleAddResourceLink = () => {
@@ -785,17 +784,14 @@ export function TallerGallery() {
                       {uploadMode === 'file' && (
                         <div className="form-group">
                           <label>Subir archivos</label>
-                          <input
-                            type="file"
+                          <FileUploadSelector
+                            id="taller-gallery-files"
                             multiple
-                            className="form-input"
                             accept="image/*,video/*,.heic,.heif,.webp,.webm,.mov"
-                            onChange={handleFilesChange}
+                            onFilesSelected={handleFilesChange}
                             disabled={uploading || compressing}
+                            hint={`Imágenes (se optimizan auto), videos cortos (<2 min) · Máx ${MAX_FILE_SIZE_LABEL}`}
                           />
-                          <small style={{ display: 'block', marginTop: 'var(--spacing-xs)', color: 'var(--color-text-light)' }}>
-                            Imágenes (se optimizan auto), videos cortos (&lt;2 min) • Máx {MAX_FILE_SIZE_LABEL}
-                          </small>
                           {compressing && (
                             <p style={{ marginTop: 'var(--spacing-xs)', color: 'var(--color-primary)' }}>
                               ⏳ Optimizando imágenes...
@@ -836,21 +832,10 @@ export function TallerGallery() {
                       {files.length > 0 && (
                         <div style={{ marginTop: 'var(--spacing-md)' }}>
                           <strong>Archivos seleccionados ({files.length})</strong>
-                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
-                            {files.map((file, index) => (
-                              <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) 0' }}>
-                                <span>{file.name}</span>
-                                <button
-                                  type="button"
-                                  className="btn btn--link"
-                                  onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}
-                                  disabled={uploading}
-                                >
-                                  Quitar
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                          <FileSelectionList
+                            files={files}
+                            onRemove={(index) => setFiles(prev => prev.filter((_, i) => i !== index))}
+                          />
                         </div>
                       )}
 
@@ -1053,32 +1038,20 @@ export function TallerGallery() {
 
                       <div className="form-group">
                         <label>Archivos (documentos)</label>
-                        <input
-                          type="file"
+                        <FileUploadSelector
+                          id="taller-resources-files"
                           multiple
-                          className="form-input"
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp"
-                          onChange={handleResourceFilesChange}
+                          onFilesSelected={handleResourceFilesChange}
                           disabled={resourcePublishing}
+                          hint={`Formatos permitidos: PDF, Office, OpenDocument, TXT y CSV · Máximo ${MAX_FILE_SIZE_LABEL}`}
                         />
-                        <small style={{ color: 'var(--color-text-light)' }}>
-                          Formatos permitidos: PDF, Office, OpenDocument, TXT y CSV. Maximo {MAX_FILE_SIZE_LABEL}.
-                        </small>
                       </div>
 
                       {resourceFiles.length > 0 && (
                         <div style={{ marginBottom: 'var(--spacing-md)' }}>
                           <strong>Archivos agregados ({resourceFiles.length})</strong>
-                          <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
-                            {resourceFiles.map((file, index) => (
-                              <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', padding: 'var(--spacing-xs) 0' }}>
-                                <span>{file.name}</span>
-                                <button type="button" className="btn btn--link" onClick={() => handleRemoveResourceFile(index)}>
-                                  Quitar
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                          <FileSelectionList files={resourceFiles} onRemove={handleRemoveResourceFile} />
                         </div>
                       )}
 

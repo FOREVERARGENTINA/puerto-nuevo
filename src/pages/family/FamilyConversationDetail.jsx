@@ -7,6 +7,7 @@ import { conversationsService } from '../../services/conversations.service';
 import { ROUTES, CONVERSATION_STATUS } from '../../config/constants';
 import { emitConversationRead } from '../../utils/conversationEvents';
 import Icon from '../../components/ui/Icon';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import {
   getAreaLabel,
   getCategoryLabel,
@@ -192,19 +193,18 @@ export function FamilyConversationDetail() {
             disabled={sending}
           />
           <div className="conversation-reply__footer">
-            <label className="conversation-reply__file">
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+            <div style={{ width: '100%' }}>
+              <FileUploadSelector
+                id="family-conversation-file"
+                multiple={false}
+                onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
                 disabled={sending}
+                hint="Adjunto opcional"
               />
-              <span className="conversation-reply__file-text">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                </svg>
-                {file ? file.name : 'Adjuntar archivo'}
-              </span>
-            </label>
+              {file && (
+                <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
+              )}
+            </div>
             <button className="btn btn--primary" type="submit" disabled={sending || (!text.trim() && !file)}>
               {sending ? 'Enviando...' : 'Enviar'}
             </button>

@@ -1,10 +1,15 @@
 ﻿import { Link } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { ROUTES } from '../../config/constants';
+import { useAuth } from '../../hooks/useAuth';
+import { WelcomeModal } from '../../components/family/WelcomeModal';
 
 export function FamilyDashboard() {
+  const { user } = useAuth();
+
   return (
     <div className="container page-container family-dashboard-page">
+      <WelcomeModal user={user} />
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Portal de Familias</h1>
@@ -100,6 +105,15 @@ export function FamilyDashboard() {
             <h2 className="section-title">Participación familiar</h2>
           </div>
           <div className="grid-cards-sm admin-dashboard-grid">
+            <Link to={ROUTES.FAMILY_ACTIVITIES} className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-primary">
+              <div className="admin-dashboard-card__icon">
+                <Icon name="edit" size={18} />
+              </div>
+              <div className="admin-dashboard-card__content">
+                <h3 className="card__title">Actividades</h3>
+                <p>Tareas y propuestas para el hogar</p>
+              </div>
+            </Link>
             <Link to="/portal/familia/snacks" className="card card--compact card--clickable link-unstyled admin-dashboard-card family-card-accent">
               <div className="admin-dashboard-card__icon">
                 <Icon name="snack" size={18} />

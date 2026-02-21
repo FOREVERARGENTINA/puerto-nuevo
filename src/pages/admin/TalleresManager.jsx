@@ -5,6 +5,7 @@ import { usersService } from '../../services/users.service';
 import { eventsService } from '../../services/events.service';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { useDialog } from '../../hooks/useDialog';
 import { useAuth } from '../../hooks/useAuth';
 import Icon from '../../components/ui/Icon';
@@ -43,6 +44,29 @@ const EVENT_ALLOWED_MIME_TYPES = new Set([
   'image/heif',
   'image/heic-sequence',
   'image/heif-sequence'
+]);
+
+const RESOURCE_MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const RESOURCE_MAX_FILE_SIZE_LABEL = '20MB';
+const RESOURCE_BLOCKED_EXTENSIONS = new Set(['zip', 'exe', 'bat']);
+const RESOURCE_ALLOWED_EXTENSIONS = new Set([
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+  'txt', 'csv', 'rtf', 'odt', 'ods', 'odp'
+]);
+const RESOURCE_ALLOWED_MIME_TYPES_CLIENT = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/rtf',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation'
 ]);
 
 const TalleresManager = () => {
@@ -99,6 +123,14 @@ const TalleresManager = () => {
   const [eventFiles, setEventFiles] = useState([]);
   const [activeTab, setActiveTab] = useState('config');
   const [galleryDeletingId, setGalleryDeletingId] = useState(null);
+  const [resourcePosts, setResourcePosts] = useState([]);
+  const [resourcePostsLoading, setResourcePostsLoading] = useState(false);
+  const [resourcePublishing, setResourcePublishing] = useState(false);
+  const [resourceDeletingId, setResourceDeletingId] = useState(null);
+  const [resourceForm, setResourceForm] = useState({ title: '', description: '' });
+  const [resourceFiles, setResourceFiles] = useState([]);
+  const [resourceLinkInput, setResourceLinkInput] = useState('');
+  const [resourceLinks, setResourceLinks] = useState([]);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -177,6 +209,17 @@ const TalleresManager = () => {
     setLegacyLoading(false);
   };
 
+  const loadResourcePosts = async (id) => {
+    setResourcePostsLoading(true);
+    const result = await talleresService.getResourcePosts(id);
+    if (result.success) {
+      setResourcePosts(result.posts || []);
+    } else {
+      setResourcePosts([]);
+    }
+    setResourcePostsLoading(false);
+  };
+
   const loadTallerEvents = async (id) => {
     setEventsLoading(true);
     const now = new Date();
@@ -199,6 +242,130 @@ const TalleresManager = () => {
     setEventsLoading(false);
   };
 
+  const handleResourceFilesChange = (selectedFiles) => {
+    const parsedFiles = Array.isArray(selectedFiles) ? selectedFiles : [];
+    if (parsedFiles.length === 0) return;
+    const validFiles = [];
+    const rejectedMessages = [];
+    parsedFiles.forEach((file) => {
+      const lowerName = (file.name || '').toLowerCase();
+      const extension = lowerName.includes('.') ? lowerName.split('.').pop() : '';
+      const mimeType = (file.type || '').toLowerCase();
+      if (extension && RESOURCE_BLOCKED_EXTENSIONS.has(extension)) {
+        rejectedMessages.push(`${file.name}: extension no permitida`);
+        return;
+      }
+      if (file.size > RESOURCE_MAX_FILE_SIZE_BYTES) {
+        rejectedMessages.push(`${file.name}: supera ${RESOURCE_MAX_FILE_SIZE_LABEL}`);
+        return;
+      }
+      const validByExtension = extension && RESOURCE_ALLOWED_EXTENSIONS.has(extension);
+      const validByMimeType = mimeType && RESOURCE_ALLOWED_MIME_TYPES_CLIENT.has(mimeType);
+      if (!validByExtension && !validByMimeType) {
+        rejectedMessages.push(`${file.name}: tipo no permitido`);
+        return;
+      }
+      validFiles.push(file);
+    });
+    if (rejectedMessages.length > 0) {
+      alertDialog.openDialog({
+        title: 'Algunos archivos no son validos',
+        message: rejectedMessages.slice(0, 4).join('\n'),
+        type: 'warning'
+      });
+    }
+    if (validFiles.length > 0) {
+      setResourceFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleAddResourceLink = () => {
+    const raw = resourceLinkInput.trim();
+    if (!raw) return;
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      alertDialog.openDialog({ title: 'Link no valido', message: 'Ingrese una URL valida con http o https.', type: 'warning' });
+      return;
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      alertDialog.openDialog({ title: 'Link no valido', message: 'Solo se permiten links con protocolo http o https.', type: 'warning' });
+      return;
+    }
+    const normalizedUrl = parsed.toString();
+    if (resourceLinks.some((link) => link.url === normalizedUrl)) {
+      setResourceLinkInput('');
+      return;
+    }
+    setResourceLinks((prev) => [...prev, { url: normalizedUrl, label: parsed.hostname }]);
+    setResourceLinkInput('');
+  };
+
+  const handleRemoveResourceFile = (index) => {
+    setResourceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveResourceLink = (index) => {
+    setResourceLinks((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePublishResourcePost = async () => {
+    if (!selectedTaller?.id || !user?.uid) return;
+    const title = resourceForm.title.trim();
+    if (!title) {
+      alertDialog.openDialog({ title: 'Titulo requerido', message: 'Ingrese un titulo para la publicacion.', type: 'warning' });
+      return;
+    }
+    if (resourceFiles.length === 0 && resourceLinks.length === 0) {
+      alertDialog.openDialog({ title: 'Contenido requerido', message: 'Agrega al menos un archivo o un link.', type: 'warning' });
+      return;
+    }
+    setResourcePublishing(true);
+    const result = await talleresService.createResourcePost(selectedTaller.id, {
+      title,
+      description: resourceForm.description,
+      files: resourceFiles,
+      links: resourceLinks,
+      createdBy: user.uid,
+      createdByName: user.displayName || user.email || ''
+    });
+    if (!result.success) {
+      setResourcePublishing(false);
+      alertDialog.openDialog({ title: 'Error al publicar', message: result.error || 'No se pudo publicar el recurso.', type: 'error' });
+      return;
+    }
+    setResourceForm({ title: '', description: '' });
+    setResourceFiles([]);
+    setResourceLinks([]);
+    setResourceLinkInput('');
+    await loadResourcePosts(selectedTaller.id);
+    setResourcePublishing(false);
+    alertDialog.openDialog({ title: 'Publicado', message: 'El recurso se publico correctamente.', type: 'success' });
+  };
+
+  const handleDeleteResourcePost = (post) => {
+    if (!selectedTaller?.id || !post?.id) return;
+    confirmDialog.openDialog({
+      title: 'Eliminar publicacion',
+      message: 'Se eliminara esta publicacion y sus archivos adjuntos. Esta accion no se puede deshacer.',
+      type: 'danger',
+      onConfirm: async () => {
+        setResourceDeletingId(post.id);
+        const result = await talleresService.deleteResourcePost(selectedTaller.id, post.id, post.items || []);
+        setResourceDeletingId(null);
+        if (!result.success) {
+          alertDialog.openDialog({ title: 'No se pudo eliminar', message: result.error || 'Error eliminando la publicacion.', type: 'error' });
+          return;
+        }
+        if (Array.isArray(result.warnings) && result.warnings.length > 0) {
+          alertDialog.openDialog({ title: 'Publicacion eliminada con avisos', message: result.warnings.slice(0, 3).join('\n'), type: 'warning' });
+        }
+        await loadResourcePosts(selectedTaller.id);
+      }
+    });
+  };
+
   const selectTallerForContent = async (taller) => {
     setSelectedTaller(taller);
     if (!taller?.id) return;
@@ -214,7 +381,11 @@ const TalleresManager = () => {
       hora: '',
       scope: 'taller'
     });
-    await Promise.all([loadAlbums(taller.id), loadLegacyGallery(taller.id), loadTallerEvents(taller.id)]);
+    setResourceForm({ title: '', description: '' });
+    setResourceFiles([]);
+    setResourceLinks([]);
+    setResourceLinkInput('');
+    await Promise.all([loadAlbums(taller.id), loadLegacyGallery(taller.id), loadTallerEvents(taller.id), loadResourcePosts(taller.id)]);
   };
 
   useEffect(() => {
@@ -500,8 +671,8 @@ const TalleresManager = () => {
     return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
   };
 
-  const handleGalleryFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleGalleryFilesChange = (selectedFiles) => {
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
     if (files.length === 0) return;
 
     const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(
@@ -531,12 +702,10 @@ const TalleresManager = () => {
     if (validFiles.length > 0) {
       setGalleryFiles(prev => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
-  const handleEventFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleEventFilesChange = (selectedFiles) => {
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
     if (files.length === 0) return;
 
     const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(
@@ -566,8 +735,6 @@ const TalleresManager = () => {
     if (validFiles.length > 0) {
       setEventFiles(prev => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
   const removeGalleryFile = (index) => {
@@ -743,8 +910,8 @@ const TalleresManager = () => {
     setEventEditForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEventEditFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleEventEditFilesChange = (selectedFiles) => {
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
     if (files.length === 0) return;
 
     const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateFiles(
@@ -774,8 +941,6 @@ const TalleresManager = () => {
     if (validFiles.length > 0) {
       setEventEditFiles(prev => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
   const removeEventEditFile = (index) => {
@@ -982,7 +1147,7 @@ const TalleresManager = () => {
     : 'Gestiona configuración, eventos especiales y galería.';
 
   const header = (
-    <div className="dashboard-header dashboard-header--compact">
+    <div className="dashboard-header dashboard-header--compact" style={{ paddingInline: 0 }}>
       <div>
         <h1 className="dashboard-title">{headerTitle}</h1>
         <p className="dashboard-subtitle">{headerSubtitle}</p>
@@ -1052,6 +1217,13 @@ const TalleresManager = () => {
               >
                 Eventos
               </button>
+              <button
+                type="button"
+                className={`tabs__tab ${activeTab === 'resources' ? 'tabs__tab--active' : ''}`}
+                onClick={() => setActiveTab('resources')}
+              >
+                Recursos
+              </button>
             </>
           )}
         </div>
@@ -1067,7 +1239,7 @@ const TalleresManager = () => {
         </div>
         <div className="card__body talleres-admin-compact">
           <form onSubmit={handleSubmit} className="talleres-form">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)' }}>
+            <div className="talleres-form-row talleres-form-row--2col">
               <div className="form-group">
                 <label htmlFor="nombre" title="Se verá en el calendario y en los paneles de familias y talleristas.">
                   Nombre del taller *
@@ -1106,7 +1278,7 @@ const TalleresManager = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-sm)' }}>
+            <div className="talleres-form-row talleres-form-row--desc">
               <div className="form-group">
               <label htmlFor="descripcion" title="Visible para familias y talleristas.">
                 Descripción
@@ -1157,7 +1329,7 @@ const TalleresManager = () => {
                   </span>
                 </div>
               )}
-              <div style={{ overflowX: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <div style={{ overflow: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
                   <thead>
                     <tr>
@@ -1255,6 +1427,157 @@ const TalleresManager = () => {
       </div>
       )}
 
+      {activeTab === 'resources' && (
+      <div className="card">
+        <div className="card__body">
+          {!selectedTaller ? (
+            <div className="empty-state">
+              <p>Guarda el taller para habilitar recursos.</p>
+            </div>
+          ) : (
+            <div>
+              <div className="card card--warm" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <div className="card__body">
+                  <h4 style={{ margin: '0 0 var(--spacing-md)' }}>Publicar recurso</h4>
+                  <div className="form-group">
+                    <label>Titulo *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={resourceForm.title}
+                      onChange={(e) => setResourceForm((prev) => ({ ...prev, title: e.target.value }))}
+                      placeholder="Ej: Recursos para casa"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Descripcion</label>
+                    <textarea
+                      className="form-textarea"
+                      rows={3}
+                      value={resourceForm.description}
+                      onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Contexto breve para las familias"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Archivos (documentos)</label>
+                    <FileUploadSelector
+                      id="admin-resources-files"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp"
+                      onFilesSelected={handleResourceFilesChange}
+                      disabled={resourcePublishing}
+                      hint={`Formatos permitidos: PDF, Office, OpenDocument, TXT y CSV · Máximo ${RESOURCE_MAX_FILE_SIZE_LABEL}`}
+                    />
+                  </div>
+                  {resourceFiles.length > 0 && (
+                    <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                      <strong>Archivos agregados ({resourceFiles.length})</strong>
+                      <FileSelectionList files={resourceFiles} onRemove={handleRemoveResourceFile} />
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label>Links</label>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                      <input
+                        type="url"
+                        className="form-input"
+                        placeholder="https://..."
+                        value={resourceLinkInput}
+                        onChange={(e) => setResourceLinkInput(e.target.value)}
+                        onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddResourceLink(); } }}
+                      />
+                      <button type="button" className="btn btn--secondary" onClick={handleAddResourceLink}>
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                  {resourceLinks.length > 0 && (
+                    <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                      <strong>Links agregados ({resourceLinks.length})</strong>
+                      <ul style={{ listStyle: 'none', padding: 0, marginTop: 'var(--spacing-xs)' }}>
+                        {resourceLinks.map((link, index) => (
+                          <li key={`${link.url}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', padding: 'var(--spacing-xs) 0' }}>
+                            <a href={link.url} target="_blank" rel="noopener noreferrer">{link.label || link.url}</a>
+                            <button type="button" className="btn btn--link" onClick={() => handleRemoveResourceLink(index)}>Quitar</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={handlePublishResourcePost}
+                    disabled={resourcePublishing}
+                  >
+                    {resourcePublishing ? 'Publicando...' : 'Publicar recurso'}
+                  </button>
+                </div>
+              </div>
+
+              {resourcePostsLoading ? (
+                <p>Cargando recursos...</p>
+              ) : resourcePosts.length === 0 ? (
+                <div className="alert alert--info">
+                  <p>Aun no hay recursos publicados para este taller.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
+                  {resourcePosts.map((post) => {
+                    const createdAt = post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
+                    const createdLabel = Number.isNaN(createdAt?.getTime?.()) ? '' : createdAt.toLocaleDateString('es-AR');
+                    const items = Array.isArray(post.items) ? post.items : [];
+                    return (
+                      <div key={post.id} className="card">
+                        <div className="card__body">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)', alignItems: 'flex-start', marginBottom: 'var(--spacing-sm)' }}>
+                            <div>
+                              <h3 className="card__title" style={{ marginBottom: 'var(--spacing-xs)' }}>{post.title}</h3>
+                              {createdLabel && (
+                                <p style={{ margin: 0, color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                                  Publicado el {createdLabel}{post.createdByName ? ` por ${post.createdByName}` : ''}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn--danger btn--sm"
+                              onClick={() => handleDeleteResourcePost(post)}
+                              disabled={resourceDeletingId === post.id}
+                            >
+                              {resourceDeletingId === post.id ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                          </div>
+                          {post.description && (
+                            <p style={{ marginTop: 0, marginBottom: 'var(--spacing-sm)' }}>{post.description}</p>
+                          )}
+                          {items.length > 0 ? (
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--spacing-xs)' }}>
+                              {items.map((item, index) => (
+                                <li key={`${item.url || item.path || index}`}>
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                    {item.kind === 'link' ? '🔗 Link' : '📄 Archivo'}: {item.label || item.url}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ margin: 0, color: 'var(--color-text-light)' }}>Sin elementos.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+
       {(activeTab === 'gallery' || activeTab === 'events') && (
       <div className="card">
         <div className="card__body">
@@ -1312,29 +1635,17 @@ const TalleresManager = () => {
                               <div className="card__body">
                                 <div className="form-group">
                                   <label>Subir archivos</label>
-                                  <input
-                                    type="file"
+                                  <FileUploadSelector
+                                    id="admin-taller-gallery-files"
                                     multiple
-                                    className="form-input"
                                     accept="image/*,video/*,.heic,.heif,.webp,.webm,.mov"
-                                    onChange={handleGalleryFilesChange}
+                                    onFilesSelected={handleGalleryFilesChange}
                                     disabled={galleryUploading}
+                                    hint={`Formatos: imagenes o videos. Bloqueados: .zip, .exe, .bat. Maximo ${GALLERY_MAX_FILE_SIZE_LABEL} por archivo`}
                                   />
                                 </div>
-                                <p className="form-help">
-                                  Formatos: imágenes o videos. Bloqueados: .zip, .exe, .bat. Máximo {GALLERY_MAX_FILE_SIZE_LABEL} por archivo.
-                                </p>
                                 {galleryFiles.length > 0 && (
-                                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                    {galleryFiles.map((file, index) => (
-                                      <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span>{file.name}</span>
-                                        <button type="button" className="btn btn--link" onClick={() => removeGalleryFile(index)}>
-                                          Quitar
-                                        </button>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  <FileSelectionList files={galleryFiles} onRemove={removeGalleryFile} />
                                 )}
                                 <button
                                   type="button"
@@ -1543,28 +1854,16 @@ const TalleresManager = () => {
                                             })}
                                           </div>
                                         )}
-                                        <input
-                                          type="file"
+                                        <FileUploadSelector
+                                          id="admin-taller-event-edit-files"
                                           multiple
-                                          className="form-input"
                                           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
-                                          onChange={handleEventEditFilesChange}
+                                          onFilesSelected={handleEventEditFilesChange}
                                           disabled={eventUpdating}
+                                          hint={`Formatos: imagenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Maximo ${EVENT_MAX_FILE_SIZE_LABEL} por archivo`}
                                         />
-                                        <p className="form-help">
-                                          Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {EVENT_MAX_FILE_SIZE_LABEL} por archivo.
-                                        </p>
                                         {eventEditFiles.length > 0 && (
-                                          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                            {eventEditFiles.map((file, index) => (
-                                              <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>{file.name}</span>
-                                                <button type="button" className="btn btn--link" onClick={() => removeEventEditFile(index)}>
-                                                  Quitar
-                                                </button>
-                                              </li>
-                                            ))}
-                                          </ul>
+                                          <FileSelectionList files={eventEditFiles} onRemove={removeEventEditFile} />
                                         )}
                                       </div>
                                       <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
@@ -1690,28 +1989,16 @@ const TalleresManager = () => {
                           </div>
                           <div className="form-group">
                             <label>Adjuntos</label>
-                            <input
-                              type="file"
+                            <FileUploadSelector
+                              id="admin-taller-event-files"
                               multiple
-                              className="form-input"
                               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
-                              onChange={handleEventFilesChange}
+                              onFilesSelected={handleEventFilesChange}
                               disabled={eventSaving}
+                              hint={`Formatos: imagenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Maximo ${EVENT_MAX_FILE_SIZE_LABEL} por archivo`}
                             />
-                            <p className="form-help">
-                              Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {EVENT_MAX_FILE_SIZE_LABEL} por archivo.
-                            </p>
                             {eventFiles.length > 0 && (
-                              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                {eventFiles.map((file, index) => (
-                                  <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>{file.name}</span>
-                                    <button type="button" className="btn btn--link" onClick={() => removeEventFile(index)}>
-                                      Quitar
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
+                              <FileSelectionList files={eventFiles} onRemove={removeEventFile} />
                             )}
                           </div>
                           <button
@@ -1757,4 +2044,3 @@ const TalleresManager = () => {
 };
 
 export default TalleresManager;
-

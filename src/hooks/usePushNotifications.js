@@ -4,6 +4,34 @@ import app from '../config/firebase';
 import { usersService } from '../services/users.service';
 
 const PUSH_SW_PATH = '/firebase-messaging-sw.js';
+const TRANSIENT_IDB_RETRY_DELAY_MS = 500;
+const MAX_REGISTER_RETRIES = 2;
+
+let registerTokenInFlightPromise = null;
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isTransientIndexedDbClosingError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('database connection is closing') ||
+    (message.includes('idbdatabase') && message.includes('closing')) ||
+    (message.includes('failed to execute') && message.includes('transaction'))
+  );
+}
+
+function getFriendlyPushError(error, fallbackMessage) {
+  if (isTransientIndexedDbClosingError(error)) {
+    return 'Estamos preparando las notificaciones. Volve a intentar en unos segundos.';
+  }
+
+  const message = String(error?.message || '').trim();
+  return message || fallbackMessage;
+}
 
 async function waitForActiveServiceWorker(registration) {
   if (registration.active) return registration;
@@ -48,28 +76,54 @@ export function usePushNotifications(user) {
   const registerToken = useCallback(async () => {
     if (!user?.uid) throw new Error('Usuario no autenticado');
 
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-    if (!vapidKey) throw new Error('VITE_FIREBASE_VAPID_KEY no configurada');
-
-    const registration = await navigator.serviceWorker.register(PUSH_SW_PATH);
-    await waitForActiveServiceWorker(registration);
-    await navigator.serviceWorker.ready;
-
-    const messaging = getMessaging(app);
-    const token = await getToken(messaging, {
-      vapidKey,
-      serviceWorkerRegistration: registration,
-    });
-
-    if (!token) {
-      throw new Error('No se pudo obtener token de notificaciones');
+    if (registerTokenInFlightPromise) {
+      return registerTokenInFlightPromise;
     }
 
-    const saveResult = await usersService.addFcmToken(user.uid, token);
-    if (!saveResult?.success) {
-      throw new Error(saveResult?.error || 'No se pudo guardar token push en el perfil');
+    registerTokenInFlightPromise = (async () => {
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      if (!vapidKey) throw new Error('VITE_FIREBASE_VAPID_KEY no configurada');
+
+      for (let attempt = 1; attempt <= MAX_REGISTER_RETRIES; attempt += 1) {
+        try {
+          const registration = await navigator.serviceWorker.register(PUSH_SW_PATH);
+          await waitForActiveServiceWorker(registration);
+          await navigator.serviceWorker.ready;
+
+          const messaging = getMessaging(app);
+          const token = await getToken(messaging, {
+            vapidKey,
+            serviceWorkerRegistration: registration,
+          });
+
+          if (!token) {
+            throw new Error('No se pudo obtener token de notificaciones');
+          }
+
+          const saveResult = await usersService.addFcmToken(user.uid, token);
+          if (!saveResult?.success) {
+            throw new Error(saveResult?.error || 'No se pudo guardar token push en el perfil');
+          }
+
+          return token;
+        } catch (error) {
+          const shouldRetry = isTransientIndexedDbClosingError(error) && attempt < MAX_REGISTER_RETRIES;
+          if (!shouldRetry) {
+            throw error;
+          }
+
+          await sleep(TRANSIENT_IDB_RETRY_DELAY_MS * attempt);
+        }
+      }
+
+      throw new Error('No se pudo registrar notificaciones en este momento');
+    })();
+
+    try {
+      return await registerTokenInFlightPromise;
+    } finally {
+      registerTokenInFlightPromise = null;
     }
-    return token;
   }, [user?.uid]);
 
   useEffect(() => {
@@ -109,7 +163,7 @@ export function usePushNotifications(user) {
         } catch (error) {
           console.error('[Push] Error sincronizando token:', error);
           if (!mounted) return;
-          setPushError(error.message || 'No se pudo sincronizar notificaciones');
+          setPushError(getFriendlyPushError(error, 'No se pudo sincronizar notificaciones'));
         }
       }
     };
@@ -150,7 +204,8 @@ export function usePushNotifications(user) {
       setPushError('');
       return true;
     } catch (error) {
-      setPushError(error.message || 'No se pudo activar notificaciones');
+      setIsPushEnabled(false);
+      setPushError(getFriendlyPushError(error, 'No se pudo activar notificaciones'));
       return false;
     } finally {
       setIsActivatingPush(false);

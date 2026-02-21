@@ -6,6 +6,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/com
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 import './EventsManager.css';
@@ -35,7 +36,7 @@ export function EventsManager() {
     descripcion: '',
     fecha: '',
     hora: '',
-    tipo: 'general' // general, reuniones, talleres, snacks
+    tipo: 'general' // general, reuniones, talleres, muestra, acto
   });
   const [selectedMediaFiles, setSelectedMediaFiles] = useState([]);
   const [existingMedia, setExistingMedia] = useState([]);
@@ -269,8 +270,8 @@ export function EventsManager() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleMediaFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleMediaFilesChange = (selectedFiles) => {
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
     if (files.length === 0) return;
 
     const validFiles = [];
@@ -322,8 +323,6 @@ export function EventsManager() {
     if (validFiles.length > 0) {
       setSelectedMediaFiles(prev => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
   const removeSelectedMediaFile = (index) => {
@@ -452,6 +451,8 @@ export function EventsManager() {
       general: 'General',
       reuniones: 'Reuniones',
       talleres: 'Talleres',
+      muestra: 'Muestra',
+      acto: 'Acto',
       snacks: 'Snacks'
     };
     return labels[tipo] || tipo;
@@ -596,7 +597,7 @@ export function EventsManager() {
     <div className="container page-container events-manager-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">Gestión de Eventos</h1>
+          <h1 className="dashboard-title">Eventos</h1>
           <p className="dashboard-subtitle">Administra el calendario de eventos institucionales</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
@@ -753,7 +754,8 @@ export function EventsManager() {
                         <option value="general">General</option>
                         <option value="reuniones">Reuniones</option>
                         <option value="talleres">Talleres</option>
-                        <option value="snacks">Snacks</option>
+                        <option value="muestra">Muestra</option>
+                        <option value="acto">Acto</option>
                       </select>
                     </div>
                     {hasFilters && (
@@ -913,7 +915,8 @@ export function EventsManager() {
                 <option value="general">General</option>
                 <option value="reuniones">Reuniones</option>
                 <option value="talleres">Talleres</option>
-                <option value="snacks">Snacks</option>
+                <option value="muestra">Muestra</option>
+                <option value="acto">Acto</option>
               </select>
             </div>
 
@@ -921,42 +924,19 @@ export function EventsManager() {
               <label htmlFor="event-media" className="form-label">
                 Media (opcional)
               </label>
-              <input
+              <FileUploadSelector
                 id="event-media"
-                type="file"
                 multiple
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
-                onChange={handleMediaFilesChange}
-                className="form-input form-input--sm"
+                onFilesSelected={handleMediaFilesChange}
                 disabled={saving || uploadingMedia}
+                hint={`Formatos: imagenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Maximo ${maxMediaSizeLabel} por archivo`}
               />
-              <p className="form-help">
-                Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {maxMediaSizeLabel} por archivo.
-              </p>
 
               {selectedMediaFiles.length > 0 && (
                 <div className="event-media-list">
                   <strong>Archivos a subir:</strong>
-                  <ul className="event-media-list__items">
-                    {selectedMediaFiles.map((file, i) => (
-                      <li key={`${file.name}-${i}`}>
-                        <span>{file.name}</span>
-                        {formatFileSize(file.size) && (
-                          <span className="event-media-list__meta">
-                            ({formatFileSize(file.size)})
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn--link"
-                          onClick={() => removeSelectedMediaFile(i)}
-                          disabled={saving || uploadingMedia}
-                        >
-                          Quitar
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <FileSelectionList files={selectedMediaFiles} onRemove={removeSelectedMediaFile} />
                 </div>
               )}
 
@@ -1092,4 +1072,3 @@ export function EventsManager() {
     </div>
   );
 }
-

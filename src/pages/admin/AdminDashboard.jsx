@@ -65,6 +65,15 @@ export function AdminDashboard() {
             </h2>
           </div>
           <div className="grid-cards-sm admin-dashboard-grid">
+            <Link to={ROUTES.ADMIN_ACTIVITIES} className="card card--compact card--clickable link-unstyled admin-dashboard-card">
+              <div className="admin-dashboard-card__icon">
+                <Icon name="edit" size={18} />
+              </div>
+              <div className="admin-dashboard-card__content">
+                <h3 className="card__title">Actividades</h3>
+                <p>Publicar tareas por ambiente</p>
+              </div>
+            </Link>
             <Link to={ROUTES.EVENTS_MANAGER} className="card card--compact card--clickable link-unstyled admin-dashboard-card">
               <div className="admin-dashboard-card__icon">
                 <Icon name="event" size={18} />

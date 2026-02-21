@@ -3,6 +3,7 @@ import { usersService } from '../../services/users.service';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
+import { FileSelectionList, FileUploadSelector } from '../common/FileUploadSelector';
 
 const DEFAULT_DATOS_MEDICOS = {
   alergias: '',
@@ -85,7 +86,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
 
   const handleMedicalDataChange = (e) => {
     const { name, value } = e.target;
-    const nextValue = name === 'telefonoClinica' ? value.replace(/\D/g, '') : value;
+    const nextValue = value;
     setFormData(prev => ({
       ...prev,
       datosMedicos: {
@@ -109,8 +110,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
     setResponsablesError('');
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+  const handleFileSelect = (selectedFiles) => {
+    const file = Array.isArray(selectedFiles) ? selectedFiles[0] : null;
     if (file) {
       // Validar tamaño (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
@@ -159,7 +160,6 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
       
       setFileToUpload(null);
       setFileDescription('');
-      document.getElementById('fileInput').value = '';
     } catch (error) {
       console.error('Error al subir archivo:', error);
       alert('Error al subir el archivo: ' + error.message);
@@ -404,17 +404,15 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="telefonoClinica" className="form-label required">Teléfono de la clínica/hospital</label>
+            <label htmlFor="telefonoClinica" className="form-label required">Teléfono/Dirección</label>
             <input
-              type="tel"
+              type="text"
               id="telefonoClinica"
               name="telefonoClinica"
               value={formData.datosMedicos.telefonoClinica}
               onChange={handleMedicalDataChange}
               className="form-input"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="Solo números, sin espacios"
+              placeholder="Ej: 351 123-4567 o Av. Siempreviva 742"
               required
               disabled={!canEditMedical}
             />
@@ -516,15 +514,17 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
           }}>
             <div className="form-group" style={{ marginBottom: 'var(--spacing-sm)' }}>
               <label htmlFor="fileInput" className="form-label">Seleccionar archivo</label>
-              <input
-                type="file"
+              <FileUploadSelector
                 id="fileInput"
-                onChange={handleFileSelect}
-                className="form-input"
+                multiple={false}
+                onFilesSelected={handleFileSelect}
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 disabled={uploadingFile}
+                hint="Max 5MB (PDF, imagenes, Word)"
               />
-              <small className="form-helper-text">Max 5MB (PDF, imágenes, Word)</small>
+              {fileToUpload && (
+                <FileSelectionList files={[fileToUpload]} onRemove={() => setFileToUpload(null)} />
+              )}
             </div>
             <div className="form-group" style={{ marginBottom: 'var(--spacing-sm)' }}>
               <label htmlFor="fileDescription" className="form-label">Descripción</label>

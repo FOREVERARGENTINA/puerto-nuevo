@@ -16,6 +16,8 @@
   --em-tipo-general:     var(--color-primary);         /* petróleo */
   --em-tipo-reuniones:   var(--color-secondary);       /* taupe */
   --em-tipo-talleres:    var(--color-accent);          /* coral */
+  --em-tipo-muestra:     #b86b4b;                      /* terracota */
+  --em-tipo-acto:        #6a4f8b;                      /* ciruela */
   --em-tipo-snacks:      var(--color-info);            /* azul claro */
 
   --em-past-opacity:     0.55;
@@ -32,28 +34,6 @@
 }
 
 /* ─── Page Header ─────────────────────────────────────────── */
-
-.events-manager-page .dashboard-header--compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--em-border);
-  margin-bottom: var(--spacing-lg);
-}
-
-.events-manager-page .dashboard-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.4px;
-  color: var(--color-text);
-}
-
-.events-manager-page .dashboard-subtitle {
-  color: var(--color-text-light);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
-}
 
 /* ─── Layout ─────────────────────────────────────────────── */
 
@@ -412,6 +392,12 @@
 .events-manager-page .events-list .card[data-tipo="talleres"] {
   border-left-color: var(--em-tipo-talleres);
 }
+.events-manager-page .events-list .card[data-tipo="muestra"] {
+  border-left-color: var(--em-tipo-muestra);
+}
+.events-manager-page .events-list .card[data-tipo="acto"] {
+  border-left-color: var(--em-tipo-acto);
+}
 .events-manager-page .events-list .card[data-tipo="snacks"] {
   border-left-color: var(--em-tipo-snacks);
 }
@@ -425,6 +411,16 @@
 .events-manager-page .events-list .card--clickable:hover[data-tipo="talleres"] {
   border-left-color: var(--em-tipo-talleres);
   border-color: rgba(230, 126, 94, 0.3);
+}
+
+.events-manager-page .events-list .card--clickable:hover[data-tipo="muestra"] {
+  border-left-color: var(--em-tipo-muestra);
+  border-color: rgba(184, 107, 75, 0.35);
+}
+
+.events-manager-page .events-list .card--clickable:hover[data-tipo="acto"] {
+  border-left-color: var(--em-tipo-acto);
+  border-color: rgba(106, 79, 139, 0.35);
 }
 
 .events-manager-page .events-list .card--clickable:hover[data-tipo="reuniones"] {
@@ -564,14 +560,9 @@
 }
 
 @media (max-width: 640px) {
-  .events-manager-page .dashboard-header--compact {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-
   .events-manager-page .events-filters {
     grid-template-columns: 1fr;
     gap: var(--spacing-xs);
   }
 }
+

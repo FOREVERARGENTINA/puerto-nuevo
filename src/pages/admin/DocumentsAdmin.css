@@ -26,28 +26,6 @@
 
 /* ─── Page Header ─────────────────────────────────────────── */
 
-.documents-admin-page .dashboard-header--compact {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--da-border);
-  margin-bottom: var(--spacing-lg);
-}
-
-.documents-admin-page .dashboard-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.4px;
-  color: var(--color-text);
-}
-
-.documents-admin-page .dashboard-subtitle {
-  color: var(--color-text-light);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
-}
-
 /* ─── Card contenedor principal ──────────────────────────── */
 
 .documents-admin-page > .card {
@@ -479,12 +457,6 @@
 /* ─── Responsive ─────────────────────────────────────────── */
 
 @media (max-width: 640px) {
-  .documents-admin-page .dashboard-header--compact {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-
   .documents-admin-page .documents-admin-tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -523,3 +495,4 @@
     min-width: 0;
   }
 }
+

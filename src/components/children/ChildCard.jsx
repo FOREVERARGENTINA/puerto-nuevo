@@ -111,7 +111,7 @@
               )}
               {child.datosMedicos.telefonoClinica && (
                 <div className="child-card__medical-item">
-                  <strong>Teléfono:</strong>
+                  <strong>Teléfono/Dirección:</strong>
                   <span>{child.datosMedicos.telefonoClinica}</span>
                 </div>
               )}

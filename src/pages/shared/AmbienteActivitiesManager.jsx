@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '../../components/ui/Icon';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { useAuth } from '../../hooks/useAuth';
 import {
   AMBIENTE_ACTIVITY_CATEGORY_OPTIONS,
@@ -319,37 +320,26 @@ export default function AmbienteActivitiesManager() {
 
             <div className="form-group">
               <label htmlFor="activity-files" className="form-label">Adjuntos</label>
-              <input
+              <FileUploadSelector
                 id="activity-files"
-                type="file"
-                className="form-control"
                 multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setForm((prev) => ({ ...prev, files: [...prev.files, ...files] }));
-                  e.target.value = '';
-                }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp"
                 disabled={submitting}
+                onFilesSelected={(newFiles) => {
+                  setForm((prev) => ({ ...prev, files: [...prev.files, ...newFiles] }));
+                }}
+                hint="PDF, Office, OpenDocument, TXT y CSV · máx. 20 MB por archivo"
               />
               {form.files.length > 0 && (
-                <ul style={{ marginTop: 'var(--spacing-sm)' }}>
-                  {form.files.map((file, index) => (
-                    <li key={`${file.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-sm)' }}>
-                      <span>{file.name}</span>
-                      <button
-                        type="button"
-                        className="btn btn--link"
-                        onClick={() => setForm((prev) => ({
-                          ...prev,
-                          files: prev.files.filter((_, i) => i !== index)
-                        }))}
-                        disabled={submitting}
-                      >
-                        Quitar
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <FileSelectionList
+                  files={form.files}
+                  onRemove={(index) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      files: prev.files.filter((_, i) => i !== index)
+                    }));
+                  }}
+                />
               )}
             </div>
 

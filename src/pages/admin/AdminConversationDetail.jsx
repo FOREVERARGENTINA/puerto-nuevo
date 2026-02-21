@@ -13,6 +13,7 @@ import {
   getConversationStatusBadge,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 
 export function AdminConversationDetail() {
   const { id } = useParams();
@@ -267,12 +268,18 @@ export function AdminConversationDetail() {
           disabled={sending || isClosed}
         />
         <div className="conversation-compose__actions">
-          <input
-            type="file"
-            className="form-input"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            disabled={sending || isClosed}
-          />
+          <div style={{ width: '100%' }}>
+            <FileUploadSelector
+              id="admin-conversation-file"
+              multiple={false}
+              onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
+              disabled={sending || isClosed}
+              hint="Adjunto opcional"
+            />
+            {file && (
+              <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
+            )}
+          </div>
           <button className="btn btn--primary" type="submit" disabled={sending || isClosed}>
             {sending ? 'Enviando...' : 'Enviar mensaje'}
           </button>

@@ -5,6 +5,7 @@ import { childrenService } from '../../services/children.service';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../components/common/Modal';
+import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { useDialog } from '../../hooks/useDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { Timestamp, serverTimestamp } from 'firebase/firestore';
@@ -208,8 +209,8 @@ const AppointmentsManager = () => {
     return { validFiles, hasInvalidType, hasBlockedType, hasOversize };
   };
 
-  const handleNotesFilesChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleNotesFilesChange = (selectedFiles) => {
+    const files = Array.isArray(selectedFiles) ? selectedFiles : [];
     if (files.length === 0) return;
 
     const { validFiles, hasInvalidType, hasBlockedType, hasOversize } = validateNotesFiles(files);
@@ -232,8 +233,6 @@ const AppointmentsManager = () => {
     if (validFiles.length > 0) {
       setNotesFiles(prev => [...prev, ...validFiles]);
     }
-
-    e.target.value = null;
   };
 
   const removeNotesFile = (index) => {
@@ -1535,28 +1534,17 @@ const AppointmentsManager = () => {
 
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label>Adjuntos</label>
-                  <input
-                    type="file"
+                  <FileUploadSelector
+                    id="appointment-notes-files"
                     multiple
-                    className="form-input"
                     accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.heic,.heif,.webp,.webm,.mov,.mp3,.wav,.m4a,.ogg"
-                    onChange={handleNotesFilesChange}
+                    onFilesSelected={handleNotesFilesChange}
+                    disabled={notesSaving}
+                    hint={`Formatos: imagenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Maximo ${NOTES_MAX_FILE_SIZE_LABEL} por archivo`}
                   />
-                  <p className="form-help">
-                    Formatos: imágenes, videos, audio, documentos o texto. Bloqueados: .zip, .exe, .bat. Máximo {NOTES_MAX_FILE_SIZE_LABEL} por archivo.
-                  </p>
 
                   {notesFiles.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 'var(--spacing-sm) 0 0' }}>
-                      {notesFiles.map((file, index) => (
-                        <li key={`new-note-file-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>Adjunto nuevo {index + 1}</span>
-                          <button type="button" className="btn btn--link" onClick={() => removeNotesFile(index)}>
-                            Quitar
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    <FileSelectionList files={notesFiles} onRemove={removeNotesFile} />
                   )}
 
                   {notesExistingAttachments.length > 0 && (

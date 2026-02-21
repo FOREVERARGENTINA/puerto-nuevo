@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { documentsService } from '../../services/documents.service';
 import { AlertDialog } from '../common/AlertDialog';
+import { FileSelectionList, FileUploadSelector } from '../common/FileUploadSelector';
 import { useDialog } from '../../hooks/useDialog';
 
 export function DocumentUploader({ onUploadSuccess }) {
@@ -59,8 +60,8 @@ export function DocumentUploader({ onUploadSuccess }) {
     }));
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+  const handleFileSelect = (selectedFiles) => {
+    const file = Array.isArray(selectedFiles) ? selectedFiles[0] : null;
     if (!file) return;
 
     const validTypes = [
@@ -296,22 +297,17 @@ export function DocumentUploader({ onUploadSuccess }) {
 
       <div className="form-group">
         <label htmlFor="file">Archivo *</label>
-        <input
-          type="file"
+        <FileUploadSelector
           id="file"
-          onChange={handleFileSelect}
+          multiple={false}
+          onFilesSelected={handleFileSelect}
           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-          className="form-control"
-          required
+          disabled={uploading}
+          hint="Formatos: PDF, Word, Excel e imagenes. Maximo 10MB"
         />
         {selectedFile && (
-          <p className="document-uploader__file-info">
-            {selectedFile.name} — {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-          </p>
+          <FileSelectionList files={[selectedFile]} onRemove={() => setSelectedFile(null)} />
         )}
-        <p className="document-uploader__help">
-          Formatos: PDF, Word, Excel, Imágenes • Máximo 10MB
-        </p>
       </div>
 
       <button
