@@ -10,6 +10,7 @@ const SESSION_PROMPT_DELAY_MS = 5000;
 const PUSH_STAGGER_DELAY_MS = 5000;
 const PUSH_STATUS_KEY = 'push-permission-status';
 const PUSH_LAST_PROMPT_KEY = 'push-last-prompt';
+const WELCOME_VISIBILITY_EVENT = 'pn:welcome-modal-visibility';
 
 export function PwaInstallPrompt() {
   const { user, loading } = useAuth();
@@ -24,13 +25,44 @@ export function PwaInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIosBanner, setShowIosBanner] = useState(false);
   const [showPushBanner, setShowPushBanner] = useState(false);
+  const [isBlockedByWelcome, setIsBlockedByWelcome] = useState(false);
   const promptTimerRef = useRef(null);
   const iosTimerRef = useRef(null);
   const pushTimerRef = useRef(null);
   const prevShowPromptRef = useRef(false);
 
   useEffect(() => {
-    if (loading || !user || !canInstall) {
+    const handleWelcomeVisibility = (event) => {
+      setIsBlockedByWelcome(Boolean(event?.detail?.blocked));
+    };
+
+    window.addEventListener(WELCOME_VISIBILITY_EVENT, handleWelcomeVisibility);
+    return () => window.removeEventListener(WELCOME_VISIBILITY_EVENT, handleWelcomeVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!isBlockedByWelcome) return;
+
+    setShowPrompt(false);
+    setShowIosBanner(false);
+    setShowPushBanner(false);
+
+    if (promptTimerRef.current) {
+      clearTimeout(promptTimerRef.current);
+      promptTimerRef.current = null;
+    }
+    if (iosTimerRef.current) {
+      clearTimeout(iosTimerRef.current);
+      iosTimerRef.current = null;
+    }
+    if (pushTimerRef.current) {
+      clearTimeout(pushTimerRef.current);
+      pushTimerRef.current = null;
+    }
+  }, [isBlockedByWelcome]);
+
+  useEffect(() => {
+    if (loading || !user || !canInstall || isBlockedByWelcome) {
       setShowPrompt(false);
       return;
     }
@@ -50,10 +82,10 @@ export function PwaInstallPrompt() {
         clearTimeout(promptTimerRef.current);
       }
     };
-  }, [canInstall, user, loading]);
+  }, [canInstall, user, loading, isBlockedByWelcome]);
 
   useEffect(() => {
-    if (loading || !shouldShowIosInstall) {
+    if (loading || !shouldShowIosInstall || isBlockedByWelcome) {
       setShowIosBanner(false);
       return;
     }
@@ -70,7 +102,7 @@ export function PwaInstallPrompt() {
         clearTimeout(iosTimerRef.current);
       }
     };
-  }, [shouldShowIosInstall, loading]);
+  }, [shouldShowIosInstall, loading, isBlockedByWelcome]);
 
   useEffect(() => {
     const handleInstalled = () => {
@@ -106,7 +138,7 @@ export function PwaInstallPrompt() {
     }
 
     const isAuthenticatedUser = !!user?.uid;
-    if (loading || !isAuthenticatedUser || !shouldOfferPush || isPushEnabled) {
+    if (loading || !isAuthenticatedUser || !shouldOfferPush || isPushEnabled || isBlockedByWelcome) {
       prevShowPromptRef.current = showPrompt;
       return;
     }
@@ -136,13 +168,13 @@ export function PwaInstallPrompt() {
         pushTimerRef.current = null;
       }
     };
-  }, [showPrompt, loading, user?.role, shouldOfferPush, isPushEnabled]);
+  }, [showPrompt, loading, user?.role, shouldOfferPush, isPushEnabled, isBlockedByWelcome]);
 
   // original push scheduling for initial session (preserves existing behaviour)
   useEffect(() => {
     const isAuthenticatedUser = !!user?.uid;
     // hide/clear when prerequisites are not met or modal is open
-    if (loading || !isAuthenticatedUser || !shouldOfferPush || isPushEnabled || showPrompt) {
+    if (loading || !isAuthenticatedUser || !shouldOfferPush || isPushEnabled || showPrompt || isBlockedByWelcome) {
       setShowPushBanner(false);
       if (pushTimerRef.current) {
         clearTimeout(pushTimerRef.current);
@@ -167,7 +199,7 @@ export function PwaInstallPrompt() {
         clearTimeout(pushTimerRef.current);
       }
     };
-  }, [loading, user?.role, shouldOfferPush, isPushEnabled, showPrompt]);
+  }, [loading, user?.role, shouldOfferPush, isPushEnabled, showPrompt, isBlockedByWelcome]);
 
   const handleLater = () => {
     localStorage.setItem('pwa-install-status', 'later');

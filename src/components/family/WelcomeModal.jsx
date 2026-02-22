@@ -1,9 +1,10 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import Icon from '../ui/Icon';
 
 const STORAGE_KEY = (uid) => `pn_welcome_${uid}`;
+const WELCOME_VISIBILITY_EVENT = 'pn:welcome-modal-visibility';
 
 const FEATURES = [
   {
@@ -35,6 +36,19 @@ const FEATURES = [
 export function WelcomeModal({ user }) {
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
+
+  // Broadcast visibility so lower-priority prompts (PWA/push) can pause.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(WELCOME_VISIBILITY_EVENT, {
+      detail: { blocked: visible }
+    }));
+  }, [visible]);
+
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent(WELCOME_VISIBILITY_EVENT, {
+      detail: { blocked: false }
+    }));
+  }, []);
 
   const handleClose = useCallback(async () => {
     setAnimating(false);
