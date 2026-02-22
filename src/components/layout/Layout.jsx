@@ -45,9 +45,13 @@ export function Layout({ children }) {
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="layout-footer__link"
-                  aria-label="Visitar Frandoweb - Diseño y desarrollo del sitio"
+                  aria-label="Visitar FrandoWeb - Diseño y desarrollo del sitio"
                 >
-                  www.Frandoweb.com
+                  www.
+                  <span className="layout-footer__link-initial">F</span>
+                  rando
+                  <span className="layout-footer__link-initial">W</span>
+                  eb.com
                 </a>
               </span>
             </div>
@@ -57,5 +61,4 @@ export function Layout({ children }) {
     </>
   );
 }
-
 

@@ -40,12 +40,16 @@ export default function AmbienteActivities() {
   const [error, setError] = useState('');
   const [selectedAmbiente, setSelectedAmbiente] = useState('todas');
   const [selectedCategory, setSelectedCategory] = useState('todas');
+  const compactVerticalCardStyle = {
+    paddingTop: 'var(--spacing-md)',
+    paddingBottom: 'var(--spacing-md)'
+  };
   const filterControlStyle = {
-    height: '52px',
-    minHeight: '52px',
-    padding: '0 var(--spacing-md)',
-    lineHeight: '1.4',
-    fontSize: 'var(--font-size-md)',
+    height: '44px',
+    minHeight: '44px',
+    padding: '0 var(--spacing-sm)',
+    lineHeight: '1.3',
+    fontSize: 'var(--font-size-sm)',
     boxSizing: 'border-box'
   };
 
@@ -127,11 +131,14 @@ export default function AmbienteActivities() {
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Actividades</h1>
-          <p className="dashboard-subtitle">Materiales y propuestas para el hogar por ambiente.</p>
+          <p className="dashboard-subtitle">Materiales y propuestas para el hogar.</p>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
+      <div
+        className="card"
+        style={{ marginBottom: 'var(--spacing-lg)', ...compactVerticalCardStyle }}
+      >
         <div className="card__body" style={{ display: 'grid', gap: 'var(--spacing-md)', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           {familyAmbientes.length > 1 && (
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -181,11 +188,11 @@ export default function AmbienteActivities() {
       </div>
 
       {loading ? (
-        <div className="card"><div className="card__body"><p>Cargando actividades...</p></div></div>
+        <div className="card" style={compactVerticalCardStyle}><div className="card__body"><p>Cargando actividades...</p></div></div>
       ) : error ? (
         <div className="alert alert--danger">{error}</div>
       ) : visibleActivities.length === 0 ? (
-        <div className="card"><div className="card__body"><p>No hay actividades para los filtros seleccionados.</p></div></div>
+        <div className="card" style={compactVerticalCardStyle}><div className="card__body"><p>No hay actividades para los filtros seleccionados.</p></div></div>
       ) : (
         <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
           {visibleActivities.map((activity) => {
