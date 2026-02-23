@@ -1854,6 +1854,42 @@
   transition: background-color 9999s ease-out 0s;
 }
 
+.login-password-field {
+  position: relative;
+}
+
+.login-password-field .form-input {
+  padding-right: calc(var(--spacing-xl) + var(--spacing-sm));
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.login-password-toggle:hover {
+  color: var(--color-primary);
+  background: rgba(47, 111, 106, 0.12);
+}
+
+.login-password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
 .login-form .btn {
   margin-top: var(--spacing-sm);
 }

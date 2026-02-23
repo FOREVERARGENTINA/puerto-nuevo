@@ -372,7 +372,7 @@
 .document-uploader__roles-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
   font-size: var(--font-size-sm);
   color: var(--color-text);
   padding: var(--spacing-xs) var(--spacing-sm);
@@ -393,6 +393,7 @@
   accent-color: var(--color-primary);
   width: 14px;
   height: 14px;
+  margin-right: 2px;
   cursor: pointer;
 }
 

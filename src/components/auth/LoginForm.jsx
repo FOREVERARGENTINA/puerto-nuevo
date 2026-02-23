@@ -4,12 +4,14 @@ import { authService } from '../../services/auth.service';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_DASHBOARDS } from '../../config/constants';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
+import Icon from '../ui/Icon';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetError, setResetError] = useState('');
@@ -118,15 +120,26 @@ export function LoginForm() {
 
         <div className="form-group">
           <label htmlFor="password" className="required">Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <div className="login-password-field">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              className="form-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className="login-password-toggle"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPassword}
+            >
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} ariaHidden />
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -195,11 +208,6 @@ export function LoginForm() {
 
             <p className="login-reset-hint">
               Si no llega en unos minutos, revisa spam o verifica que el email sea correcto.
-            </p>
-            <p className="login-reset-hint">
-              Si no ves tu correo o no logras ingresar, contáctanos desde el{' '}
-              <a href="/contacto" className="login-reset-link">link de Contacto</a>{' '}
-              del sitio (en construcción).
             </p>
           </ModalBody>
           <ModalFooter>

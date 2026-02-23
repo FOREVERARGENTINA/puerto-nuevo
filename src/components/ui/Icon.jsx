@@ -162,6 +162,22 @@ export default function Icon({ name, size = 20, className = '', ariaHidden = tru
         </svg>
       );
 
+    case 'eye':
+      return (
+        <svg {...common}>
+          <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="2.8" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      );
+
+    case 'eye-off':
+      return (
+        <svg {...common}>
+          <path d="M17.8 17.8A11.5 11.5 0 0 1 12 19c-6.4 0-10-7-10-7a19 19 0 0 1 4.4-4.8M9.9 5.3A11.4 11.4 0 0 1 12 5c6.4 0 10 7 10 7a19 19 0 0 1-2.9 3.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+
     case 'menu':
       return (
         <svg {...common}>

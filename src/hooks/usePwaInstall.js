@@ -4,15 +4,19 @@ export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     const ua = window.navigator.userAgent.toLowerCase();
+    const isAndroid = /android/.test(ua);
     const isIosDevice = /iphone|ipad|ipod/.test(ua);
     // iPadOS moderno reporta "Macintosh" en userAgent
     const isTouchMac = /macintosh/.test(ua) && window.navigator.maxTouchPoints > 1;
     const ios = isIosDevice || isTouchMac;
+    const mobile = isAndroid || ios;
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsMobileDevice(mobile);
     setIsIos(ios);
     setIsStandalone(standalone);
   }, []);
@@ -46,8 +50,9 @@ export function usePwaInstall() {
   }, [deferredPrompt]);
 
   return {
-    canInstall: !!deferredPrompt && !isInstalled,
-    shouldShowIosInstall: isIos && !isStandalone,
+    canInstall: isMobileDevice && !!deferredPrompt && !isInstalled,
+    shouldShowIosInstall: isMobileDevice && isIos && !isStandalone,
+    isMobileDevice,
     promptInstall
   };
 }
