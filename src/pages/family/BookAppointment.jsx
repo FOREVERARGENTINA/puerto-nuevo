@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentsService } from '../../services/appointments.service';
 import { childrenService } from '../../services/children.service';

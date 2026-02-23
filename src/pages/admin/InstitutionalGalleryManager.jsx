@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { institutionalGalleryService } from '../../services/institutionalGallery.service';
 import CategoryManager from '../../components/gallery/admin/CategoryManager';
 import AlbumManager from '../../components/gallery/admin/AlbumManager';

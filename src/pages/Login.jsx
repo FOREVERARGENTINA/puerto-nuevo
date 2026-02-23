@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { LoginForm } from '../components/auth/LoginForm';
@@ -21,7 +21,7 @@ export function Login() {
     setIsLoadingScreenExiting(true);
     const timeoutId = window.setTimeout(() => {
       setShowLoadingScreen(false);
-    }, 180);
+    }, 260);
 
     return () => window.clearTimeout(timeoutId);
   }, [loading]);

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import CategoryGrid from '../../components/gallery/viewer/CategoryGrid';
 import AlbumGrid from '../../components/gallery/viewer/AlbumGrid';
 import GalleryBreadcrumbs from '../../components/gallery/shared/GalleryBreadcrumbs';

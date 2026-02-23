@@ -30,7 +30,9 @@
       "Bash(npm cache clean:*)",
       "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\casa\\\\AppData\\\\Local\\\\npm-cache\\\\_npx\")",
       "Bash(npm test)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"\\(Get-Item ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\public\\\\pwa\\\\icon-master.png''\\).Length\")"
     ],
     "deny": [],
     "ask": []

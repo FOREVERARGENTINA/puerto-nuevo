@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
@@ -68,10 +68,10 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/sections/gallery.css';
 
-const LOADER_EXIT_MS = 180;
+const LOADER_EXIT_MS = 260;
 
 function SuspenseFallbackSignal({ onShow, onHide }) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     onShow();
     return () => onHide();
   }, [onShow, onHide]);

@@ -6,6 +6,12 @@ import { usersService } from '../services/users.service';
 const PUSH_SW_PATH = '/firebase-messaging-sw.js';
 const TRANSIENT_IDB_RETRY_DELAY_MS = 500;
 const MAX_REGISTER_RETRIES = 2;
+const PUSH_NOTIFICATION_OPTIONS = {
+  icon: '/pwa/icon-512-maskable.png',
+  badge: '/pwa/icon-master.png',
+  tag: 'puerto-nuevo-push',
+  vibrate: [100, 50, 100],
+};
 
 let registerTokenInFlightPromise = null;
 
@@ -222,6 +228,7 @@ export function usePushNotifications(user) {
       unsub = onMessage(messaging, (payload) => {
         const title = payload?.data?.title || payload?.notification?.title || 'Puerto Nuevo';
         const body = payload?.data?.body || payload?.notification?.body || '';
+        const clickAction = payload?.data?.clickAction || payload?.data?.url || '/portal/familia';
 
         if (document.visibilityState === 'visible') {
           showInAppToast(title, body);
@@ -230,7 +237,11 @@ export function usePushNotifications(user) {
 
         if (Notification.permission === 'granted') {
           navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(title, { body, data: payload.data });
+            reg.showNotification(title, {
+              body,
+              ...PUSH_NOTIFICATION_OPTIONS,
+              data: { clickAction },
+            });
           });
         }
       });

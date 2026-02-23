@@ -1,7 +1,10 @@
-﻿import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import '../styles/under-construction.css';
 
 export const UnderConstruction = () => {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
   return (
     <div className="under-construction">
       <div className="under-construction__content">
@@ -9,7 +12,11 @@ export const UnderConstruction = () => {
           <img
             src="/datos/imagenes/construccion.webp"
             alt="Sitio en construcción"
-            className="under-construction__image"
+            className={`under-construction__image${isImageLoaded ? ' under-construction__image--loaded' : ''}`}
+            onLoad={() => setIsImageLoaded(true)}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
         </div>
 
