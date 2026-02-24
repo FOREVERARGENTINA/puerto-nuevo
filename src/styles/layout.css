@@ -39,7 +39,6 @@
 }
 
 .layout-footer__link {
-  color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
   font-size: inherit;
@@ -49,13 +48,15 @@
   border-radius: var(--radius-sm);
   line-height: 1.5;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .layout-footer__link-initial {
-  font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  font-weight: 600;
-  font-size: 1.03em;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  font-size: 1.05em;
 }
 
 /* Underline animado desde el centro */

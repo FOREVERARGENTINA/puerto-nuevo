@@ -396,23 +396,45 @@ export const getBestYouTubeThumbnailUrl = async (videoId) => {
  * @returns {Object|null} - { valid, videoId, provider } o null
  */
 export const parseVimeoUrl = (url) => {
-  const patterns = [
-    /vimeo\.com\/(\d+)/,
-    /player\.vimeo\.com\/video\/(\d+)/
-  ];
+  const buildResult = (videoId, queryString = '') => ({
+    valid: true,
+    videoId,
+    provider: 'vimeo',
+    embedUrl: `https://player.vimeo.com/video/${videoId}${queryString}`,
+    // Nota: Vimeo requiere API call para thumbnail, lo manejamos despues
+    thumbnailUrl: null
+  });
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return {
-        valid: true,
-        videoId: match[1],
-        provider: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}`,
-        // Nota: Vimeo requiere API call para thumbnail, lo manejamos después
-        thumbnailUrl: null
-      };
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const isVimeoHost = host === 'vimeo.com'
+      || host.endsWith('.vimeo.com')
+      || host === 'player.vimeo.com';
+
+    if (!isVimeoHost) return null;
+
+    // Vimeo usa "h" para videos no listados; si se pierde, puede devolver 401.
+    const hParam = parsed.searchParams.get('h');
+    const queryString = hParam ? `?h=${encodeURIComponent(hParam)}` : '';
+
+    const pathSegments = parsed.pathname
+      .split('/')
+      .filter(Boolean);
+
+    const numericSegment = pathSegments.find((segment) => /^\d+$/.test(segment));
+    if (numericSegment) {
+      return buildResult(numericSegment, queryString);
     }
+  } catch {
+    // Fallback regex para strings que no parsean con URL.
+  }
+
+  const regexWithHash = /(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)(?:\?[^#]*\bh=([a-zA-Z0-9]+))?/i;
+  const match = url.match(regexWithHash);
+  if (match?.[1]) {
+    const queryString = match[2] ? `?h=${encodeURIComponent(match[2])}` : '';
+    return buildResult(match[1], queryString);
   }
 
   return null;
@@ -502,4 +524,5 @@ export const parseVideoUrlWithThumbnail = async (url) => {
 
   return parsed;
 };
+
 

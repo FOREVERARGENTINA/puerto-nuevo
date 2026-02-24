@@ -4,6 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { AlertDialog } from '../../common/AlertDialog';
 import { LoadingModal } from '../../common/LoadingModal';
+import { parseVideoUrl } from '../../../utils/galleryHelpers';
 
 const MediaGrid = ({ album, refreshTrigger }) => {
   const { user, isAdmin } = useAuth();
@@ -14,6 +15,19 @@ const MediaGrid = ({ album, refreshTrigger }) => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false });
   const [alert, setAlert] = useState({ open: false, message: '', type: 'info' });
   const [brokenThumbs, setBrokenThumbs] = useState(() => new Set());
+
+  const resolveExternalEmbedUrl = (mediaItem) => {
+    if (!mediaItem) return '';
+    const fallbackUrl = mediaItem.embedUrl || mediaItem.url || '';
+    if (!mediaItem.url || mediaItem.tipo !== 'video-externo') return fallbackUrl;
+
+    const parsed = parseVideoUrl(mediaItem.url);
+    if (parsed?.valid && parsed.embedUrl) {
+      return parsed.embedUrl;
+    }
+
+    return fallbackUrl;
+  };
 
   useEffect(() => {
     if (album) {
@@ -215,7 +229,7 @@ const MediaGrid = ({ album, refreshTrigger }) => {
               )}
               {selectedMedia.tipo === 'video-externo' && (
                 <iframe
-                  src={selectedMedia.embedUrl}
+                  src={resolveExternalEmbedUrl(selectedMedia)}
                   title={selectedMedia.fileName}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

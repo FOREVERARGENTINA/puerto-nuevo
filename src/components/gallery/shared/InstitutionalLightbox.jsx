@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { parseVideoUrl } from '../../../utils/galleryHelpers';
 
 const resolveMediaType = (item) => {
   if (!item) return 'imagen';
@@ -11,6 +12,19 @@ const resolveMediaType = (item) => {
   const name = (item.fileName || '').toLowerCase();
   if (name.endsWith('.pdf')) return 'pdf';
   return 'imagen';
+};
+
+const resolveExternalEmbedUrl = (item) => {
+  if (!item) return '';
+  const fallbackUrl = item.embedUrl || item.url || '';
+  if (!item.url || item.tipo !== 'video-externo') return fallbackUrl;
+
+  const parsed = parseVideoUrl(item.url);
+  if (parsed?.valid && parsed.embedUrl) {
+    return parsed.embedUrl;
+  }
+
+  return fallbackUrl;
 };
 
 export const InstitutionalLightbox = ({
@@ -100,7 +114,7 @@ export const InstitutionalLightbox = ({
             if (tipo === 'video-externo') {
               return (
                 <iframe
-                  src={item.embedUrl}
+                  src={resolveExternalEmbedUrl(item)}
                   title="Video"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -138,4 +152,3 @@ export const InstitutionalLightbox = ({
     </div>
   );
 };
-

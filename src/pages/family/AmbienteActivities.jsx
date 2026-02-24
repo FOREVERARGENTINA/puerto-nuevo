@@ -19,7 +19,7 @@ const AMBIENTE_LABELS = {
 };
 
 const categoryFilterOptions = [
-  { value: 'todas', label: 'Todas las categorías' },
+  { value: 'todas', label: 'Todas las áreas' },
   ...AMBIENTE_ACTIVITY_CATEGORY_OPTIONS
 ];
 
@@ -171,7 +171,7 @@ export default function AmbienteActivities() {
           )}
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" htmlFor="family-category-filter">Categoría</label>
+            <label className="form-label" htmlFor="family-category-filter">Área</label>
             <select
               id="family-category-filter"
               className="form-control form-select"

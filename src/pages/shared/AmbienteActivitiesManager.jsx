@@ -276,7 +276,7 @@ export default function AmbienteActivitiesManager() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="activity-category" className="form-label">Categoría *</label>
+                <label htmlFor="activity-category" className="form-label">Área *</label>
                 <select
                   id="activity-category"
                   className="form-control form-select"
@@ -305,7 +305,7 @@ export default function AmbienteActivitiesManager() {
 
             {form.category === 'otra' && (
               <div className="form-group">
-                <label htmlFor="activity-custom-category" className="form-label">Especificar categoría *</label>
+                <label htmlFor="activity-custom-category" className="form-label">Especificar área *</label>
                 <input
                   id="activity-custom-category"
                   className="form-control"
@@ -427,7 +427,7 @@ export default function AmbienteActivitiesManager() {
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-md)' }}>
                             <div className="form-group">
-                              <label className="form-label">Categoría</label>
+                              <label className="form-label">Área</label>
                               <select
                                 className="form-control form-select"
                                 value={editForm.category}
@@ -451,7 +451,7 @@ export default function AmbienteActivitiesManager() {
 
                           {editForm.category === 'otra' && (
                             <div className="form-group">
-                              <label className="form-label">Especificar categoría</label>
+                              <label className="form-label">Especificar área</label>
                               <input
                                 className="form-control"
                                 value={editForm.customCategory}
