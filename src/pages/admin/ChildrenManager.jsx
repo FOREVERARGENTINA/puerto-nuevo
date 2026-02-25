@@ -141,13 +141,19 @@ const ChildrenManager = () => {
     setEditingChild(null);
   };
 
-  const filteredChildren = useMemo(() => (
-    children.filter(child => {
+  const filteredChildren = useMemo(() => {
+    const filtered = children.filter((child) => {
       const matchesAmbiente = filterAmbiente === 'all' || child.ambiente === filterAmbiente;
       const matchesSearch = child.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesAmbiente && matchesSearch;
-    })
-  ), [children, filterAmbiente, searchTerm]);
+    });
+
+    return filtered.sort((a, b) => {
+      const aName = (a.nombreCompleto || '').trim().toLowerCase();
+      const bName = (b.nombreCompleto || '').trim().toLowerCase();
+      return aName.localeCompare(bName, 'es', { sensitivity: 'base' });
+    });
+  }, [children, filterAmbiente, searchTerm]);
 
   const visibleChildren = useMemo(() => (
     filteredChildren.slice(0, visibleCount)

@@ -111,6 +111,7 @@ export const snacksService = {
           updateData.solicitudCambio = false;
           updateData.motivoCambio = null;
           updateData.motivoCancelacion = null;
+          updateData.canceladoPor = null;
           updateData.fechaCancelacion = null;
           updateData.fechaConfirmacion = null;
           updateData.recordatorioEnviado = false;
@@ -138,6 +139,7 @@ export const snacksService = {
         recordatorioEnviado: false,
         solicitudCambio: false,
         motivoCambio: null,
+        canceladoPor: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -263,6 +265,7 @@ export const snacksService = {
         assignedAt: serverTimestamp(),
         motivoCambio: null,
         motivoCancelacion: null,
+        canceladoPor: null,
         fechaCancelacion: null,
         fechaConfirmacion: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -320,6 +323,7 @@ export const snacksService = {
         solicitudCambio: false,
         motivoCambio: null,
         motivoCancelacion: null,
+        canceladoPor: null,
         fechaCancelacion: null,
         fechaConfirmacion: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -360,6 +364,7 @@ export const snacksService = {
         confirmadoPorFamilia: false,
         confirmadoPor: null,
         estado: 'cambio_solicitado',
+        canceladoPor: null,
         fechaSolicitudCambio: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -394,6 +399,7 @@ export const snacksService = {
         familias: resetFamiliesConfirmation(data.familias),
         estado: 'cancelado',
         motivoCancelacion: motivo,
+        canceladoPor: 'familia',
         confirmadoPorFamilia: false,
         confirmadoPor: null,
         solicitudCambio: false,
@@ -515,6 +521,9 @@ export const snacksService = {
             confirmadoPor: null,
             solicitudCambio: false,
             motivoCambio: null,
+            motivoCancelacion: null,
+            canceladoPor: null,
+            fechaCancelacion: null,
             updatedAt: serverTimestamp()
           })
         );
@@ -537,6 +546,9 @@ export const snacksService = {
         confirmadoPorFamilia: false,
         confirmadoPor: null,
         solicitudCambio: false,
+        motivoCancelacion: null,
+        canceladoPor: null,
+        fechaCancelacion: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };

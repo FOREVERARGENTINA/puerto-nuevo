@@ -13,6 +13,7 @@ import {
   getCategoryLabel,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
+import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 
 export function FamilyConversationDetail() {
   const { id } = useParams();
@@ -148,7 +149,7 @@ export function FamilyConversationDetail() {
         ) : (
           messages.map(msg => {
             const isOwn = msg.autorUid === user?.uid;
-            const createdAt = msg.creadoAt?.toDate?.() || new Date();
+            const createdLabel = formatDateTimeBuenosAires(msg.creadoAt) || '-';
             return (
               <div key={msg.id} className={`chat-message ${isOwn ? 'chat-message--sent' : 'chat-message--received'}`}>
                 <div className="chat-message__content">
@@ -157,12 +158,7 @@ export function FamilyConversationDetail() {
                       {msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}
                     </span>
                     <span className="chat-message__time">
-                      {createdAt.toLocaleString('es-AR', { 
-                        day: 'numeric', 
-                        month: 'short',
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                      {createdLabel}
                     </span>
                   </div>
                   {msg.texto && <p className="chat-message__text">{msg.texto}</p>}

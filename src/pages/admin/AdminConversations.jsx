@@ -14,20 +14,49 @@ import {
 } from '../../utils/conversationHelpers';
 
 const ITEMS_PER_PAGE = 20;
+const STATUS_FILTERS = {
+  TODAS: 'todas',
+  SIN_RESPONDER: 'sin_responder',
+  NO_LEIDAS: 'no_leidas',
+  CERRADAS: 'cerradas'
+};
+
+const toMillis = (value) => {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value?.toDate === 'function') {
+    const date = value.toDate();
+    return date instanceof Date ? date.getTime() : 0;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const isClosedConversation = (conv) => conv?.estado === CONVERSATION_STATUS.CERRADA;
+const hasUnreadForSchool = (conv) => !isClosedConversation(conv) && (conv?.mensajesSinLeerEscuela || 0) > 0;
+const isPendingSchoolReply = (conv) => {
+  if (isClosedConversation(conv)) return false;
+  if (conv?.ultimoMensajeAutor === 'family') return true;
+  if (hasUnreadForSchool(conv)) return true;
+  return conv?.estado === CONVERSATION_STATUS.PENDIENTE;
+};
+const getConversationSortTime = (conv) => (
+  toMillis(conv?.ultimoMensajeAt) || toMillis(conv?.actualizadoAt)
+);
 
 export function AdminConversations() {
   const { user, role } = useAuth();
   const { conversations, loading, error, unreadCount } = useConversations({ user, role });
-  const [statusFilter, setStatusFilter] = useState('todas');
+  const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS.TODAS);
   const [categoryFilter, setCategoryFilter] = useState('todas');
   const [initiatedFilter, setInitiatedFilter] = useState('todas');
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  const hasFilters = statusFilter !== 'todas' || categoryFilter !== 'todas' || initiatedFilter !== 'todas' || searchTerm.trim() !== '';
+  const hasFilters = statusFilter !== STATUS_FILTERS.TODAS || categoryFilter !== 'todas' || initiatedFilter !== 'todas' || searchTerm.trim() !== '';
 
   const clearFilters = () => {
-    setStatusFilter('todas');
+    setStatusFilter(STATUS_FILTERS.TODAS);
     setCategoryFilter('todas');
     setInitiatedFilter('todas');
     setSearchTerm('');
@@ -39,23 +68,20 @@ export function AdminConversations() {
 
   const counts = useMemo(() => {
     return {
-      pendientes: conversations.filter(c => c.estado === CONVERSATION_STATUS.PENDIENTE).length,
-      activas: conversations.filter(c => [CONVERSATION_STATUS.ACTIVA, CONVERSATION_STATUS.RESPONDIDA].includes(c.estado)).length,
-      cerradas: conversations.filter(c => c.estado === CONVERSATION_STATUS.CERRADA).length
+      sinResponder: conversations.filter(isPendingSchoolReply).length,
+      noLeidas: conversations.filter(hasUnreadForSchool).length,
+      cerradas: conversations.filter(isClosedConversation).length
     };
   }, [conversations]);
 
   const filtered = useMemo(() => {
-    const result = conversations.filter(conv => {
-      // Logic mod: Activa includes Respondida for filtering
-      if (statusFilter !== 'todas') {
-        if (statusFilter === CONVERSATION_STATUS.ACTIVA) {
-          if (![CONVERSATION_STATUS.ACTIVA, CONVERSATION_STATUS.RESPONDIDA].includes(conv.estado)) return false;
-        } else {
-          if (conv.estado !== statusFilter) return false;
-        }
+    const result = conversations.filter((conv) => {
+      if (statusFilter !== STATUS_FILTERS.TODAS) {
+        if (statusFilter === STATUS_FILTERS.SIN_RESPONDER && !isPendingSchoolReply(conv)) return false;
+        if (statusFilter === STATUS_FILTERS.NO_LEIDAS && !hasUnreadForSchool(conv)) return false;
+        if (statusFilter === STATUS_FILTERS.CERRADAS && !isClosedConversation(conv)) return false;
       }
-      
+
       if (categoryFilter !== 'todas' && conv.categoria !== categoryFilter) return false;
       if (initiatedFilter !== 'todas' && conv.iniciadoPor !== initiatedFilter) return false;
       if (searchTerm.trim()) {
@@ -65,6 +91,15 @@ export function AdminConversations() {
       }
       return true;
     });
+
+    if (statusFilter === STATUS_FILTERS.SIN_RESPONDER) {
+      return [...result].sort((a, b) => {
+        const unreadPriority = Number(hasUnreadForSchool(b)) - Number(hasUnreadForSchool(a));
+        if (unreadPriority !== 0) return unreadPriority;
+        return getConversationSortTime(b) - getConversationSortTime(a);
+      });
+    }
+
     return result;
   }, [conversations, statusFilter, categoryFilter, initiatedFilter, searchTerm]);
 
@@ -75,7 +110,7 @@ export function AdminConversations() {
   const hasMore = filtered.length > visibleCount;
 
   const loadMore = () => {
-    setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
   };
 
   if (loading) {
@@ -122,15 +157,17 @@ export function AdminConversations() {
               <div className="user-toolbar__summary">
                 <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', flexWrap: 'wrap' }}>
                   <strong>Total:</strong> {conversations.length}
-                  <span style={{ color: 'var(--color-text-light)' }}>·</span>
-                  <span style={{ 
-                    color: counts.pendientes > 0 ? 'var(--color-error)' : 'var(--color-text)', 
-                    fontWeight: counts.pendientes > 0 ? 600 : 400 
+                  <span style={{ color: 'var(--color-text-light)' }}>|</span>
+                  <span style={{
+                    color: counts.sinResponder > 0 ? 'var(--color-error)' : 'var(--color-text)',
+                    fontWeight: counts.sinResponder > 0 ? 600 : 400
                   }}>
-                    {counts.pendientes} sin responder
+                    {counts.sinResponder} sin responder
                   </span>
-                  <span style={{ color: 'var(--color-text-light)' }}>·</span>
-                  <span style={{ color: 'var(--color-success)' }}>{counts.activas} en curso</span>
+                  <span style={{ color: 'var(--color-text-light)' }}>|</span>
+                  <span style={{ color: 'var(--color-warning)' }}>{counts.noLeidas} no leidas</span>
+                  <span style={{ color: 'var(--color-text-light)' }}>|</span>
+                  <span style={{ color: 'var(--color-text-light)' }}>{counts.cerradas} cerradas</span>
                 </p>
                 <input
                   type="text"
@@ -151,15 +188,15 @@ export function AdminConversations() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="todas">Todas</option>
-                  <option value={CONVERSATION_STATUS.PENDIENTE}>Sin responder</option>
-                  <option value={CONVERSATION_STATUS.ACTIVA}>En curso</option>
-                  <option value={CONVERSATION_STATUS.CERRADA}>Cerrada</option>
+                  <option value={STATUS_FILTERS.TODAS}>Todas</option>
+                  <option value={STATUS_FILTERS.SIN_RESPONDER}>Sin responder</option>
+                  <option value={STATUS_FILTERS.NO_LEIDAS}>No leidas</option>
+                  <option value={STATUS_FILTERS.CERRADAS}>Cerradas</option>
                 </select>
               </div>
 
               <div className="user-filter">
-                <label htmlFor="filterCategory">Categoría</label>
+                <label htmlFor="filterCategory">Categoria</label>
                 <select
                   id="filterCategory"
                   className="form-input form-input--sm"
@@ -167,7 +204,7 @@ export function AdminConversations() {
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
                   <option value="todas">Todas</option>
-                  {CONVERSATION_CATEGORIES.map(cat => (
+                  {CONVERSATION_CATEGORIES.map((cat) => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
                 </select>
@@ -207,61 +244,75 @@ export function AdminConversations() {
         </div>
       ) : (
         <>
-          <div style={{ 
-            marginBottom: 'var(--spacing-md)', 
-            fontSize: 'var(--font-size-sm)', 
+          <div style={{
+            marginBottom: 'var(--spacing-md)',
+            fontSize: 'var(--font-size-sm)',
             color: 'var(--color-text-light)',
             paddingLeft: 'var(--spacing-sm)'
           }}>
             Mostrando {visible.length} de {filtered.length}
           </div>
           <div className="conversation-list">
-            {visible.map(conv => (
-              <Link
-                key={conv.id}
-                to={`${ROUTES.ADMIN_CONVERSATIONS}/${conv.id}`}
-                className="card card--list conversation-item conversation-item--compact link-unstyled"
-              >
-                <div className="conversation-item__main">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600 }}>
-                      {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
-                    </h3>
-                    {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conv.estado) && (
-                      <span className={getConversationStatusBadge(conv.estado)} style={{ fontSize: 'var(--font-size-xs)' }}>
-                        {getConversationStatusLabel(conv.estado, ROLES.SUPERADMIN)}
+            {visible.map((conv) => {
+              const pendingSchoolReply = isPendingSchoolReply(conv);
+              const isClosed = isClosedConversation(conv);
+              const hasUnread = hasUnreadForSchool(conv);
+              const unreadCountForSchool = conv.mensajesSinLeerEscuela || 0;
+
+              return (
+                <Link
+                  key={conv.id}
+                  to={`${ROUTES.ADMIN_CONVERSATIONS}/${conv.id}`}
+                  className="card card--list conversation-item conversation-item--compact link-unstyled"
+                >
+                  <div className="conversation-item__main">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600 }}>
+                        {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
+                      </h3>
+                      {isClosed && (
+                        <span className={getConversationStatusBadge(CONVERSATION_STATUS.CERRADA)} style={{ fontSize: 'var(--font-size-xs)' }}>
+                          {getConversationStatusLabel(CONVERSATION_STATUS.CERRADA, ROLES.SUPERADMIN)}
+                        </span>
+                      )}
+                      {!isClosed && pendingSchoolReply && (
+                        <span className={getConversationStatusBadge(CONVERSATION_STATUS.PENDIENTE)} style={{ fontSize: 'var(--font-size-xs)' }}>
+                          {getConversationStatusLabel(CONVERSATION_STATUS.PENDIENTE, ROLES.SUPERADMIN)}
+                        </span>
+                      )}
+                      {hasUnread && (
+                        <span className="badge badge--error" style={{ fontSize: 'var(--font-size-xs)' }}>
+                          {unreadCountForSchool} {unreadCountForSchool === 1 ? 'nuevo' : 'nuevos'}
+                        </span>
+                      )}
+                      <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
+                        {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
                       </span>
-                    )}
-                    {conv.mensajesSinLeerEscuela > 0 && (
-                      <span className="badge badge--error" style={{ fontSize: 'var(--font-size-xs)' }}>{conv.mensajesSinLeerEscuela} nuevos</span>
-                    )}
-                    <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
-                      {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
-                    </span>
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
+                      <span>{conv.asunto || 'Sin asunto'}</span>
+                      <span> | {getCategoryLabel(conv.categoria)}</span>
+                      <span> | {getAreaLabel(conv.destinatarioEscuela)}</span>
+                    </div>
+                    <p style={{
+                      margin: 0,
+                      fontSize: 'var(--font-size-sm)',
+                      color: 'var(--color-text-light)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {conv.ultimoMensajeTexto || 'Sin mensajes'}
+                    </p>
                   </div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
-                    <span>{conv.asunto || 'Sin asunto'}</span>
-                    <span> • {getCategoryLabel(conv.categoria)}</span>
-                    <span> • {getAreaLabel(conv.destinatarioEscuela)}</span>
-                  </div>
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: 'var(--font-size-sm)', 
-                    color: 'var(--color-text-light)', 
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {conv.ultimoMensajeTexto || 'Sin mensajes'}
-                  </p>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
           {hasMore && (
             <div style={{ textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
               <button onClick={loadMore} className="btn btn--outline">
-                Cargar más ({filtered.length - visibleCount} restantes)
+                Cargar mas ({filtered.length - visibleCount} restantes)
               </button>
             </div>
           )}

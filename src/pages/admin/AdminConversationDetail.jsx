@@ -13,6 +13,7 @@ import {
   getConversationStatusBadge,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
+import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 
 export function AdminConversationDetail() {
@@ -231,12 +232,12 @@ export function AdminConversationDetail() {
         ) : (
           messages.map(msg => {
             const isOwn = msg.autorUid === user?.uid;
-            const createdAt = msg.creadoAt?.toDate?.() || new Date();
+            const createdLabel = formatDateTimeBuenosAires(msg.creadoAt) || '-';
             return (
               <div key={msg.id} className={`message-bubble ${isOwn ? 'message-bubble--own' : ''}`}>
                 <div className="message-bubble__header">
                   <strong>{msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}</strong>
-                  <span>{createdAt.toLocaleString('es-AR')}</span>
+                  <span>{createdLabel}</span>
                 </div>
                 {msg.texto && <p>{msg.texto}</p>}
                 {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (

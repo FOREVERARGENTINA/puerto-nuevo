@@ -2,6 +2,51 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function enforceCanonicalPwaUrl() {
+        var canonicalHost = 'montessoripuertonuevo.com.ar';
+        var host = window.location.hostname;
+        var isLocalhost = host === 'localhost' || host === '127.0.0.1';
+
+        if (!isLocalhost && host !== canonicalHost) {
+          var redirectUrl = new URL(window.location.href);
+          redirectUrl.protocol = 'https:';
+          redirectUrl.hostname = canonicalHost;
+          redirectUrl.port = '';
+          window.location.replace(redirectUrl.toString());
+          return;
+        }
+
+        if (!window.location.search) return;
+
+        var trackingParams = [
+          'utm_source',
+          'utm_medium',
+          'utm_campaign',
+          'utm_term',
+          'utm_content',
+          'gclid',
+          'fbclid',
+          'mc_cid',
+          'mc_eid'
+        ];
+
+        var cleanUrl = new URL(window.location.href);
+        var changed = false;
+
+        for (var i = 0; i < trackingParams.length; i += 1) {
+          var key = trackingParams[i];
+          if (cleanUrl.searchParams.has(key)) {
+            cleanUrl.searchParams.delete(key);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        }
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/pwa/icon-192.png" />
     <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />

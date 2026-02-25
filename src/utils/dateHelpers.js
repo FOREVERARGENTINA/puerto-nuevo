@@ -2,6 +2,7 @@
  * Funciones auxiliares para manejo de fechas
  * Usadas en el sistema de notificaciones
  */
+const BUENOS_AIRES_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 /**
  * Verifica si una fecha está dentro de las próximas 24 horas
@@ -65,4 +66,33 @@ export function formatISODate(isoDate) {
   const date = new Date(isoDate + 'T12:00:00'); // Agregar hora para evitar timezone issues
   const options = { day: 'numeric', month: 'long' };
   return date.toLocaleDateString('es-AR', options);
+}
+
+/**
+ * Formatea fecha y hora en zona horaria de Buenos Aires (UTC-3) y formato 24h.
+ * @param {Date|Timestamp|string|number} dateValue - Fecha a formatear
+ * @param {Intl.DateTimeFormatOptions} [options] - Opciones extra de formato
+ * @returns {string}
+ */
+export function formatDateTimeBuenosAires(dateValue, options = {}) {
+  if (!dateValue) return '';
+
+  const date = dateValue instanceof Date
+    ? dateValue
+    : typeof dateValue?.toDate === 'function'
+      ? dateValue.toDate()
+      : new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleString('es-AR', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: BUENOS_AIRES_TIME_ZONE,
+    ...options
+  });
 }

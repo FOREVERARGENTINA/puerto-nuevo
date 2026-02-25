@@ -357,6 +357,8 @@ export function ReadReceiptsPanel() {
   };
 
   const selectedFamily = allFamilies.find(f => f.id === selectedFamilyId);
+  const isInitialTableLoading =
+    loadingStats && communications.length > 0 && communicationsWithStats.length === 0;
 
   return (
     <>
@@ -541,7 +543,16 @@ export function ReadReceiptsPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedCommunications.length === 0 ? (
+                    {isInitialTableLoading ? (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                            <div className="spinner" aria-hidden="true"></div>
+                            <span>Cargando comunicados...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : paginatedCommunications.length === 0 ? (
                       <tr>
                         <td colSpan="8" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
                           No se encontraron comunicados

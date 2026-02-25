@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
@@ -78,19 +78,27 @@ export function UserManagement() {
     setTallerFilter('');
   };
 
-  const filteredUsers = users.filter(u => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm ||
-      (u.email || '').toLowerCase().includes(q) ||
-      (u.displayName || '').toLowerCase().includes(q) ||
-      (u.role || '').toLowerCase().includes(q);
-    const matchesRole = !roleFilter || u.role === roleFilter;
-    const matchesStatus = !statusFilter ||
-      (statusFilter === 'active' ? !u.disabled : !!u.disabled);
-    const matchesTaller = !tallerFilter || u.tallerAsignado === tallerFilter;
+  const filteredUsers = useMemo(() => {
+    const filtered = users.filter((u) => {
+      const q = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.displayName || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q);
+      const matchesRole = !roleFilter || u.role === roleFilter;
+      const matchesStatus = !statusFilter ||
+        (statusFilter === 'active' ? !u.disabled : !!u.disabled);
+      const matchesTaller = !tallerFilter || u.tallerAsignado === tallerFilter;
 
-    return matchesSearch && matchesRole && matchesStatus && matchesTaller;
-  });
+      return matchesSearch && matchesRole && matchesStatus && matchesTaller;
+    });
+
+    return filtered.sort((a, b) => {
+      const aLabel = (a.displayName || a.email || '').trim().toLowerCase();
+      const bLabel = (b.displayName || b.email || '').trim().toLowerCase();
+      return aLabel.localeCompare(bLabel, 'es', { sensitivity: 'base' });
+    });
+  }, [users, searchTerm, roleFilter, statusFilter, tallerFilter]);
 
   const loadUsers = async () => {
     setLoading(true);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { communicationsService } from '../../services/communications.service';
@@ -144,7 +144,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   };
 
   const handleSelectAll = () => {
-    const allFamilyIds = familyUsers.map(f => f.id);
+    const allFamilyIds = sortedFamilyUsers.map(f => f.id);
     setSelectedFamilies(allFamilyIds);
     if (recipientScope === 'families') setFormData(prev => ({ ...prev, destinatarios: allFamilyIds }));
   };
@@ -160,16 +160,30 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     if (recipientScope === 'families') setFormData(prev => ({ ...prev, destinatarios: newSelected }));
   };
 
+  const sortedFamilyUsers = useMemo(() => (
+    [...familyUsers].sort((a, b) => {
+      const aLabel = (a.displayName || a.email || '').trim().toLowerCase();
+      const bLabel = (b.displayName || b.email || '').trim().toLowerCase();
+      return aLabel.localeCompare(bLabel, 'es', { sensitivity: 'base' });
+    })
+  ), [familyUsers]);
+
+  const availableFamilies = useMemo(() => (
+    sortedFamilyUsers.filter(family => !selectedFamilies.includes(family.id))
+  ), [sortedFamilyUsers, selectedFamilies]);
+
+  const matchingAvailableFamilies = useMemo(() => {
+    if (searchTerm.length < 2) return [];
+    const searchLower = searchTerm.toLowerCase();
+    return availableFamilies.filter((family) => {
+      const name = (family.displayName || '').toLowerCase();
+      const email = (family.email || '').toLowerCase();
+      return name.includes(searchLower) || email.includes(searchLower);
+    });
+  }, [availableFamilies, searchTerm]);
+
   const filteredFamilies = searchTerm.length >= 2
-    ? familyUsers
-        .filter(family => !selectedFamilies.includes(family.id))
-        .filter(family => {
-          const searchLower = searchTerm.toLowerCase();
-          const name = (family.displayName || '').toLowerCase();
-          const email = (family.email || '').toLowerCase();
-          return name.includes(searchLower) || email.includes(searchLower);
-        })
-        .slice(0, 10)
+    ? matchingAvailableFamilies.slice(0, 10)
     : [];
 
   const getSelectedFamiliesInfo = () =>
@@ -648,13 +662,9 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
                                   </div>
                                 </div>
                               ))}
-                              {familyUsers.filter(f => !selectedFamilies.includes(f.id)).length > 10 && (
+                              {matchingAvailableFamilies.length > 10 && (
                                 <div className="family-dropdown-footer">
-                                  Mostrando 10 de {familyUsers.filter(f => !selectedFamilies.includes(f.id)).filter(f => {
-                                    const searchLower = searchTerm.toLowerCase();
-                                    return (f.displayName || '').toLowerCase().includes(searchLower) ||
-                                           (f.email || '').toLowerCase().includes(searchLower);
-                                  }).length} resultados. Escribí más para filtrar.
+                                  Mostrando 10 de {matchingAvailableFamilies.length} resultados. Escribi mas para filtrar.
                                 </div>
                               )}
                             </div>
@@ -1027,3 +1037,4 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     </div>
   );
 }
+
