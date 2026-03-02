@@ -28,31 +28,37 @@ export function DocumentsAdmin() {
         <div className="card__body">
           <div className="documents-admin-tabs">
             <button
+              type="button"
               onClick={() => setActiveTab('ver')}
-              className={`btn ${activeTab === 'ver' ? 'btn--primary' : 'btn--outline'} documents-admin-tab`}
+              className={`documents-admin-tab ${activeTab === 'ver' ? 'is-active' : ''}`}
+              aria-pressed={activeTab === 'ver'}
             >
-              Ver Documentos
+              <span className="documents-admin-tab__icon" aria-hidden="true">
+                <Icon name="eye" size={15} />
+              </span>
+              <span>Ver Documentos</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('subir')}
-              className={`btn ${activeTab === 'subir' ? 'btn--primary' : 'btn--outline'} documents-admin-tab`}
+              className={`documents-admin-tab ${activeTab === 'subir' ? 'is-active' : ''}`}
+              aria-pressed={activeTab === 'subir'}
             >
-              Subir Documento
+              <span className="documents-admin-tab__icon" aria-hidden="true">
+                <Icon name="edit" size={15} />
+              </span>
+              <span>Subir Documentos</span>
             </button>
           </div>
 
           {activeTab === 'ver' ? (
             <DocumentViewer isAdmin={true} />
           ) : (
-            <div>
-              <div className="alert alert--info" style={{ marginBottom: 'var(--spacing-md)' }}>
-                <strong>Panel Administrativo:</strong> Puedes ver y gestionar todos los documentos de la institución.
-              </div>
-              <DocumentUploader onUploadSuccess={() => setActiveTab('ver')} />
-            </div>
+            <DocumentUploader onUploadSuccess={() => setActiveTab('ver')} />
           )}
         </div>
       </div>
     </div>
   );
 }
+

@@ -57,8 +57,7 @@ export function UserManagement() {
   const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [tallerFilter, setTallerFilter] = useState('');
-  const hasFilters = Boolean(searchTerm || roleFilter || statusFilter || tallerFilter);
+  const hasFilters = Boolean(searchTerm || roleFilter || statusFilter);
   const isCoordinacion = user?.role === ROLES.COORDINACION;
   const assignableRoleOptions = isCoordinacion
     ? USER_ROLE_OPTIONS.filter(option => option.value !== ROLES.SUPERADMIN)
@@ -75,7 +74,6 @@ export function UserManagement() {
     setSearchTerm('');
     setRoleFilter('');
     setStatusFilter('');
-    setTallerFilter('');
   };
 
   const filteredUsers = useMemo(() => {
@@ -88,9 +86,8 @@ export function UserManagement() {
       const matchesRole = !roleFilter || u.role === roleFilter;
       const matchesStatus = !statusFilter ||
         (statusFilter === 'active' ? !u.disabled : !!u.disabled);
-      const matchesTaller = !tallerFilter || u.tallerAsignado === tallerFilter;
 
-      return matchesSearch && matchesRole && matchesStatus && matchesTaller;
+      return matchesSearch && matchesRole && matchesStatus;
     });
 
     return filtered.sort((a, b) => {
@@ -98,7 +95,7 @@ export function UserManagement() {
       const bLabel = (b.displayName || b.email || '').trim().toLowerCase();
       return aLabel.localeCompare(bLabel, 'es', { sensitivity: 'base' });
     });
-  }, [users, searchTerm, roleFilter, statusFilter, tallerFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -382,20 +379,6 @@ export function UserManagement() {
                   <option value="">Todos</option>
                   <option value="active">Activo</option>
                   <option value="disabled">Deshabilitado</option>
-                </select>
-              </div>
-
-              <div className="user-filter">
-                <label htmlFor="filterTaller">Taller</label>
-                <select
-                  id="filterTaller"
-                  className="form-input form-input--sm"
-                  value={tallerFilter}
-                  onChange={(e) => setTallerFilter(e.target.value)}
-                >
-                  <option value="">Todos los talleres</option>
-                  <option value={AMBIENTES.TALLER_1}>Taller 1</option>
-                  <option value={AMBIENTES.TALLER_2}>Taller 2</option>
                 </select>
               </div>
 

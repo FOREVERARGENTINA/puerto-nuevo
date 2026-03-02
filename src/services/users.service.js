@@ -24,8 +24,7 @@ export const usersService = {
       await setDoc(doc(usersCollection, uid), {
         ...data,
         createdAt: serverTimestamp(),
-        disabled: false,
-        fcmTokens: []
+        disabled: false
       });
       return { success: true };
     } catch (error) {
@@ -142,10 +141,10 @@ export const usersService = {
     if (!uid || !token) return { success: false, error: 'uid y token requeridos' };
     try {
       await setDoc(
-        doc(usersCollection, uid),
+        doc(db, 'userPushTokens', uid),
         {
-          fcmTokens: arrayUnion(token),
-          fcmTokensUpdatedAt: serverTimestamp()
+          tokens: arrayUnion(token),
+          updatedAt: serverTimestamp()
         },
         { merge: true }
       );
@@ -160,10 +159,10 @@ export const usersService = {
     if (!uid || !token) return { success: false, error: 'uid y token requeridos' };
     try {
       await setDoc(
-        doc(usersCollection, uid),
+        doc(db, 'userPushTokens', uid),
         {
-          fcmTokens: arrayRemove(token),
-          fcmTokensUpdatedAt: serverTimestamp()
+          tokens: arrayRemove(token),
+          updatedAt: serverTimestamp()
         },
         { merge: true }
       );

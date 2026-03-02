@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth';
 import { ThemeProvider } from './hooks/useTheme';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { SocialFeatureGuard } from './components/auth/SocialFeatureGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
@@ -42,6 +43,7 @@ const FamilyConversations = lazy(() => import('./pages/family/FamilyConversation
 const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConversation').then(m => ({ default: m.FamilyNewConversation })));
 const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
 const AmbienteActivities = lazy(() => import('./pages/family/AmbienteActivities'));
+const FamilyHorariosPlaceholder = lazy(() => import('./pages/family/FamilyHorariosPlaceholder').then(m => ({ default: m.FamilyHorariosPlaceholder })));
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -54,9 +56,11 @@ const DocumentManager = lazy(() => import('./pages/tallerista/DocumentManager').
 
 // Lazy load páginas compartidas
 const Documents = lazy(() => import('./pages/shared/Documents').then(m => ({ default: m.Documents })));
+const DocumentDetail = lazy(() => import('./pages/shared/DocumentDetail').then(m => ({ default: m.DocumentDetail })));
 const HorarioSemanal = lazy(() => import('./pages/shared/HorarioSemanal').then(m => ({ default: m.HorarioSemanal })));
 const InstitutionalGallery = lazy(() => import('./pages/shared/InstitutionalGallery'));
 const AmbienteActivitiesManager = lazy(() => import('./pages/shared/AmbienteActivitiesManager'));
+const SocialPage = lazy(() => import('./pages/shared/SocialPage'));
 
 // Lazy load páginas aspirante
 const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
@@ -274,6 +278,18 @@ function App() {
             }
           />
           <Route
+            path="/portal/admin/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <DocumentDetail />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/portal/admin/galeria-institucional"
             element={
               <ProtectedRoute>
@@ -352,6 +368,20 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
                     <AmbienteActivitiesManager />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/admin/social"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                    <SocialFeatureGuard>
+                      <SocialPage />
+                    </SocialFeatureGuard>
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -506,12 +536,24 @@ function App() {
             }
           />
           <Route
+            path="/portal/familia/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <DocumentDetail />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/portal/familia/horarios"
             element={
               <ProtectedRoute>
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.FAMILY]}>
-                    <HorarioSemanal />
+                    <FamilyHorariosPlaceholder />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -541,6 +583,20 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/portal/familia/social"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.FAMILY]}>
+                    <SocialFeatureGuard>
+                      <SocialPage />
+                    </SocialFeatureGuard>
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Teacher Routes */}
           <Route
@@ -562,6 +618,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
                     <Documents />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/docente/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <DocumentDetail />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -610,6 +678,20 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
                     <AmbienteActivitiesManager />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/docente/social"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <SocialFeatureGuard>
+                      <SocialPage />
+                    </SocialFeatureGuard>
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -666,6 +748,18 @@ function App() {
             }
           />
           <Route
+            path="/portal/tallerista/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <DocumentDetail />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/portal/tallerista/eventos"
             element={
               <ProtectedRoute>
@@ -701,6 +795,20 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/portal/tallerista/social"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.TALLERISTA]}>
+                    <SocialFeatureGuard>
+                      <SocialPage />
+                    </SocialFeatureGuard>
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Aspirante Routes */}
           <Route
@@ -722,6 +830,30 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
                     <Documents />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/aspirante/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                    <DocumentDetail />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/documentos/:documentId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION, ROLES.DOCENTE, ROLES.TALLERISTA, ROLES.FAMILY, ROLES.ASPIRANTE]}>
+                    <DocumentDetail />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

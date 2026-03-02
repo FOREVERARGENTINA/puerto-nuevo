@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../config/constants';
+import { socialService } from '../../services/social.service';
+
+const SOCIAL_ALLOWED_ROLES = [
+  ROLES.SUPERADMIN,
+  ROLES.COORDINACION,
+  ROLES.DOCENTE,
+  ROLES.TALLERISTA,
+  ROLES.FAMILY
+];
+
+const SOCIAL_ADMIN_PREVIEW_ROLES = [ROLES.SUPERADMIN, ROLES.COORDINACION];
+
+export function SocialFeatureGuard({ children }) {
+  const { role } = useAuth();
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadConfig = async () => {
+      setLoading(true);
+      try {
+        const config = await socialService.getSocialModuleConfig();
+        if (!isMounted) return;
+        setEnabled(Boolean(config.enabled));
+      } catch {
+        if (!isMounted) return;
+        setEnabled(false);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!SOCIAL_ALLOWED_ROLES.includes(role)) {
+    return <Navigate to="/portal/unauthorized" replace />;
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-xl)' }}>
+        <div className="spinner spinner--lg"></div>
+      </div>
+    );
+  }
+
+  if (!enabled && !SOCIAL_ADMIN_PREVIEW_ROLES.includes(role)) {
+    return <Navigate to="/portal/unauthorized" replace />;
+  }
+
+  return children;
+}
+

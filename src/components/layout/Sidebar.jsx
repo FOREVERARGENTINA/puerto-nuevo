@@ -1,17 +1,23 @@
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useDocumentUnreadCount } from '../../hooks/useDocumentUnreadCount';
 import { ROLES } from '../../config/constants';
 import Icon from '../ui/Icon';
 import { EventCalendar } from './EventCalendar';
+import { socialService } from '../../services/social.service';
+import { canAccessSocial } from '../../utils/socialAccess';
 
 /**
  * Sidebar - Menú lateral de navegación según rol
  */
 export function Sidebar({ isOpen = false, onNavigate }) {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const { count: unreadDocuments } = useDocumentUnreadCount(user?.uid);
+  const [socialConfig, setSocialConfig] = useState({ enabled: false, pilotFamilyUids: [] });
 
   // Definir menús según rol
-  const menuItems = {
+  const menuItems = useMemo(() => ({
     [ROLES.SUPERADMIN]: [
       { path: '/portal/admin', icon: 'home', label: 'Inicio' },
       { path: '/portal/admin/usuarios', icon: 'users', label: 'Usuarios' },
@@ -76,9 +82,54 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/aspirante/documentos', icon: 'file', label: 'Documentos' },
       { path: '/portal/aspirante/galeria', icon: 'image', label: 'Galería' }
     ]
-  };
+  }), []);
 
-  const items = menuItems[role] || [];
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadConfig = async () => {
+      try {
+        const config = await socialService.getSocialModuleConfig();
+        if (!isMounted) return;
+        setSocialConfig(config);
+      } catch {
+        if (!isMounted) return;
+        setSocialConfig({ enabled: false, pilotFamilyUids: [] });
+      }
+    };
+
+    loadConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const isSocialVisible = useMemo(() => {
+    return canAccessSocial({ role, uid: user?.uid, config: socialConfig });
+  }, [role, socialConfig, user?.uid]);
+
+  const items = useMemo(() => {
+    const baseItems = menuItems[role] || [];
+    if (!isSocialVisible) return baseItems;
+
+    const socialByRole = {
+      [ROLES.SUPERADMIN]: '/portal/admin/social',
+      [ROLES.COORDINACION]: '/portal/admin/social',
+      [ROLES.FAMILY]: '/portal/familia/social',
+      [ROLES.DOCENTE]: '/portal/docente/social',
+      [ROLES.TALLERISTA]: '/portal/tallerista/social'
+    };
+
+    const socialPath = socialByRole[role];
+    if (!socialPath || baseItems.some((item) => item.path === socialPath)) {
+      return baseItems;
+    }
+
+    return [
+      ...baseItems,
+      { path: socialPath, icon: 'users', label: 'Social' }
+    ];
+  }, [isSocialVisible, menuItems, role]);
 
   if (items.length === 0) {
     return null;
@@ -101,6 +152,11 @@ export function Sidebar({ isOpen = false, onNavigate }) {
               >
                 <Icon name={item.icon} size={16} className="sidebar__icon" />
                 <span className="sidebar__label">{item.label}</span>
+                {item.path.includes('/documentos') && unreadDocuments > 0 && (
+                  <span className="sidebar__badge" aria-label={`${unreadDocuments} documentos pendientes`}>
+                    {unreadDocuments > 99 ? '99+' : unreadDocuments}
+                  </span>
+                )}
               </NavLink>
             </li>
           ))}

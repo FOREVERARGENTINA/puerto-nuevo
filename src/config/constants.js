@@ -75,13 +75,11 @@ export const ROLE_PERMISSIONS = {
   [ROLES.DOCENTE]: [
     PERMISSIONS.SEND_COMMUNICATIONS,
     PERMISSIONS.VIEW_MEDICAL_INFO,
-    PERMISSIONS.UPLOAD_DOCUMENTS,
     PERMISSIONS.EDIT_TALLER_INFO
   ],
 
   [ROLES.FACTURACION]: [
-    PERMISSIONS.SEND_COMMUNICATIONS,
-    PERMISSIONS.UPLOAD_DOCUMENTS
+    PERMISSIONS.SEND_COMMUNICATIONS
   ],
 
   [ROLES.TALLERISTA]: [
@@ -222,6 +220,7 @@ export const ROUTES = {
   ADMIN_CONVERSATION_NEW: '/portal/admin/conversaciones/nuevo',
   ADMIN_SNACKS_LISTS: '/portal/admin/snacks/listas',
   ADMIN_ACTIVITIES: '/portal/admin/actividades',
+  ADMIN_SOCIAL: '/portal/admin/social',
   INSTITUTIONAL_GALLERY_ADMIN: '/portal/admin/galeria-institucional',
 
   // Family
@@ -234,6 +233,7 @@ export const ROUTES = {
   FAMILY_CONVERSATION_NEW: '/portal/familia/conversaciones/nueva',
   INSTITUTIONAL_GALLERY_FAMILY: '/portal/familia/galeria',
   FAMILY_ACTIVITIES: '/portal/familia/actividades',
+  FAMILY_SOCIAL: '/portal/familia/social',
 
   // Teacher
   TEACHER_DASHBOARD: '/portal/docente',
@@ -241,12 +241,14 @@ export const ROUTES = {
   TEACHER_DOCUMENTS: '/portal/docente/documentos',
   INSTITUTIONAL_GALLERY_TEACHER: '/portal/docente/galeria',
   TEACHER_ACTIVITIES: '/portal/docente/actividades',
+  TEACHER_SOCIAL: '/portal/docente/social',
 
   // Tallerista
   TALLERISTA_DASHBOARD: '/portal/tallerista',
   MY_TALLER_ESPECIAL: '/portal/tallerista/mi-taller',
   TALLER_GALLERY: '/portal/tallerista/galeria',
   TALLER_DOCUMENTS: '/portal/tallerista/documentos',
+  TALLERISTA_SOCIAL: '/portal/tallerista/social',
   INSTITUTIONAL_GALLERY_TALLERISTA: '/portal/tallerista/galeria-institucional',
 
   // Aspirante
@@ -341,4 +343,3 @@ export const CAN_UPLOAD_TO_GALLERY = [
   ROLES.COORDINACION,
   ROLES.DOCENTE
 ];
-

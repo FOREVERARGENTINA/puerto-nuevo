@@ -38,6 +38,14 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'family';
     }
 
+    function isResponsibleFamilyForChild(childId, familyUid) {
+      let childData = get(/databases/$(database)/documents/children/$(childId)).data;
+      return isFamily() &&
+        request.auth.uid == familyUid &&
+        childData.responsables is list &&
+        request.auth.uid in childData.responsables;
+    }
+
     function uidMatchesLegacyAssignee(talleristaIdValue) {
       return (talleristaIdValue is list && request.auth.uid in talleristaIdValue) ||
              (talleristaIdValue is string && request.auth.uid == talleristaIdValue);
@@ -70,8 +78,9 @@ service cloud.firestore {
     }
 
     function canUploadDocuments() {
-      // SuperAdmin, Coordinacion y Docentes
-      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
+      // Solo SuperAdmin y Coordinacion.
+      // Decision vigente: docentes tienen acceso de lectura, pero no upload de documentos.
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion'];
     }
 
     function canCreateEvents() {
@@ -146,6 +155,12 @@ service cloud.firestore {
       return isConversationFamily(conv) || isConversationSchool(conv);
     }
 
+    // Configuración de módulos / feature flags
+    match /appConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Colección: /users (perfiles de usuarios)
     match /users/{userId} {
       // Leer: Usuario puede ver su propio perfil, admin puede ver todos, 
@@ -153,7 +168,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (isFamily() && resource.data.role == 'family')
+        (isFamily() && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion'])
       );
 
       // Crear/Actualizar: Solo admin puede crear usuarios o el propio usuario puede actualizar ciertos campos
@@ -165,6 +180,42 @@ service cloud.firestore {
 
       // Eliminar: Solo admin
       allow delete: if isAdmin();
+    }
+
+    // Colección: /socialProfiles (perfil social público del campus)
+    match /socialProfiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() || (
+        isAuthenticated() && request.auth.uid == userId
+      );
+    }
+
+    // Colección: /childSocialProfiles (foto social de alumno por responsable)
+    match /childSocialProfiles/{docId} {
+      allow read: if isAuthenticated();
+
+      allow create, update: if isAdmin() || (
+        request.resource.data.childId is string &&
+        request.resource.data.familyUid is string &&
+        request.resource.data.photoUrl is string &&
+        docId == request.resource.data.childId + '_' + request.resource.data.familyUid &&
+        isResponsibleFamilyForChild(
+          request.resource.data.childId,
+          request.resource.data.familyUid
+        )
+      );
+
+      allow delete: if isAdmin() || (
+        resource.data.childId is string &&
+        resource.data.familyUid is string &&
+        isResponsibleFamilyForChild(resource.data.childId, resource.data.familyUid)
+      );
+    }
+
+    // Colección: /userPushTokens (privada por usuario)
+    match /userPushTokens/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create, update, delete: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
     // Colección: /children (fichas de alumnos)
@@ -587,4 +638,3 @@ service cloud.firestore {
     }
   }
 }
-

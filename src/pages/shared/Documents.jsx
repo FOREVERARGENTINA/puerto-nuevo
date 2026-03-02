@@ -1,6 +1,7 @@
-import { useNavigate } from 'react-router-dom';
+﻿import { useNavigate } from 'react-router-dom';
 import { DocumentViewer } from '../../components/documents/DocumentViewer';
 import { useAuth } from '../../hooks/useAuth';
+import { ROLES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 
 export function Documents() {
@@ -9,11 +10,11 @@ export function Documents() {
 
   const getTitle = () => {
     switch (user?.role) {
-      case 'teacher':
-        return 'Documentos para Guías';
-      case 'family':
+      case ROLES.DOCENTE:
+        return 'Documentos para Guias';
+      case ROLES.FAMILY:
         return 'Documentos Institucionales';
-      case 'aspirante':
+      case ROLES.ASPIRANTE:
         return 'Documentos para Aspirantes';
       default:
         return 'Documentos';
@@ -25,7 +26,7 @@ export function Documents() {
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">{getTitle()}</h1>
-          <p className="dashboard-subtitle">Accedé a la documentación disponible.</p>
+          <p className="dashboard-subtitle">Accede a la documentacion disponible.</p>
         </div>
         <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
           <Icon name="chevron-left" size={16} />

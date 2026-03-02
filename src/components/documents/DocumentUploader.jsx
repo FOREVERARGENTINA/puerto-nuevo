@@ -1,9 +1,23 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { documentsService } from '../../services/documents.service';
 import { AlertDialog } from '../common/AlertDialog';
 import { FileSelectionList, FileUploadSelector } from '../common/FileUploadSelector';
 import { useDialog } from '../../hooks/useDialog';
+import {
+  DOCUMENT_CATEGORY_OPTIONS,
+  DOCUMENT_SCOPE_OPTIONS_FOR_UPLOAD
+} from '../../config/documentCategories';
+
+const RECIPIENT_ROLE_OPTIONS = [
+  { value: 'superadmin', label: 'SuperAdmin' },
+  { value: 'coordinacion', label: 'Coordinacion' },
+  { value: 'docente', label: 'Docentes' },
+  { value: 'facturacion', label: 'Facturacion' },
+  { value: 'tallerista', label: 'Talleristas' },
+  { value: 'family', label: 'Familias' },
+  { value: 'aspirante', label: 'Aspirantes' }
+];
 
 export function DocumentUploader({ onUploadSuccess }) {
   const { user } = useAuth();
@@ -14,50 +28,41 @@ export function DocumentUploader({ onUploadSuccess }) {
     categoria: 'institucional',
     roles: [],
     requiereLectura: false,
-    ambiente: 'todos',
-    fechaLimite: ''
+    ambiente: 'global'
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const alertDialog = useDialog();
 
-  const categorias = [
-    { value: 'institucional', label: 'Institucional' },
-    { value: 'pedagogico', label: 'Pedagógico' },
-    { value: 'administrativo', label: 'Administrativo' },
-    { value: 'taller', label: 'Taller Especial' }
-  ];
+  const categoryOptions = useMemo(
+    () => DOCUMENT_CATEGORY_OPTIONS.filter((option) => option.value !== 'all'),
+    []
+  );
 
-  const rolesOptions = [
-    { value: 'direccion', label: 'Dirección' },
-    { value: 'coordinacion', label: 'Coordinación' },
-    { value: 'admin', label: 'Admin' },
-    { value: 'teacher', label: 'Guías' },
-    { value: 'tallerista', label: 'Talleristas' },
-    { value: 'family', label: 'Familias' },
-    { value: 'aspirante', label: 'Aspirantes' }
-  ];
+  const isFamilyAudienceSelected = formData.roles.includes('family');
 
-  const ambienteOptions = [
-    { value: 'todos', label: 'Todos' },
-    { value: 'taller1', label: 'Solo Taller 1' },
-    { value: 'taller2', label: 'Solo Taller 2' }
-  ];
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
   };
 
   const handleRoleToggle = (role) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: prev.roles.includes(role)
-        ? prev.roles.filter(r => r !== role)
-        : [...prev.roles, role]
-    }));
+    setFormData((prev) => {
+      const nextRoles = prev.roles.includes(role)
+        ? prev.roles.filter((item) => item !== role)
+        : [...prev.roles, role];
+
+      const hasFamily = nextRoles.includes('family');
+
+      return {
+        ...prev,
+        roles: nextRoles,
+        ambiente: hasFamily ? prev.ambiente : 'global',
+        requiereLectura: hasFamily ? prev.requiereLectura : false
+      };
+    });
   };
 
   const handleFileSelect = (selectedFiles) => {
@@ -76,8 +81,8 @@ export function DocumentUploader({ onUploadSuccess }) {
 
     if (!validTypes.includes(file.type)) {
       alertDialog.openDialog({
-        title: 'Formato No Válido',
-        message: 'Solo se permiten PDF, Word, Excel e imágenes',
+        title: 'Formato no valido',
+        message: 'Solo se permiten PDF, Word, Excel e imagenes',
         type: 'error'
       });
       return;
@@ -86,8 +91,8 @@ export function DocumentUploader({ onUploadSuccess }) {
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       alertDialog.openDialog({
-        title: 'Archivo Muy Grande',
-        message: 'El archivo es muy grande. Máximo 10MB',
+        title: 'Archivo muy grande',
+        message: 'El archivo es muy grande. Maximo 10MB',
         type: 'error'
       });
       return;
@@ -96,12 +101,12 @@ export function DocumentUploader({ onUploadSuccess }) {
     setSelectedFile(file);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if (!selectedFile) {
       alertDialog.openDialog({
-        title: 'Archivo Requerido',
+        title: 'Archivo requerido',
         message: 'Debes seleccionar un archivo',
         type: 'warning'
       });
@@ -110,8 +115,8 @@ export function DocumentUploader({ onUploadSuccess }) {
 
     if (!formData.titulo.trim()) {
       alertDialog.openDialog({
-        title: 'Título Requerido',
-        message: 'Debes ingresar un título',
+        title: 'Titulo requerido',
+        message: 'Debes ingresar un titulo',
         type: 'warning'
       });
       return;
@@ -119,17 +124,19 @@ export function DocumentUploader({ onUploadSuccess }) {
 
     if (formData.roles.length === 0) {
       alertDialog.openDialog({
-        title: 'Roles Requeridos',
-        message: 'Debes seleccionar al menos un rol que pueda ver el documento',
+        title: 'Destinatarios requeridos',
+        message: 'Debes seleccionar al menos un rol destinatario',
         type: 'warning'
       });
       return;
     }
 
     setUploading(true);
+
     try {
       const metadata = {
         ...formData,
+        ambiente: isFamilyAudienceSelected ? formData.ambiente : null,
         uploadedBy: user.uid,
         uploadedByEmail: user.email
       };
@@ -138,21 +145,22 @@ export function DocumentUploader({ onUploadSuccess }) {
 
       if (result.success) {
         alertDialog.openDialog({
-          title: 'Éxito',
+          title: 'Exito',
           message: 'Documento subido correctamente',
           type: 'success'
         });
+
         setFormData({
           titulo: '',
           descripcion: '',
           categoria: 'institucional',
           roles: [],
           requiereLectura: false,
-          ambiente: 'todos',
-          fechaLimite: ''
+          ambiente: 'global'
         });
         setSelectedFile(null);
-        if (onUploadSuccess) {
+
+        if (typeof onUploadSuccess === 'function') {
           onUploadSuccess();
         }
       } else {
@@ -177,7 +185,7 @@ export function DocumentUploader({ onUploadSuccess }) {
   return (
     <form onSubmit={handleSubmit} className="document-uploader">
       <div className="form-group">
-        <label htmlFor="titulo">Título *</label>
+        <label htmlFor="titulo">Titulo *</label>
         <input
           type="text"
           id="titulo"
@@ -190,7 +198,7 @@ export function DocumentUploader({ onUploadSuccess }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="descripcion">Descripción</label>
+        <label htmlFor="descripcion">Descripcion</label>
         <textarea
           id="descripcion"
           name="descripcion"
@@ -202,7 +210,7 @@ export function DocumentUploader({ onUploadSuccess }) {
       </div>
 
       <div className="form-group">
-        <label htmlFor="categoria">Categoría *</label>
+        <label htmlFor="categoria">Categoria *</label>
         <select
           id="categoria"
           name="categoria"
@@ -211,9 +219,9 @@ export function DocumentUploader({ onUploadSuccess }) {
           className="form-control"
           required
         >
-          {categorias.map(cat => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
+          {categoryOptions.map((category) => (
+            <option key={category.value} value={category.value}>
+              {category.label}
             </option>
           ))}
         </select>
@@ -222,78 +230,63 @@ export function DocumentUploader({ onUploadSuccess }) {
       <div className="form-group">
         <label>Roles que pueden ver este documento *</label>
         <div className="document-uploader__roles">
-          {rolesOptions.map(role => (
-            <label key={role.value} className="document-uploader__roles-item">
+          {RECIPIENT_ROLE_OPTIONS.map((roleOption) => (
+            <label key={roleOption.value} className="document-uploader__roles-item">
               <input
                 type="checkbox"
-                checked={formData.roles.includes(role.value)}
-                onChange={() => handleRoleToggle(role.value)}
+                checked={formData.roles.includes(roleOption.value)}
+                onChange={() => handleRoleToggle(roleOption.value)}
               />
-              {role.label}
+              <span className="document-uploader__checkbox-text">{roleOption.label}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Lectura obligatoria para familias */}
-      {formData.roles.includes('family') && (
-        <div className="document-uploader__family-section">
+      <div className="document-uploader__family-section">
+        <div className="form-group">
+          <label htmlFor="ambiente">Ambiente destinatario {isFamilyAudienceSelected ? '*' : '(solo Familias)'}</label>
+          <select
+            id="ambiente"
+            name="ambiente"
+            value={formData.ambiente}
+            onChange={handleInputChange}
+            className="form-control"
+            required={isFamilyAudienceSelected}
+            disabled={!isFamilyAudienceSelected}
+          >
+            {DOCUMENT_SCOPE_OPTIONS_FOR_UPLOAD.map((scope) => (
+              <option key={scope.value} value={scope.value}>
+                {scope.label}
+              </option>
+            ))}
+          </select>
+          <p className="document-uploader__help">
+            Global llega a todas las familias. Taller 1 o Taller 2 limita el documento a ese ambiente.
+          </p>
+          {!isFamilyAudienceSelected && (
+            <p className="document-uploader__help document-uploader__help--muted">
+              Marca el rol Familias para habilitar el filtro por ambiente.
+            </p>
+          )}
+        </div>
+
+        {isFamilyAudienceSelected && (
           <div className="form-group">
             <label className="document-uploader__family-section-header">
               <input
                 type="checkbox"
                 checked={formData.requiereLectura}
-                onChange={(e) => setFormData(prev => ({ ...prev, requiereLectura: e.target.checked }))}
+                onChange={(event) => setFormData((prev) => ({ ...prev, requiereLectura: event.target.checked }))}
               />
-              Requiere confirmación de lectura por familias
+              <span className="document-uploader__checkbox-text">Requiere confirmacion de lectura</span>
             </label>
             <p className="document-uploader__help">
-              Las familias deberán confirmar que leyeron este documento
+              Si esta activo, la familia debe confirmar lectura manualmente.
             </p>
           </div>
-
-          {formData.requiereLectura && (
-            <>
-              <div className="form-group">
-                <label htmlFor="ambiente">Destinatarios *</label>
-                <select
-                  id="ambiente"
-                  name="ambiente"
-                  value={formData.ambiente}
-                  onChange={handleInputChange}
-                  className="form-control"
-                  required
-                >
-                  {ambienteOptions.map(amb => (
-                    <option key={amb.value} value={amb.value}>
-                      {amb.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="document-uploader__help">
-                  Selecciona qué familias deben leer este documento
-                </p>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="fechaLimite">Fecha límite de lectura (opcional)</label>
-                <input
-                  type="date"
-                  id="fechaLimite"
-                  name="fechaLimite"
-                  value={formData.fechaLimite}
-                  onChange={handleInputChange}
-                  className="form-control"
-                  min={new Date().toISOString().split('T')[0]}
-                />
-                <p className="document-uploader__help">
-                  Si se especifica, se enviará recordatorio a quienes no hayan leído
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="form-group">
         <label htmlFor="file">Archivo *</label>

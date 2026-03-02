@@ -1,0 +1,5 @@
+{
+  "name": "Mapa Vivo del Campus",
+  "description": "Un grafo social interactivo que visualiza las relaciones entre padres, docentes y alumnos de una institución educativa.",
+  "requestFramePermissions": []
+}

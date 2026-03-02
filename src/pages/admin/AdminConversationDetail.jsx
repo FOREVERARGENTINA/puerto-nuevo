@@ -80,6 +80,16 @@ export function AdminConversationDetail() {
 
   const isClosed = conversation?.estado === CONVERSATION_STATUS.CERRADA;
 
+  const getMsgReceipt = (msg) => {
+    if (msg.autorRol === 'family') return null;
+    const visto = conversation?.ultimoMensajeVistoPorFamilia;
+    if (!msg.creadoAt) return 'sent';
+    if (!visto) return 'sent';
+    const msgMs = typeof msg.creadoAt.toMillis === 'function' ? msg.creadoAt.toMillis() : (msg.creadoAt.seconds || 0) * 1000;
+    const vistoMs = typeof visto.toMillis === 'function' ? visto.toMillis() : (visto.seconds || 0) * 1000;
+    return msgMs <= vistoMs ? 'read' : 'sent';
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!conversation || !user || sending) return;
@@ -237,7 +247,21 @@ export function AdminConversationDetail() {
               <div key={msg.id} className={`message-bubble ${isOwn ? 'message-bubble--own' : ''}`}>
                 <div className="message-bubble__header">
                   <strong>{msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}</strong>
-                  <span>{createdLabel}</span>
+                  <span className="message-bubble__meta">
+                    {createdLabel}
+                    {getMsgReceipt(msg) && (
+                      <span
+                        className={`msg-receipt msg-receipt--${getMsgReceipt(msg)}`}
+                        title={getMsgReceipt(msg) === 'read' ? 'Leído por la familia' : 'Enviado'}
+                        aria-label={getMsgReceipt(msg) === 'read' ? 'Leído' : 'Enviado'}
+                      >
+                        <svg width="18" height="11" viewBox="0 0 18 11" fill="none" aria-hidden="true">
+                          <path d="M1 5.5L4.5 9L10.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M7 5.5L10.5 9L16.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  </span>
                 </div>
                 {msg.texto && <p>{msg.texto}</p>}
                 {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (

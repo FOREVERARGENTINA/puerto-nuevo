@@ -30,8 +30,15 @@ export function DocumentReadReceiptsPanel({ documentId, documentTitle: _document
 
   if (loading) {
     return (
-      <div className="alert alert--info" style={{ fontSize: '0.875rem' }}>
-        <p style={{ margin: 0 }}>Cargando estado de confirmaciones...</p>
+      <div className="documents-loading-state documents-loading-state--inline" role="status" aria-live="polite">
+        <span className="documents-loading-state__icon" aria-hidden="true">
+          <Icon name="check-square" size={14} />
+        </span>
+        <div className="documents-loading-state__body">
+          <p className="documents-loading-state__title">Cargando confirmaciones</p>
+          <p className="documents-loading-state__hint">Estamos revisando el estado de lectura.</p>
+        </div>
+        <span className="documents-loading-state__bar" aria-hidden="true" />
       </div>
     );
   }

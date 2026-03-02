@@ -48,11 +48,27 @@ async function resolveUsersAndTokens(userIds, options = {}) {
   const userChunks = chunkArray(uniqueUserIds, MAX_IN_QUERY);
 
   for (const userChunk of userChunks) {
-    const usersSnap = await admin
+    const usersQuery = admin
       .firestore()
       .collection('users')
-      .where(admin.firestore.FieldPath.documentId(), 'in', userChunk)
-      .get();
+      .where(admin.firestore.FieldPath.documentId(), 'in', userChunk);
+
+    const pushTokensQuery = admin
+      .firestore()
+      .collection('userPushTokens')
+      .where(admin.firestore.FieldPath.documentId(), 'in', userChunk);
+
+    const [usersSnap, pushTokensSnap] = await Promise.all([
+      usersQuery.get(),
+      pushTokensQuery.get(),
+    ]);
+
+    const pushTokensByUid = new Map();
+    pushTokensSnap.forEach((pushDoc) => {
+      const pushData = pushDoc.data() || {};
+      const tokens = Array.isArray(pushData.tokens) ? pushData.tokens : [];
+      pushTokensByUid.set(pushDoc.id, tokens);
+    });
 
     usersSnap.forEach((userDoc) => {
       usersLoaded++;
@@ -61,7 +77,12 @@ async function resolveUsersAndTokens(userIds, options = {}) {
       if (userData.disabled === true) return;
       if (familyOnly && userData.role !== 'family') return;
 
-      const tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
+      // Preferimos la nueva colección privada userPushTokens.
+      // Fallback legacy: users.fcmTokens para tokens previos a la migración.
+      const tokensFromPrivateDoc = pushTokensByUid.get(userDoc.id);
+      const tokens = Array.isArray(tokensFromPrivateDoc) && tokensFromPrivateDoc.length > 0
+        ? tokensFromPrivateDoc
+        : (Array.isArray(userData.fcmTokens) ? userData.fcmTokens : []);
       tokens.forEach((tokenValue) => {
         const token = sanitizeToken(tokenValue);
         if (!token) return;
@@ -107,17 +128,29 @@ async function cleanupInvalidTokens(invalidTokens, tokenOwners) {
 
     for (const tokenChunk of tokenChunks) {
       try {
-        await admin
-          .firestore()
-          .collection('users')
-          .doc(uid)
-          .set(
-            {
-              fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokenChunk),
-              fcmTokensUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
+        const firestore = admin.firestore();
+        await Promise.all([
+          firestore
+            .collection('userPushTokens')
+            .doc(uid)
+            .set(
+              {
+                tokens: admin.firestore.FieldValue.arrayRemove(...tokenChunk),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            ),
+          firestore
+            .collection('users')
+            .doc(uid)
+            .set(
+              {
+                fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokenChunk),
+                fcmTokensUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            ),
+        ]);
         cleanedCount += tokenChunk.length;
       } catch (error) {
         console.error(`[pushNotifications] Error limpiando tokens para ${uid}:`, error);

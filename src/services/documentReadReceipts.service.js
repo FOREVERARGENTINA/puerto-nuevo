@@ -13,6 +13,30 @@ import { db } from '../config/firebase';
 
 const readReceiptsCollection = collection(db, 'documentReadReceipts');
 
+const getTimestampMs = (value) => {
+  if (!value) return 0;
+
+  if (typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+
+  if (typeof value.toDate === 'function') {
+    const date = value.toDate();
+    return Number.isNaN(date?.getTime?.()) ? 0 : date.getTime();
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? 0 : value.getTime();
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  return 0;
+};
+
 async function createReadReceipt(documentId, userId) {
   const receiptData = {
     documentId,
@@ -162,6 +186,63 @@ export const documentReadReceiptsService = {
       return { success: true, receipt };
     } catch (error) {
       console.error('Error obteniendo receipt:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Obtiene mapa de receipts para un usuario.
+   * Prioriza status 'read' por sobre 'pending' cuando hay duplicados legacy.
+   * @param {string} userId - UID del usuario
+   * @param {Array<string>} documentIds - IDs de documentos a evaluar
+   */
+  async getUserReceiptsMap(userId, documentIds = []) {
+    try {
+      if (!userId) return { success: true, receiptsMap: {} };
+
+      const targetIds = new Set(
+        (Array.isArray(documentIds) ? documentIds : [])
+          .filter((id) => typeof id === 'string' && id.trim())
+          .map((id) => id.trim())
+      );
+
+      const q = query(
+        readReceiptsCollection,
+        where('userId', '==', userId)
+      );
+
+      const snapshot = await getDocs(q);
+      const receiptsMap = {};
+
+      snapshot.docs.forEach((docRef) => {
+        const receipt = { id: docRef.id, ...docRef.data() };
+        const docId = typeof receipt.documentId === 'string' ? receipt.documentId.trim() : '';
+        if (!docId) return;
+        if (targetIds.size > 0 && !targetIds.has(docId)) return;
+
+        const current = receiptsMap[docId];
+        if (!current) {
+          receiptsMap[docId] = receipt;
+          return;
+        }
+
+        if (current.status !== 'read' && receipt.status === 'read') {
+          receiptsMap[docId] = receipt;
+          return;
+        }
+
+        if (current.status === receipt.status) {
+          const currentMs = Math.max(getTimestampMs(current.readAt), getTimestampMs(current.createdAt));
+          const nextMs = Math.max(getTimestampMs(receipt.readAt), getTimestampMs(receipt.createdAt));
+          if (nextMs > currentMs) {
+            receiptsMap[docId] = receipt;
+          }
+        }
+      });
+
+      return { success: true, receiptsMap };
+    } catch (error) {
+      console.error('Error obteniendo mapa de receipts:', error);
       return { success: false, error: error.message };
     }
   },

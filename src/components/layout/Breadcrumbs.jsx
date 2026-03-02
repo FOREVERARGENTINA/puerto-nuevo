@@ -1,10 +1,11 @@
 ﻿import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import Icon from '../ui/Icon';
 
 const ROUTE_NAMES = {
   '': 'Inicio',
   portal: 'Portal',
-  admin: 'Administración',
+  admin: 'Administracion',
   familia: 'Familia',
   docente: 'Docente',
   tallerista: 'Tallerista',
@@ -24,21 +25,41 @@ const ROUTE_NAMES = {
   documentos: 'Documentos',
   horarios: 'Horario Semanal',
   'mi-taller': 'Mi Taller',
-  galeria: 'Galería',
-  'galeria-institucional': 'Galería Institucional',
-  eventos: 'Eventos'
+  galeria: 'Galeria',
+  'galeria-institucional': 'Galeria Institucional',
+  eventos: 'Eventos',
+  social: 'Social'
 };
 
 const ROOT_ROLE_SEGMENTS = new Set(['admin', 'familia', 'docente', 'tallerista', 'aspirante']);
-
 const isDocumentId = (segment) => /^[a-zA-Z0-9]{15,}$/.test(segment);
 
+const resolveRoleRootPath = (role) => {
+  switch (role) {
+    case 'superadmin':
+    case 'coordinacion':
+    case 'facturacion':
+      return '/portal/admin';
+    case 'docente':
+      return '/portal/docente';
+    case 'tallerista':
+      return '/portal/tallerista';
+    case 'family':
+      return '/portal/familia';
+    case 'aspirante':
+      return '/portal/aspirante';
+    default:
+      return '/';
+  }
+};
+
 /**
- * Breadcrumbs - Migas de pan automáticas basadas en la ruta
+ * Breadcrumbs - Migas de pan automaticas basadas en la ruta
  */
 export function Breadcrumbs() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   const pathSegments = location.pathname
     .split('/')
@@ -48,19 +69,17 @@ export function Breadcrumbs() {
     return null;
   }
 
-  // Detectar si es una ruta de portal
   const isPortalRoute = pathSegments[0] === 'portal';
   const roleSegmentIndex = isPortalRoute ? 1 : 0;
   const roleSegment = pathSegments[roleSegmentIndex];
   const isRoleRootRoute = ROOT_ROLE_SEGMENTS.has(roleSegment);
+  const isSharedDocumentsRoute = isPortalRoute && roleSegment === 'documentos';
 
   const visibleSegments = pathSegments
     .map((segment, originalIndex) => ({ segment, originalIndex }))
     .filter(({ segment, originalIndex }) => {
       if (isDocumentId(segment)) return false;
-      // Filtrar 'portal' del breadcrumb
       if (segment === 'portal') return false;
-      // Filtrar el segmento de rol si está en la posición correcta
       if (originalIndex === roleSegmentIndex && ROOT_ROLE_SEGMENTS.has(segment)) return false;
       return true;
     });
@@ -83,10 +102,13 @@ export function Breadcrumbs() {
 
   const roleRootPath = isRoleRootRoute
     ? (isPortalRoute ? `/portal/${roleSegment}` : `/${roleSegment}`)
-    : '/';
+    : (isSharedDocumentsRoute ? resolveRoleRootPath(role) : '/');
+
   const mobileBackPath = breadcrumbs.length > 1
     ? breadcrumbs[breadcrumbs.length - 2].path
     : roleRootPath;
+  const isDocumentDetailRoute = pathSegments[pathSegments.length - 2] === 'documentos'
+    && isDocumentId(pathSegments[pathSegments.length - 1] || '');
 
   return (
     <nav className="breadcrumbs" aria-label="Breadcrumb">
@@ -117,7 +139,13 @@ export function Breadcrumbs() {
         <button
           type="button"
           className="breadcrumbs__back-mobile"
-          onClick={() => navigate(mobileBackPath)}
+          onClick={() => {
+            if (isDocumentDetailRoute) {
+              navigate(-1);
+              return;
+            }
+            navigate(mobileBackPath);
+          }}
           aria-label="Volver"
         >
           <Icon name="chevron-left" size={14} />

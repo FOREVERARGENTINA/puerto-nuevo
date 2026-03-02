@@ -1,8 +1,16 @@
 ﻿const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 
-// Inicializar Admin SDK
-admin.initializeApp();
+// Inicializar Admin SDK con bucket explicito para URL firmadas de documentos.
+const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'puerto-nuevo-montessori';
+const defaultStorageBucket =
+  process.env.FIREBASE_STORAGE_BUCKET ||
+  process.env.STORAGE_BUCKET ||
+  `${projectId}.firebasestorage.app`;
+
+admin.initializeApp({
+  storageBucket: defaultStorageBucket,
+});
 
 // Importar triggers
 const { onCommunicationCreated, onCommunicationUpdated } = require('./src/triggers/onCommunicationCreated');
@@ -14,7 +22,9 @@ const { onDocumentWithMandatoryReading } = require('./src/triggers/onDocumentCre
 const { onEventCreated } = require('./src/triggers/onEventCreated');
 const { onTallerResourcePostCreated } = require('./src/triggers/onTallerResourcePostCreated');
 const { onAmbienteActivityCreated } = require('./src/triggers/onAmbienteActivityCreated');
+const { onInstitutionalGalleryMediaCreated } = require('./src/triggers/onInstitutionalGalleryMediaCreated');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
+const { getDocumentAccessUrl } = require('./src/http/getDocumentAccessUrl');
 const { maskEmail } = require('./src/utils/logging');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
@@ -177,7 +187,6 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
       displayName: displayName || email.split('@')[0],
       role,
       children: [],
-      fcmTokens: [],
       disabled: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       createdBy: request.auth.uid,
@@ -336,6 +345,8 @@ exports.onDocumentWithMandatoryReading = onDocumentWithMandatoryReading;
 exports.onEventCreated = onEventCreated;
 exports.onTallerResourcePostCreated = onTallerResourcePostCreated;
 exports.onAmbienteActivityCreated = onAmbienteActivityCreated;
+exports.onInstitutionalGalleryMediaCreated = onInstitutionalGalleryMediaCreated;
+exports.getDocumentAccessUrl = getDocumentAccessUrl;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

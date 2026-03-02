@@ -23,7 +23,7 @@ export function DocumentManager() {
           <div className="alert alert--info" style={{ marginBottom: 'var(--spacing-md)' }}>
             Este rol solo tiene acceso de lectura de documentos.
           </div>
-          <DocumentViewer showUpload={false} isAdmin={false} />
+          <DocumentViewer isAdmin={false} />
         </div>
       </div>
     </div>

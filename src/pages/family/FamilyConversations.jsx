@@ -9,6 +9,7 @@ import {
   getCategoryLabel,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
+import Avatar from '../../components/ui/Avatar';
 
 export function FamilyConversations() {
   const { user, role } = useAuth();
@@ -103,7 +104,7 @@ export function FamilyConversations() {
         <div className="conversations-list">
           {filtered.map(conv => {
             const hasUnread = conv.mensajesSinLeerFamilia > 0;
-            const initial = getAreaLabel(conv.destinatarioEscuela)?.charAt(0)?.toUpperCase() || '?';
+            const areaLabel = getAreaLabel(conv.destinatarioEscuela) || 'Escuela';
             
             return (
               <Link
@@ -111,9 +112,11 @@ export function FamilyConversations() {
                 to={`${ROUTES.FAMILY_CONVERSATIONS}/${conv.id}`}
                 className={`conversation-row ${hasUnread ? 'conversation-row--unread' : ''}`}
               >
-                <div className="conversation-row__avatar">
-                  {initial}
-                </div>
+                <Avatar
+                  name={areaLabel}
+                  size={44}
+                  className="conversation-row__avatar"
+                />
                 
                 <div className="conversation-row__content">
                   <div className="conversation-row__top">
@@ -127,7 +130,7 @@ export function FamilyConversations() {
                   
                   <div className="conversation-row__middle">
                     <span className="conversation-row__area">
-                      {getAreaLabel(conv.destinatarioEscuela)}
+                      {areaLabel}
                     </span>
                     <span className="conversation-row__separator">·</span>
                     <span className="conversation-row__category">

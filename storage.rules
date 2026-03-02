@@ -26,9 +26,34 @@ service firebase.storage {
              uidMatchesLegacyAssignee(talleristaIdValue);
     }
 
+    function isResponsibleFamilyForChild(childId, familyUid) {
+      let childData = firestore.get(/databases/(default)/documents/children/$(childId)).data;
+      return isAuthenticated() &&
+             request.auth.token.role == 'family' &&
+             request.auth.uid == familyUid &&
+             childData.responsables is list &&
+             request.auth.uid in childData.responsables;
+    }
+
     match /public/{allPaths=**} {
       allow read: if isAuthenticated();
       allow write: if canUpload();
+    }
+
+    match /public/social/families/{uid}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || (isAuthenticated() && request.auth.uid == uid))
+                            && request.resource.size < 8 * 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == uid);
+    }
+
+    match /public/social/children/{childId}/{familyUid}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if (isAdmin() || isResponsibleFamilyForChild(childId, familyUid))
+                            && request.resource.size < 8 * 1024 * 1024
+                            && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin() || isResponsibleFamilyForChild(childId, familyUid);
     }
 
     match /private/children/{childId}/{fileName} {
@@ -72,8 +97,10 @@ service firebase.storage {
     }
 
     match /documents/{category}/{fileName} {
+      // Decision vigente: upload de documentos restringido a superadmin/coordinacion.
+      // Docentes mantienen solo acceso de lectura via Firestore.
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.token.role in ['superadmin', 'coordinacion', 'docente'];
+      allow write: if isAuthenticated() && request.auth.token.role in ['superadmin', 'coordinacion'];
     }
 
     match /communications/{commId}/{fileName} {

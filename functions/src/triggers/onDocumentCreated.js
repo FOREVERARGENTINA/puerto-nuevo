@@ -1,170 +1,102 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
-const { defineSecret } = require('firebase-functions/params');
+﻿const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
-const { resendLimiter } = require('../utils/rateLimiter');
-const { escapeHtml, toSafeHtmlParagraph } = require('../utils/sanitize');
-const { maskEmail } = require('../utils/logging');
+const { toPlainText } = require('../utils/sanitize');
+const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
-const resendApiKey = defineSecret('RESEND_API_KEY');
+const RECEIPT_RETRY_ATTEMPTS = 4;
+const RECEIPT_RETRY_DELAY_MS = 700;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function loadFamilyPendingReceipts(db, documentId) {
+  let snapshot = null;
+
+  for (let attempt = 0; attempt < RECEIPT_RETRY_ATTEMPTS; attempt += 1) {
+    snapshot = await db
+      .collection('documentReadReceipts')
+      .where('documentId', '==', documentId)
+      .where('status', '==', 'pending')
+      .where('userRole', '==', 'family')
+      .get();
+
+    if (!snapshot.empty) {
+      return snapshot;
+    }
+
+    if (attempt < RECEIPT_RETRY_ATTEMPTS - 1) {
+      await sleep(RECEIPT_RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+
+  return snapshot;
+}
 
 /**
- * Trigger cuando se crea un documento con lectura obligatoria.
- * Envia notificaciones in-app y emails a los destinatarios.
+ * Trigger cuando se crea un documento.
+ * Para documentos dirigidos a familias envia push (sin email) usando
+ * documentReadReceipts como source of truth de destinatarios.
  */
 exports.onDocumentWithMandatoryReading = onDocumentCreated(
   {
     document: 'documents/{documentId}',
-    secrets: [resendApiKey],
   },
   async (event) => {
     const snapshot = event.data;
-    if (!snapshot) {
-      return;
-    }
+    if (!snapshot) return;
 
-    const document = snapshot.data();
+    const documentData = snapshot.data() || {};
     const documentId = event.params.documentId;
+    const targetRoles = Array.isArray(documentData.roles) ? documentData.roles : [];
 
-    if (!document.requiereLectura) {
+    if (!targetRoles.includes('family')) {
       return;
     }
 
     try {
       const db = admin.firestore();
+      const receiptsSnapshot = await loadFamilyPendingReceipts(db, documentId);
 
-      const receiptsSnapshot = await db.collection('documentReadReceipts')
-        .where('documentId', '==', documentId)
-        .where('status', '==', 'pending')
-        .get();
-
-      if (receiptsSnapshot.empty) {
-        console.log(`No hay receipts pendientes para documento ${documentId}`);
+      if (!receiptsSnapshot || receiptsSnapshot.empty) {
+        console.log(`[Document ${documentId}] sin receipts pendientes de familias.`);
         return;
       }
 
-      console.log(`Documento "${document.titulo}" requiere lectura: ${receiptsSnapshot.size} destinatarios`);
+      const recipients = Array.from(
+        new Set(
+          receiptsSnapshot.docs
+            .map((docRef) => docRef.data()?.userId)
+            .filter((uid) => typeof uid === 'string' && uid.trim())
+            .map((uid) => uid.trim())
+        )
+      );
 
-      const batch = db.batch();
-      const now = admin.firestore.FieldValue.serverTimestamp();
-
-      receiptsSnapshot.docs.forEach((receiptDoc) => {
-        const receipt = receiptDoc.data();
-
-        const notificationRef = db.collection('notifications').doc();
-        batch.set(notificationRef, {
-          userId: receipt.userId,
-          type: 'document_mandatory_reading',
-          title: 'Documento para leer',
-          message: `Nuevo documento obligatorio: "${document.titulo}"`,
-          metadata: {
-            documentId,
-            documentTitle: document.titulo,
-            receiptId: receiptDoc.id,
-            categoria: document.categoria,
-            fechaLimite: document.fechaLimite || null,
-          },
-          read: false,
-          createdAt: now,
-          url: '/portal/familia/documentos',
-        });
-      });
-
-      await batch.commit();
-      console.log(`Notificaciones in-app creadas: ${receiptsSnapshot.size}`);
-
-      if (!resendApiKey.value()) {
-        console.log('RESEND_API_KEY no configurada, se omite envio de emails');
+      if (recipients.length === 0) {
+        console.log(`[Document ${documentId}] receipts sin userId valido.`);
         return;
       }
 
-      const recipients = receiptsSnapshot.docs.map((doc) => doc.data());
-      let totalSent = 0;
-      let totalFailed = 0;
+      const title = documentData.requiereLectura ? 'Documento obligatorio' : 'Nuevo documento';
+      const body = toPlainText(documentData.titulo || '').slice(0, 180) || 'Hay un nuevo documento disponible';
 
-      const uids = recipients.map((r) => r.userId);
-      const BATCH_SIZE = 10;
-
-      for (let i = 0; i < uids.length; i += BATCH_SIZE) {
-        const batchUids = uids.slice(i, i + BATCH_SIZE);
-        const usersSnap = await db.collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
-          .get();
-
-        for (const userDoc of usersSnap.docs) {
-          const user = userDoc.data();
-          const email = user.email;
-
-          if (!email) {
-            console.log(`Usuario ${userDoc.id} sin email`);
-            continue;
-          }
-
-          try {
-            const safeTitle = escapeHtml(document.titulo || 'Documento');
-            const safeDescription = document.descripcion ? toSafeHtmlParagraph(document.descripcion) : '';
-            const fechaLimiteText = document.fechaLimite
-              ? `<p><strong>Fecha limite:</strong> ${new Date(document.fechaLimite.toDate()).toLocaleDateString('es-AR')}</p>`
-              : '';
-            const documentsUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/documentos';
-            const safeDocumentsUrl = escapeHtml(documentsUrl);
-
-            const payload = {
-              from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
-              to: email,
-              subject: `Documento obligatorio: ${document.titulo || 'Documento'}`,
-              html: `
-                <div lang="es">
-                <h2>Nuevo documento para lectura obligatoria</h2>
-                <h3>${safeTitle}</h3>
-                ${safeDescription ? `<p>${safeDescription}</p>` : ''}
-                ${fechaLimiteText}
-                <p><strong>Este documento requiere confirmacion de lectura.</strong></p>
-                <p style="margin:16px 0;">
-                  <a href="${safeDocumentsUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">Abrir documentos</a>
-                </p>
-                <p style="font-size:0.92em;color:#555;">
-                  Si no podes abrir el boton, copia este enlace:<br>
-                  <a href="${safeDocumentsUrl}" style="color:#1a73e8;">${safeDocumentsUrl}</a>
-                </p>
-                <p style="color:#666;font-size:0.9em;">Cariños,<br>Equipo de Montessori Puerto Nuevo</p>
-                </div>
-              `,
-              headers: {
-                'Content-Language': 'es-AR',
-              },
-            };
-
-            await resendLimiter.retryWithBackoff(async () => {
-              const res = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${resendApiKey.value()}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-              });
-
-              if (!res.ok) {
-                const text = await res.text();
-                throw new Error(`Resend error: ${res.status} ${text}`);
-              }
-
-              return await res.json();
-            });
-
-            console.log(`Email enviado a ${maskEmail(email)}`);
-            totalSent++;
-          } catch (err) {
-            console.error(`Error enviando email a ${maskEmail(email)}:`, err);
-            totalFailed++;
-          }
+      const pushResult = await sendPushNotificationToUsers(
+        {
+          title,
+          body,
+          clickAction: '/portal/familia/documentos',
+        },
+        {
+          userIds: recipients,
+          familyOnly: true,
         }
-      }
+      );
 
-      console.log(`Emails enviados: ${totalSent} exitosos, ${totalFailed} fallidos`);
+      console.log(
+        `[Document ${documentId}] receipts=${receiptsSnapshot.size}, recipients=${recipients.length}, tokens=${pushResult.tokensTargeted}, success=${pushResult.successCount}, failure=${pushResult.failureCount}, cleaned=${pushResult.cleanedCount}`
+      );
     } catch (error) {
-      console.error('Error en trigger onDocumentWithMandatoryReading:', error);
+      console.error(`[Document ${documentId}] Error enviando push:`, error);
     }
   }
 );
-
