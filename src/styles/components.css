@@ -11570,14 +11570,35 @@
   box-shadow: 0 5px 14px rgba(17, 24, 39, 0.11);
 }
 
-.social-filters-card--overlay {
+.social-filters-mobile-toggle {
+  display: inline-flex;
   position: absolute;
   top: 10px;
+  left: 10px;
+  z-index: 5;
+  border-color: color-mix(in srgb, var(--color-border) 84%, transparent);
+  background: color-mix(in srgb, var(--color-background-alt) 90%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.12);
+}
+
+.social-filters-mobile-toggle.is-open {
+  background: color-mix(in srgb, var(--color-primary-light) 18%, var(--color-background-alt));
+}
+
+.social-filters-card--overlay {
+  display: none;
+  position: absolute;
+  top: 50px;
   left: 10px;
   width: min(206px, calc(100% - 20px));
   z-index: 4;
   background: color-mix(in srgb, var(--color-background-alt) 94%, transparent);
   backdrop-filter: blur(4px);
+}
+
+.social-filters-card--overlay.is-open {
+  display: block;
 }
 
 .social-filters-card--overlay .card__header {
@@ -11736,7 +11757,7 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: min(350px, calc(100% - 28px));
+  width: min(300px, calc(100% - 28px));
   max-height: calc(100% - 28px);
   z-index: 3;
 }
@@ -11753,15 +11774,32 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
-  padding: 10px 12px 8px;
+  padding: 8px 10px 6px;
 }
 
 .social-node-sidebar__card .card__body {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
+  position: relative;
 }
 
 .social-node-sidebar__header .card__title {
   font-size: 0.95rem;
+}
+
+.social-node-sidebar__close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 0.74rem;
+}
+
+.social-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 .social-page__profile-grid {
@@ -11780,6 +11818,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  padding-right: 78px;
 }
 
 .social-selected__identity-content {
@@ -11819,16 +11858,21 @@
 
 .social-selected__contact-row {
   display: grid;
-  grid-template-columns: 100px 1fr;
-  gap: 8px;
-  font-size: 0.84rem;
+  grid-template-columns: 86px 1fr;
+  gap: 6px;
+  font-size: 0.8rem;
   line-height: 1.25;
 }
 
 .social-selected__contact-row strong {
   color: var(--color-text-light);
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
+}
+
+.social-selected__contact-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .social-selected__related {
@@ -11945,5 +11989,81 @@
 
   .social-node-sidebar__card {
     max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .social-map-card__toolbar .social-fullscreen-btn {
+    display: none;
+  }
+
+  .social-node-sidebar {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    top: auto;
+    width: auto;
+    max-height: min(48%, 340px);
+    margin: 0;
+    z-index: 6;
+  }
+
+  .social-node-sidebar__card {
+    max-height: 100%;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-background-alt) 94%, transparent);
+    backdrop-filter: blur(7px);
+    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.18);
+  }
+
+  .social-node-sidebar__header {
+    padding: 8px 10px 6px;
+  }
+
+  .social-node-sidebar__header .card__title {
+    font-size: 0.84rem;
+    line-height: 1.2;
+  }
+
+  .social-node-sidebar__header .btn {
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 0.74rem;
+  }
+
+  .social-node-sidebar__close-btn {
+    top: 6px;
+    right: 8px;
+    min-height: 24px;
+  }
+
+  .social-node-sidebar__card .card__body {
+    padding: 8px 10px 10px;
+  }
+
+  .social-selected__identity h4 {
+    font-size: 0.9rem;
+  }
+
+  .social-selected__identity {
+    padding-right: 72px;
+  }
+
+  .social-selected__contact-row {
+    grid-template-columns: 84px 1fr;
+    font-size: 0.79rem;
+  }
+
+  .social-selected__related ul {
+    max-height: 96px;
+  }
+
+  .social-filters-card--overlay {
+    width: min(228px, calc(100% - 20px));
+    border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+    box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import * as d3 from 'd3-force-3d';
 import { useAuth } from '../../hooks/useAuth';
@@ -497,6 +497,7 @@ export default function SocialPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [graphFilters, setGraphFilters] = useState(INITIAL_GRAPH_FILTERS);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -534,14 +535,18 @@ export default function SocialPage() {
 
     let nextHeight;
     if (fullscreenActive) {
-      // En fullscreen usamos casi todo el alto visible; restamos un margen mÃ­nimo
-      // para padding/controles, evitando bandas vacÃ­as debajo del canvas.
+      // En fullscreen usamos casi todo el alto visible; restamos un margen mínimo
+      // para padding/controles, evitando bandas vacías debajo del canvas.
       nextHeight = Math.max(560, viewportHeight - 28);
     } else {
       const desktopHeight = Math.round(viewportHeight * 0.64);
-      nextHeight = width < 900
-        ? Math.max(460, Math.round(width * 0.72))
-        : Math.max(560, desktopHeight);
+      if (width < 768) {
+        nextHeight = Math.max(620, Math.round(width * 1.24), Math.round(viewportHeight * 0.62));
+      } else if (width < 900) {
+        nextHeight = Math.max(460, Math.round(width * 0.72));
+      } else {
+        nextHeight = Math.max(560, desktopHeight);
+      }
     }
 
     setDimensions({
@@ -632,16 +637,34 @@ export default function SocialPage() {
 
   const visibleNodeIds = useMemo(() => {
     const query = normalizeText(search).toLowerCase();
-    return new Set(
-      graphData.nodes
-      .filter((node) => isNodeVisibleByFilters(node, graphFilters))
-      .filter((node) => {
-        if (!query) return true;
-        return getNodeLabel(node).toLowerCase().includes(query);
-      })
-      .map((node) => node.id)
+    const roleVisibleNodes = graphData.nodes.filter((node) => isNodeVisibleByFilters(node, graphFilters));
+    const roleVisibleSet = new Set(roleVisibleNodes.map((node) => node.id));
+
+    if (!query) {
+      return roleVisibleSet;
+    }
+
+    const searchedIds = new Set(
+      roleVisibleNodes
+        .filter((node) => getNodeLabel(node).toLowerCase().includes(query))
+        .map((node) => node.id)
     );
-  }, [graphData.nodes, graphFilters, search]);
+
+    const selectedId = selectedNode?.id;
+    if (!selectedId || !searchedIds.has(selectedId)) {
+      return searchedIds;
+    }
+
+    const expandedIds = new Set(searchedIds);
+    graphData.links.forEach((link) => {
+      const sourceId = getLinkNodeId(link.source);
+      const targetId = getLinkNodeId(link.target);
+      if (!roleVisibleSet.has(sourceId) || !roleVisibleSet.has(targetId)) return;
+      if (sourceId === selectedId) expandedIds.add(targetId);
+      if (targetId === selectedId) expandedIds.add(sourceId);
+    });
+    return expandedIds;
+  }, [graphData.links, graphData.nodes, graphFilters, search, selectedNode?.id]);
 
   const visibleGraphData = useMemo(() => {
     const nodes = graphData.nodes.filter((node) => visibleNodeIds.has(node.id));
@@ -852,7 +875,7 @@ export default function SocialPage() {
       return node.ambiente ? 0.06 : 0.03;
     }));
 
-    // La closure lee el ref en cada tick → sin jerk al cambiar filtros
+    // La closure lee el ref en cada tick -> sin jerk al cambiar filtros
     // Staff excluido: no queremos que su ambiente los arrastre a los círculos de taller
     fg.d3Force('ambienteBalance', createAmbienteBalanceForce(AMBIENTE_BALANCE_STRENGTH, (node) =>
       roleVisibleNodeIdsRef.current.has(node?.id) && node?.type === 'child'
@@ -944,17 +967,22 @@ export default function SocialPage() {
     fg.zoomToFit(duration, padding, (node) => visibleNodeIds.has(node.id));
   }, [visibleGraphData.nodes, visibleNodeIds]);
 
+  const getResponsiveGraphPadding = useCallback((desktopPadding, mobilePadding) => {
+    if (typeof window === 'undefined') return desktopPadding;
+    return window.matchMedia('(max-width: 768px)').matches ? mobilePadding : desktopPadding;
+  }, []);
+
   useEffect(() => {
     if (loading || hasInitialAutoCenteredRef.current) return;
     if (visibleGraphData.nodes.length === 0) return;
 
     const timerId = setTimeout(() => {
-      centerGraph(420, 130);
+      centerGraph(420, getResponsiveGraphPadding(130, 72));
       hasInitialAutoCenteredRef.current = true;
     }, 80);
 
     return () => clearTimeout(timerId);
-  }, [centerGraph, loading, visibleGraphData.nodes.length]);
+  }, [centerGraph, getResponsiveGraphPadding, loading, visibleGraphData.nodes.length]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -989,6 +1017,11 @@ export default function SocialPage() {
 
   const resetGraphFilters = useCallback(() => {
     setGraphFilters(INITIAL_GRAPH_FILTERS);
+  }, []);
+
+  const handleShowAllNodes = useCallback(() => {
+    setSearch('');
+    setSelectedNode(null);
   }, []);
 
   const handleContactChange = (field, value) => {
@@ -1135,7 +1168,6 @@ export default function SocialPage() {
     ctx.restore();
   }, [colorMap, imageRenderTick, selectedNode?.id]);
 
-  const panelTitle = isAdmin ? 'Vista previa del módulo Social' : 'Comunidad Social';
   const selectedContact = extractVisibleContact(selectedNode?.contact);
   const selectedAmbienteLabel = useMemo(() => {
     const key = normalizeAmbienteKey(selectedNode?.ambiente);
@@ -1152,12 +1184,7 @@ export default function SocialPage() {
     <div className="container page-container social-page">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">Social</h1>
-          <p className="dashboard-subtitle">{panelTitle}</p>
-        </div>
-        <div className="social-page__meta">
-          <span className="badge badge--info">{graphData.nodes.length} nodos</span>
-          <span className="badge badge--secondary">{graphData.links.length} vínculos</span>
+          <h1 className="dashboard-title">Comunidad Social</h1>
         </div>
       </div>
 
@@ -1178,10 +1205,19 @@ export default function SocialPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
+              {normalizeText(search) && (
+                <button
+                  type="button"
+                  className="btn btn--outline btn--sm"
+                  onClick={handleShowAllNodes}
+                >
+                  Mostrar todos
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn--outline btn--sm"
-                onClick={() => centerGraph(500, 140)}
+                onClick={() => centerGraph(500, getResponsiveGraphPadding(140, 84))}
               >
                 Centrar
               </button>
@@ -1197,10 +1233,20 @@ export default function SocialPage() {
               </button>
             </div>
             <div className="social-map-card__canvas" ref={containerRef}>
-              <aside className="card social-filters-card social-filters-card--overlay">
-                <div className="card__header">
-                  <h3 className="card__title">Filtros</h3>
-                </div>
+              <button
+                type="button"
+                className={`btn btn--outline btn--sm social-filters-mobile-toggle ${isMobileFiltersOpen ? 'is-open' : ''}`}
+                onClick={() => setIsMobileFiltersOpen((previous) => !previous)}
+                aria-expanded={isMobileFiltersOpen}
+                aria-controls="social-map-filters"
+              >
+                {isMobileFiltersOpen ? 'Ocultar filtros' : 'Filtros'}
+              </button>
+
+              <aside
+                id="social-map-filters"
+                className={`card social-filters-card social-filters-card--overlay ${isMobileFiltersOpen ? 'is-open' : ''}`}
+              >
                 <div className="card__body social-filters-card__body">
                   <div className="social-filters__group">
                     <label className={`social-filters__option ${graphFilters.showFamilies ? '' : 'is-muted'}`}>
@@ -1297,18 +1343,16 @@ export default function SocialPage() {
               {selectedNode && (
                 <aside className="social-node-sidebar">
                   <section className="card social-side-panel__card social-node-sidebar__card">
-                    <div className="card__header social-node-sidebar__header">
-                      <h3 className="card__title">Perfil seleccionado</h3>
-                      <button
-                        type="button"
-                        className="btn btn--outline btn--sm"
-                        onClick={() => setSelectedNode(null)}
-                      >
-                        Cerrar
-                      </button>
-                    </div>
                     <div className="card__body">
                       <div className="social-selected">
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm social-node-sidebar__close-btn"
+                          onClick={() => setSelectedNode(null)}
+                          aria-label="Cerrar perfil"
+                        >
+                          Cerrar
+                        </button>
                         <div className="social-selected__identity">
                           <Avatar
                             name={selectedNode.displayName}
@@ -1469,3 +1513,4 @@ export default function SocialPage() {
     </div>
   );
 }
+
