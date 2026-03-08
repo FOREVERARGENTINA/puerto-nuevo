@@ -1,24 +1,17 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
-const { toPlainText } = require('../utils/sanitize');
-const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
+const {
+  sanitizeText,
+  hasFamilyAccess,
+  normalizeFamilyNotification,
+  isSchoolUpload,
+  buildFamilyNotificationState,
+  FieldValue,
+} = require('../utils/institutionalGalleryNotifications');
 
 const LOCK_COLLECTION = 'notificationLocks';
 const LOCK_TYPE = 'institutional-gallery-media';
 const ALREADY_EXISTS_CODES = new Set([6, '6', 'already-exists', 'ALREADY_EXISTS']);
-const NON_SCHOOL_ROLES = new Set(['family', 'aspirante']);
-
-function sanitizeText(value, maxLength = 120) {
-  return toPlainText(value || '').slice(0, maxLength).trim();
-}
-
-function hasFamilyAccess(categoryData) {
-  const allowedRoles = Array.isArray(categoryData?.allowedRoles)
-    ? categoryData.allowedRoles
-    : [];
-
-  return allowedRoles.includes('family');
-}
 
 async function acquireNotificationLock(mediaId) {
   const db = admin.firestore();
@@ -41,45 +34,32 @@ async function acquireNotificationLock(mediaId) {
   }
 }
 
-async function isSchoolUpload(db, uploadedBy) {
-  const uploaderId = sanitizeText(uploadedBy, 128);
-  if (!uploaderId) return true;
+async function markAlbumNotificationPending(db, albumId, mediaCreatedAt) {
+  const albumRef = db.collection('gallery-albums').doc(albumId);
 
-  try {
-    const uploaderDoc = await db.collection('users').doc(uploaderId).get();
-    if (!uploaderDoc.exists) return true;
+  await db.runTransaction(async (tx) => {
+    const albumSnap = await tx.get(albumRef);
+    if (!albumSnap.exists) {
+      throw new Error(`Album ${albumId} no encontrado`);
+    }
 
-    const role = sanitizeText(uploaderDoc.data()?.role, 40).toLowerCase();
-    return !NON_SCHOOL_ROLES.has(role);
-  } catch (error) {
-    console.log('[InstitutionalGallery] No se pudo validar rol de uploadedBy. Se continua con notificacion.', error?.message);
-    return true;
-  }
-}
+    const albumData = albumSnap.data() || {};
+    const currentState = normalizeFamilyNotification(albumData.familyNotification);
 
-async function getFamilyRecipients(db) {
-  const usersSnapshot = await db
-    .collection('users')
-    .where('role', '==', 'family')
-    .where('disabled', '==', false)
-    .get();
-
-  return usersSnapshot.docs
-    .map((userDoc) => userDoc.id)
-    .filter((uid) => typeof uid === 'string' && uid.trim())
-    .map((uid) => uid.trim());
-}
-
-function buildNotificationBody(categoryName, fileName, mediaType) {
-  if (fileName) {
-    return `${fileName} ya esta disponible en ${categoryName}`.slice(0, 180);
-  }
-
-  if (mediaType === 'video-externo' || mediaType === 'video') {
-    return `Se agrego un nuevo video en ${categoryName}`.slice(0, 180);
-  }
-
-  return `Hay nuevo contenido en ${categoryName}`.slice(0, 180);
+    tx.set(
+      albumRef,
+      {
+        familyNotification: buildFamilyNotificationState({
+          pending: true,
+          pendingRevision: currentState.pendingRevision + 1,
+          pendingLastMediaAt: mediaCreatedAt || FieldValue.serverTimestamp(),
+          lastNotifiedAt: currentState.lastNotifiedAt,
+          sendingAt: currentState.sendingAt,
+        }),
+      },
+      { merge: true }
+    );
+  });
 }
 
 exports.onInstitutionalGalleryMediaCreated = onDocumentCreated(
@@ -105,8 +85,13 @@ exports.onInstitutionalGalleryMediaCreated = onDocumentCreated(
       }
 
       const categoryId = sanitizeText(mediaData.categoryId, 128);
+      const albumId = sanitizeText(mediaData.albumId, 128);
       if (!categoryId) {
         console.log(`[InstitutionalGallery ${mediaId}] Sin categoryId. Se omite notificacion.`);
+        return;
+      }
+      if (!albumId) {
+        console.log(`[InstitutionalGallery ${mediaId}] Sin albumId. Se omite marcado pendiente.`);
         return;
       }
 
@@ -122,35 +107,13 @@ exports.onInstitutionalGalleryMediaCreated = onDocumentCreated(
         return;
       }
 
-      const recipients = await getFamilyRecipients(db);
-      if (recipients.length === 0) {
-        console.log(`[InstitutionalGallery ${mediaId}] Sin familias destinatarias.`);
-        return;
-      }
-
-      const categoryName = sanitizeText(categoryData.name, 80) || 'la galeria institucional';
-      const fileName = sanitizeText(mediaData.fileName, 120);
-      const mediaType = sanitizeText(mediaData.tipo, 40).toLowerCase();
-      const pushBody = buildNotificationBody(categoryName, fileName, mediaType);
-
-      const pushResult = await sendPushNotificationToUsers(
-        {
-          title: 'Nuevo contenido en la galeria',
-          body: pushBody,
-          clickAction: '/portal/familia/galeria',
-        },
-        {
-          userIds: recipients,
-          familyOnly: true,
-        }
-      );
+      await markAlbumNotificationPending(db, albumId, mediaData.createdAt || null);
 
       console.log(
-        `[InstitutionalGallery ${mediaId}] category=${categoryId}, recipients=${recipients.length}, tokens=${pushResult.tokensTargeted}, success=${pushResult.successCount}, failure=${pushResult.failureCount}, cleaned=${pushResult.cleanedCount}`
+        `[InstitutionalGallery ${mediaId}] category=${categoryId}, album=${albumId} marcado con contenido pendiente para notificacion manual.`
       );
     } catch (error) {
-      console.error(`[InstitutionalGallery ${mediaId}] Error enviando push:`, error);
+      console.error(`[InstitutionalGallery ${mediaId}] Error marcando notificacion pendiente:`, error);
     }
   }
 );
-

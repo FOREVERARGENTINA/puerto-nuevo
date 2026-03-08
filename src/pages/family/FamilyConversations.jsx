@@ -14,7 +14,7 @@ import Avatar from '../../components/ui/Avatar';
 export function FamilyConversations() {
   const { user, role } = useAuth();
   const { conversations, loading, error, unreadCount } = useConversations({ user, role });
-  const [tab, setTab] = useState('activas');
+  const [tab, setTab] = useState('todas');
 
   const filtered = useMemo(() => {
     if (tab === 'activas') {

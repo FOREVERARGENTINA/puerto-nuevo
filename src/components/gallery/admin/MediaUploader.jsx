@@ -9,10 +9,20 @@ import {
   convertHeicToJpeg
 } from '../../../utils/galleryHelpers';
 import { useAuth } from '../../../hooks/useAuth';
+import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { AlertDialog } from '../../common/AlertDialog';
 import { LoadingModal } from '../../common/LoadingModal';
+import {
+  isGalleryNotificationSending,
+  normalizeFamilyNotificationState,
+} from '../../../utils/institutionalGalleryNotifications';
 
-const MediaUploader = ({ category, album, onUploadComplete }) => {
+const MediaUploader = ({
+  category,
+  album,
+  pendingMediaCount = 0,
+  onAlbumStateChange,
+}) => {
   const { user } = useAuth();
   const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'url'
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -26,10 +36,60 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [alert, setAlert] = useState({ open: false, message: '', type: 'info' });
+  const [postUploadPrompt, setPostUploadPrompt] = useState({ open: false, uploadedCount: 0, failedCount: 0 });
   const [dragActive, setDragActive] = useState(false);
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   const showAlert = (message, type = 'info') => {
     setAlert({ open: true, message, type });
+  };
+
+  const getSkippedNotificationMessage = (reason) => {
+    switch (reason) {
+      case 'no-media':
+        return 'No habia contenido nuevo para notificar. Es posible que se haya eliminado antes del envio.';
+      case 'category-unavailable':
+        return 'La categoria ya no esta disponible para familias. No se envio la notificacion.';
+      case 'no-recipients':
+        return 'No hay familias habilitadas para recibir esta notificacion en este momento.';
+      case 'missing-category':
+        return 'El album no tiene una categoria valida asociada. No se envio la notificacion.';
+      default:
+        return 'No se pudo enviar la notificacion en este momento.';
+    }
+  };
+
+  const handleSendNotification = async () => {
+    if (!album?.id || sendingNotification) return;
+
+    setSendingNotification(true);
+    try {
+      const result = await institutionalGalleryService.sendAlbumNotification(album.id);
+      if (!result.success) {
+        showAlert(result.error || 'No se pudo enviar la notificacion.', 'error');
+        return;
+      }
+
+      const data = result.data || {};
+
+      if (onAlbumStateChange) {
+        await onAlbumStateChange();
+      }
+
+      if (data.skipped) {
+        showAlert(getSkippedNotificationMessage(data.reason), 'warning');
+        return;
+      }
+
+      showAlert(
+        `Notificacion enviada a las familias por ${data.notifiedMediaCount || 0} elemento(s).`,
+        'success'
+      );
+    } catch (error) {
+      showAlert('Error inesperado al enviar la notificacion: ' + error.message, 'error');
+    } finally {
+      setSendingNotification(false);
+    }
   };
 
   const handleFileSelect = async (e) => {
@@ -277,23 +337,20 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
       }
 
       if (uploadResults.length > 0) {
-        // Recargar primero para obtener el thumbnail actualizado
-        if (onUploadComplete) {
-          await onUploadComplete();
+        // Recargar primero para obtener thumbnail y estado de notificacion actualizados.
+        if (onAlbumStateChange) {
+          await onAlbumStateChange();
         }
 
-        showAlert(
-          `${uploadResults.length} elemento(s) agregados correctamente`,
-          'success'
-        );
         setSelectedFiles([]);
         setExternalVideos([]);
         setUploadProgress({ current: 0, total: 0 });
+        setPostUploadPrompt({
+          open: true,
+          uploadedCount: uploadResults.length,
+          failedCount: uploadErrors.length,
+        });
 
-        if (uploadErrors.length > 0) {
-          const errorMsg = uploadErrors.map(e => e.fileName || e.url || 'Error: ' + e.error).join('\n');
-          showAlert('Algunos elementos fallaron:\n' + errorMsg, 'warning');
-        }
       } else {
         showAlert('Error al subir contenido: ' + (uploadErrors[0]?.error || 'Error desconocido'), 'error');
       }
@@ -325,6 +382,9 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
     );
   }
 
+  const familyNotification = normalizeFamilyNotificationState(album);
+  const hasPendingNotification = familyNotification.pending && pendingMediaCount > 0;
+  const isNotificationSending = sendingNotification || isGalleryNotificationSending(album);
   const totalItems = selectedFiles.length + externalVideos.length;
   const normalizedVideoUrl = videoUrl.trim().toLowerCase();
   const hasVideoUrlInput = normalizedVideoUrl.length > 0;
@@ -338,6 +398,9 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
     : isSupportedProviderUrl
       ? 'url-input-field--valid'
       : 'url-input-field--pending';
+  const postUploadMessage = postUploadPrompt.failedCount > 0
+    ? `${postUploadPrompt.uploadedCount} elemento(s) se agregaron correctamente. Algunos otros fallaron y quedaron fuera. Si terminaste de cargar este album, puedes notificar ahora a las familias.`
+    : `${postUploadPrompt.uploadedCount} elemento(s) se agregaron correctamente. Si terminaste de cargar este album, puedes notificar ahora a las familias.`;
 
   return (
     <div className="media-uploader">
@@ -349,7 +412,35 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
             Nota: el primer archivo que agregues será la portada del álbum automáticamente.
           </p>
         )}
+        <p className="uploader-hint">
+          Las familias se notifican cuando el equipo lo indica desde este album.
+        </p>
       </div>
+
+      {(hasPendingNotification || isNotificationSending) && (
+        <div className={`gallery-notification-banner${isNotificationSending ? ' is-sending' : ''}`}>
+          <div className="gallery-notification-banner__body">
+            <strong>
+              {isNotificationSending
+                ? 'Enviando notificacion a las familias...'
+                : `Hay ${pendingMediaCount} elemento(s) nuevos sin notificar a las familias.`}
+            </strong>
+            <p>
+              {isNotificationSending
+                ? 'Si el envio demora mas de unos minutos, podras reintentarlo desde aqui.'
+                : 'Cuando termines de cargar este album, puedes enviar una sola notificacion agrupada.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleSendNotification}
+            disabled={!hasPendingNotification || isNotificationSending || uploading || compressing || converting}
+          >
+            {isNotificationSending ? 'Enviando...' : 'Notificar familias'}
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="tabs">
@@ -545,6 +636,16 @@ const MediaUploader = ({ category, album, onUploadComplete }) => {
         progress={uploadProgress.total > 0 ? Math.round((uploadProgress.current / uploadProgress.total) * 100) : 0}
         subMessage={`${uploadProgress.current} de ${uploadProgress.total} elementos`}
         type="upload"
+      />
+
+      <ConfirmDialog
+        isOpen={postUploadPrompt.open}
+        title="¿Terminaste de cargar este album?"
+        message={postUploadMessage}
+        confirmText="Notificar ahora"
+        cancelText="Seguir cargando"
+        onConfirm={handleSendNotification}
+        onClose={() => setPostUploadPrompt({ open: false, uploadedCount: 0, failedCount: 0 })}
       />
 
       <AlertDialog

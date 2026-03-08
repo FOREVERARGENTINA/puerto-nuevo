@@ -11,8 +11,9 @@
   orderBy,
   serverTimestamp
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { db, storage, functions } from '../config/firebase';
 import { CAN_UPLOAD_TO_GALLERY } from '../config/constants';
 import {
   createImageThumbnail,
@@ -622,6 +623,20 @@ export const institutionalGalleryService = {
    */
   canUserUploadToGallery(userRole) {
     return CAN_UPLOAD_TO_GALLERY.includes(userRole);
+  },
+
+  async sendAlbumNotification(albumId) {
+    try {
+      if (!albumId) {
+        return { success: false, error: 'Album invalido' };
+      }
+
+      const sendAlbumNotification = httpsCallable(functions, 'sendInstitutionalGalleryAlbumNotification');
+      const result = await sendAlbumNotification({ albumId });
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
 };
 

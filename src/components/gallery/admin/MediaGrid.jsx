@@ -5,8 +5,9 @@ import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { AlertDialog } from '../../common/AlertDialog';
 import { LoadingModal } from '../../common/LoadingModal';
 import { parseVideoUrl } from '../../../utils/galleryHelpers';
+import { countPendingGalleryMedia } from '../../../utils/institutionalGalleryNotifications';
 
-const MediaGrid = ({ album, refreshTrigger }) => {
+const MediaGrid = ({ album, refreshTrigger, onMediaSummaryChange }) => {
   const { user, isAdmin } = useAuth();
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +36,29 @@ const MediaGrid = ({ album, refreshTrigger }) => {
     }
   }, [album, refreshTrigger]);
 
+  useEffect(() => {
+    if (!onMediaSummaryChange) return;
+
+    if (!album) {
+      onMediaSummaryChange({ totalCount: 0, pendingCount: 0 });
+      return;
+    }
+
+    if (loading) return;
+
+    onMediaSummaryChange({
+      totalCount: media.length,
+      pendingCount: countPendingGalleryMedia(media, album),
+    });
+  }, [album, loading, media, onMediaSummaryChange]);
+
   const loadMedia = async () => {
     setLoading(true);
     const result = await institutionalGalleryService.getAlbumMedia(album.id);
     if (result.success) {
       setMedia(result.media);
     } else {
+      setMedia([]);
       showAlert('Error al cargar archivos: ' + result.error, 'error');
     }
     setLoading(false);

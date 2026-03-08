@@ -1375,7 +1375,17 @@ export default function SocialPage() {
                             {selectedContact.map(([key, value]) => (
                               <div key={key} className="social-selected__contact-row">
                                 <strong>{contactLabels[key] || key}</strong>
-                                <span>{value}</span>
+                                {key === 'whatsapp' ? (
+                                  <a
+                                    href={`https://wa.me/54${value.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    {value}
+                                  </a>
+                                ) : (
+                                  <span>{value}</span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1445,7 +1455,7 @@ export default function SocialPage() {
                         className="form-input"
                         value={myProfile.contact?.[field.key] || ''}
                         onChange={(event) => handleContactChange(field.key, event.target.value)}
-                        placeholder={`Ingresar ${field.label.toLowerCase()}`}
+                        placeholder={field.key === 'whatsapp' ? 'Ej: 1122222222' : `Ingresar ${field.label.toLowerCase()}`}
                       />
                       <label className="social-editor__visibility">
                         <input

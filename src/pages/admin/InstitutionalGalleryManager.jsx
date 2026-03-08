@@ -11,6 +11,7 @@ const InstitutionalGalleryManager = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [mediaSummary, setMediaSummary] = useState({ totalCount: 0, pendingCount: 0 });
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -26,14 +27,16 @@ const InstitutionalGalleryManager = () => {
   const handleSelectCategory = (category) => {
     setSelectedCategory(category);
     setSelectedAlbum(null);
+    setMediaSummary({ totalCount: 0, pendingCount: 0 });
     setActiveTab('media');
   };
 
   const handleSelectAlbum = (album) => {
     setSelectedAlbum(album);
+    setMediaSummary({ totalCount: 0, pendingCount: 0 });
   };
 
-  const handleUploadComplete = async () => {
+  const handleAlbumStateChange = async () => {
     setRefreshKey(prev => prev + 1);
     // Recargar el álbum seleccionado para reflejar el thumbnail actualizado
     if (selectedAlbum) {
@@ -46,11 +49,13 @@ const InstitutionalGalleryManager = () => {
 
   const handleBackToAlbums = () => {
     setSelectedAlbum(null);
+    setMediaSummary({ totalCount: 0, pendingCount: 0 });
   };
 
   const handleBackToCategories = () => {
     setSelectedCategory(null);
     setSelectedAlbum(null);
+    setMediaSummary({ totalCount: 0, pendingCount: 0 });
     setActiveTab('categories');
   };
 
@@ -76,6 +81,7 @@ const InstitutionalGalleryManager = () => {
             setActiveTab('categories');
             setSelectedCategory(null);
             setSelectedAlbum(null);
+            setMediaSummary({ totalCount: 0, pendingCount: 0 });
           }}
         >
           Categorías
@@ -157,7 +163,8 @@ const InstitutionalGalleryManager = () => {
                     <MediaUploader
                       category={selectedCategory}
                       album={selectedAlbum}
-                      onUploadComplete={handleUploadComplete}
+                      pendingMediaCount={mediaSummary.pendingCount}
+                      onAlbumStateChange={handleAlbumStateChange}
                     />
                   </div>
 
@@ -166,6 +173,7 @@ const InstitutionalGalleryManager = () => {
                       category={selectedCategory}
                       album={selectedAlbum}
                       refreshTrigger={refreshKey}
+                      onMediaSummaryChange={setMediaSummary}
                     />
                   </div>
                 </div>

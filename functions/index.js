@@ -23,6 +23,7 @@ const { onEventCreated } = require('./src/triggers/onEventCreated');
 const { onTallerResourcePostCreated } = require('./src/triggers/onTallerResourcePostCreated');
 const { onAmbienteActivityCreated } = require('./src/triggers/onAmbienteActivityCreated');
 const { onInstitutionalGalleryMediaCreated } = require('./src/triggers/onInstitutionalGalleryMediaCreated');
+const { sendInstitutionalGalleryAlbumNotification } = require('./src/callables/sendInstitutionalGalleryAlbumNotification');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 const { getDocumentAccessUrl } = require('./src/http/getDocumentAccessUrl');
 const { maskEmail } = require('./src/utils/logging');
@@ -346,6 +347,7 @@ exports.onEventCreated = onEventCreated;
 exports.onTallerResourcePostCreated = onTallerResourcePostCreated;
 exports.onAmbienteActivityCreated = onAmbienteActivityCreated;
 exports.onInstitutionalGalleryMediaCreated = onInstitutionalGalleryMediaCreated;
+exports.sendInstitutionalGalleryAlbumNotification = sendInstitutionalGalleryAlbumNotification;
 exports.getDocumentAccessUrl = getDocumentAccessUrl;
 
 // Exportar scheduled functions

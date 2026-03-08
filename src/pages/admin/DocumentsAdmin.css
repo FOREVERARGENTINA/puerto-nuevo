@@ -1,6 +1,6 @@
-/* ============================================================
-   DOCUMENTS ADMIN â€” /portal/admin/documentos
-   Montessori Puerto Nuevo Â· Enfoque: gestiÃ³n documental premium
+﻿/* ============================================================
+   DOCUMENTS ADMIN - /portal/admin/documentos
+   Montessori Puerto Nuevo - Enfoque: gestion documental premium
    ============================================================ */
 
 .documents-admin-page {
@@ -12,7 +12,7 @@
   --da-shadow-hover:     0 8px 24px rgba(30, 77, 80, 0.13);
   --da-radius:           var(--radius-lg);
 
-  /* Colores por categorÃ­a */
+  /* Colores por categora */
   --da-cat-institucional:  var(--color-primary);
   --da-cat-pedagogico:     var(--color-secondary);
   --da-cat-administrativo: var(--color-accent);
@@ -24,9 +24,9 @@
   --da-shadow-hover: 0 10px 26px rgba(0, 0, 0, 0.45);
 }
 
-/* â”€â”€â”€ Page Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Page Header  */
 
-/* â”€â”€â”€ Card contenedor principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Card contenedor principal  */
 
 .documents-admin-page > .card {
   background: var(--da-surface);
@@ -39,7 +39,7 @@
   padding: var(--spacing-lg);
 }
 
-/* â”€â”€â”€ Tabs Ver / Subir â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Tabs Ver / Subir  */
 
 .documents-admin-page .documents-admin-tabs {
   display: grid;
@@ -99,7 +99,7 @@
   color: var(--color-primary-dark);
 }
 
-/* â”€â”€â”€ Alerta info de subida â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Alerta info de subida  */
 
 .documents-admin-page .alert--info {
   font-size: var(--font-size-sm);
@@ -107,7 +107,7 @@
   padding: var(--spacing-sm) var(--spacing-md);
 }
 
-/* â”€â”€â”€ Toolbar de filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Toolbar de filtros  */
 
 .documents-admin-page .documents-toolbar {
   margin-bottom: var(--spacing-md);
@@ -123,7 +123,7 @@
   margin-bottom: 4px;
 }
 
-/* Normalizar form-control â†’ mismo aspecto que form-input */
+/* Normalizar form-control  mismo aspecto que form-input */
 .documents-admin-page .form-control {
   display: block;
   width: 100%;
@@ -149,7 +149,7 @@
   resize: vertical;
 }
 
-/* â”€â”€â”€ Banner de filtro por dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Banner de filtro por da  */
 
 .documents-admin-page .documents-day-filter-banner {
   background: var(--color-primary-soft);
@@ -160,13 +160,13 @@
   font-weight: var(--font-weight-medium);
 }
 
-/* â”€â”€â”€ Lista de documentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Lista de documentos  */
 
 .documents-admin-page .documents-list {
   gap: var(--spacing-sm);
 }
 
-/* â”€â”€â”€ Tarjeta de documento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Tarjeta de documento  */
 
 .documents-admin-page .documents-item.card {
   background: var(--da-surface);
@@ -185,7 +185,7 @@
   border-color: var(--da-border);
 }
 
-/* Colores por categorÃ­a via data-categoria */
+/* Colores por categora via data-categoria */
 .documents-admin-page .documents-item[data-categoria="institucional"] {
   border-left-color: var(--da-cat-institucional);
 }
@@ -199,7 +199,7 @@
   border-left-color: var(--da-cat-taller);
 }
 
-/* Pendiente / LeÃ­do mantienen su borde (mÃ¡s prominente) */
+/* Pendiente / Ledo mantienen su borde (ms prominente) */
 .documents-admin-page .documents-item--pending {
   border-left-color: var(--color-warning) !important;
   border-left-width: 4px;
@@ -209,7 +209,7 @@
   border-left-width: 4px;
 }
 
-/* â”€â”€â”€ Ãcono de tipo de archivo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  cono de tipo de archivo  */
 
 .documents-admin-page .documents-item__icon {
   width: 26px;
@@ -219,7 +219,7 @@
   color: var(--color-primary);
 }
 
-/* â”€â”€â”€ Tag de tipo (PDF, Word, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Tag de tipo (PDF, Word, etc.)  */
 
 .documents-admin-page .documents-item__type {
   font-size: 0.65rem;
@@ -229,7 +229,7 @@
   color: var(--color-text-light);
 }
 
-/* â”€â”€â”€ TÃ­tulo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Ttulo  */
 
 .documents-admin-page .documents-item__title {
   font-size: var(--font-size-sm);
@@ -238,7 +238,7 @@
   line-height: var(--line-height-tight);
 }
 
-/* â”€â”€â”€ DescripciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Descripcin  */
 
 .documents-admin-page .documents-item__description {
   font-size: var(--font-size-sm);
@@ -247,7 +247,7 @@
   margin-bottom: var(--spacing-xs);
 }
 
-/* â”€â”€â”€ Badges de categorÃ­a y roles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Badges de categora y roles  */
 
 .documents-admin-page .documents-item__category {
   font-size: 0.65rem;
@@ -263,7 +263,7 @@
   border-radius: var(--radius-full);
 }
 
-/* â”€â”€â”€ Meta (subido por + fecha) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Meta (subido por + fecha)  */
 
 .documents-admin-page .documents-item__meta {
   font-size: 11px;
@@ -271,7 +271,7 @@
   letter-spacing: 0.1px;
 }
 
-/* â”€â”€â”€ Acciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Acciones  */
 
 .documents-admin-page .documents-item__actions .btn--sm {
   font-size: var(--font-size-xs);
@@ -306,7 +306,7 @@
   border-color: rgba(231, 76, 60, 0.3);
 }
 
-/* â”€â”€â”€ Calendar panel (hereda estilos de EventsManager) â”€â”€â”€â”€â”€ */
+/*  Calendar panel (hereda estilos de EventsManager)  */
 
 .documents-admin-page .documents-calendar-panel {
   background: var(--da-surface);
@@ -333,7 +333,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Mini-lista del dÃ­a seleccionado */
+/* Mini-lista del da seleccionado */
 
 .documents-admin-page .documents-calendar-day-list {
   border-top: 1px solid var(--da-border);
@@ -376,7 +376,7 @@
   padding: 0 var(--spacing-sm);
 }
 
-/* â”€â”€â”€ DocumentUploader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  DocumentUploader  */
 
 .document-uploader {
   display: grid;
@@ -523,7 +523,7 @@
   cursor: not-allowed;
 }
 
-/* â”€â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/*  Responsive  */
 
 @media (max-width: 640px) {
   .documents-admin-page .documents-admin-tabs {
