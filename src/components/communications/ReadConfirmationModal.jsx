@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CommunicationRichContent } from './CommunicationRichContent';
 
 export function ReadConfirmationModal({ communication, onConfirm, onClose, blocking = true }) {
   const [hasRead, setHasRead] = useState(false);
@@ -57,7 +58,10 @@ export function ReadConfirmationModal({ communication, onConfirm, onClose, block
             </div>
 
             <div className="card__body">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{communication.body}</p>
+              <CommunicationRichContent
+                body={communication.body}
+                bodyRich={communication.bodyRich}
+              />
               
               {communication.attachments && communication.attachments.length > 0 && (
                 <div style={{ marginTop: 'var(--spacing-md)' }}>

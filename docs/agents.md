@@ -156,6 +156,15 @@ Antes de sugerir algo que aumente costo, responder:
 
 Si la respuesta 3 no es clara -> frenar y consultar.
 
+### Deudas técnicas conocidas
+
+- `notifications`: los documentos marcados con `read: true` no tienen limpieza automática hoy.
+- Impacto actual: aceptable para el tamaño actual del proyecto, pero aumenta storage y cardinalidad con el tiempo.
+- Regla para agentes: no proponer limpieza automática o borrado masivo sin antes estimar costo, volumen y estrategia de retención.
+- `dismiss` de notificaciones basado en Firestore es asíncrono: en conexiones lentas el badge puede tardar en reflejarse hasta completar el round-trip.
+- Impacto actual: no rompe consistencia, pero puede percibirse como latencia visual frente a otros badges con estado local inmediato.
+- Regla para agentes: tratarlo como mejora de UX, no como bug funcional, salvo que el retraso genere dobles acciones o confusión real del usuario.
+
 ---
 
 ## Rol y Límites del Agente

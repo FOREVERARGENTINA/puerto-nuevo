@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { communicationsService } from '../../services/communications.service';
+import { CommunicationRichContent } from '../../components/communications/CommunicationRichContent';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
 import { ROLES } from '../../config/constants';
@@ -24,6 +25,7 @@ export function ReadReceiptsPanel() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [communicationsWithStats, setCommunicationsWithStats] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [readUsers, setReadUsers] = useState([]);
 
   // Nuevos estados para filtro por familia
   const [allFamilies, setAllFamilies] = useState([]);
@@ -134,6 +136,7 @@ export function ReadReceiptsPanel() {
     setSelectedComm(comm);
     setStats(comm.statsData);
     setPendingUsers([]);
+    setReadUsers([]);
     setShowDetailModal(true);
 
     // Si no tenemos el nombre del remitente, intentar cargarlo desde usuarios
@@ -162,11 +165,21 @@ export function ReadReceiptsPanel() {
       const familyUsers = allUsers.filter(u => u.role === 'family');
       const familyUIDs = familyUsers.map(u => u.id);
 
-      const pendingResult = await readReceiptsService.getPendingUsers(comm.id, familyUIDs);
+      const [pendingResult, readResult] = await Promise.all([
+        readReceiptsService.getPendingUsers(comm.id, familyUIDs),
+        readReceiptsService.getReadReceipts(comm.id)
+      ]);
+
       if (pendingResult.success) {
         const pendingUIDs = pendingResult.pendingUserIds;
         const pendingFamilies = familyUsers.filter(u => pendingUIDs.includes(u.id));
         setPendingUsers(pendingFamilies);
+      }
+
+      if (readResult.success) {
+        // Solo lecturas de familias destinatarias del comunicado
+        const familyUIDSet = new Set(familyUIDs);
+        setReadUsers(readResult.lecturas.filter(l => familyUIDSet.has(l.userId)));
       }
     } catch (err) {
       console.error('Error cargando usuarios pendientes:', err);
@@ -718,14 +731,16 @@ export function ReadReceiptsPanel() {
                 <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-md)' }}>
                   Contenido del Comunicado
                 </h3>
-                <p style={{
-                  whiteSpace: 'pre-wrap',
+                <div style={{
                   lineHeight: 'var(--line-height-relaxed)',
                   margin: 0,
                   fontSize: 'var(--font-size-sm)'
                 }}>
-                  {selectedComm.body}
-                </p>
+                  <CommunicationRichContent
+                    body={selectedComm.body}
+                    bodyRich={selectedComm.bodyRich}
+                  />
+                </div>
 
                 {selectedComm.attachments && selectedComm.attachments.length > 0 && (
                   <div style={{ marginTop: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)' }}>
@@ -863,6 +878,36 @@ export function ReadReceiptsPanel() {
                           <tr key={user.id}>
                             <td>{user.displayName || 'Sin nombre'}</td>
                             <td>{user.email}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {readUsers.length > 0 && (
+                <>
+                  <h3 style={{ marginBottom: 'var(--spacing-sm)', fontSize: 'var(--font-size-md)' }}>
+                    Familias que leyeron ({readUsers.length})
+                  </h3>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: 'var(--spacing-md)' }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Fecha de lectura</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {readUsers.map(r => (
+                          <tr key={r.userId}>
+                            <td>{r.userDisplayName || r.userId}</td>
+                            <td style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                              {r.leidoAt?.toDate
+                                ? new Date(r.leidoAt.toDate()).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : '—'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

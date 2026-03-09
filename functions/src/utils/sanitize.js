@@ -1,3 +1,5 @@
+const sanitizeHtml = require('sanitize-html');
+
 function escapeHtml(value) {
   const input = value == null ? '' : String(value);
   return input
@@ -23,6 +25,40 @@ function sanitizeUrl(value) {
 
 function toSafeHtmlParagraph(value) {
   return escapeHtml(value).replace(/\r?\n/g, '<br>');
+}
+
+function sanitizeRichHtml(value) {
+  const input = value == null ? '' : String(value);
+  if (!input.trim()) return '';
+
+  return sanitizeHtml(input, {
+    allowedTags: ['p', 'br', 'h3', 'strong', 'em', 'ul', 'ol', 'li', 'a'],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+    },
+    allowedSchemes: ['http', 'https'],
+    allowedSchemesAppliedToAttributes: ['href'],
+    transformTags: {
+      a: (tagName, attribs) => {
+        const href = sanitizeUrl(attribs.href);
+        if (!href) {
+          return {
+            tagName: 'a',
+            attribs: {},
+          };
+        }
+
+        return {
+          tagName,
+          attribs: {
+            href,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+        };
+      },
+    },
+  });
 }
 
 function toPlainText(value) {
@@ -61,6 +97,7 @@ module.exports = {
   escapeHtml,
   sanitizeUrl,
   toSafeHtmlParagraph,
+  sanitizeRichHtml,
   toPlainText,
   renderAttachmentList,
 };

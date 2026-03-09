@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usersService } from '../../services/users.service';
+import { ReadReceiptsSection } from './ReadReceiptsSection';
+import { CommunicationRichContent } from './CommunicationRichContent';
 
 export function ViewCommunicationModal({ communication, onClose, onMarkAsRead, hasRead }) {
   const [senderName, setSenderName] = useState(communication.sentByDisplayName || null);
@@ -48,7 +50,10 @@ export function ViewCommunicationModal({ communication, onClose, onMarkAsRead, h
           </div>
 
           <div style={{ backgroundColor: 'var(--color-background-warm)', padding: 'var(--spacing-sm) var(--spacing-md)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-md)' }}>
-            <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{communication.body}</p>
+            <CommunicationRichContent
+              body={communication.body}
+              bodyRich={communication.bodyRich}
+            />
           </div>
 
           {communication.attachments && communication.attachments.length > 0 && (
@@ -61,6 +66,12 @@ export function ViewCommunicationModal({ communication, onClose, onMarkAsRead, h
               </ul>
             </div>
           )}
+
+          <ReadReceiptsSection
+            communicationId={communication.id}
+            destinatarios={communication.destinatarios || []}
+            sentBy={communication.sentBy}
+          />
         </div>
 
         <div className="modal-footer" style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>

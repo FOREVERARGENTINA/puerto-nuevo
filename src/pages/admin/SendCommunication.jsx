@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { communicationsService } from '../../services/communications.service';
@@ -7,8 +7,15 @@ import { eventsService } from '../../services/events.service';
 import { useAuth } from '../../hooks/useAuth';
 import { COMMUNICATION_TYPES, AMBIENTES, ROUTES, ROLES } from '../../config/constants';
 import { Modal, ModalBody } from '../../components/common/Modal';
+import { CommunicationRichContent } from '../../components/communications/CommunicationRichContent';
 import Icon from '../../components/ui/Icon';
 import './SendCommunication.css';
+
+const CommunicationRichTextEditor = lazy(() =>
+  import('../../components/communications/CommunicationRichTextEditor').then((module) => ({
+    default: module.CommunicationRichTextEditor,
+  }))
+);
 
 export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const navigate = useNavigate();
@@ -56,6 +63,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     title: '',
     body: '',
+    bodyRich: '',
     type: COMMUNICATION_TYPES.GLOBAL,
     ambiente: AMBIENTES.TALLER_1,
     destinatarios: [],
@@ -67,6 +75,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     eventoHora: '',
     eventoDescripcion: ''
   });
+  const [bodyError, setBodyError] = useState('');
 
   useEffect(() => {
     const loadFamilies = async () => {
@@ -108,6 +117,21 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
       [name]: type === 'checkbox' ? checked : value
     }));
   };
+
+  const handleBodyChange = useCallback(({ html, text }) => {
+    setBodyError('');
+    setFormData((prev) => {
+      if (prev.body === text && prev.bodyRich === html) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        body: text,
+        bodyRich: html,
+      };
+    });
+  }, []);
 
   const getChildRecipients = (childIds) => {
     const recipients = new Set();
@@ -298,6 +322,20 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trimmedTitle = formData.title.trim();
+    const trimmedBody = formData.body.trim();
+
+    if (!trimmedTitle) {
+      setError('El comunicado necesita un titulo.');
+      return;
+    }
+
+    if (!trimmedBody) {
+      setBodyError('Escribe el contenido del comunicado.');
+      setError('El comunicado necesita contenido.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setModalOpen(true);
@@ -306,8 +344,9 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     try {
       let eventMediaUploadFailed = false;
       const communicationData = {
-        title: formData.title,
-        body: formData.body,
+        title: trimmedTitle,
+        body: trimmedBody,
+        bodyRich: formData.bodyRich || null,
         type: formData.type,
         requiereLecturaObligatoria: formData.requiereLecturaObligatoria,
         sendByEmail: formData.sendByEmail,
@@ -468,20 +507,32 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
             placeholder="Ej: Reunión de padres – junio"
           />
         </div>
-
         <div className="form-group">
           <label htmlFor="body" className="required">Contenido</label>
-          <textarea
-            id="body"
-            name="body"
-            className="form-textarea"
-            value={formData.body}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            rows="8"
-            placeholder="Escribí el cuerpo del comunicado..."
-          />
+          <Suspense fallback={<div className="sc-editor-loading">Cargando editor...</div>}>
+            <CommunicationRichTextEditor
+              value={formData.bodyRich || ''}
+              onChange={handleBodyChange}
+              disabled={loading}
+              error={bodyError}
+            />
+          </Suspense>
+          <input type="hidden" id="body" name="body" value={formData.body} readOnly />
+        </div>
+
+        <div className="form-group">
+          <label>Vista previa</label>
+          <div className="sc-preview">
+            {formData.body.trim() ? (
+              <CommunicationRichContent
+                body={formData.body}
+                bodyRich={formData.bodyRich}
+                compact
+              />
+            ) : (
+              <p className="sc-preview__placeholder">La vista previa aparecera cuando empieces a escribir.</p>
+            )}
+          </div>
         </div>
 
         <div className="form-group">

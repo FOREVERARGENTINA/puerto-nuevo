@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { ROUTES } from '../../config/constants';
+import { CommunicationRichContent } from '../../components/communications/CommunicationRichContent';
 import Icon from '../../components/ui/Icon';
 
 export function CommunicationDetail() {
@@ -196,7 +197,10 @@ export function CommunicationDetail() {
 
       <div className="card">
         <div className="card__body">
-          <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{communication.body}</p>
+          <CommunicationRichContent
+            body={communication.body}
+            bodyRich={communication.bodyRich}
+          />
 
           {communication.attachments && communication.attachments.length > 0 && (
             <div style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border)' }}>

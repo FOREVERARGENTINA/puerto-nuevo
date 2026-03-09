@@ -260,8 +260,13 @@ service cloud.firestore {
         // Crear: El propio usuario marca su lectura
         allow create: if isAuthenticated() && request.auth.uid == userId;
 
-        // Leer: Admin o el propio usuario
-        allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+        // Leer: Admin, el propio usuario, o el autor del comunicado (para ver quiénes leyeron)
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid == userId ||
+          (canSendCommunications() &&
+            get(/databases/$(database)/documents/communications/$(commId)).data.sentBy == request.auth.uid)
+        );
 
         // No se puede actualizar ni eliminar
         allow update, delete: if false;
@@ -630,6 +635,17 @@ service cloud.firestore {
         isDocente() &&
         resource.data.uploadedBy == request.auth.uid
       );
+    }
+
+    // Notificaciones in-app por usuario
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+        resource.data.read == false &&
+        request.resource.data.read == true;
     }
 
     // Por defecto, denegar todo lo demás

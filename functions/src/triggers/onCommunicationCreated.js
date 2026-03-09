@@ -2,11 +2,22 @@
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const { resendLimiter } = require('../utils/rateLimiter');
-const { escapeHtml, toSafeHtmlParagraph, toPlainText, renderAttachmentList } = require('../utils/sanitize');
+const {
+  escapeHtml,
+  toSafeHtmlParagraph,
+  sanitizeRichHtml,
+  toPlainText,
+  renderAttachmentList,
+} = require('../utils/sanitize');
 const { maskEmail } = require('../utils/logging');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
 const resendApiKey = defineSecret('RESEND_API_KEY');
+
+function getSafeCommunicationBodyHtml(communicationData) {
+  const richBodyHtml = sanitizeRichHtml(communicationData?.bodyRich || '');
+  return richBodyHtml || toSafeHtmlParagraph(communicationData?.body || '');
+}
 
 exports.onCommunicationCreated = onDocumentCreated(
   {
@@ -193,7 +204,7 @@ exports.onCommunicationCreated = onDocumentCreated(
               if (resendApiKey.value()) {
                 const studentList = parentToStudents[uid] ? parentToStudents[uid].join(', ') : null;
                 const safeStudentList = studentList ? escapeHtml(studentList) : null;
-                const safeBodyHtml = toSafeHtmlParagraph(commData.body || '');
+                const safeBodyHtml = getSafeCommunicationBodyHtml(commData);
                 const attachmentList = renderAttachmentList(commData.attachments);
                 const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
                 const isFamilyRecipient = u.role === 'family';
@@ -336,7 +347,7 @@ exports.onCommunicationUpdated = onDocumentUpdated(
             continue;
           }
 
-          const safeBodyHtml = toSafeHtmlParagraph(after.body || '');
+          const safeBodyHtml = getSafeCommunicationBodyHtml(after);
           const attachmentList = renderAttachmentList(after.attachments);
           const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
           const isFamilyRecipient = u.role === 'family';
@@ -454,7 +465,7 @@ function buildCommunicationEmailHtml({
     <div lang="es">
     <p>${openingText}</p>
     ${safeStudentList ? `<p><strong>Comunicado para:</strong> ${safeStudentList}</p>` : ''}
-    <p>${safeBodyHtml}</p>
+    <div>${safeBodyHtml}</div>
     ${attachmentsHtml}
     <p style="margin:16px 0;">
       <a href="${safePortalUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">${ctaLabel}</a>

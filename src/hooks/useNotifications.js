@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, collectionGroup, query, where, orderBy, onSnapshot, Timestamp, limit, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useLocation } from 'react-router-dom';
 import { db } from '../config/firebase';
@@ -100,6 +100,26 @@ const isSnackActiveForNotification = (snack) => {
 const isWithinRange = (date, start, end) => {
   if (!date) return false;
   return date >= start && date <= end;
+};
+
+const normalizeNotificationIds = (notificationIds) => Array.from(new Set(
+  (notificationIds || [])
+    .map((notificationId) => (typeof notificationId === 'string' ? notificationId.trim() : ''))
+    .filter(Boolean)
+));
+
+const markNotificationsAsRead = async (notificationIds) => {
+  const ids = normalizeNotificationIds(notificationIds);
+  if (ids.length === 0) return;
+
+  const results = await Promise.allSettled(
+    ids.map((notificationId) => updateDoc(doc(db, 'notifications', notificationId), { read: true }))
+  );
+
+  const hasFailures = results.some((result) => result.status === 'rejected');
+  if (hasFailures) {
+    console.error('[Notifications] Error marcando notificaciones de evento como leidas.');
+  }
 };
 
 const normalizeDismissedIds = (entries) => {
@@ -245,7 +265,6 @@ export function useNotifications() {
     const now = new Date();
     const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const assignedSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const eventsSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const resourcesSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const activitiesSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -385,14 +404,7 @@ export function useNotifications() {
     let disposed = false;
 
     const recomputeFamilyScopedNotifications = () => {
-      const visibleEvents = recentEvents.filter((evt) => {
-        if (evt.communicationId) return false;
-        if (evt.scope !== 'taller') return true;
-        if (!familyAmbientes.length) return false;
-        if (evt.ambiente && familyAmbientes.includes(evt.ambiente)) return true;
-        return false;
-      });
-      setRecentEventNotifications(visibleEvents);
+      setRecentEventNotifications(recentEvents);
 
       const visibleResources = recentResourcePosts.filter((post) => {
         if (!familyAmbientes.length) return false;
@@ -468,8 +480,10 @@ export function useNotifications() {
     );
 
     const eventsQuery = query(
-      collection(db, 'events'),
-      where('createdAt', '>=', Timestamp.fromDate(eventsSince)),
+      collection(db, 'notifications'),
+      where('userId', '==', user.uid),
+      where('type', '==', 'evento'),
+      where('read', '==', false),
       orderBy('createdAt', 'desc'),
       limit(30)
     );
@@ -482,7 +496,7 @@ export function useNotifications() {
       },
       (error) => {
         if (!isPermissionDenied(error)) {
-          console.error('[Notifications] Error leyendo eventos recientes:', error);
+          console.error('[Notifications] Error leyendo notificaciones de eventos:', error);
         }
         recentEvents = [];
         recomputeFamilyScopedNotifications();
@@ -690,19 +704,28 @@ export function useNotifications() {
       metadata: { appointmentId: appt.id }
     }));
 
-  const recentEventItems = recentEventNotifications.map((event) => ({
-    id: `event-${event.id}`,
-    type: 'evento',
-    title: 'Nuevo evento',
-    message: event.titulo || 'Hay un nuevo evento en el calendario',
-    timestamp: toDateSafe(event.createdAt)
-      || toDateSafe(event.updatedAt)
-      || toDateSafe(event.fecha)
-      || new Date(),
-    urgent: false,
-    actionUrl: eventsUrl,
-    metadata: { eventId: event.id }
-  }));
+  const recentEventItems = useMemo(() => (
+    recentEventNotifications.map((notification) => {
+      const eventId = notification.metadata?.eventId || null;
+      const actionUrl = eventId
+        ? `${eventsUrl}?eventId=${encodeURIComponent(eventId)}`
+        : (notification.url || eventsUrl);
+
+      return {
+        id: notification.id,
+        type: 'evento',
+        title: notification.title || 'Nuevo evento',
+        message: notification.message || 'Hay un nuevo evento en el calendario',
+        timestamp: toDateSafe(notification.createdAt) || new Date(),
+        urgent: false,
+        actionUrl,
+        metadata: {
+          eventId,
+          notificationId: notification.id
+        }
+      };
+    })
+  ), [recentEventNotifications, eventsUrl]);
 
   const recentResourceItems = recentResourceNotifications.map((post) => {
     const tallerId = typeof post?.tallerId === 'string' ? post.tallerId : '';
@@ -893,6 +916,19 @@ export function useNotifications() {
     });
   }, [location.pathname, role, user?.uid, assignedNotifications]);
 
+  useEffect(() => {
+    if (!user?.uid || role !== ROLES.FAMILY) return;
+    if (!location.pathname.startsWith('/portal/familia/eventos')) return;
+
+    const notificationIds = recentEventItems
+      .map((notification) => notification.metadata?.notificationId || notification.id)
+      .filter(Boolean);
+
+    if (notificationIds.length === 0) return;
+
+    void markNotificationsAsRead(notificationIds);
+  }, [location.pathname, role, user?.uid, recentEventItems]);
+
   return {
     notifications,
     totalCount: notifications.length,
@@ -926,6 +962,13 @@ export function useNotifications() {
           void persistDismissedIds({ dismissedAppointmentAssignedKeys: next });
           return next;
         });
+        return;
+      }
+
+      if (notification.type === 'evento') {
+        const notificationId = notification.metadata?.notificationId || notification.id;
+        if (!notificationId) return;
+        void markNotificationsAsRead([notificationId]);
         return;
       }
     },

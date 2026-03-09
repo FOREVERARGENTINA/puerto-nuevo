@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { eventsService } from '../../services/events.service';
 import { childrenService } from '../../services/children.service';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,8 +7,17 @@ import Icon from '../../components/ui/Icon';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
 import './EventsCalendar.css';
 
+const isEventVisibleForFamily = (event, isFamily, familyAmbientes) => {
+  if (!event) return false;
+  if (!isFamily) return true;
+  if (event.scope !== 'taller') return true;
+  if (!familyAmbientes.length) return false;
+  return Boolean(event.ambiente && familyAmbientes.includes(event.ambiente));
+};
+
 export function EventsCalendar() {
   const { user, isFamily } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [familyAmbientes, setFamilyAmbientes] = useState([]);
@@ -15,6 +25,8 @@ export function EventsCalendar() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventDetail, setShowEventDetail] = useState(false);
+  const [eventFromQuery, setEventFromQuery] = useState(null);
+  const [eventQueryResolved, setEventQueryResolved] = useState(false);
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -58,6 +70,8 @@ export function EventsCalendar() {
     };
     loadFamilyAmbientes();
   }, [user, isFamily]);
+
+  const requestedEventId = searchParams.get('eventId')?.trim() || '';
 
   const normalizeEventDate = (timestamp) => {
     if (!timestamp) return null;
@@ -159,17 +173,49 @@ export function EventsCalendar() {
     return badges[tipo] || 'badge--neutral';
   };
 
+  useEffect(() => {
+    if (!requestedEventId) {
+      setEventFromQuery(null);
+      setEventQueryResolved(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadEventFromQuery = async () => {
+      const result = await eventsService.getEventById(requestedEventId);
+      if (isCancelled) return;
+      setEventQueryResolved(true);
+      setEventFromQuery(result.success ? result.event || null : null);
+    };
+
+    setEventQueryResolved(false);
+    loadEventFromQuery();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [requestedEventId]);
+
+  useEffect(() => {
+    if (!eventFromQuery?.id) return;
+
+    const eventDate = normalizeEventDate(eventFromQuery.fecha);
+    if (!eventDate || Number.isNaN(eventDate.getTime())) return;
+
+    setSelectedMonth((currentMonth) => {
+      const sameMonth = currentMonth.getFullYear() === eventDate.getFullYear()
+        && currentMonth.getMonth() === eventDate.getMonth();
+      return sameMonth ? currentMonth : new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
+    });
+    setSelectedDay(eventDate.getDate());
+  }, [eventFromQuery]);
+
   const selectedMonthYear = selectedMonth.getFullYear();
   const selectedMonthIndex = selectedMonth.getMonth();
 
   const visibleEvents = useMemo(() => (
-    events.filter(event => {
-      if (!isFamily) return true;
-      if (event.scope !== 'taller') return true;
-      if (!familyAmbientes.length) return false;
-      if (event.ambiente && familyAmbientes.includes(event.ambiente)) return true;
-      return false;
-    })
+    events.filter((event) => isEventVisibleForFamily(event, isFamily, familyAmbientes))
   ), [events, familyAmbientes, isFamily]);
 
   const eventsForCalendar = useMemo(() => visibleEvents, [visibleEvents]);
@@ -248,6 +294,35 @@ export function EventsCalendar() {
       today.getFullYear() === selectedMonthYear
     );
   };
+
+  useEffect(() => {
+    if (!requestedEventId || loading) return;
+    if (!eventQueryResolved) return;
+
+    const matchingEvent = visibleEvents.find((event) => event.id === requestedEventId);
+    if (matchingEvent) {
+      setSelectedEvent(matchingEvent);
+      setShowEventDetail(true);
+
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.delete('eventId');
+      setSearchParams(nextSearchParams, { replace: true });
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('eventId');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [
+    eventQueryResolved,
+    familyAmbientes,
+    isFamily,
+    loading,
+    requestedEventId,
+    searchParams,
+    setSearchParams,
+    visibleEvents
+  ]);
 
   return (
     <div className="container page-container events-calendar-page">

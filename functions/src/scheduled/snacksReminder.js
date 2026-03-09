@@ -143,8 +143,10 @@ function buildReminderCommunication({
   isConfirmedReminder
 }) {
   const dateRange = `del ${formatDate(assignment.fechaInicio)} al ${formatDate(assignment.fechaFin)}`;
-  const childLabel = assignment.childName ? ` (Alumno: ${assignment.childName})` : '';
-  const greeting = recipientName ? `Hola ${recipientName},` : 'Hola,';
+  const familyFirstName = getFirstName(recipientName);
+  const childFirstName = getFirstName(assignment.childName);
+  const childLabel = childFirstName ? ` (Alumno: ${childFirstName})` : '';
+  const greeting = familyFirstName ? `Hola ${familyFirstName},` : 'Hola,';
 
   const body = isConfirmedReminder
     ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${assignment.ambiente}${childLabel}.\n\nPor favor, trae los ingredientes el dia lunes.\n\nGracias por tu colaboracion.`
@@ -196,4 +198,11 @@ function formatDate(dateString) {
     year: 'numeric',
     timeZone: 'America/Argentina/Buenos_Aires'
   });
+}
+
+function getFirstName(value) {
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+
+  return normalized.split(' ')[0] || '';
 }
