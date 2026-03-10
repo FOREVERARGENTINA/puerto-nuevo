@@ -15,6 +15,19 @@ const isEventVisibleForFamily = (event, isFamily, familyAmbientes) => {
   return Boolean(event.ambiente && familyAmbientes.includes(event.ambiente));
 };
 
+const normalizeEventDate = (timestamp) => {
+  if (!timestamp) return null;
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0
+  ) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  }
+  return date;
+};
+
 export function EventsCalendar() {
   const { user, isFamily } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,19 +85,6 @@ export function EventsCalendar() {
   }, [user, isFamily]);
 
   const requestedEventId = searchParams.get('eventId')?.trim() || '';
-
-  const normalizeEventDate = (timestamp) => {
-    if (!timestamp) return null;
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    if (
-      date.getUTCHours() === 0 &&
-      date.getUTCMinutes() === 0 &&
-      date.getUTCSeconds() === 0
-    ) {
-      return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-    }
-    return date;
-  };
 
   const parseEventDateTime = (event) => {
     const eventDate = normalizeEventDate(event?.fecha);
@@ -211,6 +211,12 @@ export function EventsCalendar() {
     setSelectedDay(eventDate.getDate());
   }, [eventFromQuery]);
 
+  const clearRequestedEventId = useCallback(() => {
+    const nextSearchParams = new URLSearchParams(window.location.search);
+    nextSearchParams.delete('eventId');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [setSearchParams]);
+
   const selectedMonthYear = selectedMonth.getFullYear();
   const selectedMonthIndex = selectedMonth.getMonth();
 
@@ -218,10 +224,8 @@ export function EventsCalendar() {
     events.filter((event) => isEventVisibleForFamily(event, isFamily, familyAmbientes))
   ), [events, familyAmbientes, isFamily]);
 
-  const eventsForCalendar = useMemo(() => visibleEvents, [visibleEvents]);
-
   const filteredEvents = useMemo(() => {
-    let list = eventsForCalendar;
+    let list = visibleEvents;
     if (selectedDay) {
       list = list.filter(event => {
         const eventDate = normalizeEventDate(event.fecha);
@@ -240,7 +244,7 @@ export function EventsCalendar() {
       // Próximos en orden ascendente, pasados del más reciente al más lejano.
       return pastA ? dateB - dateA : dateA - dateB;
     });
-  }, [eventsForCalendar, selectedDay]);
+  }, [selectedDay, visibleEvents]);
 
   const upcomingEventsPreview = useMemo(() => {
     return filteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
@@ -265,7 +269,7 @@ export function EventsCalendar() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    eventsForCalendar.forEach(event => {
+    visibleEvents.forEach(event => {
       const eventDate = normalizeEventDate(event.fecha);
       if (!eventDate) return;
 
@@ -282,7 +286,7 @@ export function EventsCalendar() {
     });
 
     return [allDays, upcomingDays, pastDays];
-  }, [eventsForCalendar]);
+  }, [visibleEvents]);
 
   const days = useMemo(() => getDaysInMonth(), [selectedMonth]);
   const today = new Date();
@@ -303,24 +307,14 @@ export function EventsCalendar() {
     if (matchingEvent) {
       setSelectedEvent(matchingEvent);
       setShowEventDetail(true);
-
-      const nextSearchParams = new URLSearchParams(searchParams);
-      nextSearchParams.delete('eventId');
-      setSearchParams(nextSearchParams, { replace: true });
-      return;
     }
 
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.delete('eventId');
-    setSearchParams(nextSearchParams, { replace: true });
+    clearRequestedEventId();
   }, [
+    clearRequestedEventId,
     eventQueryResolved,
-    familyAmbientes,
-    isFamily,
     loading,
     requestedEventId,
-    searchParams,
-    setSearchParams,
     visibleEvents
   ]);
 
