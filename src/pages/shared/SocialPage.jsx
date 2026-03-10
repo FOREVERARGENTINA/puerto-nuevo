@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import * as d3 from 'd3-force-3d';
 import { useAuth } from '../../hooks/useAuth';
@@ -68,6 +68,46 @@ function getNodeFillColor(node, label, colorMap) {
   return colorMap[token] || '#2C6B6F';
 }
 
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number(value || 0)));
+}
+
+function easeOutCubic(value) {
+  const safeValue = clamp01(value);
+  return 1 - ((1 - safeValue) ** 3);
+}
+
+function hashString(value) {
+  const text = String(value || '');
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getNodeLayoutSeed(node) {
+  if (typeof node?.layoutSeed === 'number' && Number.isFinite(node.layoutSeed)) {
+    return node.layoutSeed;
+  }
+  return hashString(node?.id);
+}
+
+function makeLinkKey(a, b) {
+  return [String(a || ''), String(b || '')].sort().join('::');
+}
+
+function getCuratorLayerDelay(layerType) {
+  if (layerType === 'child') return 180;
+  if (layerType === 'family') return 560;
+  if (layerType === 'staff') return 900;
+  return 0;
+}
+
+function getLayerRevealProgress(layerType, elapsed) {
+  return easeOutCubic((elapsed - getCuratorLayerDelay(layerType)) / INITIAL_NODE_REVEAL_DURATION_MS);
+}
+
 function darkenHexColor(hex, amount = 0.18) {
   const safeHex = String(hex || '').trim();
   const normalized = safeHex.replace('#', '');
@@ -120,14 +160,30 @@ function toRgba(color, alpha = 1) {
   return `rgba(91, 165, 168, ${a})`;
 }
 
-function drawUnifiedSocialBackground(ctx, globalScale, colorMap) {
+function drawUnifiedSocialBackground(
+  ctx,
+  globalScale,
+  colorMap,
+  frameNow = 0,
+  ambientRevealProgress = 1,
+  activeAmbiente = null
+) {
   const leftColor = getAmbienteStrokeColor('taller1', colorMap);
   const rightColor = getAmbienteStrokeColor('taller2', colorMap);
   const coreColor = colorMap['--color-secondary'] || '#7E6B57';
   const scale = Math.max(globalScale, 0.5);
+  const reveal = clamp01(ambientRevealProgress);
   const ribbonMainWidth = Math.max(120 / scale, 58);
   const ribbonSoftWidth = Math.max(72 / scale, 34);
   const ringWidth = Math.max(1.8 / scale, 0.9);
+  const pulseTime = Number(frameNow || 0) * 0.00108;
+  const leftPulse = 0.94 + (Math.sin(pulseTime) * 0.06);
+  const rightPulse = 0.94 + (Math.sin(pulseTime + 1.5) * 0.06);
+  const leftBoost = activeAmbiente === 'taller1' ? 1.08 : 1;
+  const rightBoost = activeAmbiente === 'taller2' ? 1.08 : 1;
+
+  ctx.save();
+  ctx.globalAlpha = reveal;
 
   // Niebla horizontal unificada.
   ctx.save();
@@ -199,6 +255,48 @@ function drawUnifiedSocialBackground(ctx, globalScale, colorMap) {
   ctx.ellipse(0, 24, 270, 138, 0, 0, 2 * Math.PI);
   ctx.stroke();
   ctx.restore();
+
+  const drawInstitutionalPulse = (center, color, pulse, boost) => {
+    ctx.save();
+    const glow = ctx.createRadialGradient(center.x, center.y, 12, center.x, center.y, 170 * pulse * boost);
+    glow.addColorStop(0, toRgba(color, 0.14));
+    glow.addColorStop(0.45, toRgba(color, 0.07 * boost));
+    glow.addColorStop(1, toRgba(color, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, 176 * pulse * boost, 126 * pulse * boost, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  drawInstitutionalPulse(AMBIENTE_CENTERS.taller1, leftColor, leftPulse, leftBoost);
+  drawInstitutionalPulse(AMBIENTE_CENTERS.taller2, rightColor, rightPulse, rightBoost);
+  ctx.restore();
+}
+
+function drawGhostTrails(ctx, globalScale, trails, frameNow, focusState) {
+  const scale = Math.max(globalScale, 0.75);
+  (Array.isArray(trails) ? trails : []).forEach((trail) => {
+    const age = Number(frameNow || 0) - Number(trail?.createdAt || 0);
+    if (age < 0 || age > GHOST_TRAIL_DURATION_MS) return;
+
+    const life = 1 - (age / GHOST_TRAIL_DURATION_MS);
+    const emphasis = !focusState?.active
+      ? 1
+      : focusState.primaryId === trail?.nodeId || focusState.neighborIds?.has(trail?.nodeId)
+        ? 1
+        : 0.34;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(Number(trail?.x1 || 0), Number(trail?.y1 || 0));
+    ctx.lineTo(Number(trail?.x2 || 0), Number(trail?.y2 || 0));
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = toRgba(trail?.color || '#9CA3AF', (0.08 + (life * 0.18)) * emphasis);
+    ctx.lineWidth = Math.max(1.15 / scale, 0.55) * (0.94 + (life * 0.34));
+    ctx.stroke();
+    ctx.restore();
+  });
 }
 
 const AMBIENTE_CENTERS = {
@@ -213,12 +311,20 @@ const STAFF_ZONE = {
   angleJitter: 0.85,
   radiusJitter: 0.2
 };
-const CHILD_AMBIENTE_STRENGTH = 0.06;
-const AMBIENTE_BALANCE_STRENGTH = 0.3;
-const ORPHAN_CHILD_DRIFT_STRENGTH = 0.05;
+const CHILD_AMBIENTE_STRENGTH = 0.014;
+const SOCIAL_TIDE_STRENGTH = 0.026;
+const AMBIENTE_BALANCE_STRENGTH = 0.11;
+const ORPHAN_CHILD_DRIFT_STRENGTH = 0.018;
 const SIMULATION_ALPHA_TARGET = 0.008;
-const SIMULATION_ALPHA_TARGET_ACTIVE = 0.018;
+const SIMULATION_ALPHA_TARGET_ACTIVE = 0.014;
+const SIMULATION_ALPHA_TARGET_INTRO = 0.004;
 const NOISE_JITTER = 0.01;
+const INITIAL_GRAPH_ENTRANCE_MS = 1680;
+const INITIAL_GRAPH_CENTER_DELAY_MS = 180;
+const INITIAL_NODE_REVEAL_DURATION_MS = 540;
+const FOCUS_AURA_FADE_IN_MS = 320;
+const FOCUS_AURA_FADE_OUT_MS = 180;
+const GHOST_TRAIL_DURATION_MS = 420;
 const CHILD_ZONE = {
   minRadius: 44,
   maxRadius: AMBIENTE_RADIUS - 34
@@ -244,14 +350,6 @@ function buildStaffAnchorTargets(nodes) {
 
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
   const radialSpan = Math.max(12, STAFF_ZONE.maxRadius - STAFF_ZONE.minRadius);
-  const hashString = (value) => {
-    const text = String(value || '');
-    let hash = 0;
-    for (let i = 0; i < text.length; i += 1) {
-      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
-    }
-    return Math.abs(hash);
-  };
 
   staffNodes.forEach((node, index) => {
     const ratio = count <= 1 ? 0.2 : index / (count - 1);
@@ -293,14 +391,18 @@ function buildChildZoneTargets(nodes) {
 
     const ordered = ambienteNodes
       .slice()
-      .sort((a, b) => getNodeLabel(a).localeCompare(getNodeLabel(b), 'es'));
+      .sort((a, b) => getNodeLayoutSeed(a) - getNodeLayoutSeed(b));
 
     const radialSpan = Math.max(24, CHILD_ZONE.maxRadius - CHILD_ZONE.minRadius);
+    const ambienteSeed = hashString(ambiente);
+    const angleOffset = ((ambienteSeed % 360) / 360) * Math.PI * 2;
 
     ordered.forEach((node, index) => {
       const ratio = ordered.length <= 1 ? 0.22 : index / (ordered.length - 1);
       const radius = CHILD_ZONE.minRadius + Math.sqrt(ratio) * radialSpan;
-      const angle = index * goldenAngle;
+      const nodeSeed = getNodeLayoutSeed(node);
+      const angleNoise = ((((Math.floor(nodeSeed * 1000) % 1000) / 1000) - 0.5) * 0.18);
+      const angle = angleOffset + (index * goldenAngle) + angleNoise;
 
       targets.set(node.id, {
         x: center.x + Math.cos(angle) * radius,
@@ -310,6 +412,120 @@ function buildChildZoneTargets(nodes) {
   });
 
   return targets;
+}
+
+function buildFamilySeedTargets(nodes, links, childZoneTargets) {
+  const familyTargets = new Map();
+  const childrenByFamily = new Map();
+  const familySlotByChild = new Map();
+
+  (Array.isArray(links) ? links : []).forEach((link) => {
+    if (link?.type !== 'family-child') return;
+    const sourceId = getLinkNodeId(link.source);
+    const targetId = getLinkNodeId(link.target);
+    const familyId = sourceId.startsWith('family:')
+      ? sourceId
+      : targetId.startsWith('family:')
+        ? targetId
+        : '';
+    const childId = sourceId.startsWith('child:')
+      ? sourceId
+      : targetId.startsWith('child:')
+        ? targetId
+        : '';
+
+    if (!familyId || !childId) return;
+    if (!childrenByFamily.has(familyId)) childrenByFamily.set(familyId, []);
+    childrenByFamily.get(familyId).push(childId);
+  });
+
+  (Array.isArray(nodes) ? nodes : [])
+    .filter((node) => node?.type === 'family')
+    .sort((a, b) => getNodeLabel(a).localeCompare(getNodeLabel(b), 'es'))
+    .forEach((node) => {
+      const linkedChildIds = childrenByFamily.get(node.id) || [];
+      const primaryChildId = linkedChildIds[0];
+      const childTarget = primaryChildId ? childZoneTargets.get(primaryChildId) : null;
+      const ambienteCenter = AMBIENTE_CENTERS[normalizeAmbienteKey(node.ambiente)];
+      const seed = hashString(node.id);
+
+      if (childTarget) {
+        const childSlot = familySlotByChild.get(primaryChildId) || 0;
+        familySlotByChild.set(primaryChildId, childSlot + 1);
+        const angle = (-Math.PI / 2) + ((childSlot % 3) - 1) * 0.5 + (((seed % 1000) / 1000) - 0.5) * 0.18;
+        const radius = 56 + Math.floor(childSlot / 3) * 12;
+        familyTargets.set(node.id, {
+          x: childTarget.x + Math.cos(angle) * radius,
+          y: childTarget.y + Math.sin(angle) * radius
+        });
+        return;
+      }
+
+      if (ambienteCenter) {
+        const angle = ((seed % 360) / 360) * Math.PI * 2;
+        const radius = 84 + ((Math.floor(seed / 360) % 5) * 10);
+        familyTargets.set(node.id, {
+          x: ambienteCenter.x + Math.cos(angle) * radius,
+          y: ambienteCenter.y + Math.sin(angle) * radius
+        });
+        return;
+      }
+
+      familyTargets.set(node.id, {
+        x: ((seed % 120) - 60) * 0.6,
+        y: 140 + (((Math.floor(seed / 120) % 120) - 60) * 0.35)
+      });
+    });
+
+  return familyTargets;
+}
+
+function seedGraphLayout(data) {
+  const nodes = Array.isArray(data?.nodes)
+    ? data.nodes.map((node) => ({
+      ...node,
+      layoutSeed: Math.random()
+    }))
+    : [];
+  const links = Array.isArray(data?.links) ? data.links.map((link) => ({ ...link })) : [];
+  const childZoneTargets = buildChildZoneTargets(nodes);
+  const staffTargets = buildStaffAnchorTargets(nodes);
+  const familyTargets = buildFamilySeedTargets(nodes, links, childZoneTargets);
+
+  nodes.forEach((node) => {
+    const seed = hashString(node.id);
+    const jitterX = (((seed % 1000) / 1000) - 0.5) * (node?.type === 'staff' ? 10 : 16);
+    const jitterY = ((((Math.floor(seed / 1000)) % 1000) / 1000) - 0.5) * (node?.type === 'staff' ? 10 : 16);
+    const ambienteCenter = AMBIENTE_CENTERS[normalizeAmbienteKey(node?.ambiente)];
+    const baseTarget = node?.type === 'child'
+      ? childZoneTargets.get(node.id)
+      : node?.type === 'staff'
+        ? staffTargets.get(node.id)
+        : node?.type === 'family'
+          ? familyTargets.get(node.id)
+          : ambienteCenter || { x: 0, y: 120 };
+
+    node.x = Number(baseTarget?.x || 0) + jitterX;
+    node.y = Number(baseTarget?.y || 0) + jitterY;
+    node.vx = 0;
+    node.vy = 0;
+  });
+
+  return { nodes, links };
+}
+
+function getNodeEntranceDelay(node) {
+  const seed = hashString(node?.id);
+  const typeOffset = getCuratorLayerDelay(node?.type);
+  return typeOffset + ((seed % 6) * 34);
+}
+
+function getInstagramHref(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  if (/^https?:\/\//i.test(text)) return text;
+  const handle = text.replace(/^@+/, '').replace(/^instagram\.com\//i, '').replace(/^www\.instagram\.com\//i, '');
+  return `https://www.instagram.com/${handle}`;
 }
 
 function FullscreenIcon({ active = false }) {
@@ -461,6 +677,49 @@ function createOrphanChildDriftForce(
   return force;
 }
 
+function createSocialTideForce(
+  getTarget = () => null,
+  strength = SOCIAL_TIDE_STRENGTH,
+  isVisible = () => true
+) {
+  let nodes = [];
+  let phase = 0;
+
+  function force(alpha) {
+    phase += 0.018;
+    const effectiveAlpha = Math.max(Number(alpha || 0), 0.035);
+
+    nodes.forEach((node) => {
+      if (!isVisible(node)) return;
+      if (node?.type !== 'child') return;
+
+      const target = typeof getTarget === 'function' ? getTarget(node) : null;
+      if (!target) return;
+
+      const dx = Number(target.x || 0) - Number(node.x || 0);
+      const dy = Number(target.y || 0) - Number(node.y || 0);
+      const distance = Math.hypot(dx, dy) || 1;
+      const unitX = dx / distance;
+      const unitY = dy / distance;
+      const seed = getNodeLayoutSeed(node);
+      const phaseOffset = (seed % 1000) * 0.0063;
+      const swirl = Math.sin(phase + phaseOffset);
+      const secondary = Math.cos((phase * 0.82) + phaseOffset);
+      const pullFactor = Math.min(0.055, strength * effectiveAlpha * (0.42 + (Math.min(distance, 220) / 190)));
+      const tangentFactor = Math.min(0.018, ((distance / 320) * 0.015)) * effectiveAlpha;
+
+      node.vx = Number(node.vx || 0) + (dx * pullFactor) + (((-unitY * swirl) + (unitX * secondary * 0.35)) * tangentFactor * 18);
+      node.vy = Number(node.vy || 0) + (dy * pullFactor) + (((unitX * swirl) + (unitY * secondary * 0.35)) * tangentFactor * 18);
+    });
+  }
+
+  force.initialize = (nextNodes) => {
+    nodes = Array.isArray(nextNodes) ? nextNodes : [];
+  };
+
+  return force;
+}
+
 const CONTACT_FIELDS = [
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'email', label: 'Email' },
@@ -491,6 +750,14 @@ export default function SocialPage() {
   const mapCardRef = useRef(null);
   const hasInitialAutoCenteredRef = useRef(false);
   const roleTransitionTimerRef = useRef(null);
+  const entranceAnimationFrameRef = useRef(null);
+  const entranceStartRef = useRef(0);
+  const entranceActiveRef = useRef(false);
+  const lastNodePositionsRef = useRef(new Map());
+  const ghostTrailsRef = useRef([]);
+  const ghostTrailsUntilRef = useRef(0);
+  const focusAuraAnimationFrameRef = useRef(null);
+  const focusVisualProgressRef = useRef(0);
 
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
@@ -501,6 +768,8 @@ export default function SocialPage() {
   const [search, setSearch] = useState('');
   const [graphFilters, setGraphFilters] = useState(INITIAL_GRAPH_FILTERS);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const [focusVisualProgress, setFocusVisualProgress] = useState(0);
   const [imageRenderTick, setImageRenderTick] = useState(0);
   const [myProfile, setMyProfile] = useState({
     photoUrl: '',
@@ -512,6 +781,8 @@ export default function SocialPage() {
   const [colorMap, setColorMap] = useState(() => buildAvatarColorMap());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [alphaTarget, setAlphaTarget] = useState(SIMULATION_ALPHA_TARGET);
+  const [entranceNow, setEntranceNow] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const refreshThemeColors = useCallback(() => {
     setColorMap(buildAvatarColorMap());
@@ -526,6 +797,21 @@ export default function SocialPage() {
     });
     return () => observer.disconnect();
   }, [refreshThemeColors]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    syncPreference();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncPreference);
+      return () => mediaQuery.removeEventListener('change', syncPreference);
+    }
+
+    mediaQuery.addListener(syncPreference);
+    return () => mediaQuery.removeListener(syncPreference);
+  }, []);
 
   const updateDimensions = useCallback(() => {
     const width = containerRef.current?.clientWidth || 800;
@@ -579,7 +865,7 @@ export default function SocialPage() {
     setError('');
     try {
       const data = await socialService.getSocialGraphData();
-      setGraphData(data);
+      setGraphData(seedGraphLayout(data));
     } catch (loadError) {
       setError(loadError.message || 'No se pudo cargar el mapa social');
     } finally {
@@ -748,6 +1034,117 @@ export default function SocialPage() {
       .slice(0, 20);
   }, [visibleGraphData.links, nodesById, selectedNode]);
 
+  const focusNode = hoveredNode || selectedNode || null;
+  const focusNodeId = focusNode?.id || '';
+  const focusState = useMemo(() => {
+    const neighborIds = new Set();
+    const highlightedLinkKeys = new Set();
+    const familyAdjacency = new Map();
+
+    if (!focusNodeId) {
+      return {
+        active: false,
+        primaryId: '',
+        neighborIds,
+        highlightedLinkKeys
+      };
+    }
+
+    neighborIds.add(focusNodeId);
+    visibleGraphData.links.forEach((link) => {
+      const sourceId = getLinkNodeId(link.source);
+      const targetId = getLinkNodeId(link.target);
+      if (link?.type === 'family-child') {
+        if (!familyAdjacency.has(sourceId)) familyAdjacency.set(sourceId, new Set());
+        if (!familyAdjacency.has(targetId)) familyAdjacency.set(targetId, new Set());
+        familyAdjacency.get(sourceId).add(targetId);
+        familyAdjacency.get(targetId).add(sourceId);
+      }
+      if (sourceId !== focusNodeId && targetId !== focusNodeId) return;
+      neighborIds.add(sourceId === focusNodeId ? targetId : sourceId);
+      highlightedLinkKeys.add(makeLinkKey(sourceId, targetId));
+    });
+
+    if (focusNode?.type === 'family' || focusNode?.type === 'child') {
+      const visited = new Set([focusNodeId]);
+      const queue = [focusNodeId];
+
+      while (queue.length > 0) {
+        const currentId = queue.shift();
+        const neighbors = familyAdjacency.get(currentId);
+        if (!neighbors) continue;
+
+        neighbors.forEach((neighborId) => {
+          highlightedLinkKeys.add(makeLinkKey(currentId, neighborId));
+          neighborIds.add(neighborId);
+          if (visited.has(neighborId)) return;
+          visited.add(neighborId);
+          queue.push(neighborId);
+        });
+      }
+    }
+
+    return {
+      active: true,
+      primaryId: focusNodeId,
+      neighborIds,
+      highlightedLinkKeys
+    };
+  }, [focusNode?.type, focusNodeId, visibleGraphData.links]);
+
+  const activeAmbienteKey = useMemo(
+    () => normalizeAmbienteKey(hoveredNode?.ambiente || selectedNode?.ambiente),
+    [hoveredNode?.ambiente, selectedNode?.ambiente]
+  );
+
+  useEffect(() => {
+    focusVisualProgressRef.current = focusVisualProgress;
+  }, [focusVisualProgress]);
+
+  useEffect(() => {
+    if (focusAuraAnimationFrameRef.current) {
+      cancelAnimationFrame(focusAuraAnimationFrameRef.current);
+      focusAuraAnimationFrameRef.current = null;
+    }
+
+    const target = focusNodeId ? 1 : 0;
+    const startValue = focusVisualProgressRef.current;
+    const duration = target > startValue ? FOCUS_AURA_FADE_IN_MS : FOCUS_AURA_FADE_OUT_MS;
+
+    if (Math.abs(target - startValue) < 0.01) {
+      focusVisualProgressRef.current = target;
+      setFocusVisualProgress(target);
+      return undefined;
+    }
+
+    const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    const tick = (frameNow) => {
+      const elapsed = frameNow - startTime;
+      const linearProgress = clamp01(elapsed / duration);
+      const easedProgress = easeOutCubic(linearProgress);
+      const nextValue = startValue + ((target - startValue) * easedProgress);
+      focusVisualProgressRef.current = nextValue;
+      setFocusVisualProgress(nextValue);
+      graphRef.current?.refresh?.();
+
+      if (linearProgress < 1) {
+        focusAuraAnimationFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        focusAuraAnimationFrameRef.current = null;
+      }
+    };
+
+    focusAuraAnimationFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (focusAuraAnimationFrameRef.current) {
+        cancelAnimationFrame(focusAuraAnimationFrameRef.current);
+        focusAuraAnimationFrameRef.current = null;
+      }
+    };
+  }, [focusNodeId]);
+
   useEffect(() => {
     if (!selectedNode) return;
     const stillVisible = visibleNodeIds.has(selectedNode.id);
@@ -755,6 +1152,13 @@ export default function SocialPage() {
       setSelectedNode(null);
     }
   }, [selectedNode, visibleNodeIds]);
+
+  useEffect(() => {
+    if (!hoveredNode) return;
+    if (!visibleNodeIds.has(hoveredNode.id)) {
+      setHoveredNode(null);
+    }
+  }, [hoveredNode, visibleNodeIds]);
 
   const childPhotoLookup = useMemo(() => {
     const map = new Map();
@@ -887,12 +1291,19 @@ export default function SocialPage() {
       (nodeId) => childHasFamilyLinkRef.current.get(nodeId) === true
     ));
 
+    fg.d3Force('socialTide', createSocialTideForce(
+      (node) => childZoneTargets.get(node?.id),
+      SOCIAL_TIDE_STRENGTH,
+      (node) => roleVisibleNodeIdsRef.current.has(node?.id)
+    ));
+
     // Perturbación mínima continua para evitar que el sistema quede estático en equilibrio
     let noiseNodes = [];
     const noiseForce = () => {
       noiseNodes.forEach((node) => {
         if (!roleVisibleNodeIdsRef.current.has(node?.id)) return;
         if (node?.type === 'staff') return;
+        if (entranceActiveRef.current) return;
         node.vx = (node.vx || 0) + (Math.random() - 0.5) * NOISE_JITTER;
         node.vy = (node.vy || 0) + (Math.random() - 0.5) * NOISE_JITTER;
       });
@@ -916,6 +1327,7 @@ export default function SocialPage() {
     }
     // Impulso suave para absorber cambios de lazos sin latigazo.
     setAlphaTarget(SIMULATION_ALPHA_TARGET_ACTIVE);
+    ghostTrailsUntilRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + GHOST_TRAIL_DURATION_MS;
     roleTransitionTimerRef.current = setTimeout(() => {
       setAlphaTarget(SIMULATION_ALPHA_TARGET);
       roleTransitionTimerRef.current = null;
@@ -929,19 +1341,81 @@ export default function SocialPage() {
   }, []);
 
   useEffect(() => {
+    if (entranceAnimationFrameRef.current) {
+      cancelAnimationFrame(entranceAnimationFrameRef.current);
+      entranceAnimationFrameRef.current = null;
+    }
+
+    if (graphData.nodes.length === 0) {
+      entranceStartRef.current = 0;
+      entranceActiveRef.current = false;
+      setEntranceNow(0);
+      return undefined;
+    }
+
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    entranceStartRef.current = now;
+    setEntranceNow(now);
+
+    if (prefersReducedMotion) {
+      entranceActiveRef.current = false;
+      setAlphaTarget(SIMULATION_ALPHA_TARGET);
+      return undefined;
+    }
+
+    entranceActiveRef.current = true;
+    setAlphaTarget(SIMULATION_ALPHA_TARGET_INTRO);
+
+    const tick = (frameTime) => {
+      setEntranceNow(frameTime);
+      if (frameTime - entranceStartRef.current >= INITIAL_GRAPH_ENTRANCE_MS) {
+        entranceActiveRef.current = false;
+        setAlphaTarget(SIMULATION_ALPHA_TARGET);
+        entranceAnimationFrameRef.current = null;
+        return;
+      }
+      entranceAnimationFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    entranceAnimationFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (entranceAnimationFrameRef.current) {
+        cancelAnimationFrame(entranceAnimationFrameRef.current);
+        entranceAnimationFrameRef.current = null;
+      }
+      entranceActiveRef.current = false;
+    };
+  }, [graphData.links.length, graphData.nodes.length, prefersReducedMotion]);
+
+  useEffect(() => {
     hasInitialAutoCenteredRef.current = false;
+    lastNodePositionsRef.current = new Map();
+    ghostTrailsRef.current = [];
+    ghostTrailsUntilRef.current = 0;
+    setHoveredNode(null);
   }, [graphData.links.length, graphData.nodes.length]);
 
   const onNodeClick = useCallback((node) => {
+    setHoveredNode(node);
     setSelectedNode((previous) => {
       if (previous?.id === node.id) {
         return null;
       }
       if (graphRef.current) {
-        graphRef.current.centerAt(node.x, node.y, 450);
-        graphRef.current.zoom(1.65, 400);
+        graphRef.current.centerAt(node.x, node.y, 680);
+        graphRef.current.zoom(1.62, 760);
       }
       return node;
+    });
+  }, []);
+
+  const onNodeHover = useCallback((node) => {
+    setHoveredNode((previous) => {
+      const previousId = previous?.id || '';
+      const nextId = node?.id || '';
+      if (previousId === nextId) return previous;
+      return node || null;
     });
   }, []);
 
@@ -976,13 +1450,26 @@ export default function SocialPage() {
     if (loading || hasInitialAutoCenteredRef.current) return;
     if (visibleGraphData.nodes.length === 0) return;
 
-    const timerId = setTimeout(() => {
-      centerGraph(420, getResponsiveGraphPadding(130, 72));
-      hasInitialAutoCenteredRef.current = true;
-    }, 80);
+    const padding = getResponsiveGraphPadding(130, 72);
+    const timers = [];
 
-    return () => clearTimeout(timerId);
-  }, [centerGraph, getResponsiveGraphPadding, loading, visibleGraphData.nodes.length]);
+    if (prefersReducedMotion) {
+      timers.push(setTimeout(() => {
+        centerGraph(420, padding);
+        hasInitialAutoCenteredRef.current = true;
+      }, 80));
+    } else {
+      timers.push(setTimeout(() => {
+        centerGraph(0, padding + 104);
+      }, 40));
+      timers.push(setTimeout(() => {
+        centerGraph(1700, padding);
+        hasInitialAutoCenteredRef.current = true;
+      }, INITIAL_GRAPH_CENTER_DELAY_MS));
+    }
+
+    return () => timers.forEach((timerId) => clearTimeout(timerId));
+  }, [centerGraph, getResponsiveGraphPadding, loading, prefersReducedMotion, visibleGraphData.nodes.length]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -1021,6 +1508,7 @@ export default function SocialPage() {
 
   const handleShowAllNodes = useCallback(() => {
     setSearch('');
+    setHoveredNode(null);
     setSelectedNode(null);
   }, []);
 
@@ -1118,16 +1606,113 @@ export default function SocialPage() {
     }
   };
 
+  const linkCanvasObject = useCallback((link, ctx, globalScale) => {
+    const sourceId = getLinkNodeId(link.source);
+    const targetId = getLinkNodeId(link.target);
+    const sourceNode = typeof link.source === 'object' ? link.source : nodesById.get(sourceId);
+    const targetNode = typeof link.target === 'object' ? link.target : nodesById.get(targetId);
+    if (!sourceNode || !targetNode) return;
+
+    const scale = Math.max(globalScale, 0.75);
+    const frameNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const linkKey = makeLinkKey(sourceId, targetId);
+    const isHighlighted = focusState.highlightedLinkKeys.has(linkKey);
+    const pulse = 0.5 + (0.5 * Math.sin((frameNow * 0.0031) + ((hashString(linkKey) % 1000) * 0.006)));
+    const focusFade = focusState.active ? focusVisualProgress : 0;
+    const baseAlpha = focusState.active
+      ? (
+        isHighlighted
+          ? 0.11 + (focusFade * (0.1 + (pulse * 0.07)))
+          : 0.11 - (focusFade * 0.082)
+      )
+      : (link?.type === 'family-child' ? 0.2 : 0.11);
+    const baseWidth = ((link?.type === 'family-child' ? 1.65 : 1.08) / scale) + (isHighlighted ? ((0.24 + (focusFade * 0.24)) / scale) : 0);
+    const highlightColor = colorMap['--color-info'] || '#78AAAF';
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (isHighlighted) {
+      ctx.beginPath();
+      ctx.moveTo(sourceNode.x, sourceNode.y);
+      ctx.lineTo(targetNode.x, targetNode.y);
+      ctx.strokeStyle = toRgba(highlightColor, 0.22 + (pulse * 0.14));
+      ctx.lineWidth = baseWidth + (1.8 / scale);
+      ctx.shadowBlur = 18 / scale;
+      ctx.shadowColor = toRgba(highlightColor, 0.32 + (pulse * 0.18));
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(sourceNode.x, sourceNode.y);
+      ctx.lineTo(targetNode.x, targetNode.y);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.34 + (pulse * 0.18)})`;
+      ctx.lineWidth = baseWidth;
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(sourceNode.x, sourceNode.y);
+      ctx.lineTo(targetNode.x, targetNode.y);
+      ctx.strokeStyle = `rgba(156, 163, 175, ${baseAlpha})`;
+      ctx.lineWidth = baseWidth;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }, [colorMap, focusState, focusVisualProgress, nodesById]);
+
   const nodeCanvasObject = useCallback((node, ctx, globalScale) => {
     const label = getNodeLabel(node);
     const fillColor = getNodeFillColor(node, label, colorMap);
     const isChild = node.type === 'child';
-    const radius = isChild ? 17 : 19;
+    const baseRadius = isChild ? 17 : 19;
     const cacheItem = cacheRef.current[node.id];
     const hasImage = cacheItem && cacheItem !== 'loading';
     const isSelected = selectedNode?.id === node.id;
+    const isHovered = hoveredNode?.id === node.id;
+    const isFocusPrimary = focusState.primaryId === node.id;
+    const isFocusNeighbor = focusState.active && !isFocusPrimary && focusState.neighborIds.has(node.id);
+    const focusFade = focusState.active ? focusVisualProgress : 0;
+    const focusOpacity = !focusState.active
+      ? 1
+      : isFocusPrimary
+        ? 1
+        : isFocusNeighbor
+          ? 1 - (0.06 * focusFade)
+          : 1 - (0.78 * focusFade);
+    const entranceElapsed = prefersReducedMotion
+      ? INITIAL_GRAPH_ENTRANCE_MS
+      : Math.max(0, entranceNow - entranceStartRef.current);
+    const entranceProgress = prefersReducedMotion
+      ? 1
+      : getLayerRevealProgress(node?.type, entranceElapsed);
+    const radius = baseRadius * (0.9 + (entranceProgress * 0.1));
+    const frameNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const pulse = 0.5 + (0.5 * Math.sin((frameNow * 0.003) + ((hashString(node.id) % 1000) * 0.006)));
+
+    if (entranceProgress <= 0.01) {
+      return;
+    }
 
     ctx.save();
+    ctx.globalAlpha = (0.14 + (entranceProgress * 0.86)) * focusOpacity;
+
+    if (isFocusPrimary || isFocusNeighbor) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius + (isFocusPrimary ? 7.5 : 4.5), 0, 2 * Math.PI, false);
+      ctx.closePath();
+      ctx.fillStyle = toRgba(
+        fillColor,
+        (isFocusPrimary ? (0.18 + (pulse * 0.08)) : (0.1 + (pulse * 0.04))) * focusFade
+      );
+      ctx.shadowBlur = isFocusPrimary ? 22 : 12;
+      ctx.shadowColor = toRgba(fillColor, (isFocusPrimary ? 0.35 : 0.18) * focusFade);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
     ctx.closePath();
@@ -1153,20 +1738,22 @@ export default function SocialPage() {
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
     ctx.closePath();
-    ctx.lineWidth = isSelected ? 3 : 1.5;
-    ctx.strokeStyle = isSelected ? '#111827' : '#ffffff';
+    ctx.lineWidth = isSelected ? 3 : isHovered || isFocusPrimary ? 2.4 : 1.4;
+    ctx.strokeStyle = isSelected || isHovered || isFocusPrimary
+      ? '#111827'
+      : `rgba(255, 255, 255, ${focusState.active && !isFocusNeighbor ? (1 - (0.28 * focusFade)) : 1})`;
     ctx.stroke();
 
-    if (isSelected || globalScale > 1.25) {
+    if ((isSelected || isHovered || isFocusPrimary || isFocusNeighbor || globalScale > 1.25) && entranceProgress > 0.72) {
       const fontSize = 11 / Math.max(globalScale, 1);
       ctx.font = `${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = `rgba(17, 24, 39, ${focusState.active && !isFocusPrimary && !isFocusNeighbor ? (0.96 - (0.51 * focusFade)) : 0.96})`;
       ctx.fillText(label, node.x, node.y + radius + 3);
     }
     ctx.restore();
-  }, [colorMap, imageRenderTick, selectedNode?.id]);
+  }, [colorMap, entranceNow, focusState, focusVisualProgress, hoveredNode?.id, imageRenderTick, prefersReducedMotion, selectedNode?.id]);
 
   const selectedContact = extractVisibleContact(selectedNode?.contact);
   const selectedAmbienteLabel = useMemo(() => {
@@ -1283,14 +1870,6 @@ export default function SocialPage() {
                       />
                     </label>
                   </div>
-
-                  <button
-                    type="button"
-                    className="btn btn--outline btn--sm"
-                    onClick={resetGraphFilters}
-                  >
-                    Restablecer
-                  </button>
                 </div>
               </aside>
 
@@ -1306,13 +1885,16 @@ export default function SocialPage() {
                   height={dimensions.height}
                   graphData={graphData}
                   nodeRelSize={8}
-                  d3VelocityDecay={0.15}
+                  d3VelocityDecay={0.24}
                   d3AlphaDecay={0.01}
                   d3AlphaMin={0}
                   d3AlphaTarget={alphaTarget}
                   cooldownTime={Infinity}
+                  warmupTicks={90}
+                  linkCanvasObjectMode={() => 'replace'}
                   linkColor={() => '#9CA3AF'}
                   linkWidth={(link) => (link.type === 'family-child' ? 1.9 : 1.2)}
+                  linkCanvasObject={linkCanvasObject}
                   nodeVisibility={(node) => visibleNodeIds.has(node.id)}
                   linkVisibility={(link) => {
                     const sourceId = getLinkNodeId(link.source);
@@ -1321,14 +1903,66 @@ export default function SocialPage() {
                   }}
                   cooldownTicks={Infinity}
                   onNodeClick={onNodeClick}
-                  onBackgroundClick={() => setSelectedNode(null)}
+                  onNodeHover={onNodeHover}
+                  onBackgroundClick={() => {
+                    setSelectedNode(null);
+                    setHoveredNode(null);
+                  }}
                   nodeCanvasObject={nodeCanvasObject}
                   onRenderFramePre={(ctx, globalScale) => {
-                    drawUnifiedSocialBackground(ctx, globalScale, colorMap);
-                    Object.entries(AMBIENTE_CENTERS).forEach(([ambiente, { x, label }]) => {
+                    const frameNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+                    const entranceElapsed = prefersReducedMotion
+                      ? INITIAL_GRAPH_ENTRANCE_MS
+                      : Math.max(0, frameNow - entranceStartRef.current);
+                    const ambientRevealProgress = prefersReducedMotion
+                      ? 1
+                      : getLayerRevealProgress('ambiente', entranceElapsed);
+                    const nextPositions = new Map();
+                    const currentTrails = ghostTrailsRef.current.filter((trail) =>
+                      (frameNow - Number(trail?.createdAt || 0)) <= GHOST_TRAIL_DURATION_MS
+                    );
+
+                    visibleGraphData.nodes.forEach((node) => {
+                      const x = Number(node?.x);
+                      const y = Number(node?.y);
+                      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                      const previous = lastNodePositionsRef.current.get(node.id);
+                      if (previous && frameNow <= ghostTrailsUntilRef.current) {
+                        const moved = Math.hypot(x - previous.x, y - previous.y);
+                        if (moved > 4.2) {
+                          currentTrails.push({
+                            nodeId: node.id,
+                            x1: previous.x,
+                            y1: previous.y,
+                            x2: x,
+                            y2: y,
+                            createdAt: frameNow,
+                            color: getNodeFillColor(node, getNodeLabel(node), colorMap)
+                          });
+                        }
+                      }
+                      nextPositions.set(node.id, { x, y });
+                    });
+
+                    lastNodePositionsRef.current = nextPositions;
+                    ghostTrailsRef.current = currentTrails;
+
+                    drawUnifiedSocialBackground(
+                      ctx,
+                      globalScale,
+                      colorMap,
+                      frameNow,
+                      ambientRevealProgress,
+                      activeAmbienteKey
+                    );
+                    drawGhostTrails(ctx, globalScale, currentTrails, frameNow, focusState);
+
+                    Object.entries(AMBIENTE_CENTERS).forEach(([ambiente, { x, label }], index) => {
                       const ambienteColor = getAmbienteStrokeColor(ambiente, colorMap);
+                      const pulse = 0.94 + (Math.sin((frameNow * 0.00115) + (index * 1.4)) * 0.06);
+                      const emphasis = activeAmbienteKey === ambiente ? 1 : 0.82;
                       ctx.save();
-                      ctx.globalAlpha = 0.92;
+                      ctx.globalAlpha = (0.34 + (ambientRevealProgress * 0.58)) * emphasis * pulse;
                       ctx.font = `600 ${21 / Math.max(globalScale, 0.5)}px "Avenir Next", "Montserrat", sans-serif`;
                       ctx.fillStyle = ambienteColor;
                       ctx.textAlign = 'center';
@@ -1375,17 +2009,27 @@ export default function SocialPage() {
                             {selectedContact.map(([key, value]) => (
                               <div key={key} className="social-selected__contact-row">
                                 <strong>{contactLabels[key] || key}</strong>
-                                {key === 'whatsapp' ? (
-                                  <a
-                                    href={`https://wa.me/54${value.replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    {value}
-                                  </a>
-                                ) : (
-                                  <span>{value}</span>
-                                )}
+                                <div className="social-selected__contact-value">
+                                  {key === 'whatsapp' ? (
+                                    <a
+                                      href={`https://wa.me/54${value.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      {value}
+                                    </a>
+                                  ) : key === 'instagram' ? (
+                                    <a
+                                      href={getInstagramHref(value)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      {value.startsWith('@') ? value : `@${value.replace(/^@+/, '')}`}
+                                    </a>
+                                  ) : (
+                                    <span>{value}</span>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1523,4 +2167,3 @@ export default function SocialPage() {
     </div>
   );
 }
-
