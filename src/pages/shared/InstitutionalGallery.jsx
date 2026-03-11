@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import CategoryGrid from '../../components/gallery/viewer/CategoryGrid';
 import AlbumGrid from '../../components/gallery/viewer/AlbumGrid';
+import AlbumMosaic from '../../components/gallery/viewer/AlbumMosaic';
 import GalleryBreadcrumbs from '../../components/gallery/shared/GalleryBreadcrumbs';
 import { InstitutionalLightbox } from '../../components/gallery/shared/InstitutionalLightbox';
 import { institutionalGalleryService } from '../../services/institutionalGallery.service';
@@ -10,7 +11,7 @@ import { useAuth } from '../../hooks/useAuth';
 const InstitutionalGallery = () => {
   const location = useLocation();
   const { role } = useAuth();
-  const [currentView, setCurrentView] = useState('categories'); // 'categories' | 'albums' | 'media'
+  const [currentView, setCurrentView] = useState('categories'); // 'categories' | 'albums' | 'mosaic' | 'media'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [mediaItems, setMediaItems] = useState([]);
@@ -49,19 +50,13 @@ const InstitutionalGallery = () => {
           ? await institutionalGalleryService.getAlbumById(albumId)
           : { success: false };
 
-        if (albumId && !albumResult.success) {
-          throw new Error('album-not-found');
-        }
+        if (albumId && !albumResult.success) throw new Error('album-not-found');
 
         const resolvedCategoryId = categoryId || albumResult.album?.categoryId || '';
-        if (!resolvedCategoryId) {
-          throw new Error('category-missing');
-        }
+        if (!resolvedCategoryId) throw new Error('category-missing');
 
         const categoryResult = await institutionalGalleryService.getCategoryById(resolvedCategoryId);
-        if (!categoryResult.success) {
-          throw new Error('category-not-found');
-        }
+        if (!categoryResult.success) throw new Error('category-not-found');
 
         const allowedRoles = Array.isArray(categoryResult.category?.allowedRoles)
           ? categoryResult.category.allowedRoles
@@ -85,16 +80,14 @@ const InstitutionalGallery = () => {
         setSelectedAlbum(albumResult.album);
         setSelectedMediaIndex(0);
         setLoadingMedia(true);
-        setCurrentView('media');
+        setCurrentView('mosaic'); // land on mosaic, not lightbox
 
         const mediaResult = await institutionalGalleryService.getAlbumMedia(albumResult.album.id);
         if (cancelled) return;
 
         setMediaItems(mediaResult.success ? (mediaResult.media || []) : []);
       } catch {
-        if (!cancelled) {
-          resetToCategories();
-        }
+        if (!cancelled) resetToCategories();
       } finally {
         if (!cancelled) {
           setLoadingMedia(false);
@@ -104,10 +97,7 @@ const InstitutionalGallery = () => {
     };
 
     loadDeepLink();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [location.search, role]);
 
   const handleSelectCategory = (category) => {
@@ -117,49 +107,53 @@ const InstitutionalGallery = () => {
 
   const handleSelectAlbum = async (album) => {
     setSelectedAlbum(album);
-    setCurrentView('media');
     setSelectedMediaIndex(0);
     setLoadingMedia(true);
+    setCurrentView('mosaic');
     const result = await institutionalGalleryService.getAlbumMedia(album.id);
-    if (result.success) {
-      setMediaItems(result.media || []);
-    } else {
-      setMediaItems([]);
-    }
+    setMediaItems(result.success ? (result.media || []) : []);
     setLoadingMedia(false);
   };
 
-  const handleNavigate = (view, data = null) => {
-    setCurrentView(view);
+  const handleSelectMedia = (index) => {
+    setSelectedMediaIndex(index);
+    setCurrentView('media');
+  };
 
+  const handleNavigate = (view, data = null) => {
     if (view === 'categories') {
+      setCurrentView('categories');
       setSelectedCategory(null);
       setSelectedAlbum(null);
       setMediaItems([]);
       setSelectedMediaIndex(0);
     } else if (view === 'albums') {
+      setCurrentView('albums');
       setSelectedAlbum(null);
       setMediaItems([]);
       setSelectedMediaIndex(0);
       if (data) setSelectedCategory(data);
+    } else if (view === 'mosaic') {
+      // Return from lightbox to mosaic — preserve album and media
+      setCurrentView('mosaic');
+      setSelectedMediaIndex(0);
     }
   };
 
   const handleCloseMedia = () => {
-    setCurrentView('albums');
-    setSelectedAlbum(null);
-    setMediaItems([]);
+    // Return to mosaic, keep album and media loaded
+    setCurrentView('mosaic');
     setSelectedMediaIndex(0);
   };
 
   const showPrevMedia = () => {
     if (!mediaItems.length) return;
-    setSelectedMediaIndex((current) => (current - 1 + mediaItems.length) % mediaItems.length);
+    setSelectedMediaIndex((i) => (i - 1 + mediaItems.length) % mediaItems.length);
   };
 
   const showNextMedia = () => {
     if (!mediaItems.length) return;
-    setSelectedMediaIndex((current) => (current + 1) % mediaItems.length);
+    setSelectedMediaIndex((i) => (i + 1) % mediaItems.length);
   };
 
   return (
@@ -174,13 +168,12 @@ const InstitutionalGallery = () => {
       <GalleryBreadcrumbs
         category={selectedCategory}
         album={selectedAlbum}
+        currentView={currentView}
         onNavigate={handleNavigate}
       />
 
       <div className="gallery-content">
-        {loadingDeepLink && (
-          <div className="loading">Abriendo album...</div>
-        )}
+        {loadingDeepLink && <div className="loading">Abriendo album...</div>}
 
         {!loadingDeepLink && currentView === 'categories' && (
           <CategoryGrid onSelectCategory={handleSelectCategory} />
@@ -190,6 +183,14 @@ const InstitutionalGallery = () => {
           <AlbumGrid
             category={selectedCategory}
             onSelectAlbum={handleSelectAlbum}
+          />
+        )}
+
+        {!loadingDeepLink && currentView === 'mosaic' && selectedAlbum && (
+          <AlbumMosaic
+            items={mediaItems}
+            loading={loadingMedia}
+            onSelectItem={handleSelectMedia}
           />
         )}
 
