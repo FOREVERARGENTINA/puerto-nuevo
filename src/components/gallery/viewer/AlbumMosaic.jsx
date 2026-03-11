@@ -47,9 +47,12 @@ const MosaicTile = ({ item, index, isFirst, onClick }) => {
   const thumb = resolveThumb(item);
   const isVideo = item.tipo === 'video' || item.tipo === 'video-externo';
   const isPdf = item.tipo === 'pdf';
+  const label = item.title || item.fileName || item.tipo || 'Archivo';
 
   return (
     <button
+      type="button"
+      aria-label={label}
       className={`mosaic-tile${isFirst ? ' mosaic-tile--first' : ''}`}
       onClick={() => onClick(index)}
     >
@@ -89,6 +92,8 @@ const AlbumMosaic = ({ items, loading, onSelectItem }) => {
         ))}
         {showOverflow && (
           <button
+            type="button"
+            aria-label={`Ver ${overflowCount} archivos más`}
             className="mosaic-tile mosaic-tile--overflow"
             onClick={() => onSelectItem(VISIBLE_TILES)}
           >
