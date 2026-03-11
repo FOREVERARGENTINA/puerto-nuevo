@@ -2306,65 +2306,68 @@
 
 
 
-/* ==================== PLYR VIDEO PLAYER (lightbox) ==================== */
+/* ==================== VIDEO PLAYER (lightbox) ==================== */
 .institutional-lightbox__asset--video {
   width: 100%;
   max-height: 76vh;
+  display: block;
 }
 
-/* Plyr theme inside lightbox */
-.institutional-lightbox .plyr {
+.lightbox-video-wrapper {
+  position: relative;
   width: 100%;
   max-height: 76vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-video-wrapper video {
+  width: 100%;
+  max-height: 76vh;
+  display: block;
   border-radius: 12px;
-  overflow: hidden;
-  --plyr-color-main: #3a8d92;
-  --plyr-video-background: #000;
-  --plyr-control-spacing: 12px;
-  --plyr-control-radius: 8px;
-  --plyr-font-size-base: 14px;
 }
 
-/* Big centered play button */
-.institutional-lightbox .plyr__control--overlaid {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 2px solid rgba(255, 255, 255, 0.5) !important;
-  backdrop-filter: blur(8px);
-  width: 72px !important;
-  height: 72px !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: background 0.2s ease, transform 0.2s ease !important;
+/* Centered play overlay — shown when paused */
+.lightbox-video-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* Don't block the native controls at the bottom */
+  padding-bottom: 48px;
 }
 
-.institutional-lightbox .plyr__control--overlaid:hover {
-  background: rgba(255, 255, 255, 0.28) !important;
-  transform: scale(1.1) !important;
+.lightbox-video-play-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background 0.2s ease, transform 0.2s ease;
+  padding-left: 4px; /* optical center for play icon */
 }
 
-.institutional-lightbox .plyr__control--overlaid svg {
-  width: 28px !important;
-  height: 28px !important;
-  fill: white !important;
-  margin-left: 4px;
-}
-
-/* Controls bar */
-.institutional-lightbox .plyr__controls {
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%) !important;
-  padding: 16px 14px 10px !important;
-  border-radius: 0 0 12px 12px;
+.lightbox-video-play-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
 @media (max-width: 768px) {
-  .institutional-lightbox .plyr__control--overlaid {
-    width: 56px !important;
-    height: 56px !important;
+  .lightbox-video-play-btn {
+    width: 56px;
+    height: 56px;
   }
-  .institutional-lightbox .plyr__control--overlaid svg {
-    width: 22px !important;
-    height: 22px !important;
+  .lightbox-video-play-btn svg {
+    width: 24px;
+    height: 24px;
   }
 }

@@ -1,6 +1,4 @@
-import { useEffect, useRef } from 'react';
-import Plyr from 'plyr';
-import 'plyr/dist/plyr.css';
+import { useEffect, useRef, useState } from 'react';
 import { parseVideoUrl } from '../../../utils/galleryHelpers';
 
 const resolveMediaType = (item) => {
@@ -38,30 +36,37 @@ const IconNext = () => (
   </svg>
 );
 
-// Native video player with Plyr
-const PlyrVideo = ({ src }) => {
+// Video player with centered play overlay
+const VideoPlayer = ({ src }) => {
   const videoRef = useRef(null);
-  const playerRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  useEffect(() => {
-    if (!videoRef.current) return;
-    playerRef.current = new Plyr(videoRef.current, {
-      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'fullscreen'],
-      ratio: undefined,
-      hideControls: true,
-    });
-    return () => {
-      playerRef.current?.destroy();
-    };
-  }, [src]);
+  const handleOverlayClick = () => {
+    videoRef.current?.play();
+  };
 
   return (
-    <video
-      ref={videoRef}
-      src={src}
-      className="institutional-lightbox__asset institutional-lightbox__asset--video"
-      playsInline
-    />
+    <div className="lightbox-video-wrapper">
+      <video
+        ref={videoRef}
+        src={src}
+        controls
+        className="institutional-lightbox__asset institutional-lightbox__asset--video"
+        playsInline
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+      />
+      {!isPlaying && (
+        <div className="lightbox-video-play-overlay" onClick={handleOverlayClick}>
+          <div className="lightbox-video-play-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -125,7 +130,7 @@ export const InstitutionalLightbox = ({
               );
             }
             if (tipo === 'video') {
-              return <PlyrVideo key={item.url} src={item.url} />;
+              return <VideoPlayer key={item.url} src={item.url} />;
             }
             if (tipo === 'video-externo') {
               return (
