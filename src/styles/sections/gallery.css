@@ -2173,4 +2173,132 @@
   }
 }
 
+/* ==================== ALBUM MOSAIC ==================== */
+.album-mosaic {
+  animation: fadeIn 0.25s ease;
+}
+
+.mosaic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.mosaic-tile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--color-border);
+  border: none;
+  padding: 0;
+}
+
+.mosaic-tile--first {
+  grid-column: span 2;
+  grid-row: span 2;
+  aspect-ratio: auto;
+}
+
+.mosaic-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.mosaic-tile:hover img {
+  transform: scale(1.04);
+}
+
+.mosaic-tile-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+}
+
+/* Video overlay */
+.mosaic-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  transition: background 0.2s;
+}
+
+.mosaic-tile:hover .mosaic-play-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.mosaic-play-btn {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.mosaic-tile--first .mosaic-play-btn {
+  width: 48px;
+  height: 48px;
+}
+
+.mosaic-tile--first .mosaic-play-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mosaic-video-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  backdrop-filter: blur(4px);
+}
+
+.mosaic-video-badge--yt {
+  background: rgba(220, 0, 0, 0.8);
+}
+
+/* Overflow tile */
+.mosaic-tile--overflow {
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mosaic-tile--overflow span {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .mosaic-play-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .mosaic-tile--first .mosaic-play-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
 
