@@ -1656,92 +1656,110 @@
   animation: fadeIn 0.3s ease;
 }
 
-/* ==================== ALBUM FEED LIST (viewer) ==================== */
-.album-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* ==================== ALBUM CARDS GRID (viewer) ==================== */
+.album-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
-.album-feed-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 10px 12px;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-}
-
-.album-feed-row:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 2px 10px rgba(44, 107, 111, 0.1);
-}
-
-.album-feed-cover {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-md);
+.album-card-tile {
+  position: relative;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  flex-shrink: 0;
+  cursor: pointer;
   background: var(--color-background-alt);
-  border: 1px solid var(--color-border);
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.album-feed-cover img {
+.album-card-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.album-card-tile__cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-background-alt);
+}
+
+.album-card-tile__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.3s ease;
 }
 
-.album-feed-cover-placeholder {
+.album-card-tile:hover .album-card-tile__cover img {
+  transform: scale(1.05);
+}
+
+.album-card-tile__cover-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-light);
+  background: var(--color-background-alt);
 }
 
-.album-feed-meta {
-  flex: 1;
+/* Gradient overlay at bottom of cover */
+.album-card-tile__gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 40%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.album-card-tile__info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 1px;
 }
 
-.album-feed-name {
+.album-card-tile__name {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
-.album-feed-date {
+.album-card-tile__date {
   font-size: var(--font-size-xs);
-  color: var(--color-text-light);
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.album-feed-arrow {
-  font-size: 1.3rem;
-  color: var(--color-text-light);
-  flex-shrink: 0;
-  line-height: 1;
+@media (max-width: 768px) {
+  .album-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
 }
 
-@media (max-width: 480px) {
-  .album-feed-cover {
-    width: 52px;
-    height: 52px;
+@media (max-width: 400px) {
+  .album-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
 }
 

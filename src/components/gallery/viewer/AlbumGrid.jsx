@@ -32,16 +32,17 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
   return (
     <div className="album-grid-viewer">
       <h2>Álbumes de {category.name}</h2>
-      <div className="album-feed">
+      <div className="album-cards-grid">
         {albums.map(album => {
           const showThumb = album.thumbUrl && !brokenThumbs.has(album.id);
           return (
             <button
               key={album.id}
-              className="album-feed-row"
+              type="button"
+              className="album-card-tile"
               onClick={() => onSelectAlbum(album)}
             >
-              <div className="album-feed-cover">
+              <div className="album-card-tile__cover">
                 {showThumb ? (
                   <img
                     src={album.thumbUrl}
@@ -57,20 +58,20 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
                     }}
                   />
                 ) : (
-                  <div className="album-feed-cover-placeholder">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="24" height="24">
+                  <div className="album-card-tile__cover-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" width="36" height="36">
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <path d="M21 15l-5-5L5 21" />
                     </svg>
                   </div>
                 )}
+                <div className="album-card-tile__gradient" />
               </div>
-              <div className="album-feed-meta">
-                <span className="album-feed-name">{album.name}</span>
-                <span className="album-feed-date">{formatDate(album.createdAt)}</span>
+              <div className="album-card-tile__info">
+                <span className="album-card-tile__name">{album.name}</span>
+                <span className="album-card-tile__date">{formatDate(album.createdAt)}</span>
               </div>
-              <span className="album-feed-arrow">›</span>
             </button>
           );
         })}
