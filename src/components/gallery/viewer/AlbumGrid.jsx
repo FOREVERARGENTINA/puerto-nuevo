@@ -1,5 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { institutionalGalleryService } from '../../../services/institutionalGallery.service';
+
+const THUMB_SLOTS = 4;
 
 const AlbumGrid = ({ category, onSelectAlbum }) => {
   const [albums, setAlbums] = useState([]);
@@ -8,82 +10,62 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
 
   useEffect(() => {
     if (!category) return;
-
-    const loadAlbums = async () => {
+    const load = async () => {
       setLoading(true);
       const result = await institutionalGalleryService.getAlbumsByCategory(category.id);
-      if (result.success) {
-        setAlbums(result.albums);
-      }
+      if (result.success) setAlbums(result.albums);
       setLoading(false);
     };
-
-    loadAlbums();
+    load();
   }, [category]);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return '';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (loading) {
-    return <div className="loading">Cargando álbumes...</div>;
-  }
+  if (loading) return <div className="loading">Cargando álbumes...</div>;
 
   if (albums.length === 0) {
-    return (
-      <div className="empty-state">
-        <p>No hay álbumes en esta categoría</p>
-      </div>
-    );
+    return <div className="empty-state"><p>No hay álbumes en esta categoría</p></div>;
   }
 
   return (
     <div className="album-grid-viewer">
       <h2>Álbumes de {category.name}</h2>
-      <div className="albums-grid">
+      <div className="album-feed">
         {albums.map(album => {
-          const showPlaceholder = !album.thumbUrl || brokenThumbs.has(album.id);
+          const showThumb = album.thumbUrl && !brokenThumbs.has(album.id);
           return (
-          <div
-            key={album.id}
-            className="album-card-viewer"
-            onClick={() => onSelectAlbum(album)}
-          >
-            <div className="album-thumbnail">
-              {!showPlaceholder ? (
-                <img
-                  src={album.thumbUrl}
-                  alt={album.name}
-                  referrerPolicy="no-referrer"
-                  onError={() => {
-                    console.warn('Thumbnail fallido para álbum:', album.thumbUrl);
-                    setBrokenThumbs(prev => {
-                      const next = new Set(prev);
-                      next.add(album.id);
-                      return next;
-                    });
-                  }}
-                />
-              ) : (
-                <div className="album-placeholder">
-                  <span>Sin portada</span>
-                </div>
-              )}
-            </div>
-            <div className="album-info">
-              <h3>{album.name}</h3>
-              {album.description && (
-                <p className="album-description">{album.description}</p>
-              )}
-              <small className="album-date">{formatDate(album.createdAt)}</small>
-            </div>
-          </div>
+            <button
+              key={album.id}
+              className="album-feed-row"
+              onClick={() => onSelectAlbum(album)}
+            >
+              <div className="album-feed-thumbs">
+                {Array.from({ length: THUMB_SLOTS }).map((_, i) => (
+                  i === 0 && showThumb
+                    ? <img
+                        key={i}
+                        src={album.thumbUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        onError={() => setBrokenThumbs(prev => {
+                          const next = new Set(prev);
+                          next.add(album.id);
+                          return next;
+                        })}
+                      />
+                    : <div key={i} className="album-feed-thumb-placeholder" />
+                ))}
+              </div>
+              <div className="album-feed-meta">
+                <span className="album-feed-name">{album.name}</span>
+                <span className="album-feed-date">{formatDate(album.createdAt)}</span>
+              </div>
+              <span className="album-feed-arrow">›</span>
+            </button>
           );
         })}
       </div>
@@ -92,4 +74,3 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
 };
 
 export default AlbumGrid;
-
