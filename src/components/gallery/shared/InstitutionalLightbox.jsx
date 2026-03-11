@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 import { parseVideoUrl } from '../../../utils/galleryHelpers';
 
 const resolveMediaType = (item) => {
@@ -18,13 +20,49 @@ const resolveExternalEmbedUrl = (item) => {
   if (!item) return '';
   const fallbackUrl = item.embedUrl || item.url || '';
   if (!item.url || item.tipo !== 'video-externo') return fallbackUrl;
-
   const parsed = parseVideoUrl(item.url);
-  if (parsed?.valid && parsed.embedUrl) {
-    return parsed.embedUrl;
-  }
-
+  if (parsed?.valid && parsed.embedUrl) return parsed.embedUrl;
   return fallbackUrl;
+};
+
+// SVG arrows — centered perfectly in their container
+const IconPrev = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+const IconNext = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+    <polyline points="9 6 15 12 9 18" />
+  </svg>
+);
+
+// Native video player with Plyr
+const PlyrVideo = ({ src }) => {
+  const videoRef = useRef(null);
+  const playerRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    playerRef.current = new Plyr(videoRef.current, {
+      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'fullscreen'],
+      ratio: undefined,
+      hideControls: true,
+    });
+    return () => {
+      playerRef.current?.destroy();
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      className="institutional-lightbox__asset institutional-lightbox__asset--video"
+      playsInline
+    />
+  );
 };
 
 export const InstitutionalLightbox = ({
@@ -43,20 +81,9 @@ export const InstitutionalLightbox = ({
   useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        onPrev();
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        onNext();
-      }
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key === 'ArrowLeft') { event.preventDefault(); onPrev(); return; }
+      if (event.key === 'ArrowRight') { event.preventDefault(); onNext(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -68,24 +95,19 @@ export const InstitutionalLightbox = ({
     <div className="institutional-lightbox" onClick={onClose}>
       <div className="institutional-lightbox__header" onClick={(e) => e.stopPropagation()}>
         <div className="institutional-lightbox__title">{title}</div>
-        <button
-          onClick={onClose}
-          className="institutional-lightbox__close"
-          aria-label="Cerrar"
-        >
-          ×
+        <button onClick={onClose} className="institutional-lightbox__close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="18" height="18">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
 
       <div className="institutional-lightbox__stage" onClick={(e) => e.stopPropagation()}>
         <div className="institutional-lightbox__media">
           {hasMultipleItems && (
-            <button
-              onClick={onPrev}
-              className="institutional-lightbox__overlay-nav institutional-lightbox__overlay-nav--prev"
-              aria-label="Anterior"
-            >
-              ‹
+            <button onClick={onPrev} className="institutional-lightbox__overlay-nav institutional-lightbox__overlay-nav--prev" aria-label="Anterior">
+              <IconPrev />
             </button>
           )}
 
@@ -103,13 +125,7 @@ export const InstitutionalLightbox = ({
               );
             }
             if (tipo === 'video') {
-              return (
-                <video
-                  src={item.url}
-                  controls
-                  className="institutional-lightbox__asset institutional-lightbox__asset--video"
-                />
-              );
+              return <PlyrVideo key={item.url} src={item.url} />;
             }
             if (tipo === 'video-externo') {
               return (
@@ -133,12 +149,8 @@ export const InstitutionalLightbox = ({
           })()}
 
           {hasMultipleItems && (
-            <button
-              onClick={onNext}
-              className="institutional-lightbox__overlay-nav institutional-lightbox__overlay-nav--next"
-              aria-label="Siguiente"
-            >
-              ›
+            <button onClick={onNext} className="institutional-lightbox__overlay-nav institutional-lightbox__overlay-nav--next" aria-label="Siguiente">
+              <IconNext />
             </button>
           )}
         </div>

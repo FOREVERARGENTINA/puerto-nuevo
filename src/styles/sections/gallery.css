@@ -1794,8 +1794,10 @@
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  font-size: 22px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 
@@ -1848,38 +1850,34 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  background: rgba(18, 22, 28, 0.42);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: rgba(10, 14, 20, 0.5);
   color: #fff;
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 500;
   cursor: pointer;
   z-index: 2;
-  backdrop-filter: blur(6px);
-  transition: background 0.2s ease, transform 0.2s ease;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .institutional-lightbox__overlay-nav:hover {
-  background: rgba(38, 45, 56, 0.62);
-  transform: translateY(-50%) scale(1.04);
+  background: rgba(10, 14, 20, 0.75);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-50%) scale(1.08);
 }
 
 .institutional-lightbox__overlay-nav--prev {
-  left: 12px;
-  padding-right: 2px;
+  left: 16px;
 }
 
 .institutional-lightbox__overlay-nav--next {
-  right: 12px;
-  padding-left: 2px;
+  right: 16px;
 }
 
 .institutional-lightbox__state {
@@ -2078,7 +2076,6 @@
   .institutional-lightbox__overlay-nav {
     width: 40px;
     height: 40px;
-    font-size: 24px;
   }
 
   .institutional-lightbox__overlay-nav--prev {
@@ -2308,3 +2305,66 @@
 }
 
 
+
+/* ==================== PLYR VIDEO PLAYER (lightbox) ==================== */
+.institutional-lightbox__asset--video {
+  width: 100%;
+  max-height: 76vh;
+}
+
+/* Plyr theme inside lightbox */
+.institutional-lightbox .plyr {
+  width: 100%;
+  max-height: 76vh;
+  border-radius: 12px;
+  overflow: hidden;
+  --plyr-color-main: #3a8d92;
+  --plyr-video-background: #000;
+  --plyr-control-spacing: 12px;
+  --plyr-control-radius: 8px;
+  --plyr-font-size-base: 14px;
+}
+
+/* Big centered play button */
+.institutional-lightbox .plyr__control--overlaid {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(8px);
+  width: 72px !important;
+  height: 72px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.2s ease, transform 0.2s ease !important;
+}
+
+.institutional-lightbox .plyr__control--overlaid:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  transform: scale(1.1) !important;
+}
+
+.institutional-lightbox .plyr__control--overlaid svg {
+  width: 28px !important;
+  height: 28px !important;
+  fill: white !important;
+  margin-left: 4px;
+}
+
+/* Controls bar */
+.institutional-lightbox .plyr__controls {
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%) !important;
+  padding: 16px 14px 10px !important;
+  border-radius: 0 0 12px 12px;
+}
+
+@media (max-width: 768px) {
+  .institutional-lightbox .plyr__control--overlaid {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  .institutional-lightbox .plyr__control--overlaid svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
