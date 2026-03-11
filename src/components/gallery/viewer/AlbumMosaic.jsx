@@ -5,19 +5,38 @@
 // Shows up to 5 tiles + 1 overflow tile when items.length > 6.
 // Videos show a ▶ play overlay. External videos show provider badge.
 
+import { useRef } from 'react';
+
 const VISIBLE_TILES = 5;
+
+// For uploaded videos: loads only metadata, seeks to 1s to show a real frame
+const VideoThumbnail = ({ src }) => {
+  const ref = useRef(null);
+  const handleLoadedMetadata = () => {
+    if (ref.current) ref.current.currentTime = 1;
+  };
+  return (
+    <video
+      ref={ref}
+      src={src}
+      preload="metadata"
+      muted
+      playsInline
+      onLoadedMetadata={handleLoadedMetadata}
+    />
+  );
+};
 
 const resolveThumb = (item) => {
   if (item.tipo === 'imagen') return item.thumbUrl || item.url;
   if (item.tipo === 'video-externo') return item.thumbUrl || null;
-  return null; // 'video' and 'pdf' have no thumbnail
+  return null;
 };
 
 const VideoOverlay = ({ item }) => {
   const badge = item.tipo === 'video-externo'
     ? (item.provider === 'youtube' ? 'YT' : 'Vimeo')
     : 'VIDEO';
-
   return (
     <div className="mosaic-play-overlay">
       <div className="mosaic-play-btn">
@@ -45,7 +64,8 @@ const PdfOverlay = () => (
 
 const MosaicTile = ({ item, index, isFirst, onClick }) => {
   const thumb = resolveThumb(item);
-  const isVideo = item.tipo === 'video' || item.tipo === 'video-externo';
+  const isUploadedVideo = item.tipo === 'video';
+  const isVideo = isUploadedVideo || item.tipo === 'video-externo';
   const isPdf = item.tipo === 'pdf';
   const label = item.title || item.fileName || item.tipo || 'Archivo';
 
@@ -56,9 +76,11 @@ const MosaicTile = ({ item, index, isFirst, onClick }) => {
       className={`mosaic-tile${isFirst ? ' mosaic-tile--first' : ''}`}
       onClick={() => onClick(index)}
     >
-      {thumb
-        ? <img src={thumb} alt="" referrerPolicy="no-referrer" />
-        : <div className="mosaic-tile-placeholder" />
+      {isUploadedVideo
+        ? <VideoThumbnail src={item.url} />
+        : thumb
+          ? <img src={thumb} alt="" referrerPolicy="no-referrer" />
+          : <div className="mosaic-tile-placeholder" />
       }
       {isVideo && <VideoOverlay item={item} />}
       {isPdf && <PdfOverlay />}
@@ -66,7 +88,7 @@ const MosaicTile = ({ item, index, isFirst, onClick }) => {
   );
 };
 
-// onBack omitted — back navigation is handled by GalleryBreadcrumbs, not the mosaic itself
+// onBack omitted — back navigation is handled by GalleryBreadcrumbs
 const AlbumMosaic = ({ items, loading, onSelectItem }) => {
   if (loading) return <div className="loading">Cargando fotos...</div>;
 

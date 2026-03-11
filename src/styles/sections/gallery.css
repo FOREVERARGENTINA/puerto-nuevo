@@ -2206,7 +2206,8 @@
   aspect-ratio: auto;
 }
 
-.mosaic-tile img {
+.mosaic-tile img,
+.mosaic-tile video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2214,7 +2215,8 @@
   transition: transform 0.2s ease;
 }
 
-.mosaic-tile:hover img {
+.mosaic-tile:hover img,
+.mosaic-tile:hover video {
   transform: scale(1.04);
 }
 
