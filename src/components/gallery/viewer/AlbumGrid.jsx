@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { institutionalGalleryService } from '../../../services/institutionalGallery.service';
 
-// 4 slots per row; only slot 0 shows a real image (one thumbUrl per album).
-// Slots 1-3 are decorative grey placeholders by design.
-const THUMB_SLOTS = 4;
-
 const AlbumGrid = ({ category, onSelectAlbum }) => {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,28 +41,32 @@ const AlbumGrid = ({ category, onSelectAlbum }) => {
               className="album-feed-row"
               onClick={() => onSelectAlbum(album)}
             >
-              <div className="album-feed-thumbs">
-                {Array.from({ length: THUMB_SLOTS }).map((_, i) => (
-                  i === 0 && showThumb
-                    ? <img
-                        key={i}
-                        src={album.thumbUrl}
-                        alt=""
-                        referrerPolicy="no-referrer"
-                        onError={() => {
-                          console.warn('Thumbnail fallido para álbum:', album.thumbUrl);
-                          setBrokenThumbs(prev => {
-                            const next = new Set(prev);
-                            next.add(album.id);
-                            return next;
-                          });
-                        }}
-                      />
-                    : <div key={i} className="album-feed-thumb-placeholder" />
-                ))}
+              <div className="album-feed-cover">
+                {showThumb ? (
+                  <img
+                    src={album.thumbUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    onError={() => {
+                      console.warn('Thumbnail fallido para álbum:', album.thumbUrl);
+                      setBrokenThumbs(prev => {
+                        const next = new Set(prev);
+                        next.add(album.id);
+                        return next;
+                      });
+                    }}
+                  />
+                ) : (
+                  <div className="album-feed-cover-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="24" height="24">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                  </div>
+                )}
               </div>
               <div className="album-feed-meta">
-                {/* album.description intentionally omitted — compact list design */}
                 <span className="album-feed-name">{album.name}</span>
                 <span className="album-feed-date">{formatDate(album.createdAt)}</span>
               </div>
