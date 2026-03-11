@@ -2327,6 +2327,35 @@
 
 
 
+/* ==================== PROGRESSIVE IMAGE (lightbox) ==================== */
+.lightbox-progressive {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.lightbox-progressive__thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: blur(12px);
+  transform: scale(1.04);
+}
+
+.lightbox-progressive__full {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.lightbox-progressive__full--loaded {
+  opacity: 1;
+}
+
 /* ==================== VIDEO PLAYER (lightbox) ==================== */
 .institutional-lightbox__asset--video {
   width: 100%;

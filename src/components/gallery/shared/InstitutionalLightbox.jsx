@@ -23,6 +23,34 @@ const resolveExternalEmbedUrl = (item) => {
   return fallbackUrl;
 };
 
+// Progressive image: shows thumbUrl blurred while full-res loads, then crossfades
+const ProgressiveImage = ({ src, thumbUrl, alt, className }) => {
+  const [fullLoaded, setFullLoaded] = useState(false);
+
+  // Reset when src changes (navigating carousel)
+  useEffect(() => { setFullLoaded(false); }, [src]);
+
+  return (
+    <div className="lightbox-progressive">
+      {thumbUrl && !fullLoaded && (
+        <img
+          src={thumbUrl}
+          alt=""
+          className={`${className} lightbox-progressive__thumb`}
+          referrerPolicy="no-referrer"
+        />
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={`${className} lightbox-progressive__full${fullLoaded ? ' lightbox-progressive__full--loaded' : ''}`}
+        referrerPolicy="no-referrer"
+        onLoad={() => setFullLoaded(true)}
+      />
+    </div>
+  );
+};
+
 // SVG arrows — centered perfectly in their container
 const IconPrev = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
@@ -83,6 +111,19 @@ export const InstitutionalLightbox = ({
   const item = items?.[currentIndex];
   const hasMultipleItems = items.length > 1;
 
+  // Preload adjacent images so next/prev navigation is instant
+  useEffect(() => {
+    const preload = (index) => {
+      const adjacent = items[index];
+      if (adjacent && resolveMediaType(adjacent) === 'imagen' && adjacent.url) {
+        const img = new Image();
+        img.src = adjacent.url;
+      }
+    };
+    preload(currentIndex + 1);
+    preload(currentIndex - 1);
+  }, [currentIndex, items]);
+
   useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -122,8 +163,10 @@ export const InstitutionalLightbox = ({
             const tipo = resolveMediaType(item);
             if (tipo === 'imagen') {
               return (
-                <img
+                <ProgressiveImage
+                  key={item.url}
                   src={item.url}
+                  thumbUrl={item.thumbUrl}
                   alt={item.fileName || 'Imagen'}
                   className="institutional-lightbox__asset institutional-lightbox__asset--image"
                 />
