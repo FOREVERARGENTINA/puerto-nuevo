@@ -1,4 +1,4 @@
-const GalleryBreadcrumbs = ({ category, album, onNavigate }) => {
+const GalleryBreadcrumbs = ({ category, album, currentView, onNavigate }) => {
   return (
     <div className="gallery-breadcrumbs">
       <button
@@ -27,7 +27,16 @@ const GalleryBreadcrumbs = ({ category, album, onNavigate }) => {
       {album && (
         <>
           <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-current">{album.name}</span>
+          {currentView === 'media' ? (
+            <button
+              onClick={() => onNavigate('mosaic')}
+              className="breadcrumb-link"
+            >
+              {album.name}
+            </button>
+          ) : (
+            <span className="breadcrumb-current">{album.name}</span>
+          )}
         </>
       )}
     </div>
