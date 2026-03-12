@@ -315,6 +315,7 @@ const CHILD_AMBIENTE_STRENGTH = 0.014;
 const SOCIAL_TIDE_STRENGTH = 0.026;
 const AMBIENTE_BALANCE_STRENGTH = 0.11;
 const ORPHAN_CHILD_DRIFT_STRENGTH = 0.018;
+const DRAGGED_STAFF_ATTRACTION_STRENGTH = 0.014;
 const SIMULATION_ALPHA_TARGET = 0.008;
 const SIMULATION_ALPHA_TARGET_ACTIVE = 0.014;
 const SIMULATION_ALPHA_TARGET_INTRO = 0.004;
@@ -716,6 +717,43 @@ function createSocialTideForce(
   return force;
 }
 
+function createDraggedStaffAttractionForce(
+  getDragState = () => null,
+  strength = DRAGGED_STAFF_ATTRACTION_STRENGTH,
+  isVisible = () => true
+) {
+  let nodes = [];
+
+  function force(alpha) {
+    const dragState = typeof getDragState === 'function' ? getDragState() : null;
+    if (!dragState?.active) return;
+
+    const targetX = Number(dragState.x || 0);
+    const targetY = Number(dragState.y || 0);
+    const effectiveAlpha = Math.max(Number(alpha || 0), 0.06);
+
+    nodes.forEach((node) => {
+      if (!isVisible(node)) return;
+      if (node?.type !== 'child') return;
+
+      const dx = targetX - Number(node.x || 0);
+      const dy = targetY - Number(node.y || 0);
+      const distance = Math.hypot(dx, dy) || 1;
+      const distanceFactor = 0.22 + (Math.min(distance, 260) / 260);
+      const pullFactor = Math.min(0.028, strength * effectiveAlpha * distanceFactor);
+
+      node.vx = Number(node.vx || 0) + (dx * pullFactor);
+      node.vy = Number(node.vy || 0) + (dy * pullFactor);
+    });
+  }
+
+  force.initialize = (nextNodes) => {
+    nodes = Array.isArray(nextNodes) ? nextNodes : [];
+  };
+
+  return force;
+}
+
 const CONTACT_FIELDS = [
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'email', label: 'Email' },
@@ -752,6 +790,12 @@ export default function SocialPage() {
   const lastNodePositionsRef = useRef(new Map());
   const ghostTrailsRef = useRef([]);
   const ghostTrailsUntilRef = useRef(0);
+  const draggedStaffRef = useRef({
+    active: false,
+    nodeId: '',
+    x: 0,
+    y: 0
+  });
   const focusAuraAnimationFrameRef = useRef(null);
   const focusVisualProgressRef = useRef(0);
 
@@ -1294,6 +1338,11 @@ export default function SocialPage() {
       SOCIAL_TIDE_STRENGTH,
       (node) => roleVisibleNodeIdsRef.current.has(node?.id)
     ));
+    fg.d3Force('draggedStaffAttraction', createDraggedStaffAttractionForce(
+      () => draggedStaffRef.current,
+      DRAGGED_STAFF_ATTRACTION_STRENGTH,
+      (node) => roleVisibleNodeIdsRef.current.has(node?.id)
+    ));
 
     // Perturbación mínima continua para evitar que el sistema quede estático en equilibrio
     let noiseNodes = [];
@@ -1391,6 +1440,12 @@ export default function SocialPage() {
     lastNodePositionsRef.current = new Map();
     ghostTrailsRef.current = [];
     ghostTrailsUntilRef.current = 0;
+    draggedStaffRef.current = {
+      active: false,
+      nodeId: '',
+      x: 0,
+      y: 0
+    };
     setHoveredNode(null);
   }, [graphData.links.length, graphData.nodes.length]);
 
@@ -1415,6 +1470,43 @@ export default function SocialPage() {
       if (previousId === nextId) return previous;
       return node || null;
     });
+  }, []);
+
+  const handleNodeDrag = useCallback((node) => {
+    if (node?.type !== 'staff') return;
+
+    draggedStaffRef.current = {
+      active: true,
+      nodeId: String(node.id || ''),
+      x: Number(node.x || 0),
+      y: Number(node.y || 0)
+    };
+
+    ghostTrailsUntilRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + GHOST_TRAIL_DURATION_MS;
+    if (!entranceActiveRef.current) {
+      setAlphaTarget(SIMULATION_ALPHA_TARGET_ACTIVE);
+    }
+    if (typeof graphRef.current?.d3ReheatSimulation === 'function') {
+      graphRef.current.d3ReheatSimulation();
+    }
+  }, []);
+
+  const handleNodeDragEnd = useCallback((node) => {
+    if (node?.type !== 'staff') return;
+
+    draggedStaffRef.current = {
+      active: false,
+      nodeId: '',
+      x: 0,
+      y: 0
+    };
+
+    if (!entranceActiveRef.current) {
+      setAlphaTarget(SIMULATION_ALPHA_TARGET);
+    }
+    if (typeof graphRef.current?.d3ReheatSimulation === 'function') {
+      graphRef.current.d3ReheatSimulation();
+    }
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -1966,6 +2058,8 @@ export default function SocialPage() {
                   cooldownTicks={Infinity}
                   onNodeClick={onNodeClick}
                   onNodeHover={onNodeHover}
+                  onNodeDrag={handleNodeDrag}
+                  onNodeDragEnd={handleNodeDragEnd}
                   onBackgroundClick={() => {
                     setSelectedNode(null);
                     setHoveredNode(null);

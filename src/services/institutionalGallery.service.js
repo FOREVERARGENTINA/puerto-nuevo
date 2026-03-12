@@ -9,6 +9,7 @@
   query,
   where,
   orderBy,
+  limit,
   serverTimestamp
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -393,6 +394,31 @@ export const institutionalGalleryService = {
       return { success: true, media };
     } catch (error) {
       console.error('Error getting album media:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  async getAlbumCoverPreview(albumId, maxItems = 6) {
+    try {
+      const q = query(
+        mediaCollection,
+        where('albumId', '==', albumId),
+        orderBy('createdAt', 'desc'),
+        limit(Math.max(1, maxItems))
+      );
+      const snapshot = await getDocs(q);
+      const images = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(item => item.tipo === 'imagen' && (item.thumbUrl || item.url))
+        .slice(0, 4)
+        .map(item => ({
+          id: item.id,
+          url: item.thumbUrl || item.url
+        }));
+
+      return { success: true, images };
+    } catch (error) {
+      console.error('Error getting album cover preview:', error);
       return { success: false, error: error.message };
     }
   },
