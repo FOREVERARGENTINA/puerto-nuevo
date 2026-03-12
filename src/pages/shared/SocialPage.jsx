@@ -342,7 +342,7 @@ function normalizeAmbienteKey(value) {
 function buildStaffAnchorTargets(nodes) {
   const staffNodes = (Array.isArray(nodes) ? nodes : [])
     .filter((node) => node?.type === 'staff')
-    .sort((a, b) => getNodeLabel(a).localeCompare(getNodeLabel(b), 'es'));
+    .sort((a, b) => getNodeLayoutSeed(a) - getNodeLayoutSeed(b));
 
   const targets = new Map();
   const count = staffNodes.length;
@@ -354,8 +354,8 @@ function buildStaffAnchorTargets(nodes) {
   staffNodes.forEach((node, index) => {
     const ratio = count <= 1 ? 0.2 : index / (count - 1);
     const baseRadius = STAFF_ZONE.minRadius + Math.sqrt(ratio) * radialSpan;
-    const seed = hashString(node.id);
-    const angleNoise = ((seed % 1000) / 1000 - 0.5) * STAFF_ZONE.angleJitter;
+    const seed = Math.floor(getNodeLayoutSeed(node) * 1e9);
+    const angleNoise = (((seed % 1000) / 1000) - 0.5) * STAFF_ZONE.angleJitter;
     const radiusNoise = 1 + (((Math.floor(seed / 1000) % 1000) / 1000 - 0.5) * STAFF_ZONE.radiusJitter);
     const angle = index * goldenAngle + angleNoise;
     const radius = Math.max(STAFF_ZONE.minRadius, Math.min(STAFF_ZONE.maxRadius, baseRadius * radiusNoise));
@@ -493,7 +493,9 @@ function seedGraphLayout(data) {
   const familyTargets = buildFamilySeedTargets(nodes, links, childZoneTargets);
 
   nodes.forEach((node) => {
-    const seed = hashString(node.id);
+    const seed = node?.type === 'staff'
+      ? Math.floor(getNodeLayoutSeed(node) * 1e9)
+      : hashString(node.id);
     const jitterX = (((seed % 1000) / 1000) - 0.5) * (node?.type === 'staff' ? 10 : 16);
     const jitterY = ((((Math.floor(seed / 1000)) % 1000) / 1000) - 0.5) * (node?.type === 'staff' ? 10 : 16);
     const ambienteCenter = AMBIENTE_CENTERS[normalizeAmbienteKey(node?.ambiente)];
@@ -512,12 +514,6 @@ function seedGraphLayout(data) {
   });
 
   return { nodes, links };
-}
-
-function getNodeEntranceDelay(node) {
-  const seed = hashString(node?.id);
-  const typeOffset = getCuratorLayerDelay(node?.type);
-  return typeOffset + ((seed % 6) * 34);
 }
 
 function getInstagramHref(value) {
@@ -760,6 +756,7 @@ export default function SocialPage() {
   const focusVisualProgressRef = useRef(0);
 
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [hiddenNodeIds, setHiddenNodeIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -866,6 +863,7 @@ export default function SocialPage() {
     try {
       const data = await socialService.getSocialGraphData();
       setGraphData(seedGraphLayout(data));
+      setHiddenNodeIds(Array.isArray(data?.hiddenNodeIds) ? data.hiddenNodeIds : []);
     } catch (loadError) {
       setError(loadError.message || 'No se pudo cargar el mapa social');
     } finally {
@@ -1512,6 +1510,51 @@ export default function SocialPage() {
     setSelectedNode(null);
   }, []);
 
+  const handleHideSelectedNode = useCallback(async () => {
+    if (!isAdmin || !selectedNode?.id) return;
+
+    const nodeId = selectedNode.id;
+    const nodeName = normalizeText(selectedNode.displayName) || 'Perfil';
+
+    setSaving(true);
+    setError('');
+    try {
+      const result = await socialService.hideGraphNode(nodeId);
+      if (!result.success) {
+        throw new Error(result.error || 'No se pudo ocultar el perfil');
+      }
+
+      setSelectedNode(null);
+      setHoveredNode(null);
+      await refreshAll();
+      showSuccess(`${nodeName} ya no se muestra en el grafo`);
+    } catch (hideError) {
+      setError(hideError.message || 'No se pudo ocultar el perfil');
+    } finally {
+      setSaving(false);
+    }
+  }, [isAdmin, refreshAll, selectedNode, showSuccess]);
+
+  const handleShowAllHiddenNodes = useCallback(async () => {
+    if (!isAdmin || hiddenNodeIds.length === 0) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const result = await socialService.showAllGraphNodes();
+      if (!result.success) {
+        throw new Error(result.error || 'No se pudieron restaurar los perfiles ocultos');
+      }
+
+      await refreshAll();
+      showSuccess('Se volvieron a mostrar todos los perfiles ocultos');
+    } catch (restoreError) {
+      setError(restoreError.message || 'No se pudieron restaurar los perfiles ocultos');
+    } finally {
+      setSaving(false);
+    }
+  }, [hiddenNodeIds.length, isAdmin, refreshAll, showSuccess]);
+
   const handleContactChange = (field, value) => {
     setMyProfile((prev) => ({
       ...prev,
@@ -1801,6 +1844,16 @@ export default function SocialPage() {
                   Mostrar todos
                 </button>
               )}
+              {isAdmin && hiddenNodeIds.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn--outline btn--sm"
+                  onClick={handleShowAllHiddenNodes}
+                  disabled={saving}
+                >
+                  Mostrar ocultos ({hiddenNodeIds.length})
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn--outline btn--sm"
@@ -1869,6 +1922,15 @@ export default function SocialPage() {
                         onChange={() => toggleGraphFilter('showStaff')}
                       />
                     </label>
+                  </div>
+                  <div className="social-filters__actions">
+                    <button
+                      type="button"
+                      className="btn btn--outline btn--sm"
+                      onClick={resetGraphFilters}
+                    >
+                      Restablecer filtros
+                    </button>
                   </div>
                 </div>
               </aside>
@@ -2003,6 +2065,19 @@ export default function SocialPage() {
                             </div>
                           </div>
                         </div>
+
+                        {isAdmin && (
+                          <div className="social-selected__admin-actions">
+                            <button
+                              type="button"
+                              className="btn btn--outline btn--sm"
+                              onClick={handleHideSelectedNode}
+                              disabled={saving}
+                            >
+                              Ocultar del grafo
+                            </button>
+                          </div>
+                        )}
 
                         {selectedContact.length > 0 && (
                           <div className="social-selected__contact">

@@ -191,6 +191,8 @@ const InstitutionalGallery = () => {
             items={mediaItems}
             loading={loadingMedia}
             onSelectItem={handleSelectMedia}
+            dense={role === 'family'}
+            showLoadMore={role === 'family'}
           />
         )}
 

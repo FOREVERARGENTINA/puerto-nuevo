@@ -1,7 +1,7 @@
 ﻿const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { resendLimiter } = require('../utils/rateLimiter');
+const { mailLimiter } = require('../utils/rateLimiter');
 const {
   escapeHtml,
   toSafeHtmlParagraph,
@@ -12,7 +12,7 @@ const {
 const { maskEmail } = require('../utils/logging');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
-const resendApiKey = defineSecret('RESEND_API_KEY');
+const brevoApiKey = defineSecret('BREVO_API_KEY');
 
 function getSafeCommunicationBodyHtml(communicationData) {
   const richBodyHtml = sanitizeRichHtml(communicationData?.bodyRich || '');
@@ -22,7 +22,7 @@ function getSafeCommunicationBodyHtml(communicationData) {
 exports.onCommunicationCreated = onDocumentCreated(
   {
     document: 'communications/{commId}',
-    secrets: [resendApiKey],
+    secrets: [brevoApiKey],
   },
   async (event) => {
     const snapshot = event.data;
@@ -34,7 +34,7 @@ exports.onCommunicationCreated = onDocumentCreated(
     const commData = snapshot.data();
     const commId = event.params.commId;
 
-    console.log('Debug: RESEND_API_KEY present?', !!resendApiKey.value());
+    console.log('Debug: BREVO_API_KEY present?', !!brevoApiKey.value());
     console.log(`Nuevo comunicado creado: ${commId}`);
 
     // Paso 1: expandir destinatarios antes de cualquier envio.
@@ -201,7 +201,7 @@ exports.onCommunicationCreated = onDocumentCreated(
 
           if (email) {
             try {
-              if (resendApiKey.value()) {
+              if (brevoApiKey.value()) {
                 const studentList = parentToStudents[uid] ? parentToStudents[uid].join(', ') : null;
                 const safeStudentList = studentList ? escapeHtml(studentList) : null;
                 const safeBodyHtml = getSafeCommunicationBodyHtml(commData);
@@ -211,14 +211,14 @@ exports.onCommunicationCreated = onDocumentCreated(
                 const safePortalUrl = escapeHtml(getCommunicationPortalUrl(u.role, commId));
 
                 const payload = {
-                  from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
-                  to: email,
+                  sender: {
+                    name: 'Montessori Puerto Nuevo',
+                    email: 'info@montessoripuertonuevo.com.ar',
+                  },
+                  to: [{ email }],
                   subject:
                     (commData.title || 'Comunicado de la escuela') + (studentList ? ` - ${studentList}` : ''),
-                  headers: {
-                    'Content-Language': 'es-AR',
-                  },
-                  html: buildCommunicationEmailHtml({
+                  htmlContent: buildCommunicationEmailHtml({
                     safeStudentList,
                     safeBodyHtml,
                     attachmentsHtml,
@@ -227,19 +227,20 @@ exports.onCommunicationCreated = onDocumentCreated(
                   }),
                 };
 
-                const result = await resendLimiter.retryWithBackoff(async () => {
-                  const res = await fetch('https://api.resend.com/emails', {
+                const result = await mailLimiter.retryWithBackoff(async () => {
+                  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
                     method: 'POST',
                     headers: {
-                      Authorization: `Bearer ${resendApiKey.value()}`,
-                      'Content-Type': 'application/json',
+                      accept: 'application/json',
+                      'api-key': brevoApiKey.value(),
+                      'content-type': 'application/json',
                     },
                     body: JSON.stringify(payload),
                   });
 
                   if (!res.ok) {
                     const text = await res.text();
-                    const error = new Error(`Resend error: ${res.status} ${text}`);
+                    const error = new Error(`Brevo error: ${res.status} ${text}`);
                     error.status = res.status;
                     throw error;
                   }
@@ -250,7 +251,7 @@ exports.onCommunicationCreated = onDocumentCreated(
                 await statusRef.update({
                   status: 'sent',
                   attempts: admin.firestore.FieldValue.increment(1),
-                  resendMessageId: result.id || null,
+                  providerMessageId: result.messageId || null,
                   sentAt: admin.firestore.FieldValue.serverTimestamp(),
                   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -260,10 +261,10 @@ exports.onCommunicationCreated = onDocumentCreated(
               } else {
                 await statusRef.update({
                   status: 'queued',
-                  lastError: 'RESEND_API_KEY not configured',
+                  lastError: 'BREVO_API_KEY not configured',
                   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                console.log(`RESEND_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
+                console.log(`BREVO_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
               }
             } catch (err) {
               console.error(`Error enviando email a ${maskEmail(email)} (uid: ${uid}):`, err);
@@ -292,7 +293,7 @@ exports.onCommunicationCreated = onDocumentCreated(
 exports.onCommunicationUpdated = onDocumentUpdated(
   {
     document: 'communications/{commId}',
-    secrets: [resendApiKey],
+    secrets: [brevoApiKey],
   },
   async (event) => {
     const beforeSnap = event.data?.before;
@@ -366,15 +367,15 @@ exports.onCommunicationUpdated = onDocumentUpdated(
 
           if (email) {
             try {
-              if (resendApiKey.value()) {
+              if (brevoApiKey.value()) {
                 const payload = {
-                  from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
-                  to: email,
-                  subject: after.title || 'Comunicado de la escuela',
-                  headers: {
-                    'Content-Language': 'es-AR',
+                  sender: {
+                    name: 'Montessori Puerto Nuevo',
+                    email: 'info@montessoripuertonuevo.com.ar',
                   },
-                  html: buildCommunicationEmailHtml({
+                  to: [{ email }],
+                  subject: after.title || 'Comunicado de la escuela',
+                  htmlContent: buildCommunicationEmailHtml({
                     safeBodyHtml,
                     attachmentsHtml,
                     safePortalUrl,
@@ -382,19 +383,20 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                   }),
                 };
 
-                const result = await resendLimiter.retryWithBackoff(async () => {
-                  const res = await fetch('https://api.resend.com/emails', {
+                const result = await mailLimiter.retryWithBackoff(async () => {
+                  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
                     method: 'POST',
                     headers: {
-                      Authorization: `Bearer ${resendApiKey.value()}`,
-                      'Content-Type': 'application/json',
+                      accept: 'application/json',
+                      'api-key': brevoApiKey.value(),
+                      'content-type': 'application/json',
                     },
                     body: JSON.stringify(payload),
                   });
 
                   if (!res.ok) {
                     const text = await res.text();
-                    const error = new Error(`Resend error: ${res.status} ${text}`);
+                    const error = new Error(`Brevo error: ${res.status} ${text}`);
                     error.status = res.status;
                     throw error;
                   }
@@ -405,7 +407,7 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                 await statusRef.update({
                   status: 'sent',
                   attempts: admin.firestore.FieldValue.increment(1),
-                  resendMessageId: result.id || null,
+                  providerMessageId: result.messageId || null,
                   sentAt: admin.firestore.FieldValue.serverTimestamp(),
                   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -414,10 +416,10 @@ exports.onCommunicationUpdated = onDocumentUpdated(
               } else {
                 await statusRef.update({
                   status: 'queued',
-                  lastError: 'RESEND_API_KEY not configured',
+                  lastError: 'BREVO_API_KEY not configured',
                   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                console.log(`RESEND_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
+                console.log(`BREVO_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
               }
             } catch (err) {
               console.error(`Error enviando email con adjuntos a ${maskEmail(email)} (uid: ${uid}):`, err);

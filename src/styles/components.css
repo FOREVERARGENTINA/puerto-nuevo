@@ -11632,6 +11632,10 @@
   gap: 1px;
 }
 
+.social-filters__actions {
+  margin-top: 4px;
+}
+
 .social-filters__option {
   display: flex;
   align-items: center;
@@ -11820,6 +11824,13 @@
   align-items: flex-start;
   gap: 10px;
   padding-right: 78px;
+}
+
+.social-selected__admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
 }
 
 .social-selected__identity-content {

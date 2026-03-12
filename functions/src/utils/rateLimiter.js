@@ -1,7 +1,6 @@
 /**
- * Rate limiter para Resend API
- * Free tier: 2 requests/segundo
- * Usamos 1.5 req/s para margen de seguridad
+ * Rate limiter para proveedores de email API.
+ * Usamos 1.5 req/s para margen de seguridad.
  */
 
 class RateLimiter {
@@ -93,6 +92,9 @@ class RateLimiter {
 }
 
 // Singleton para compartir entre invocaciones
-const resendLimiter = new RateLimiter(1.5);
+const mailLimiter = new RateLimiter(1.5);
 
-module.exports = { resendLimiter };
+module.exports = {
+  mailLimiter,
+  resendLimiter: mailLimiter,
+};

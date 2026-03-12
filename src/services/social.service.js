@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -92,6 +94,20 @@ function toAmbienteList(rawValue) {
     return ambiente ? [ambiente] : [];
   }
   return [];
+}
+
+function toNodeIdList(rawValue) {
+  if (!Array.isArray(rawValue)) return [];
+  return Array.from(new Set(
+    rawValue
+      .map((item) => normalizeString(item))
+      .filter((item) => /^(family|child|staff):.+$/.test(item))
+  ));
+}
+
+function getSocialConfigRef() {
+  const [collectionName, docId] = SOCIAL_CONFIG_PATH;
+  return doc(db, collectionName, docId);
 }
 
 function getRoleListForStaff(user, hasTalleristaAssignments) {
@@ -213,34 +229,41 @@ function validateImageFile(file) {
 
 export const socialService = {
   async getSocialModuleConfig() {
-    const [collectionName, docId] = SOCIAL_CONFIG_PATH;
-    const configRef = doc(db, collectionName, docId);
+    const configRef = getSocialConfigRef();
     const snapshot = await getDoc(configRef);
     if (!snapshot.exists()) {
-      return { enabled: false, pilotFamilyUids: [] };
+      return { enabled: false, pilotFamilyUids: [], hiddenNodeIds: [] };
     }
     const data = snapshot.data() || {};
     const rawPilotUids = Array.isArray(data.pilotFamilyUids)
       ? data.pilotFamilyUids
       : (Array.isArray(data.previewUids) ? data.previewUids : []);
+    const hiddenNodeIds = toNodeIdList(data.hiddenNodeIds);
 
     return {
       enabled: Boolean(data.enabled),
       pilotFamilyUids: rawPilotUids
         .map((item) => normalizeString(item))
-        .filter(Boolean)
+        .filter(Boolean),
+      hiddenNodeIds
     };
   },
 
   async getSocialGraphData() {
     const usersQuery = query(usersCollection, where('role', 'in', SOCIAL_USER_ROLES));
-    const [usersSnap, childrenSnap, talleresSnap, socialProfilesSnap, childProfilesSnap] = await Promise.all([
+    const configRef = getSocialConfigRef();
+    const [usersSnap, childrenSnap, talleresSnap, socialProfilesSnap, childProfilesSnap, socialConfigSnap] = await Promise.all([
       getDocs(usersQuery),
       getDocs(childrenCollection),
       getDocs(talleresCollection),
       getDocs(socialProfilesCollection),
-      getDocs(childSocialProfilesCollection)
+      getDocs(childSocialProfilesCollection),
+      getDoc(configRef)
     ]);
+
+    const socialConfigData = socialConfigSnap.exists() ? (socialConfigSnap.data() || {}) : {};
+    const hiddenNodeIds = toNodeIdList(socialConfigData.hiddenNodeIds);
+    const hiddenNodeIdSet = new Set(hiddenNodeIds);
 
     const users = usersSnap.docs.map((userDoc) => ({ id: userDoc.id, ...(userDoc.data() || {}) }));
     const children = childrenSnap.docs.map((childDoc) => ({ id: childDoc.id, ...(childDoc.data() || {}) }));
@@ -313,29 +336,78 @@ export const socialService = {
           createLink(linkMap, SOCIAL_LINK_TYPES.FAMILY_CHILD, sourceId, childNodeId, ambiente);
         }
       });
-
-      staffUsers.forEach((staffUser) => {
-        const staffNodeId = `staff:${staffUser.id}`;
-        if (!nodeMap.has(staffNodeId) || !nodeMap.has(childNodeId)) return;
-
-        const docenteAmbientes = toAmbienteList(staffUser.tallerAsignado);
-        if (staffUser.role === 'docente' && ambiente && docenteAmbientes.includes(ambiente)) {
-          createLink(linkMap, SOCIAL_LINK_TYPES.DOCENTE_CHILD, staffNodeId, childNodeId, ambiente);
-        }
-      });
-
-      talleristaAmbientes.forEach((ambientesSet, uid) => {
-        const staffNodeId = `staff:${uid}`;
-        if (!nodeMap.has(staffNodeId) || !nodeMap.has(childNodeId)) return;
-        if (!ambiente || !ambientesSet.has(ambiente)) return;
-        createLink(linkMap, SOCIAL_LINK_TYPES.TALLERISTA_CHILD, staffNodeId, childNodeId, ambiente);
-      });
     });
 
+    const nodes = Array.from(nodeMap.values()).filter((node) => !hiddenNodeIdSet.has(node.id));
+    const visibleNodeIds = new Set(nodes.map((node) => node.id));
+    const links = Array.from(linkMap.values()).filter((link) =>
+      visibleNodeIds.has(link.source) && visibleNodeIds.has(link.target)
+    );
+
     return {
-      nodes: Array.from(nodeMap.values()),
-      links: Array.from(linkMap.values())
+      nodes,
+      links,
+      hiddenNodeIds
     };
+  },
+
+  async getHiddenGraphNodeIds() {
+    const configRef = getSocialConfigRef();
+    const snapshot = await getDoc(configRef);
+    const data = snapshot.exists() ? (snapshot.data() || {}) : {};
+    return {
+      success: true,
+      hiddenNodeIds: toNodeIdList(data.hiddenNodeIds)
+    };
+  },
+
+  async hideGraphNode(nodeId) {
+    const safeNodeId = normalizeString(nodeId);
+    if (!/^(family|child|staff):.+$/.test(safeNodeId)) {
+      return { success: false, error: 'nodeId inválido' };
+    }
+
+    const configRef = getSocialConfigRef();
+    await setDoc(
+      configRef,
+      {
+        hiddenNodeIds: arrayUnion(safeNodeId),
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+    return { success: true };
+  },
+
+  async showGraphNode(nodeId) {
+    const safeNodeId = normalizeString(nodeId);
+    if (!/^(family|child|staff):.+$/.test(safeNodeId)) {
+      return { success: false, error: 'nodeId inválido' };
+    }
+
+    const configRef = getSocialConfigRef();
+    await setDoc(
+      configRef,
+      {
+        hiddenNodeIds: arrayRemove(safeNodeId),
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+    return { success: true };
+  },
+
+  async showAllGraphNodes() {
+    const configRef = getSocialConfigRef();
+    await setDoc(
+      configRef,
+      {
+        hiddenNodeIds: [],
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+    return { success: true };
   },
 
   async getMySocialProfile(uid) {

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Album View — Ideas de Diseño</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #2d2d2d; padding: 32px 24px; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; color: #1a1a1a; }
+  .subtitle { font-size: 0.95rem; color: #666; margin-bottom: 40px; }
+
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+
+  .option {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .option:hover { border-color: #4a9a8a; box-shadow: 0 6px 24px rgba(74,154,138,0.15); transform: translateY(-2px); }
+  .option.selected { border-color: #4a9a8a; box-shadow: 0 6px 24px rgba(74,154,138,0.2); }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .letter {
+    width: 28px; height: 28px;
+    background: #4a9a8a;
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .option-label h3 { font-size: 1rem; font-weight: 600; }
+
+  .mockup-area { padding: 16px; background: #fafaf9; }
+
+  /* ── OPCIÓN A: Grid de miniaturas ── */
+  .grid-mock {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .grid-mock .thumb {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .grid-mock .thumb:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+    aspect-ratio: auto;
+  }
+  .count-badge {
+    position: absolute; bottom: 6px; right: 6px;
+    background: rgba(0,0,0,0.55);
+    color: white; font-size: 0.7rem; font-weight: 600;
+    padding: 2px 7px; border-radius: 999px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ── OPCIÓN B: Hero + strip ── */
+  .hero-mock { border-radius: 8px; overflow: hidden; }
+  .hero-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; position: relative; }
+  .hero-img-wrap { position: relative; }
+  .hero-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 20px 14px 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+    color: white;
+  }
+  .hero-overlay h4 { font-size: 1rem; font-weight: 700; }
+  .hero-overlay small { font-size: 0.75rem; opacity: 0.8; }
+  .strip { display: flex; gap: 4px; padding: 4px 0 0; }
+  .strip-thumb { flex: 1; aspect-ratio: 1; border-radius: 4px; overflow: hidden; }
+  .strip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .strip-thumb.more {
+    background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 0.8rem; font-weight: 600;
+  }
+
+  /* ── OPCIÓN C: Lista tipo feed ── */
+  .feed-mock { display: flex; flex-direction: column; gap: 8px; }
+  .feed-row {
+    display: flex; gap: 10px; align-items: center;
+    background: white; border-radius: 10px;
+    padding: 8px; border: 1px solid #eee;
+  }
+  .feed-thumb { width: 56px; height: 56px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+  .feed-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .feed-meta { flex: 1; }
+  .feed-meta h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+  .feed-meta small { font-size: 0.72rem; color: #888; }
+  .feed-arrow { color: #ccc; font-size: 1rem; }
+
+  .desc { padding: 14px 20px 16px; }
+  .desc p { font-size: 0.88rem; color: #555; line-height: 1.55; }
+  .tag { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.73rem; font-weight: 600; }
+  .tag.premium { background: #f0faf8; color: #4a9a8a; }
+  .tag.simple { background: #f0f4ff; color: #5566bb; }
+  .tag.warm { background: #fff5f0; color: #c0622a; }
+
+  .selected-hint { text-align: center; margin-top: 32px; font-size: 0.85rem; color: #4a9a8a; min-height: 20px; }
+</style>
+</head>
+<body>
+
+<h1>¿Cómo ver las fotos del álbum antes del carrusel?</h1>
+<p class="subtitle">Tres ideas premium y simples para mostrar el álbum "Marzo" al abrirlo. Hacé clic en la que más te guste.</p>
+
+<div class="options">
+
+  <!-- OPCIÓN A: Mosaico tipo Google Photos -->
+  <div class="option" onclick="select(this,'a')">
+    <div class="option-label">
+      <div class="letter">A</div>
+      <h3>Mosaico de fotos</h3>
+    </div>
+    <div class="mockup-area">
+      <div class="grid-mock">
+        <div class="thumb" style="grid-column:span 2; grid-row:span 2;">
+          <img src="https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=300&q=70" alt="">
+        </div>
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=150&q=70" alt=""></div>
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1516627145497-ae6968895b40?w=150&q=70" alt=""></div>
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=150&q=70" alt=""></div>
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1471286174890-9c112ac6a02e?w=150&q=70" alt=""></div>
+        <div class="thumb" style="position:relative">
+          <img src="https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=150&q=70" alt="">
+          <span class="count-badge">+18</span>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <p>Grid asimétrico: foto grande destacada + miniaturas. Clic en cualquiera abre el carrusel en esa posición.</p>
+      <span class="tag premium">★ Recomendado</span>
+      <span class="tag simple">Fácil de implementar</span>
+    </div>
+  </div>
+
+  <!-- OPCIÓN B: Hero + filmstrip -->
+  <div class="option" onclick="select(this,'b')">
+    <div class="option-label">
+      <div class="letter">B</div>
+      <h3>Hero con tira de fotos</h3>
+    </div>
+    <div class="mockup-area">
+      <div class="hero-mock">
+        <div class="hero-img-wrap">
+          <img class="hero-img" src="https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=400&q=70" alt="">
+          <div class="hero-overlay">
+            <h4>Marzo</h4>
+            <small>22 fotos · 06/03/2026</small>
+          </div>
+        </div>
+        <div class="strip">
+          <div class="strip-thumb"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&q=60" alt=""></div>
+          <div class="strip-thumb"><img src="https://images.unsplash.com/photo-1516627145497-ae6968895b40?w=100&q=60" alt=""></div>
+          <div class="strip-thumb"><img src="https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=100&q=60" alt=""></div>
+          <div class="strip-thumb more">+19</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <p>Foto principal grande con info encima, más una tira de miniaturas abajo para previsualizar. Clic en la tira o en el hero abre el carrusel.</p>
+      <span class="tag warm">Estilo editorial</span>
+    </div>
+  </div>
+
+  <!-- OPCIÓN C: Lista tipo timeline -->
+  <div class="option" onclick="select(this,'c')">
+    <div class="option-label">
+      <div class="letter">C</div>
+      <h3>Lista con previsualización</h3>
+    </div>
+    <div class="mockup-area">
+      <div class="feed-mock">
+        <div class="feed-row">
+          <div class="feed-thumb"><img src="https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=120&q=70" alt=""></div>
+          <div class="feed-meta">
+            <h4>Juego en el patio</h4>
+            <small>8 fotos · Lunes 3 marzo</small>
+          </div>
+          <span class="feed-arrow">›</span>
+        </div>
+        <div class="feed-row">
+          <div class="feed-thumb"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=120&q=70" alt=""></div>
+          <div class="feed-meta">
+            <h4>Arte con acuarelas</h4>
+            <small>5 fotos · Martes 4 marzo</small>
+          </div>
+          <span class="feed-arrow">›</span>
+        </div>
+        <div class="feed-row">
+          <div class="feed-thumb"><img src="https://images.unsplash.com/photo-1516627145497-ae6968895b40?w=120&q=70" alt=""></div>
+          <div class="feed-meta">
+            <h4>Hora de lectura</h4>
+            <small>9 fotos · Miércoles 5 marzo</small>
+          </div>
+          <span class="feed-arrow">›</span>
+        </div>
+      </div>
+    </div>
+    <div class="desc">
+      <p>Álbum dividido en sub-grupos por día o actividad. Cada fila abre su propio carrusel. Requiere que las fotos tengan títulos/agrupación.</p>
+      <span class="tag simple">Más estructurado</span>
+    </div>
+  </div>
+
+</div>
+
+<p class="selected-hint" id="hint">↑ Hacé clic en una opción para seleccionarla</p>
+
+<script>
+function select(el, choice) {
+  document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('hint').textContent = 'Seleccionaste: Opción ' + choice.toUpperCase() + ' — ahora escribí en la terminal qué te parece';
+}
+</script>
+
+</body>
+</html>

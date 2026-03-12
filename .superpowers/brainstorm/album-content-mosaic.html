@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mosaico de álbum — con videos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #2d2d2d; padding: 32px 24px; }
+  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 0.9rem; color: #666; margin-bottom: 28px; }
+
+  .album-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .back-btn {
+    background: white; border: 1px solid #e0e0e0;
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 0.82rem; color: #555; cursor: pointer;
+  }
+  .album-title { font-size: 1.2rem; font-weight: 700; }
+  .album-meta { font-size: 0.82rem; color: #888; margin-top: 2px; }
+
+  /* ── MOSAIC GRID ── */
+  .mosaic {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #e8e8e8;
+  }
+
+  .tile {
+    position: relative;
+    aspect-ratio: 1;
+    cursor: pointer;
+    overflow: hidden;
+    background: #ddd;
+  }
+  .tile:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+    aspect-ratio: auto;
+  }
+  .tile img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    transition: transform 0.2s ease;
+  }
+  .tile:hover img { transform: scale(1.04); }
+
+  /* Video overlay */
+  .play-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.25);
+    transition: background 0.2s;
+  }
+  .tile:hover .play-overlay { background: rgba(0,0,0,0.35); }
+  .play-btn {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .play-btn svg { width: 16px; height: 16px; margin-left: 2px; fill: #1a1a1a; }
+
+  /* Large tile play btn */
+  .tile:first-child .play-btn { width: 52px; height: 52px; }
+  .tile:first-child .play-btn svg { width: 22px; height: 22px; }
+
+  /* Video type badge */
+  .video-badge {
+    position: absolute; top: 6px; left: 6px;
+    background: rgba(0,0,0,0.55);
+    color: white; font-size: 0.65rem; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(4px);
+  }
+
+  /* More badge */
+  .more-tile {
+    aspect-ratio: 1;
+    background: #1a1a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    color: white;
+  }
+  .more-tile span { font-size: 1.3rem; font-weight: 700; }
+  .more-tile small { font-size: 0.7rem; opacity: 0.6; margin-top: 3px; }
+
+  .legend {
+    margin-top: 20px;
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; color: #555;
+  }
+  .legend-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+  }
+  .legend-icon.photo { background: #e8f4f0; }
+  .legend-icon.video { background: #1a1a1a; color: white; }
+  .legend-icon.yt { background: #ff0000; color: white; }
+
+  .note {
+    margin-top: 20px;
+    background: white; border-radius: 10px;
+    padding: 14px 16px; font-size: 0.84rem;
+    color: #555; line-height: 1.6;
+    border-left: 3px solid #4a9a8a;
+  }
+  .note strong { color: #2d2d2d; }
+</style>
+</head>
+<body>
+
+<h1>Vista del álbum — Mosaico con fotos y videos</h1>
+<p class="subtitle">Así se vería "Marzo" al abrirlo. Los videos tienen el ícono ▶ superpuesto.</p>
+
+<div class="album-header">
+  <button class="back-btn">← Álbumes</button>
+  <div>
+    <div class="album-title">Marzo</div>
+    <div class="album-meta">22 archivos · 06/03/2026</div>
+  </div>
+</div>
+
+<div class="mosaic">
+
+  <!-- Tile grande: VIDEO subido -->
+  <div class="tile">
+    <img src="https://images.unsplash.com/photo-1544776193-352d25ca82cd?w=400&q=70" alt="">
+    <div class="play-overlay">
+      <div class="play-btn">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>
+    <span class="video-badge">VIDEO</span>
+  </div>
+
+  <!-- Fotos normales -->
+  <div class="tile">
+    <img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=200&q=70" alt="">
+  </div>
+  <div class="tile">
+    <img src="https://images.unsplash.com/photo-1516627145497-ae6968895b40?w=200&q=70" alt="">
+  </div>
+
+  <!-- Video de YouTube -->
+  <div class="tile">
+    <img src="https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=200&q=70" alt="">
+    <div class="play-overlay">
+      <div class="play-btn">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>
+    <span class="video-badge" style="background:rgba(220,0,0,0.8)">YT</span>
+  </div>
+
+  <!-- Foto -->
+  <div class="tile">
+    <img src="https://images.unsplash.com/photo-1471286174890-9c112ac6a02e?w=200&q=70" alt="">
+  </div>
+
+  <!-- Más -->
+  <div class="tile more-tile">
+    <span>+17</span>
+    <small>más archivos</small>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-icon photo">🖼</div>
+    <span>Foto — se abre directo en carrusel</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-icon video">▶</div>
+    <span>Video subido — badge "VIDEO", se reproduce en carrusel</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-icon yt">▶</div>
+    <span>YouTube/Vimeo — badge "YT", se embebe en carrusel</span>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Comportamiento al hacer clic:</strong> cualquier tile (foto, video, o +17) abre el carrusel existente en esa posición. El mosaico es solo la pantalla de entrada — el lightbox no cambia.
+</div>
+
+</body>
+</html>

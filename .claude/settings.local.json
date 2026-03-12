@@ -35,7 +35,11 @@
       "Bash(powershell -Command \"\\(Get-Item ''E:\\\\Aideas\\\\PUERTO NUEVO\\\\public\\\\pwa\\\\icon-master.png''\\).Length\")",
       "mcp__firebase__firebase_get_environment",
       "mcp__firebase__firestore_query_collection",
-      "mcp__firebase__firebase_read_resources"
+      "mcp__firebase__firebase_read_resources",
+      "Read(//c/Users/casa/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.1/**)",
+      "Bash(bash scripts/start-server.sh --project-dir \"D:/Aideas/PUERTO NUEVO\")",
+      "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-view-options.html\")",
+      "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-content-mosaic.html\")"
     ],
     "deny": [],
     "ask": []

@@ -5,9 +5,10 @@
 // Shows up to 5 tiles + 1 overflow tile when items.length > 6.
 // Videos show a ▶ play overlay. External videos show provider badge.
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-const VISIBLE_TILES = 5;
+const DEFAULT_VISIBLE_TILES = 5;
+const DENSE_VISIBLE_TILES = 11;
 
 // For uploaded videos: loads only metadata, seeks to 1s to show a real frame
 const VideoThumbnail = ({ src }) => {
@@ -62,6 +63,41 @@ const PdfOverlay = () => (
   </div>
 );
 
+const EmptyAlbumState = () => (
+  <section className="album-mosaic-empty" aria-live="polite">
+    <div className="album-mosaic-empty__visual" aria-hidden="true">
+      <div className="album-mosaic-empty__orb album-mosaic-empty__orb--primary" />
+      <div className="album-mosaic-empty__orb album-mosaic-empty__orb--accent" />
+      <div className="album-mosaic-empty__frame">
+        <div className="album-mosaic-empty__shine" />
+        <div className="album-mosaic-empty__preview album-mosaic-empty__preview--hero">
+          <span />
+        </div>
+        <div className="album-mosaic-empty__preview-grid">
+          <div className="album-mosaic-empty__preview">
+            <span />
+          </div>
+          <div className="album-mosaic-empty__preview album-mosaic-empty__preview--video">
+            <span />
+          </div>
+          <div className="album-mosaic-empty__preview album-mosaic-empty__preview--document">
+            <span />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="album-mosaic-empty__content">
+      <span className="album-mosaic-empty__eyebrow">Album en preparacion</span>
+      <h3>Este espacio todavia no tiene contenido publicado</h3>
+      <p>
+        Cuando la escuela suba fotos, videos o material del album, van a aparecer aca con una presentacion
+        mucho mas rica.
+      </p>
+    </div>
+  </section>
+);
+
 const MosaicTile = ({ item, index, isFirst, onClick }) => {
   const thumb = resolveThumb(item);
   const isUploadedVideo = item.tipo === 'video';
@@ -89,20 +125,35 @@ const MosaicTile = ({ item, index, isFirst, onClick }) => {
 };
 
 // onBack omitted — back navigation is handled by GalleryBreadcrumbs
-const AlbumMosaic = ({ items, loading, onSelectItem }) => {
+const AlbumMosaic = ({ items, loading, onSelectItem, dense = false, showLoadMore = false }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [items, dense, showLoadMore]);
+
   if (loading) return <div className="loading">Cargando fotos...</div>;
 
   if (!items.length) {
-    return <div className="empty-state"><p>No hay archivos en este álbum</p></div>;
+    return <EmptyAlbumState />;
   }
 
-  const showOverflow = items.length > VISIBLE_TILES + 1;
-  const visibleItems = showOverflow ? items.slice(0, VISIBLE_TILES) : items;
-  const overflowCount = items.length - VISIBLE_TILES;
+  const visibleTiles = dense ? DENSE_VISIBLE_TILES : DEFAULT_VISIBLE_TILES;
+  const hasMoreItems = items.length > visibleTiles;
+  const showOverflow = !showLoadMore && items.length > visibleTiles + 1;
+  const visibleItems = showLoadMore
+    ? (isExpanded ? items : items.slice(0, visibleTiles))
+    : (showOverflow ? items.slice(0, visibleTiles) : items);
+  const overflowCount = items.length - visibleTiles;
+  const gridColumns = dense ? 4 : 3;
+  const renderedTileCount = visibleItems.length + (showOverflow ? 1 : 0);
+  const fillerCount = renderedTileCount > 0
+    ? (gridColumns - (renderedTileCount % gridColumns || gridColumns)) % gridColumns
+    : 0;
 
   return (
-    <div className="album-mosaic">
-      <div className="mosaic-grid">
+    <div className={`album-mosaic${dense ? ' album-mosaic--dense' : ''}`}>
+      <div className={`mosaic-grid${dense ? ' mosaic-grid--dense' : ''}`}>
         {visibleItems.map((item, i) => (
           <MosaicTile
             key={item.id || i}
@@ -117,12 +168,32 @@ const AlbumMosaic = ({ items, loading, onSelectItem }) => {
             type="button"
             aria-label={`Ver ${overflowCount} archivos más`}
             className="mosaic-tile mosaic-tile--overflow"
-            onClick={() => onSelectItem(VISIBLE_TILES)}
+            onClick={() => onSelectItem(visibleTiles)}
           >
             <span>+{overflowCount}</span>
           </button>
         )}
+        {Array.from({ length: fillerCount }).map((_, index) => (
+          <div
+            key={`filler-${index}`}
+            className="mosaic-tile mosaic-tile--filler"
+            aria-hidden="true"
+          >
+            <div className="mosaic-tile-filler__glow" />
+          </div>
+        ))}
       </div>
+      {showLoadMore && hasMoreItems && !isExpanded && (
+        <div className="album-mosaic__actions">
+          <button
+            type="button"
+            className="btn btn--outline btn--sm"
+            onClick={() => setIsExpanded(true)}
+          >
+            Ver más ({overflowCount})
+          </button>
+        </div>
+      )}
     </div>
   );
 };

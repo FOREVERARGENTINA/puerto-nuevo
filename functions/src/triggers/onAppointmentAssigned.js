@@ -1,15 +1,15 @@
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { resendLimiter } = require('../utils/rateLimiter');
+const { mailLimiter } = require('../utils/rateLimiter');
 const { escapeHtml } = require('../utils/sanitize');
 
-const resendApiKey = defineSecret('RESEND_API_KEY');
+const brevoApiKey = defineSecret('BREVO_API_KEY');
 
 exports.onAppointmentAssigned = onDocumentUpdated(
   {
     document: 'appointments/{appointmentId}',
-    secrets: [resendApiKey]
+    secrets: [brevoApiKey]
   },
   async (event) => {
     const beforeSnap = event.data.before;
@@ -67,7 +67,7 @@ exports.onAppointmentAssigned = onDocumentUpdated(
       for (const uDoc of usersSnap.docs) {
         const user = uDoc.data();
         const email = user.email || null;
-        if (!email || !resendApiKey.value()) continue;
+        if (!email || !brevoApiKey.value()) continue;
 
         const safeFechaTexto = escapeHtml(fechaTexto);
         const safeChildName = childName ? escapeHtml(childName) : '';
@@ -89,27 +89,28 @@ exports.onAppointmentAssigned = onDocumentUpdated(
         `;
 
         try {
-          await resendLimiter.retryWithBackoff(async () => {
-            const res = await fetch('https://api.resend.com/emails', {
+          await mailLimiter.retryWithBackoff(async () => {
+            const res = await fetch('https://api.brevo.com/v3/smtp/email', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${resendApiKey.value()}`,
-                'Content-Type': 'application/json'
+                'accept': 'application/json',
+                'api-key': brevoApiKey.value(),
+                'content-type': 'application/json'
               },
               body: JSON.stringify({
-                from: 'Montessori Puerto Nuevo <info@montessoripuertonuevo.com.ar>',
-                to: email,
-                subject,
-                headers: {
-                  'Content-Language': 'es-AR'
+                sender: {
+                  name: 'Montessori Puerto Nuevo',
+                  email: 'info@montessoripuertonuevo.com.ar'
                 },
-                html
+                to: [{ email }],
+                subject,
+                htmlContent: html
               })
             });
 
             if (!res.ok) {
               const text = await res.text();
-              throw new Error(`Resend error: ${res.status} ${text}`);
+              throw new Error(`Brevo error: ${res.status} ${text}`);
             }
             return await res.json();
           });
