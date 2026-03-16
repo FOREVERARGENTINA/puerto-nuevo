@@ -52,7 +52,6 @@ const BookAppointment = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [earliestAllowed, setEarliestAllowed] = useState(null);
   const [focusedAppointmentId, setFocusedAppointmentId] = useState('');
-  const [notificationContext, setNotificationContext] = useState(null);
 
   const getMonthRange = (date) => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -285,10 +284,6 @@ const BookAppointment = () => {
 
     if (!matchingAppointment) {
       setFocusedAppointmentId('');
-      setNotificationContext({
-        type: 'warning',
-        message: 'La notificacion abre Turnos, pero ese turno ya no aparece en tu agenda.'
-      });
       setSearchParams(nextSearchParams, { replace: true });
       return;
     }
@@ -308,10 +303,6 @@ const BookAppointment = () => {
     ));
     setIsHistoryOpen(!isUpcomingReserved);
     setFocusedAppointmentId(matchingAppointment.id);
-    setNotificationContext({
-      type: 'info',
-      message: `Te llevamos a Turnos y resaltamos ${formatDateTime(matchingAppointment.fechaHora)}.`
-    });
     setSearchParams(nextSearchParams, { replace: true });
   }, [loading, myAppointments, requestedAppointmentId, searchParams, setSearchParams]);
 
@@ -409,28 +400,6 @@ const BookAppointment = () => {
           <p className="dashboard-subtitle">Reservá turnos y consultá tu agenda.</p>
         </div>
       </div>
-
-      {notificationContext && (
-        <div
-          className={`alert ${notificationContext.type === 'warning' ? 'alert--warning' : 'alert--info'} appointments-notification-context`}
-          role="status"
-        >
-          <div>
-            <strong>Notificacion de turnos</strong>
-            <div>{notificationContext.message}</div>
-          </div>
-          <button
-            type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => {
-              setNotificationContext(null);
-              setFocusedAppointmentId('');
-            }}
-          >
-            Ocultar
-          </button>
-        </div>
-      )}
 
       {/*
         DOM order matches the desired mobile stack:

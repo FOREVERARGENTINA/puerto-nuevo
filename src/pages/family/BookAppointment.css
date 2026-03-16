@@ -24,19 +24,6 @@
   gap: var(--spacing-md);
 }
 
-.page-container .appointments-notification-context {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
-}
-
-.page-container .appointments-notification-context strong {
-  display: block;
-  margin-bottom: var(--spacing-xs);
-}
-
 .page-container .upcoming-appointment-item--highlighted,
 .page-container .my-appointment-item--highlighted {
   border-color: var(--color-primary);
@@ -46,10 +33,6 @@
 /* En mobile el panel de horarios del desktop se oculta;
    los horarios ya aparecen dentro del calendario (mobile-slots) */
 @media (max-width: 768px) {
-  .page-container .appointments-notification-context {
-    flex-direction: column;
-  }
-
   /* Mobile con próximos turnos: arriba "Próximos turnos". */
   .page-container .appointments-manager-layout--family-has-upcoming .appointments-upcoming-panel {
     order: 1;
@@ -136,3 +119,4 @@
     display: none;
   }
 }
+
