@@ -57,12 +57,14 @@ export function NotificationDropdown({
       <div className="notification-content">
         <h4>{notif.title}</h4>
         <p>{notif.message}</p>
-        {notif.actionLabel && (
+        {!reminderTypes.has(notif.type) && notif.actionLabel && (
           <span className="notification-action">{notif.actionLabel}</span>
         )}
-        <span className="notification-time">
-          {formatRelativeTime(notif.timestamp)}
-        </span>
+        {!reminderTypes.has(notif.type) && (
+          <span className="notification-time">
+            {formatRelativeTime(notif.timestamp)}
+          </span>
+        )}
       </div>
       <div className="notification-item__aside">
         {notif.urgent && <span className="urgent-badge">Importante</span>}
