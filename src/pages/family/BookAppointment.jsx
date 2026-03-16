@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentsService } from '../../services/appointments.service';
 import { childrenService } from '../../services/children.service';
@@ -7,8 +8,36 @@ import { useDialog } from '../../hooks/useDialog';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
 import './BookAppointment.css';
 
+const getAppointmentDate = (value) => (
+  value?.toDate ? value.toDate() : new Date(value)
+);
+
+const formatTime = (timestamp) => {
+  const date = getAppointmentDate(timestamp);
+  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatDateTime = (timestamp) => {
+  const date = getAppointmentDate(timestamp);
+  return date.toLocaleString('es-AR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const getAppointmentModeLabel = (value) => {
+  if (value === 'virtual') return 'Virtual';
+  if (value === 'presencial') return 'Presencial';
+  return 'Sin definir';
+};
+
 const BookAppointment = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [availableAppointments, setAvailableAppointments] = useState([]);
   const [myAppointments, setMyAppointments] = useState([]);
   const [appointmentNotes, setAppointmentNotes] = useState({});
@@ -22,6 +51,8 @@ const BookAppointment = () => {
   const [isMobileSlotsOpen, setIsMobileSlotsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [earliestAllowed, setEarliestAllowed] = useState(null);
+  const [focusedAppointmentId, setFocusedAppointmentId] = useState('');
+  const [notificationContext, setNotificationContext] = useState(null);
 
   const getMonthRange = (date) => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -30,6 +61,7 @@ const BookAppointment = () => {
   };
 
   const alertDialog = useDialog();
+  const requestedAppointmentId = searchParams.get('appointmentId')?.trim() || '';
 
   const loadAvailableAppointments = async () => {
     const { start, end } = getMonthRange(currentMonth);
@@ -190,10 +222,6 @@ const BookAppointment = () => {
     return { daysInMonth, startingDayOfWeek, year, month };
   };
 
-  const getAppointmentDate = (value) => (
-    value?.toDate ? value.toDate() : new Date(value)
-  );
-
   const getAppointmentsForDate = (date) => {
     const dateString = date.toISOString().split('T')[0];
     return availableAppointments.filter(app => {
@@ -226,29 +254,6 @@ const BookAppointment = () => {
     }
   }, [selectedDate]);
 
-  const formatTime = (timestamp) => {
-    const date = getAppointmentDate(timestamp);
-    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDateTime = (timestamp) => {
-    const date = getAppointmentDate(timestamp);
-    return date.toLocaleString('es-AR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getAppointmentModeLabel = (value) => {
-    if (value === 'virtual') return 'Virtual';
-    if (value === 'presencial') return 'Presencial';
-    return 'Sin definir';
-  };
-
   const getSlotSummary = (appointment) => {
     if (appointment?.modalidad === 'virtual' || appointment?.modalidad === 'presencial') {
       return `${appointment.duracionMinutos} min • ${getAppointmentModeLabel(appointment.modalidad)}`;
@@ -269,6 +274,57 @@ const BookAppointment = () => {
         return dateA - dateB;
       });
   };
+
+  useEffect(() => {
+    if (!requestedAppointmentId || loading) return;
+
+    const matchingAppointment = myAppointments.find((appointment) => appointment.id === requestedAppointmentId);
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('appointmentId');
+    nextSearchParams.delete('source');
+
+    if (!matchingAppointment) {
+      setFocusedAppointmentId('');
+      setNotificationContext({
+        type: 'warning',
+        message: 'La notificacion abre Turnos, pero ese turno ya no aparece en tu agenda.'
+      });
+      setSearchParams(nextSearchParams, { replace: true });
+      return;
+    }
+
+    const appointmentDate = getAppointmentDate(matchingAppointment.fechaHora);
+    const isUpcomingReserved = matchingAppointment.estado === 'reservado' && appointmentDate >= new Date();
+
+    setCurrentMonth((currentValue) => {
+      const sameMonth = currentValue.getFullYear() === appointmentDate.getFullYear()
+        && currentValue.getMonth() === appointmentDate.getMonth();
+      return sameMonth ? currentValue : new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), 1);
+    });
+    setSelectedDate(new Date(
+      appointmentDate.getFullYear(),
+      appointmentDate.getMonth(),
+      appointmentDate.getDate()
+    ));
+    setIsHistoryOpen(!isUpcomingReserved);
+    setFocusedAppointmentId(matchingAppointment.id);
+    setNotificationContext({
+      type: 'info',
+      message: `Te llevamos a Turnos y resaltamos ${formatDateTime(matchingAppointment.fechaHora)}.`
+    });
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [loading, myAppointments, requestedAppointmentId, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!focusedAppointmentId) return;
+
+    const appointmentElement = document.querySelector(`[data-appointment-id="${focusedAppointmentId}"]`);
+    if (!appointmentElement) return;
+
+    window.requestAnimationFrame(() => {
+      appointmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [focusedAppointmentId, isHistoryOpen, myAppointments]);
 
   if (loading) {
     return (
@@ -309,6 +365,9 @@ const BookAppointment = () => {
   const appointmentHistory = myAppointments
     .filter(app => !upcomingAppointmentIds.has(app.id))
     .sort((a, b) => getAppointmentDate(b.fechaHora) - getAppointmentDate(a.fechaHora));
+  const visibleUpcomingAppointments = focusedAppointmentId && upcomingAppointmentIds.has(focusedAppointmentId)
+    ? upcomingAppointments
+    : upcomingAppointments.slice(0, 3);
   const dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -351,6 +410,28 @@ const BookAppointment = () => {
         </div>
       </div>
 
+      {notificationContext && (
+        <div
+          className={`alert ${notificationContext.type === 'warning' ? 'alert--warning' : 'alert--info'} appointments-notification-context`}
+          role="status"
+        >
+          <div>
+            <strong>Notificacion de turnos</strong>
+            <div>{notificationContext.message}</div>
+          </div>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setNotificationContext(null);
+              setFocusedAppointmentId('');
+            }}
+          >
+            Ocultar
+          </button>
+        </div>
+      )}
+
       {/*
         DOM order matches the desired mobile stack:
           - Con próximo turno: upcoming -> calendario -> extras
@@ -377,8 +458,14 @@ const BookAppointment = () => {
 
                 {upcomingAppointments.length > 0 ? (
                   <div className="upcoming-appointments-list">
-                    {upcomingAppointments.slice(0, 3).map(app => (
-                      <div key={app.id} className="upcoming-appointment-item">
+                    {visibleUpcomingAppointments.map(app => (
+                      <div
+                        key={app.id}
+                        data-appointment-id={app.id}
+                        className={`upcoming-appointment-item ${
+                          focusedAppointmentId === app.id ? 'upcoming-appointment-item--highlighted' : ''
+                        }`}
+                      >
                         <div className="appointment-details">
                           <div className="appointment-datetime">{formatDateTime(app.fechaHora)}</div>
                           <div className="appointment-note">Modalidad: {getAppointmentModeLabel(app.modalidad)}</div>
@@ -645,7 +732,13 @@ const BookAppointment = () => {
                           const isPast = appDate < new Date();
                           const note = appointmentNotes[app.id];
                           return (
-                            <div key={app.id} className={`my-appointment-item my-appointment-item--${app.estado}`}>
+                            <div
+                              key={app.id}
+                              data-appointment-id={app.id}
+                              className={`my-appointment-item my-appointment-item--${app.estado} ${
+                                focusedAppointmentId === app.id ? 'my-appointment-item--highlighted' : ''
+                              }`}
+                            >
                               <div className="appointment-datetime">
                                 {formatDateTime(app.fechaHora)}
                               </div>
@@ -705,12 +798,3 @@ const BookAppointment = () => {
 };
 
 export default BookAppointment;
-
-
-
-
-
-
-
-
-

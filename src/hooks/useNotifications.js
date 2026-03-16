@@ -84,6 +84,52 @@ const formatSnackDate = (dateStr) => {
   });
 };
 
+const getAppointmentModeLabel = (value) => {
+  if (value === 'virtual') return 'Virtual';
+  if (value === 'presencial') return 'Presencial';
+  return '';
+};
+
+const buildAppointmentNotificationMessage = (appointment) => {
+  const appointmentDate = toDateSafe(appointment?.fechaHora);
+  const parts = [];
+
+  if (appointmentDate) {
+    parts.push(appointmentDate.toLocaleDateString('es-AR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric'
+    }));
+    parts.push(`${appointmentDate.toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })} hs`);
+  }
+
+  if (appointment?.hijoNombre) {
+    parts.push(appointment.hijoNombre);
+  }
+
+  const modeLabel = getAppointmentModeLabel(appointment?.modalidad);
+  if (modeLabel) {
+    parts.push(modeLabel);
+  }
+
+  return parts.join(' - ') || 'Hay un turno pendiente para revisar';
+};
+
+const buildAppointmentActionUrl = (baseUrl, appointmentId) => {
+  if (!appointmentId) return baseUrl;
+
+  const searchParams = new URLSearchParams({
+    appointmentId: String(appointmentId),
+    source: 'notification'
+  });
+
+  return `${baseUrl}?${searchParams.toString()}`;
+};
+
 const getSnackAssignedDate = (snack) => (
   toDateSafe(snack?.assignedAt)
   || toDateSafe(snack?.updatedAt)
@@ -633,10 +679,11 @@ export function useNotifications() {
       id: `assigned-${appt.id}`,
       type: 'turno-asignado',
       title: 'Turno asignado',
-      message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
+      message: buildAppointmentNotificationMessage(appt),
       timestamp: assignedDate || new Date(),
       urgent: true,
-      actionUrl: appointmentsUrl,
+      actionUrl: buildAppointmentActionUrl(appointmentsUrl, appt.id),
+      actionLabel: 'Abrir en Turnos',
       metadata: {
         appointmentId: appt.id,
         assignedAtMs: assignedDate?.getTime() || 0
@@ -688,19 +735,39 @@ export function useNotifications() {
       : fallbackId;
   };
 
-  const assignedIds = new Set(assignedAppointments.map((appt) => appt.id));
-  const assignedSnackIds = new Set(assignedSnacks.map((snack) => snack.id));
+  const visibleAssignedNotifications = dismissedHydrated
+    ? assignedNotifications.filter((notif) => (
+        !dismissedAppointmentAssignedKeys.includes(getAppointmentAssignedDismissKey(notif))
+      ))
+    : [];
+  const visibleAssignedAppointmentIds = new Set(
+    visibleAssignedNotifications
+      .map((notification) => notification.metadata?.appointmentId)
+      .filter(Boolean)
+  );
+
+  const visibleAssignedSnackNotifications = dismissedHydrated
+    ? assignedSnackNotifications.filter((notif) => (
+        !dismissedSnackAssignedKeys.includes(getSnackAssignedDismissKey(notif))
+      ))
+    : [];
+  const visibleAssignedSnackIds = new Set(
+    visibleAssignedSnackNotifications
+      .map((notification) => notification.metadata?.assignmentId)
+      .filter(Boolean)
+  );
 
   const upcomingNotifications = upcomingAppointments
-    .filter((appt) => !assignedIds.has(appt.id))
+    .filter((appt) => !visibleAssignedAppointmentIds.has(appt.id))
     .map((appt) => ({
       id: `appt-${appt.id}`,
       type: 'turno',
       title: 'Turno proximo',
-      message: `Turno el ${appt.fechaHora?.toDate().toLocaleDateString('es-AR')}`,
+      message: buildAppointmentNotificationMessage(appt),
       timestamp: appt.createdAt?.toDate() || new Date(),
       urgent: false,
-      actionUrl: appointmentsUrl,
+      actionUrl: buildAppointmentActionUrl(appointmentsUrl, appt.id),
+      actionLabel: 'Abrir en Turnos',
       metadata: { appointmentId: appt.id }
     }));
 
@@ -811,21 +878,13 @@ export function useNotifications() {
       metadata: { documentId: doc.documentId, receiptId: doc.id }
     })),
     ...(
-      dismissedHydrated
-        ? assignedNotifications.filter((notif) => (
-            !dismissedAppointmentAssignedKeys.includes(getAppointmentAssignedDismissKey(notif))
-          ))
-        : []
+      visibleAssignedNotifications
     ),
     ...(
-      dismissedHydrated
-        ? assignedSnackNotifications.filter((notif) => (
-            !dismissedSnackAssignedKeys.includes(getSnackAssignedDismissKey(notif))
-          ))
-        : []
+      visibleAssignedSnackNotifications
     ),
     ...upcomingSnacks
-      .filter((snack) => !assignedSnackIds.has(snack.id))
+      .filter((snack) => !visibleAssignedSnackIds.has(snack.id))
       .map((snack) => ({
         id: `snack-${snack.id}`,
         type: 'snack',

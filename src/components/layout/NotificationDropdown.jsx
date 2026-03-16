@@ -10,10 +10,22 @@ export function NotificationDropdown({
 }) {
   const navigate = useNavigate();
   const hasAdminSummary = Array.isArray(adminSummaryItems) && adminSummaryItems.length > 0;
+  const reminderTypes = new Set(['turno', 'turno-asignado', 'snack', 'snack-asignado']);
+  const regularNotifications = notifications.filter((notification) => !reminderTypes.has(notification.type));
+  const reminderNotifications = notifications.filter((notification) => reminderTypes.has(notification.type));
+  const visibleNotifications = [...regularNotifications, ...reminderNotifications].slice(0, 10);
+  const visibleIds = new Set(visibleNotifications.map((notification) => notification.id));
+  const visibleRegularNotifications = regularNotifications.filter((notification) => visibleIds.has(notification.id));
+  const visibleReminderNotifications = reminderNotifications.filter((notification) => visibleIds.has(notification.id));
 
   const handleNotificationClick = async (notification) => {
     if (typeof onNotificationClick === 'function') {
       onNotificationClick(notification);
+    }
+
+    if (!notification?.actionUrl) {
+      onClose();
+      return;
     }
 
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
@@ -21,11 +33,45 @@ export function NotificationDropdown({
     onClose();
   };
 
+  const handleNotificationKeyDown = (event, notification) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    void handleNotificationClick(notification);
+  };
+
   const handleSummaryClick = (item) => {
     if (!item?.route) return;
     navigate(item.route);
     onClose();
   };
+
+  const renderNotificationItem = (notif) => (
+    <div
+      key={notif.id}
+      className={`notification-item ${notif.urgent ? 'notification-item--urgent' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => handleNotificationClick(notif)}
+      onKeyDown={(event) => handleNotificationKeyDown(event, notif)}
+    >
+      <div className="notification-content">
+        <h4>{notif.title}</h4>
+        <p>{notif.message}</p>
+        {notif.actionLabel && (
+          <span className="notification-action">{notif.actionLabel}</span>
+        )}
+        <span className="notification-time">
+          {formatRelativeTime(notif.timestamp)}
+        </span>
+      </div>
+      <div className="notification-item__aside">
+        {notif.urgent && <span className="urgent-badge">Importante</span>}
+        <span className="notification-item__arrow" aria-hidden="true">
+          <Icon name="chevron-right" size={16} />
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="notification-dropdown">
@@ -60,27 +106,28 @@ export function NotificationDropdown({
       ) : (
         <>
           <div className="notification-list">
-            {notifications.slice(0, 10).map((notif) => (
-              <div
-                key={notif.id}
-                className={`notification-item ${notif.urgent ? 'notification-item--urgent' : ''}`}
-                onClick={() => handleNotificationClick(notif)}
-              >
-                <div className="notification-content">
-                  <h4>{notif.title}</h4>
-                  <p>{notif.message}</p>
-                  <span className="notification-time">
-                    {formatRelativeTime(notif.timestamp)}
-                  </span>
-                </div>
-                {notif.urgent && <span className="urgent-badge">Importante</span>}
+            {visibleRegularNotifications.length > 0 && (
+              <div className="notification-section">
+                {visibleReminderNotifications.length > 0 && (
+                  <div className="notification-section__header">Nuevas</div>
+                )}
+                {visibleRegularNotifications.map(renderNotificationItem)}
               </div>
-            ))}
+            )}
+
+            {visibleReminderNotifications.length > 0 && (
+              <div className="notification-section">
+                {visibleRegularNotifications.length > 0 && (
+                  <div className="notification-section__header">Recordatorios</div>
+                )}
+                {visibleReminderNotifications.map(renderNotificationItem)}
+              </div>
+            )}
           </div>
 
-          {notifications.length > 10 && (
+          {notifications.length > visibleNotifications.length && (
             <div className="notification-footer">
-              Mostrando 10 de {notifications.length} notificaciones
+              Mostrando {visibleNotifications.length} de {notifications.length} notificaciones
             </div>
           )}
         </>
