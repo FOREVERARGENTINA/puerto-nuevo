@@ -147,10 +147,12 @@ function buildReminderCommunication({
   const childFirstName = getFirstName(assignment.childName);
   const childLabel = childFirstName ? ` (Alumno: ${childFirstName})` : '';
   const greeting = familyFirstName ? `Hola ${familyFirstName},` : 'Hola,';
+  const automaticFooter =
+    'Este recordatorio fue enviado automaticamente por la plataforma sobre una asignacion realizada por el equipo del colegio.';
 
   const body = isConfirmedReminder
-    ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${assignment.ambiente}${childLabel}.\n\nPor favor, trae los ingredientes el dia lunes.\n\nGracias por tu colaboracion.`
-    : `${greeting}\n\nTe recordamos que la proxima semana (${dateRange}) te corresponde traer los snacks para ${assignment.ambiente}${childLabel}.\n\nPor favor, confirma o solicita cambio desde el portal en "Mis Turnos de Snacks".`;
+    ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${assignment.ambiente}${childLabel}.\n\nPor favor, trae los ingredientes el dia lunes.\n\nGracias por tu colaboracion.\n\n${automaticFooter}`
+    : `${greeting}\n\nTe recordamos que la proxima semana (${dateRange}) te corresponde traer los snacks para ${assignment.ambiente}${childLabel}.\n\nPor favor, confirma o solicita cambio desde el portal en "Mis Turnos de Snacks".\n\n${automaticFooter}`;
 
   return {
     title: 'Recordatorio de snacks de la proxima semana',
@@ -191,13 +193,27 @@ function getNextMondayString() {
 }
 
 function formatDate(dateString) {
-  const date = new Date(`${dateString}T00:00:00`);
+  const date = parseIsoDateAsNoonUtc(dateString);
   return date.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     timeZone: 'America/Argentina/Buenos_Aires'
   });
+}
+
+function parseIsoDateAsNoonUtc(dateString) {
+  const match = String(dateString || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return new Date(`${dateString}T00:00:00`);
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  // Use noon UTC to avoid timezone backshift when rendering in America/Argentina/Buenos_Aires.
+  return new Date(Date.UTC(year, monthIndex, day, 12, 0, 0));
 }
 
 function getFirstName(value) {

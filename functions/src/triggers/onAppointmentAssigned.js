@@ -52,6 +52,7 @@ exports.onAppointmentAssigned = onDocumentUpdated(
           minute: '2-digit'
         })
       : 'Fecha por confirmar';
+    const modalidadTexto = formatAppointmentMode(after.modalidad);
 
     const subject = 'Turno reservado - Montessori Puerto Nuevo';
     const appointmentUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
@@ -71,11 +72,15 @@ exports.onAppointmentAssigned = onDocumentUpdated(
 
         const safeFechaTexto = escapeHtml(fechaTexto);
         const safeChildName = childName ? escapeHtml(childName) : '';
+        const safeModalidadTexto = modalidadTexto ? escapeHtml(modalidadTexto) : '';
+        const firstName = getFirstName(user.displayName || user.nombre || user.name || '');
+        const safeGreeting = firstName ? `Hola ${escapeHtml(firstName)},` : 'Hola,';
         const html = `
           <div lang="es">
-          <p>Hola,</p>
+          <p>${safeGreeting}</p>
           <p>Te confirmamos que tenés un turno reservado en la escuela.</p>
           <p><strong>Fecha:</strong> ${safeFechaTexto}</p>
+          ${safeModalidadTexto ? `<p><strong>Modalidad:</strong> ${safeModalidadTexto}</p>` : ''}
           ${safeChildName ? `<p><strong>Alumno:</strong> ${safeChildName}</p>` : ''}
           <p style="margin:16px 0;">
             <a href="${safeAppointmentUrl}" style="background-color:#488284;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;">Ver detalle del turno</a>
@@ -121,3 +126,15 @@ exports.onAppointmentAssigned = onDocumentUpdated(
     }
   }
 );
+
+function getFirstName(value) {
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  return normalized.split(' ')[0] || '';
+}
+
+function formatAppointmentMode(mode) {
+  if (mode === 'virtual') return 'Virtual';
+  if (mode === 'presencial') return 'Presencial';
+  return '';
+}
