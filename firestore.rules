@@ -730,11 +730,11 @@ service cloud.firestore {
             resource.data.blockedBy == request.auth.uid &&
             request.resource.data.blockedBy == null &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'blockedBy', 'updatedAt'])) ||
-          // mark read: solo resetear el propio unreadCount a 0, sin tocar el del otro
+          // mark read: solo resetear el propio unreadCount a 0 y actualizar lastReadAt propio
           // lastMessage* y unreadCount[other] son escritos exclusivamente por el trigger
           (resource.data.status == request.resource.data.status &&
             resource.data.blockedBy == request.resource.data.blockedBy &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCount']) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCount', 'lastReadAt']) &&
             request.resource.data.unreadCount[request.auth.uid] == 0 &&
             request.resource.data.unreadCount[dmOtherUid(resource.data.participants)] ==
               resource.data.unreadCount[dmOtherUid(resource.data.participants)])

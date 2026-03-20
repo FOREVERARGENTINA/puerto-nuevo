@@ -141,7 +141,8 @@ export const directMessagesService = {
   async markThreadRead(convId, myUid) {
     try {
       await updateDoc(doc(directMessagesCollection, convId), {
-        [`unreadCount.${myUid}`]: 0
+        [`unreadCount.${myUid}`]: 0,
+        [`lastReadAt.${myUid}`]: serverTimestamp()
       });
       return { success: true };
     } catch (error) {

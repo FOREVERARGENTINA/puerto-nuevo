@@ -14,6 +14,31 @@ function toDate(value) {
   return null;
 }
 
+function isMessageReadByOther(msg, thread, otherUid) {
+  const readTs = thread?.lastReadAt?.[otherUid];
+  if (!readTs || !msg?.createdAt) return false;
+  const msgMs = typeof msg.createdAt?.toMillis === 'function' ? msg.createdAt.toMillis() : null;
+  const readMs = typeof readTs?.toMillis === 'function' ? readTs.toMillis() : null;
+  if (!msgMs || !readMs) return false;
+  return msgMs <= readMs;
+}
+
+function MessageTicks({ read }) {
+  const color = read ? '#53bdeb' : 'rgba(255,255,255,0.55)';
+  return (
+    <svg
+      viewBox="0 0 16 11"
+      width="16"
+      height="11"
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <polyline points="1,6 4.5,9.5 10,2" stroke={color} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="5,6 8.5,9.5 15,2" stroke={color} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function formatTime(value) {
   const d = toDate(value);
   if (!d) return '';
@@ -84,12 +109,13 @@ export function DirectMessageThread() {
     );
   }, [otherUid]);
 
-  // Marcar leido cuando el hilo carga; no intentar si el doc no existe aun
+  // Marcar leido al abrir el hilo y cada vez que lleguen mensajes nuevos mientras esta abierto
+  const myUnreadCount = thread?.unreadCount?.[user?.uid] ?? 0;
   useEffect(() => {
-    if (convId && user?.uid && thread) {
+    if (convId && user?.uid && thread && myUnreadCount > 0) {
       directMessagesService.markThreadRead(convId, user.uid);
     }
-  }, [convId, user?.uid, thread?.id]);
+  }, [convId, user?.uid, thread?.id, myUnreadCount]);
 
   // Scroll al ultimo mensaje
   useEffect(() => {
@@ -270,8 +296,9 @@ export function DirectMessageThread() {
                   }}
                 >
                   <p style={{ margin: 0 }}>{msg.text}</p>
-                  <span style={{ fontSize: '10px', opacity: 0.7, display: 'block', textAlign: 'right', marginTop: 2 }}>
-                    {formatTime(msg.createdAt)}
+                  <span style={{ fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, marginTop: 2 }}>
+                    <span style={{ opacity: 0.7 }}>{formatTime(msg.createdAt)}</span>
+                    {isMe && <MessageTicks read={isMessageReadByOther(msg, thread, otherUid)} />}
                   </span>
                 </div>
               </div>

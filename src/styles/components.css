@@ -11852,12 +11852,121 @@
   display: block;
 }
 
+/* ── Social filter bar (chip design) ─────────────────── */
+.social-filter-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 999px;
+  box-shadow: 0 2px 14px rgba(17, 24, 39, 0.11);
+}
+
+.social-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font-size: 0.73rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background 0.16s, color 0.16s, border-color 0.16s, transform 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.social-filter-chip:active {
+  transform: scale(0.94);
+}
+
+.social-filter-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 0.16s;
+}
+
+.social-filter-chip.is-active .social-filter-chip__dot {
+  transform: scale(1.2);
+  background: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Dot colors */
+.social-filter-chip--family .social-filter-chip__dot { background: var(--color-success); }
+.social-filter-chip--child  .social-filter-chip__dot { background: var(--color-warning); }
+.social-filter-chip--staff  .social-filter-chip__dot { background: var(--color-secondary-dark); }
+
+/* Inactive: outline style */
+.social-filter-chip--family:not(.is-active) { border-color: var(--color-success);        color: var(--color-success);        }
+.social-filter-chip--child:not(.is-active)  { border-color: var(--color-warning);        color: var(--color-warning);        }
+.social-filter-chip--staff:not(.is-active)  { border-color: var(--color-secondary-dark); color: var(--color-secondary-dark); }
+
+/* Active: filled */
+.social-filter-chip--family.is-active { background: var(--color-success);        border-color: var(--color-success);        color: #fff; }
+.social-filter-chip--child.is-active  { background: var(--color-warning);        border-color: var(--color-warning);        color: #fff; }
+.social-filter-chip--staff.is-active  { background: var(--color-secondary-dark); border-color: var(--color-secondary-dark); color: #fff; }
+
+/* Hover */
+.social-filter-chip--family:hover { filter: brightness(0.9); }
+.social-filter-chip--child:hover  { filter: brightness(0.9); }
+.social-filter-chip--staff:hover  { filter: brightness(0.9); }
+
+/* Reset button */
+.social-filter-chip--reset {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.social-filter-chip--reset:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  filter: none;
+}
+
+@media (max-width: 480px) {
+  .social-filter-bar {
+    top: 8px;
+    left: 8px;
+    padding: 4px 6px;
+    gap: 4px;
+  }
+  .social-filter-chip {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+  }
+}
+
+/* ── legacy kept for dot references elsewhere ─────────── */
 .social-filters-card {
   box-shadow: 0 5px 14px rgba(17, 24, 39, 0.11);
 }
 
 .social-filters-mobile-toggle {
-  display: inline-flex;
+  display: none;
   position: absolute;
   top: 10px;
   left: 10px;

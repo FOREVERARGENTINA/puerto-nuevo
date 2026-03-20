@@ -318,7 +318,7 @@ const CHILD_AMBIENTE_STRENGTH = 0.014;
 const SOCIAL_TIDE_STRENGTH = 0.026;
 const AMBIENTE_BALANCE_STRENGTH = 0.055;
 const ORPHAN_CHILD_DRIFT_STRENGTH = 0.018;
-const DRAGGED_STAFF_ATTRACTION_STRENGTH = 0.014;
+const DRAGGED_STAFF_ATTRACTION_STRENGTH = 0.022;
 const SIMULATION_ALPHA_TARGET = 0.008;
 const SIMULATION_ALPHA_TARGET_ACTIVE = 0.014;
 const SIMULATION_ALPHA_TARGET_INTRO = 0.004;
@@ -1466,7 +1466,10 @@ export default function SocialPage() {
       }
       if (graphRef.current) {
         graphRef.current.centerAt(node.x, node.y, 680);
-        graphRef.current.zoom(1.62, 760);
+        const currentZoom = graphRef.current.zoom();
+        if (currentZoom < 1.62) {
+          graphRef.current.zoom(1.62, 760);
+        }
       }
       return node;
     });
@@ -1492,11 +1495,10 @@ export default function SocialPage() {
     };
 
     ghostTrailsUntilRef.current = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + GHOST_TRAIL_DURATION_MS;
+    // No reheat aquí: mantener alpha natural evita que todos los nodos
+    // se lancen de golpe. La fuerza de atracción actúa suave con alpha bajo.
     if (!entranceActiveRef.current) {
       setAlphaTarget(SIMULATION_ALPHA_TARGET_ACTIVE);
-    }
-    if (typeof graphRef.current?.d3ReheatSimulation === 'function') {
-      graphRef.current.d3ReheatSimulation();
     }
   }, []);
 
@@ -2001,67 +2003,33 @@ export default function SocialPage() {
               </button>
             </div>
             <div className="social-map-card__canvas" ref={containerRef}>
-              <button
-                type="button"
-                className={`btn btn--outline btn--sm social-filters-mobile-toggle ${isMobileFiltersOpen ? 'is-open' : ''}`}
-                onClick={() => setIsMobileFiltersOpen((previous) => !previous)}
-                aria-expanded={isMobileFiltersOpen}
-                aria-controls="social-map-filters"
-              >
-                {isMobileFiltersOpen ? 'Ocultar filtros' : 'Filtros'}
-              </button>
-
-              <aside
-                id="social-map-filters"
-                className={`card social-filters-card social-filters-card--overlay ${isMobileFiltersOpen ? 'is-open' : ''}`}
-              >
-                <div className="card__body social-filters-card__body">
-                  <div className="social-filters__group">
-                    <label className={`social-filters__option ${graphFilters.showFamilies ? '' : 'is-muted'}`}>
-                      <span className="social-filters__label">
-                        <span className="social-filter-dot social-filter-dot--family"></span>
-                        Familias
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={graphFilters.showFamilies}
-                        onChange={() => toggleGraphFilter('showFamilies')}
-                      />
-                    </label>
-                    <label className={`social-filters__option ${graphFilters.showStudents ? '' : 'is-muted'}`}>
-                      <span className="social-filters__label">
-                        <span className="social-filter-dot social-filter-dot--child"></span>
-                        Alumnos
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={graphFilters.showStudents}
-                        onChange={() => toggleGraphFilter('showStudents')}
-                      />
-                    </label>
-                    <label className={`social-filters__option ${graphFilters.showStaff ? '' : 'is-muted'}`}>
-                      <span className="social-filters__label">
-                        <span className="social-filter-dot social-filter-dot--staff"></span>
-                        Staff
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={graphFilters.showStaff}
-                        onChange={() => toggleGraphFilter('showStaff')}
-                      />
-                    </label>
-                  </div>
-                  <div className="social-filters__actions">
-                    <button
-                      type="button"
-                      className="btn btn--outline btn--sm"
-                      onClick={resetGraphFilters}
-                    >
-                      Restablecer filtros
-                    </button>
-                  </div>
-                </div>
-              </aside>
+              <div className="social-filter-bar" role="group" aria-label="Filtros del mapa">
+                {[
+                  { key: 'showFamilies', label: 'Familias', cls: 'family' },
+                  { key: 'showStudents', label: 'Alumnos',  cls: 'child'  },
+                  { key: 'showStaff',    label: 'Staff',    cls: 'staff'  },
+                ].map(({ key, label, cls }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`social-filter-chip social-filter-chip--${cls}${graphFilters[key] ? ' is-active' : ''}`}
+                    onClick={() => toggleGraphFilter(key)}
+                    aria-pressed={graphFilters[key]}
+                  >
+                    <span className="social-filter-chip__dot" />
+                    <span className="social-filter-chip__label">{label}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="social-filter-chip social-filter-chip--reset"
+                  onClick={resetGraphFilters}
+                  title="Restablecer filtros"
+                  aria-label="Restablecer filtros"
+                >
+                  ↺
+                </button>
+              </div>
 
               {loading ? (
                 <div className="social-map-card__loading">
