@@ -46,6 +46,22 @@ export function formatRelativeTime(date) {
   return `Hace ${days} días`;
 }
 
+export function formatShortRelativeTime(date) {
+  const now = new Date();
+  const target = date instanceof Date ? date : date.toDate();
+  const diff = Math.abs(now - target);
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / (60 * 60 * 1000));
+  const days = Math.floor(hours / 24);
+
+  if (mins < 1) return 'ahora';
+  if (hours < 1) return `${mins}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days === 1) return 'ayer';
+  if (days < 7) return `${days}d`;
+  return target.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+}
+
 /**
  * Verifica si una fecha es futura
  * @param {Date|string} date - Fecha a verificar

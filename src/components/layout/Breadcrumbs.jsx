@@ -87,7 +87,11 @@ export function Breadcrumbs() {
   const breadcrumbs = visibleSegments.map(({ segment, originalIndex }, index) => {
     const path = '/' + pathSegments.slice(0, originalIndex + 1).join('/');
     const isLast = index === visibleSegments.length - 1;
-    const name = ROUTE_NAMES[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
+    const previousSegment = pathSegments[originalIndex - 1] || '';
+    const isDirectMessageThread = previousSegment === 'mensajes' && originalIndex === pathSegments.length - 1;
+    const name = isDirectMessageThread
+      ? 'Chat'
+      : (ROUTE_NAMES[segment] || segment.charAt(0).toUpperCase() + segment.slice(1));
 
     return {
       name,

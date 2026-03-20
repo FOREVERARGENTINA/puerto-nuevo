@@ -5,6 +5,7 @@ import { ThemeProvider } from './hooks/useTheme';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
 import { SocialFeatureGuard } from './components/auth/SocialFeatureGuard';
+import { DMsFeatureGuard } from './components/auth/DMsFeatureGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
@@ -44,6 +45,8 @@ const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConvers
 const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
 const AmbienteActivities = lazy(() => import('./pages/family/AmbienteActivities'));
 const FamilyHorariosPlaceholder = lazy(() => import('./pages/family/FamilyHorariosPlaceholder').then(m => ({ default: m.FamilyHorariosPlaceholder })));
+const DirectMessagesList = lazy(() => import('./pages/family/DirectMessagesList').then(m => ({ default: m.DirectMessagesList })));
+const DirectMessageThread = lazy(() => import('./pages/family/DirectMessageThread').then(m => ({ default: m.DirectMessageThread })));
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
@@ -593,6 +596,30 @@ function App() {
                       <SocialPage />
                     </SocialFeatureGuard>
                   </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/familia/mensajes"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DMsFeatureGuard>
+                    <DirectMessagesList />
+                  </DMsFeatureGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/familia/mensajes/:convId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DMsFeatureGuard>
+                    <DirectMessageThread />
+                  </DMsFeatureGuard>
                 </Layout>
               </ProtectedRoute>
             }

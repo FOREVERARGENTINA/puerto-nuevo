@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useDocumentUnreadCount } from '../../hooks/useDocumentUnreadCount';
+import { useDirectMessagesUnreadCount } from '../../hooks/useDirectMessages';
 import { ROLES } from '../../config/constants';
 import Icon from '../ui/Icon';
 import { EventCalendar } from './EventCalendar';
 import { socialService } from '../../services/social.service';
+import { directMessagesService } from '../../services/directMessages.service';
 import { canAccessSocial } from '../../utils/socialAccess';
+import { canAccessDMs } from '../../utils/dmAccess';
 
 /**
  * Sidebar - Menú lateral de navegación según rol
@@ -15,6 +18,10 @@ export function Sidebar({ isOpen = false, onNavigate }) {
   const { role, user } = useAuth();
   const { count: unreadDocuments } = useDocumentUnreadCount(user?.uid);
   const [socialConfig, setSocialConfig] = useState({ enabled: false, pilotFamilyUids: [] });
+  const [dmConfig, setDmConfig] = useState({ enabled: false, pilotFamilyUids: [] });
+  const unreadDMs = useDirectMessagesUnreadCount(
+    role === ROLES.FAMILY && canAccessDMs({ role, uid: user?.uid, config: dmConfig }) ? user?.uid : null
+  );
 
   // Definir menús según rol
   const menuItems = useMemo(() => ({
@@ -89,12 +96,17 @@ export function Sidebar({ isOpen = false, onNavigate }) {
 
     const loadConfig = async () => {
       try {
-        const config = await socialService.getSocialModuleConfig();
+        const [social, dms] = await Promise.all([
+          socialService.getSocialModuleConfig(),
+          directMessagesService.getDMsModuleConfig()
+        ]);
         if (!isMounted) return;
-        setSocialConfig(config);
+        setSocialConfig(social);
+        setDmConfig(dms);
       } catch {
         if (!isMounted) return;
         setSocialConfig({ enabled: false, pilotFamilyUids: [] });
+        setDmConfig({ enabled: false, pilotFamilyUids: [] });
       }
     };
 
@@ -108,28 +120,37 @@ export function Sidebar({ isOpen = false, onNavigate }) {
     return canAccessSocial({ role, uid: user?.uid, config: socialConfig });
   }, [role, socialConfig, user?.uid]);
 
+  const isDMsVisible = useMemo(() => {
+    return canAccessDMs({ role, uid: user?.uid, config: dmConfig });
+  }, [role, dmConfig, user?.uid]);
+
   const items = useMemo(() => {
     const baseItems = menuItems[role] || [];
-    if (!isSocialVisible) return baseItems;
+    let result = [...baseItems];
 
-    const socialByRole = {
-      [ROLES.SUPERADMIN]: '/portal/admin/social',
-      [ROLES.COORDINACION]: '/portal/admin/social',
-      [ROLES.FAMILY]: '/portal/familia/social',
-      [ROLES.DOCENTE]: '/portal/docente/social',
-      [ROLES.TALLERISTA]: '/portal/tallerista/social'
-    };
-
-    const socialPath = socialByRole[role];
-    if (!socialPath || baseItems.some((item) => item.path === socialPath)) {
-      return baseItems;
+    if (isDMsVisible && role === ROLES.FAMILY) {
+      const path = '/portal/familia/mensajes';
+      if (!result.some((item) => item.path === path)) {
+        result = [...result, { path, icon: 'chat', label: 'Mensajes' }];
+      }
     }
 
-    return [
-      ...baseItems,
-      { path: socialPath, icon: 'users', label: 'Social' }
-    ];
-  }, [isSocialVisible, menuItems, role]);
+    if (isSocialVisible) {
+      const socialByRole = {
+        [ROLES.SUPERADMIN]: '/portal/admin/social',
+        [ROLES.COORDINACION]: '/portal/admin/social',
+        [ROLES.FAMILY]: '/portal/familia/social',
+        [ROLES.DOCENTE]: '/portal/docente/social',
+        [ROLES.TALLERISTA]: '/portal/tallerista/social'
+      };
+      const socialPath = socialByRole[role];
+      if (socialPath && !result.some((item) => item.path === socialPath)) {
+        result = [...result, { path: socialPath, icon: 'users', label: 'Social' }];
+      }
+    }
+
+    return result;
+  }, [isSocialVisible, isDMsVisible, menuItems, role]);
 
   if (items.length === 0) {
     return null;
@@ -155,6 +176,11 @@ export function Sidebar({ isOpen = false, onNavigate }) {
                 {item.path.includes('/documentos') && unreadDocuments > 0 && (
                   <span className="sidebar__badge" aria-label={`${unreadDocuments} documentos pendientes`}>
                     {unreadDocuments > 99 ? '99+' : unreadDocuments}
+                  </span>
+                )}
+                {item.path === '/portal/familia/mensajes' && unreadDMs > 0 && (
+                  <span className="sidebar__badge" aria-label={`${unreadDMs} mensajes sin leer`}>
+                    {unreadDMs > 99 ? '99+' : unreadDMs}
                   </span>
                 )}
               </NavLink>

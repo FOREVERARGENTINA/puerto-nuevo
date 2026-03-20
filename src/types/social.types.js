@@ -41,6 +41,7 @@
 /**
  * @typedef {Object} SocialProfile
  * @property {string} [photoUrl]
+ * @property {boolean} [allowMessages]
  * @property {SocialContact} contact
  * @property {SocialContactVisibility} contactVisibility
  * @property {unknown} [updatedAt]

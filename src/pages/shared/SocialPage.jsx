@@ -8,7 +8,10 @@ import {
   getAvatarColorToken,
   getInitials
 } from '../../utils/avatarHelpers';
+import { useNavigate } from 'react-router-dom';
 import { socialService } from '../../services/social.service';
+import { directMessagesService, getThreadIdForUsers } from '../../services/directMessages.service';
+import { canAccessDMs } from '../../utils/dmAccess';
 import {
   EMPTY_SOCIAL_CONTACT,
   EMPTY_SOCIAL_CONTACT_VISIBILITY
@@ -304,7 +307,7 @@ const AMBIENTE_CENTERS = {
   taller2: { x: 320, y: 0, label: 'Taller 2' }
 };
 const AMBIENTE_RADIUS = 190;
-const STAFF_ANCHOR = { x: 0, y: 200, strength: 0.08 };
+const STAFF_ANCHOR = { x: 0, y: 200, strength: 0.028 };
 const STAFF_ZONE = {
   minRadius: 24,
   maxRadius: 124,
@@ -313,7 +316,7 @@ const STAFF_ZONE = {
 };
 const CHILD_AMBIENTE_STRENGTH = 0.014;
 const SOCIAL_TIDE_STRENGTH = 0.026;
-const AMBIENTE_BALANCE_STRENGTH = 0.11;
+const AMBIENTE_BALANCE_STRENGTH = 0.055;
 const ORPHAN_CHILD_DRIFT_STRENGTH = 0.018;
 const DRAGGED_STAFF_ATTRACTION_STRENGTH = 0.014;
 const SIMULATION_ALPHA_TARGET = 0.008;
@@ -778,6 +781,8 @@ function isNodeVisibleByFilters(node, filters) {
 
 export default function SocialPage() {
   const { user, role, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const [dmConfig, setDmConfig] = useState({ enabled: false, pilotFamilyUids: [] });
   const graphRef = useRef(null);
   const cacheRef = useRef({});
   const containerRef = useRef(null);
@@ -814,6 +819,7 @@ export default function SocialPage() {
   const [imageRenderTick, setImageRenderTick] = useState(0);
   const [myProfile, setMyProfile] = useState({
     photoUrl: '',
+    allowMessages: true,
     contact: { ...EMPTY_SOCIAL_CONTACT },
     contactVisibility: { ...EMPTY_SOCIAL_CONTACT_VISIBILITY }
   });
@@ -943,7 +949,10 @@ export default function SocialPage() {
 
   useEffect(() => {
     void Promise.all([loadGraph(), loadMyProfile(), loadFamilyChildren()]);
-  }, [loadFamilyChildren, loadGraph, loadMyProfile]);
+    if (role === 'family') {
+      directMessagesService.getDMsModuleConfig().then(setDmConfig).catch(() => {});
+    }
+  }, [loadFamilyChildren, loadGraph, loadMyProfile, role]);
 
   useEffect(() => {
     const cache = cacheRef.current;
@@ -1306,7 +1315,7 @@ export default function SocialPage() {
       if (!roleVisibleNodeIdsRef.current.has(node?.id)) return 0.002;
       if (node?.type === 'staff') return STAFF_ANCHOR.strength;
       if (node?.type === 'child') return CHILD_AMBIENTE_STRENGTH;
-      return node.ambiente ? 0.06 : 0.03;
+      return node.ambiente ? 0.022 : 0.011;
     }));
 
     fg.d3Force('ambienteY', d3.forceY((node) => {
@@ -1318,7 +1327,7 @@ export default function SocialPage() {
       if (!roleVisibleNodeIdsRef.current.has(node?.id)) return 0.002;
       if (node?.type === 'staff') return STAFF_ANCHOR.strength;
       if (node?.type === 'child') return CHILD_AMBIENTE_STRENGTH;
-      return node.ambiente ? 0.06 : 0.03;
+      return node.ambiente ? 0.022 : 0.011;
     }));
 
     // La closure lee el ref en cada tick -> sin jerk al cambiar filtros
@@ -1536,11 +1545,22 @@ export default function SocialPage() {
     return window.matchMedia('(max-width: 768px)').matches ? mobilePadding : desktopPadding;
   }, []);
 
+  const getInitialGraphPadding = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return { base: 130, firstPass: 234 };
+    }
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    return isMobile
+      ? { base: 36, firstPass: 84 }
+      : { base: 130, firstPass: 234 };
+  }, []);
+
   useEffect(() => {
     if (loading || hasInitialAutoCenteredRef.current) return;
     if (visibleGraphData.nodes.length === 0) return;
 
-    const padding = getResponsiveGraphPadding(130, 72);
+    const { base: padding, firstPass } = getInitialGraphPadding();
     const timers = [];
 
     if (prefersReducedMotion) {
@@ -1550,7 +1570,7 @@ export default function SocialPage() {
       }, 80));
     } else {
       timers.push(setTimeout(() => {
-        centerGraph(0, padding + 104);
+        centerGraph(0, firstPass);
       }, 40));
       timers.push(setTimeout(() => {
         centerGraph(1700, padding);
@@ -1559,7 +1579,7 @@ export default function SocialPage() {
     }
 
     return () => timers.forEach((timerId) => clearTimeout(timerId));
-  }, [centerGraph, getResponsiveGraphPadding, loading, prefersReducedMotion, visibleGraphData.nodes.length]);
+  }, [centerGraph, getInitialGraphPadding, loading, prefersReducedMotion, visibleGraphData.nodes.length]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -1664,6 +1684,13 @@ export default function SocialPage() {
         ...prev.contactVisibility,
         [field]: checked
       }
+    }));
+  };
+
+  const handleAllowMessagesChange = (checked) => {
+    setMyProfile((prev) => ({
+      ...prev,
+      allowMessages: checked
     }));
   };
 
@@ -1860,7 +1887,16 @@ export default function SocialPage() {
       ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(cacheItem, node.x - radius, node.y - radius, radius * 2, radius * 2);
+      // object-fit: cover — recorta centrado sin deformar
+      const iw = cacheItem.naturalWidth || cacheItem.width;
+      const ih = cacheItem.naturalHeight || cacheItem.height;
+      const dSize = radius * 2;
+      const scale = Math.max(dSize / iw, dSize / ih);
+      const sw = dSize / scale;
+      const sh = dSize / scale;
+      const sx = (iw - sw) / 2;
+      const sy = (ih - sh) / 2;
+      ctx.drawImage(cacheItem, sx, sy, sw, sh, node.x - radius, node.y - radius, dSize, dSize);
       ctx.restore();
     } else {
       ctx.fillStyle = '#ffffff';
@@ -1949,7 +1985,7 @@ export default function SocialPage() {
               <button
                 type="button"
                 className="btn btn--outline btn--sm"
-                onClick={() => centerGraph(500, getResponsiveGraphPadding(140, 84))}
+                onClick={() => centerGraph(500, getResponsiveGraphPadding(140, 48))}
               >
                 Centrar
               </button>
@@ -2040,7 +2076,7 @@ export default function SocialPage() {
                   graphData={graphData}
                   nodeRelSize={8}
                   d3VelocityDecay={0.24}
-                  d3AlphaDecay={0.01}
+                  d3AlphaDecay={0.007}
                   d3AlphaMin={0}
                   d3AlphaTarget={alphaTarget}
                   cooldownTime={Infinity}
@@ -2160,6 +2196,31 @@ export default function SocialPage() {
                           </div>
                         </div>
 
+                        {role === 'family' &&
+                          selectedNode.type === 'family' &&
+                          selectedNode.uid &&
+                          selectedNode.uid !== user?.uid &&
+                          canAccessDMs({ role, uid: user?.uid, config: dmConfig }) && (
+                          <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                            {selectedNode.allowMessages !== false ? (
+                              <button
+                                type="button"
+                                className="btn btn--primary btn--sm"
+                                onClick={() => {
+                                  const convId = getThreadIdForUsers(user.uid, selectedNode.uid);
+                                  navigate(`/portal/familia/mensajes/${convId}`);
+                                }}
+                              >
+                                Escribir
+                              </button>
+                            ) : (
+                              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', margin: 0 }}>
+                                Esta familia no recibe mensajes nuevos.
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {isAdmin && (
                           <div className="social-selected__admin-actions">
                             <button
@@ -2234,104 +2295,140 @@ export default function SocialPage() {
         </section>
       </div>
 
-      <div className="social-page__profile-grid">
-          <section className="card social-side-panel__card">
-            <div className="card__header">
-              <h3 className="card__title">Mi perfil social</h3>
-            </div>
-            <div className="card__body">
-              <div className="social-editor__avatar">
-                <Avatar
-                  name={user?.displayName || user?.email || 'Perfil'}
-                  photoUrl={myProfile.photoUrl}
-                  size={56}
-                />
-                <label className="btn btn--outline btn--sm">
-                  Cambiar foto
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="social-file-input"
-                    onChange={handleUploadMyPhoto}
-                    disabled={saving}
-                  />
-                </label>
-              </div>
+      <div className="social-page__profile-single">
+        <section className="card social-side-panel__card social-profile-editor">
+          <div className="card__header">
+            <h3 className="card__title">Mi perfil social</h3>
+          </div>
+          <div className="card__body">
+            <div className="social-profile-editor__body-grid">
 
-              {canEditFamilyContact && (
-                <div className="social-editor__contact">
-                  {CONTACT_FIELDS.map((field) => (
-                    <div key={field.key} className="social-editor__field">
-                      <label>{field.label}</label>
+              {/* Columna izquierda: avatar + toggle + fotos */}
+              <div className="social-profile-editor__col-left">
+                <div className="social-profile-editor__avatar-section">
+                  <div className="social-profile-editor__avatar-wrap">
+                    <Avatar
+                      name={user?.displayName || user?.email || 'Perfil'}
+                      photoUrl={myProfile.photoUrl}
+                      size={72}
+                    />
+                    <label className="social-profile-editor__avatar-btn" title="Cambiar foto">
+                      ✎
                       <input
-                        type="text"
-                        className="form-input"
-                        value={myProfile.contact?.[field.key] || ''}
-                        onChange={(event) => handleContactChange(field.key, event.target.value)}
-                        placeholder={field.key === 'whatsapp' ? 'Ej: 1122222222' : `Ingresar ${field.label.toLowerCase()}`}
+                        type="file"
+                        accept="image/*"
+                        className="social-file-input"
+                        onChange={handleUploadMyPhoto}
+                        disabled={saving}
                       />
-                      <label className="social-editor__visibility">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(myProfile.contactVisibility?.[field.key])}
-                          onChange={(event) => handleVisibilityChange(field.key, event.target.checked)}
-                        />
-                        Mostrar en Social
-                      </label>
-                    </div>
-                  ))}
+                    </label>
+                  </div>
+                  <span className="social-profile-editor__avatar-name">
+                    {user?.displayName || user?.email}
+                  </span>
                 </div>
-              )}
 
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={handleSaveMyProfile}
-                disabled={saving}
-              >
-                Guardar perfil
-              </button>
-            </div>
-          </section>
+                {canEditFamilyContact && (
+                  <div className="social-profile-editor__toggle-row">
+                    <div className="social-profile-editor__toggle-text">
+                      <span className="social-profile-editor__toggle-label">Mensajes directos</span>
+                      <span className="social-profile-editor__toggle-hint">
+                        Otras familias pueden escribirte
+                      </span>
+                    </div>
+                    <label className="social-toggle">
+                      <input
+                        type="checkbox"
+                        checked={myProfile.allowMessages !== false}
+                        onChange={(event) => handleAllowMessagesChange(event.target.checked)}
+                      />
+                      <span className="social-toggle__track" />
+                    </label>
+                  </div>
+                )}
 
-          {role === 'family' && (
-            <section className="card social-side-panel__card">
-              <div className="card__header">
-                <h3 className="card__title">Fotos de alumnos</h3>
-              </div>
-              <div className="card__body">
-                {familyChildren.length === 0 ? (
-                  <p className="muted-text">No hay alumnos asociados a tu cuenta.</p>
-                ) : (
-                  <div className="social-children">
-                    {familyChildren.map((child) => (
-                      <div key={child.id} className="social-children__item">
-                        <Avatar
-                          name={child.nombreCompleto || 'Alumno'}
-                          photoUrl={childPhotoLookup.get(child.id)}
-                          size={42}
-                        />
-                        <div className="social-children__meta">
-                          <strong>{child.nombreCompleto}</strong>
-                          <span>{child.ambiente || 'Sin ambiente'}</span>
-                        </div>
-                        <label className="btn btn--outline btn--sm">
-                          Subir
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="social-file-input"
-                            onChange={(event) => handleUploadChildPhoto(child.id, event)}
-                            disabled={saving}
-                          />
-                        </label>
+                {role === 'family' && (
+                  <div className="social-profile-editor__section">
+                    <p className="social-profile-editor__section-label">Fotos de alumnos</p>
+                    {familyChildren.length === 0 ? (
+                      <p className="muted-text">No hay alumnos asociados a tu cuenta.</p>
+                    ) : (
+                      <div className="social-children">
+                        {familyChildren.map((child) => (
+                          <div key={child.id} className="social-children__item">
+                            <Avatar
+                              name={child.nombreCompleto || 'Alumno'}
+                              photoUrl={childPhotoLookup.get(child.id)}
+                              size={42}
+                            />
+                            <div className="social-children__meta">
+                              <strong>{child.nombreCompleto}</strong>
+                              <span>{child.ambiente || 'Sin ambiente'}</span>
+                            </div>
+                            <label className="btn btn--outline btn--sm">
+                              Subir foto
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="social-file-input"
+                                onChange={(event) => handleUploadChildPhoto(child.id, event)}
+                                disabled={saving}
+                              />
+                            </label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
-            </section>
-          )}
+
+              {/* Columna derecha: datos de contacto */}
+              {canEditFamilyContact && (
+                <div className="social-profile-editor__col-right">
+                  <div className="social-profile-editor__section">
+                    <p className="social-profile-editor__section-label">Datos de contacto</p>
+                    <div className="social-profile-editor__fields">
+                      {CONTACT_FIELDS.map((field) => (
+                        <div key={field.key} className="social-profile-editor__field">
+                          <div className="social-profile-editor__field-header">
+                            <label className="social-profile-editor__field-label">{field.label}</label>
+                            <label className="social-profile-editor__vis-toggle">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(myProfile.contactVisibility?.[field.key])}
+                                onChange={(event) => handleVisibilityChange(field.key, event.target.checked)}
+                              />
+                              <span className="social-profile-editor__vis-track" />
+                              <span className="social-profile-editor__vis-label">Visible</span>
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={myProfile.contact?.[field.key] || ''}
+                            onChange={(event) => handleContactChange(field.key, event.target.value)}
+                            placeholder={field.key === 'whatsapp' ? 'Ej: 1122222222' : `Ingresar ${field.label.toLowerCase()}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--primary social-profile-editor__save"
+              onClick={handleSaveMyProfile}
+              disabled={saving}
+            >
+              {saving ? 'Guardando…' : 'Guardar perfil'}
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

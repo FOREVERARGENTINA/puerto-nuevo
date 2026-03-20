@@ -234,6 +234,8 @@ export const ROUTES = {
   INSTITUTIONAL_GALLERY_FAMILY: '/portal/familia/galeria',
   FAMILY_ACTIVITIES: '/portal/familia/actividades',
   FAMILY_SOCIAL: '/portal/familia/social',
+  FAMILY_MESSAGES: '/portal/familia/mensajes',
+  FAMILY_MESSAGES_THREAD: '/portal/familia/mensajes/:convId',
 
   // Teacher
   TEACHER_DASHBOARD: '/portal/docente',

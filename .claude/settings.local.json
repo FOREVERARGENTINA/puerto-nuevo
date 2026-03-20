@@ -39,7 +39,10 @@
       "Read(//c/Users/casa/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.1/**)",
       "Bash(bash scripts/start-server.sh --project-dir \"D:/Aideas/PUERTO NUEVO\")",
       "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-view-options.html\")",
-      "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-content-mosaic.html\")"
+      "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-content-mosaic.html\")",
+      "mcp__firebase__auth_get_users",
+      "Bash(node -e \"require\\(''''./functions/src/triggers/onDirectMessageCreated''''\\)\")",
+      "mcp__plugin_firebase_firebase__firestore_get_document"
     ],
     "deny": [],
     "ask": []

@@ -142,6 +142,10 @@ function buildFamilyNode(userDoc, socialProfile) {
   const displayName = normalizeString(userDoc.displayName) || normalizeString(userDoc.email) || 'Familia';
   const photoUrl = getPhotoUrl(socialProfile) || getPhotoUrl(userDoc) || null;
 
+  const allowMessages = socialProfile
+    ? Boolean(socialProfile.allowMessages !== false)
+    : true;
+
   return {
     id: `family:${uid}`,
     type: SOCIAL_NODE_TYPES.FAMILY,
@@ -151,6 +155,7 @@ function buildFamilyNode(userDoc, socialProfile) {
     displayName,
     ambiente: null,
     photoUrl,
+    allowMessages,
     contact: buildPublicContact(
       socialProfile?.contact || EMPTY_SOCIAL_CONTACT,
       socialProfile?.contactVisibility || EMPTY_SOCIAL_CONTACT_VISIBILITY
@@ -428,6 +433,7 @@ export const socialService = {
         success: true,
         profile: {
           photoUrl: '',
+          allowMessages: true,
           contact: { ...EMPTY_SOCIAL_CONTACT },
           contactVisibility: { ...EMPTY_SOCIAL_CONTACT_VISIBILITY }
         }
@@ -439,6 +445,7 @@ export const socialService = {
       success: true,
       profile: {
         photoUrl: getPhotoUrl(data),
+        allowMessages: Boolean(data.allowMessages !== false),
         contact: normalizeContact(data.contact || EMPTY_SOCIAL_CONTACT),
         contactVisibility: normalizeContactVisibility(
           data.contactVisibility || EMPTY_SOCIAL_CONTACT_VISIBILITY
@@ -456,6 +463,7 @@ export const socialService = {
       profileRef,
       {
         photoUrl: getPhotoUrl(payload),
+        allowMessages: payload.allowMessages !== false,
         contact: normalizeContact(payload.contact || EMPTY_SOCIAL_CONTACT),
         contactVisibility: normalizeContactVisibility(
           payload.contactVisibility || EMPTY_SOCIAL_CONTACT_VISIBILITY

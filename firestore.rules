@@ -180,6 +180,16 @@ service cloud.firestore {
 
       // Eliminar: Solo admin
       allow delete: if isAdmin();
+
+      // Inbox privada de mensajes directos por usuario.
+      match /directMessageInbox/{convId} {
+        allow read: if isAuthenticated() &&
+          request.auth.uid == userId &&
+          isFamily() &&
+          isDMPilotUser();
+
+        allow create, update, delete: if false;
+      }
     }
 
     // Colección: /socialProfiles (perfil social público del campus)
@@ -646,6 +656,109 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
         resource.data.read == false &&
         request.resource.data.read == true;
+    }
+
+    // ─── Mensajes Directos Familia-Familia ───────────────────────────────────
+
+    function isDMParticipant(data) {
+      return isFamily() &&
+        data.participants is list &&
+        request.auth.uid in data.participants;
+    }
+
+    function dmAllowMessages(uid) {
+      return !exists(/databases/$(database)/documents/socialProfiles/$(uid)) ||
+        get(/databases/$(database)/documents/socialProfiles/$(uid)).data.allowMessages == true;
+    }
+
+    function dmOtherUid(participants) {
+      return participants[0] == request.auth.uid ? participants[1] : participants[0];
+    }
+
+    function dmMessageWriteAllowed(convId) {
+      let convData = getAfter(/databases/$(database)/documents/directMessages/$(convId)).data;
+      return isDMParticipant(convData) &&
+        isDMBothInPilot(convData.participants) &&
+        convData.status == 'active' &&
+        dmAllowMessages(dmOtherUid(convData.participants));
+    }
+
+    function isDMBothInPilot(participants) {
+      let config = get(/databases/$(database)/documents/appConfig/directMessages).data;
+      return config.enabled == true || (
+        config.pilotFamilyUids is list &&
+        participants[0] in config.pilotFamilyUids &&
+        participants[1] in config.pilotFamilyUids
+      );
+    }
+
+    function isDMPilotUser() {
+      let config = get(/databases/$(database)/documents/appConfig/directMessages).data;
+      return config.enabled == true ||
+        (config.pilotFamilyUids is list && request.auth.uid in config.pilotFamilyUids);
+    }
+
+    match /directMessages/{convId} {
+      allow get: if isFamily() &&
+        isDMPilotUser() && (
+          !exists(/databases/$(database)/documents/directMessages/$(convId)) ||
+          isDMParticipant(resource.data)
+        );
+
+      allow list: if false;
+
+      allow create: if isFamily() &&
+        request.resource.data.participants is list &&
+        request.resource.data.participants.size() == 2 &&
+        isDMBothInPilot(request.resource.data.participants) &&
+        request.auth.uid in request.resource.data.participants &&
+        request.resource.data.participants[0] < request.resource.data.participants[1] &&
+        convId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1] &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.participants[0])).data.role == 'family' &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.participants[1])).data.role == 'family' &&
+        dmAllowMessages(dmOtherUid(request.resource.data.participants));
+
+      allow update: if isFamily() &&
+        isDMPilotUser() &&
+        isDMParticipant(resource.data) && (
+          // active -> blocked: solo status, blockedBy, updatedAt pueden cambiar
+          (resource.data.status == 'active' && request.resource.data.status == 'blocked' &&
+            request.resource.data.blockedBy == request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'blockedBy', 'updatedAt'])) ||
+          // blocked -> active: solo status, blockedBy, updatedAt pueden cambiar
+          (resource.data.status == 'blocked' && request.resource.data.status == 'active' &&
+            resource.data.blockedBy == request.auth.uid &&
+            request.resource.data.blockedBy == null &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'blockedBy', 'updatedAt'])) ||
+          // mark read: solo resetear el propio unreadCount a 0, sin tocar el del otro
+          // lastMessage* y unreadCount[other] son escritos exclusivamente por el trigger
+          (resource.data.status == request.resource.data.status &&
+            resource.data.blockedBy == request.resource.data.blockedBy &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCount']) &&
+            request.resource.data.unreadCount[request.auth.uid] == 0 &&
+            request.resource.data.unreadCount[dmOtherUid(resource.data.participants)] ==
+              resource.data.unreadCount[dmOtherUid(resource.data.participants)])
+        );
+
+      allow delete: if false;
+
+      match /messages/{msgId} {
+        allow read: if isFamily() &&
+          isDMPilotUser() &&
+          isDMParticipant(
+            get(/databases/$(database)/documents/directMessages/$(convId)).data
+          );
+
+        allow create: if isFamily() &&
+          isDMPilotUser() &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 2000 &&
+          dmMessageWriteAllowed(convId);
+
+        allow update, delete: if false;
+      }
     }
 
     // Por defecto, denegar todo lo demás
