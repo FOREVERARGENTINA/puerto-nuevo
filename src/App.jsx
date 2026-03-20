@@ -45,8 +45,8 @@ const FamilyNewConversation = lazy(() => import('./pages/family/FamilyNewConvers
 const FamilyConversationDetail = lazy(() => import('./pages/family/FamilyConversationDetail').then(m => ({ default: m.FamilyConversationDetail })));
 const AmbienteActivities = lazy(() => import('./pages/family/AmbienteActivities'));
 const FamilyHorariosPlaceholder = lazy(() => import('./pages/family/FamilyHorariosPlaceholder').then(m => ({ default: m.FamilyHorariosPlaceholder })));
-const DirectMessagesList = lazy(() => import('./pages/family/DirectMessagesList').then(m => ({ default: m.DirectMessagesList })));
-const DirectMessageThread = lazy(() => import('./pages/family/DirectMessageThread').then(m => ({ default: m.DirectMessageThread })));
+import { DirectMessagesList } from './pages/family/DirectMessagesList';
+import { DirectMessageThread } from './pages/family/DirectMessageThread';
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));

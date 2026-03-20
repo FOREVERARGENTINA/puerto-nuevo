@@ -15,44 +15,27 @@ const SOCIAL_ALLOWED_ROLES = [
 
 export function SocialFeatureGuard({ children }) {
   const { role, user } = useAuth();
-  const [config, setConfig] = useState({ enabled: false, pilotFamilyUids: [] });
-  const [loading, setLoading] = useState(true);
+  // null = todavía cargando, objeto = cargado
+  const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadConfig = async () => {
-      setLoading(true);
-      try {
-        const nextConfig = await socialService.getSocialModuleConfig();
-        if (!isMounted) return;
-        setConfig(nextConfig);
-      } catch {
-        if (!isMounted) return;
-        setConfig({ enabled: false, pilotFamilyUids: [] });
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    loadConfig();
-    return () => {
-      isMounted = false;
-    };
+    let mounted = true;
+    socialService
+      .getSocialModuleConfig()
+      .then((c) => { if (mounted) setConfig(c); })
+      .catch(() => { if (mounted) setConfig({ enabled: false, pilotFamilyUids: [] }); });
+    return () => { mounted = false; };
   }, []);
 
+  // Gate sincrónico: rol no permitido → redirige sin esperar config
   if (!SOCIAL_ALLOWED_ROLES.includes(role)) {
     return <Navigate to="/portal/unauthorized" replace />;
   }
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-xl)' }}>
-        <div className="spinner spinner--lg"></div>
-      </div>
-    );
-  }
+  // Mientras config carga, renderiza children directamente.
+  if (config === null) return children;
 
+  // Config disponible: validar acceso
   if (!canAccessSocial({ role, uid: user?.uid, config })) {
     return <Navigate to="/portal/unauthorized" replace />;
   }
