@@ -6,6 +6,7 @@ import { childrenService } from '../../services/children.service';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
+import { AMBIENTES, LEGACY_SLOTS_CUTOFF_DATE } from '../../config/constants';
 import './BookAppointment.css';
 
 const getAppointmentDate = (value) => (
@@ -62,20 +63,36 @@ const BookAppointment = () => {
   const alertDialog = useDialog();
   const requestedAppointmentId = searchParams.get('appointmentId')?.trim() || '';
 
-  const loadAvailableAppointments = async () => {
+  const loadAvailableAppointments = async (children = []) => {
     const { start, end } = getMonthRange(currentMonth);
     const result = await appointmentsService.getAppointmentsByDateRange(start, end);
     if (result.success) {
       const minLeadTimeMs = 12 * 60 * 60 * 1000;
       const earliestAllowedDate = new Date(Date.now() + minLeadTimeMs);
       setEarliestAllowed(earliestAllowedDate);
-      const available = result.appointments.filter(app => 
-        app.estado === 'disponible' &&
-        app.origenSlot !== 'manual' &&
-        !app.familiaUid &&
-        (!Array.isArray(app.familiasUids) || app.familiasUids.length === 0) &&
-        (app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora)) >= earliestAllowedDate
+
+      const familyAmbientes = new Set(
+        children
+          .map(child => child.ambiente)
+          .filter(a => a === AMBIENTES.TALLER_1 || a === AMBIENTES.TALLER_2)
       );
+
+      const available = result.appointments.filter(app => {
+        if (app.estado !== 'disponible') return false;
+        if (app.origenSlot === 'manual') return false;
+        if (app.familiaUid) return false;
+        if (Array.isArray(app.familiasUids) && app.familiasUids.length > 0) return false;
+
+        const fechaDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+        if (fechaDate < earliestAllowedDate) return false;
+
+        if (app.ambiente) {
+          return familyAmbientes.has(app.ambiente);
+        }
+
+        return fechaDate < LEGACY_SLOTS_CUTOFF_DATE;
+      });
+
       setAvailableAppointments(available);
     }
   };
@@ -91,15 +108,17 @@ const BookAppointment = () => {
     const result = await childrenService.getChildrenByResponsable(user.uid);
     if (result.success) {
       setUserChildren(result.children);
+      return result.children;
     }
+    return [];
   };
 
   const loadData = async () => {
     setLoading(true);
+    const children = await loadUserData();
     await Promise.all([
-      loadAvailableAppointments(),
-      loadMyAppointments(),
-      loadUserData()
+      loadAvailableAppointments(children),
+      loadMyAppointments()
     ]);
     setLoading(false);
   };
@@ -135,8 +154,12 @@ const BookAppointment = () => {
 
   useEffect(() => {
     if (user) {
-      loadAvailableAppointments();
+      loadAvailableAppointments(userChildren);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // userChildren is intentionally omitted: this effect reloads slots on month change.
+    // At that point userChildren already has the correct value from the previous render.
+    // Initial mount uses loadData() which passes children as an explicit argument.
   }, [currentMonth, user]);
 
   const handleSelectSlot = (appointment) => {
