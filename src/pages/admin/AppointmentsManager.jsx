@@ -657,7 +657,7 @@ const AppointmentsManager = () => {
 
     confirmDialog.openDialog({
       title: 'Crear Turnos',
-      message: `Se crearán ${slots.length} turnos disponibles. ¿Deseas continuar?`,
+      message: `Se crearán ${slots.length * 2} turnos disponibles (${slots.length} por taller). ¿Deseas continuar?`,
       onConfirm: async () => {
         const result = await appointmentsService.createTimeSlots(slots);
         if (result.success) {

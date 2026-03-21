@@ -16,6 +16,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { fixMojibakeDeep } from '../utils/textEncoding';
+import { AMBIENTES } from '../config/constants';
 
 const appointmentsCollection = collection(db, 'appointments');
 const getNotesDocRef = (appointmentId) => (
@@ -46,6 +47,15 @@ const hasMinimumBufferBetweenIntervals = (startA, endA, startB, endB, bufferMinu
 const formatConflictTime = (date) => (
   date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 );
+const buildSlotGroupKey = (date) => {
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}_${hour}:${minute}`;
+};
 
 export const appointmentsService = {
   async createAppointment(data) {
@@ -366,18 +376,25 @@ export const appointmentsService = {
 
   async createTimeSlots(slotsData) {
     try {
-      const promises = slotsData.map(slot => {
+      const writes = slotsData.flatMap(slot => {
         const mode = normalizeAppointmentMode(slot?.modalidad);
-        return addDoc(appointmentsCollection, {
+        const slotGroupKey = buildSlotGroupKey(slot.fechaHora);
+        const base = {
           ...slot,
           ...(mode ? { modalidad: mode } : {}),
+          slotGroupKey,
           estado: 'disponible',
           familiaUid: null,
+          familiasUids: [],
           hijoId: null,
           createdAt: serverTimestamp()
-        });
+        };
+        return [
+          addDoc(appointmentsCollection, { ...base, ambiente: AMBIENTES.TALLER_1 }),
+          addDoc(appointmentsCollection, { ...base, ambiente: AMBIENTES.TALLER_2 })
+        ];
       });
-      await Promise.all(promises);
+      await Promise.all(writes);
       emitAppointmentsUpdated();
       return { success: true };
     } catch (error) {
