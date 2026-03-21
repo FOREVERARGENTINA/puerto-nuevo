@@ -85,17 +85,6 @@ function toUidList(rawValue) {
   return [];
 }
 
-function toAmbienteList(rawValue) {
-  if (Array.isArray(rawValue)) {
-    return rawValue.map((item) => normalizeString(item)).filter(Boolean);
-  }
-  if (typeof rawValue === 'string') {
-    const ambiente = normalizeString(rawValue);
-    return ambiente ? [ambiente] : [];
-  }
-  return [];
-}
-
 function toNodeIdList(rawValue) {
   if (!Array.isArray(rawValue)) return [];
   return Array.from(new Set(
@@ -186,11 +175,9 @@ function buildStaffNode(userDoc, socialProfile, talleristaAmbientes) {
   const rolesVisual = getRoleListForStaff(userDoc, isAssignedAsTallerista);
   if (rolesVisual.length === 0) return null;
 
-  const docenteAmbientes = toAmbienteList(userDoc.tallerAsignado);
-  const singleDocenteAmbiente = docenteAmbientes.length === 1 ? docenteAmbientes[0] : null;
   const talleristaSet = talleristaAmbientes.get(uid) || new Set();
   const singleTalleristaAmbiente = talleristaSet.size === 1 ? Array.from(talleristaSet)[0] : null;
-  const ambiente = singleDocenteAmbiente || singleTalleristaAmbiente || null;
+  const ambiente = singleTalleristaAmbiente || null;
 
   const displayName = normalizeString(userDoc.displayName) || normalizeString(userDoc.email) || 'Staff';
   const photoUrl = getPhotoUrl(socialProfile) || getPhotoUrl(userDoc) || null;

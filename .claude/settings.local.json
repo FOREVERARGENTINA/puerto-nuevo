@@ -42,7 +42,8 @@
       "Bash(start \"\" \"D:\\\\Aideas\\\\PUERTO NUEVO\\\\.superpowers\\\\brainstorm\\\\album-content-mosaic.html\")",
       "mcp__firebase__auth_get_users",
       "Bash(node -e \"require\\(''''./functions/src/triggers/onDirectMessageCreated''''\\)\")",
-      "mcp__plugin_firebase_firebase__firestore_get_document"
+      "mcp__plugin_firebase_firebase__firestore_get_document",
+      "mcp__plugin_firebase_firebase__firestore_query_collection"
     ],
     "deny": [],
     "ask": []

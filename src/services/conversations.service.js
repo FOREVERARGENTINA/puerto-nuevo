@@ -6,8 +6,6 @@
   updateDoc,
   query,
   where,
-  orderBy,
-  limit,
   getDocs,
   getCountFromServer,
   serverTimestamp,
@@ -17,6 +15,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { CONVERSATION_STATUS } from '../config/constants';
 import { fixMojibakeDeep } from '../utils/textEncoding';
+import { sortConversationsByLatestMessage } from '../utils/conversationHelpers';
 
 const conversationsCollection = collection(db, 'conversations');
 
@@ -186,14 +185,15 @@ export const conversationsService = {
     try {
       const q = query(
         conversationsCollection,
-        where('familiaUid', '==', familiaUid),
-        orderBy('actualizadoAt', 'desc'),
-        limit(limitCount)
+        where('familiaUid', '==', familiaUid)
       );
       const snap = await getDocs(q);
+      const conversations = sortConversationsByLatestMessage(
+        snap.docs.map((docSnap) => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+      ).slice(0, limitCount);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+        conversations
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -204,14 +204,15 @@ export const conversationsService = {
     try {
       const q = query(
         conversationsCollection,
-        where('destinatarioEscuela', '==', destinatarioEscuela),
-        orderBy('actualizadoAt', 'desc'),
-        limit(limitCount)
+        where('destinatarioEscuela', '==', destinatarioEscuela)
       );
       const snap = await getDocs(q);
+      const conversations = sortConversationsByLatestMessage(
+        snap.docs.map((docSnap) => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+      ).slice(0, limitCount);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+        conversations
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -220,15 +221,14 @@ export const conversationsService = {
 
   async getAllConversations(limitCount = 50) {
     try {
-      const q = query(
-        conversationsCollection,
-        orderBy('actualizadoAt', 'desc'),
-        limit(limitCount)
-      );
+      const q = query(conversationsCollection);
       const snap = await getDocs(q);
+      const conversations = sortConversationsByLatestMessage(
+        snap.docs.map((docSnap) => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+      ).slice(0, limitCount);
       return {
         success: true,
-        conversations: snap.docs.map(docSnap => ({ id: docSnap.id, ...fixMojibakeDeep(docSnap.data()) }))
+        conversations
       };
     } catch (error) {
       return { success: false, error: error.message };

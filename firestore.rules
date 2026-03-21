@@ -7,13 +7,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function normalizeRole(role) {
+      return !(role is string)
+        ? null
+        : (
+          role == 'teacher' || role == 'Teacher' || role == 'TEACHER' ||
+          role == 'teachers' || role == 'Teachers' || role == 'TEACHERS' ||
+          role == 'doeente' || role == 'Doeente' || role == 'DOEENTE' ||
+          role == 'Docente' || role == 'DOCENTE'
+            ? 'docente'
+            : role
+        );
+    }
+
     function getUserRole() {
       return !isAuthenticated()
         ? null
         : (
           request.auth.token.role is string
-            ? request.auth.token.role
-            : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+            ? normalizeRole(request.auth.token.role)
+            : normalizeRole(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role)
         );
     }
 
@@ -163,11 +176,14 @@ service cloud.firestore {
 
     // Colección: /users (perfiles de usuarios)
     match /users/{userId} {
-      // Leer: Usuario puede ver su propio perfil, admin puede ver todos, 
-      // familias pueden ver otros responsables de sus hijos
+      // Leer: Usuario puede ver su propio perfil, admin puede ver todos,
+      // familias pueden ver otros responsables de sus hijos,
+      // docentes pueden ver familias y staff necesario para comunicados y vistas generales
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
+        (isDocente() && resource.data.role in ['family', 'docente', 'tallerista']) ||
+        ((isDocente() || isTallerista()) && resource.data.role == 'tallerista') ||
         (isFamily() && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion'])
       );
 
@@ -230,13 +246,13 @@ service cloud.firestore {
 
     // Colección: /children (fichas de alumnos)
     match /children/{childId} {
-      // Leer: Admin ve todos, familias pueden leer (filtrado por query array-contains), docentes ven alumnos de su ambiente
+      // Leer: Admin ve todos, familias pueden leer sus hijos, docentes pueden ver alumnos en general
       // NOTA: No podemos validar array-contains en security rules, el filtrado lo hace la query
       allow read: if isAuthenticated() && (
         isAdmin() ||
+        isDocente() ||
         isFamily() ||
-        (resource.data.responsables is list && request.auth.uid in resource.data.responsables) ||
-        (isDocente() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tallerAsignado == resource.data.ambiente)
+        (resource.data.responsables is list && request.auth.uid in resource.data.responsables)
       );
 
       // Crear/Actualizar/Eliminar: Solo admin
@@ -245,9 +261,10 @@ service cloud.firestore {
 
     // Colección: /communications (comunicados)
     match /communications/{commId} {
-      // Leer: Admin o si el usuario está en destinatarios[]
+      // Leer: Admin, destinatarios o el autor del comunicado.
       allow read: if isAuthenticated() && (
         isAdmin() ||
+        resource.data.sentBy == request.auth.uid ||
         request.auth.uid in resource.data.destinatarios
       );
 
@@ -389,9 +406,25 @@ service cloud.firestore {
     // Colección: /documents (documentos institucionales - Fase 5)
     match /documents/{docId} {
       // Leer: Usuarios autenticados si su rol está en roles[] o si es admin
+      // Compatibilidad legacy: algunos documentos viejos guardaron aliases de docente en inglés.
       allow read: if isAuthenticated() && (
         isAdmin() ||
-        getUserRole() in resource.data.roles
+        (resource.data.roles is list && (
+          getUserRole() in resource.data.roles ||
+          (getUserRole() == 'docente' && (
+            'teacher' in resource.data.roles ||
+            'Teacher' in resource.data.roles ||
+            'TEACHER' in resource.data.roles ||
+            'teachers' in resource.data.roles ||
+            'Teachers' in resource.data.roles ||
+            'TEACHERS' in resource.data.roles ||
+            'doeente' in resource.data.roles ||
+            'Doeente' in resource.data.roles ||
+            'DOEENTE' in resource.data.roles ||
+            'Docente' in resource.data.roles ||
+            'DOCENTE' in resource.data.roles
+          ))
+        ))
       );
 
       // Crear: Admin, Coordinación, Docentes, Talleristas

@@ -6,6 +6,7 @@ import { ROUTES, CONVERSATION_STATUS, ROLES } from '../../config/constants';
 import { formatRelativeTime } from '../../utils/dateHelpers';
 import {
   getAreaLabel,
+  getConversationActivityDate,
   getCategoryLabel,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
@@ -105,6 +106,7 @@ export function FamilyConversations() {
           {filtered.map(conv => {
             const hasUnread = conv.mensajesSinLeerFamilia > 0;
             const areaLabel = getAreaLabel(conv.destinatarioEscuela) || 'Escuela';
+            const activityDate = getConversationActivityDate(conv);
             
             return (
               <Link
@@ -124,7 +126,7 @@ export function FamilyConversations() {
                       {conv.asunto || 'Sin asunto'}
                     </span>
                     <span className="conversation-row__time">
-                      {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
+                      {activityDate ? formatRelativeTime(activityDate) : ''}
                     </span>
                   </div>
                   

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
-import { ROLES, AMBIENTES, ROUTES } from '../../config/constants';
+import { ROLES, ROUTES } from '../../config/constants';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { useDialog } from '../../hooks/useDialog';
@@ -29,7 +29,6 @@ export function UserManagement() {
     email: '',
     displayName: '',
     role: ROLES.FAMILY,
-    tallerAsignado: '',
     disabled: false
   });
 
@@ -48,8 +47,7 @@ export function UserManagement() {
     email: '',
     password: '',
     displayName: '',
-    role: ROLES.FAMILY,
-    tallerAsignado: ''
+    role: ROLES.FAMILY
   });
 
   // Search / filter
@@ -133,19 +131,13 @@ export function UserManagement() {
       return;
     }
 
-    if (formData.role === ROLES.DOCENTE && !formData.tallerAsignado) {
-      setError('Debes seleccionar un taller para docentes');
-      return;
-    }
-
     setLoadingMessage('Creando usuario...');
     setCreating(true);
     const result = await usersService.createUserWithRole({
       email: formData.email,
       password: formData.password,
       displayName: formData.displayName || formData.email.split('@')[0],
-      role: formData.role,
-      tallerAsignado: formData.role === ROLES.DOCENTE ? formData.tallerAsignado : null
+      role: formData.role
     });
     setCreating(false);
 
@@ -156,8 +148,7 @@ export function UserManagement() {
         email: '',
         password: '',
         displayName: '',
-        role: ROLES.FAMILY,
-        tallerAsignado: ''
+        role: ROLES.FAMILY
       });
       setShowCreateForm(false);
       await loadUsers();
@@ -178,7 +169,6 @@ export function UserManagement() {
       email: u.email || '',
       displayName: u.displayName || '',
       role: u.role || ROLES.FAMILY,
-      tallerAsignado: u.tallerAsignado || '',
       disabled: !!u.disabled
     });
     setShowEditForm(true);
@@ -225,7 +215,6 @@ export function UserManagement() {
       const updates = {
         email: editFormData.email,
         displayName: editFormData.displayName,
-        tallerAsignado: editFormData.role === ROLES.DOCENTE ? editFormData.tallerAsignado : null,
         disabled: !!editFormData.disabled
       };
 
@@ -290,11 +279,6 @@ export function UserManagement() {
       [ROLES.ASPIRANTE]: 'Aspirante'
     };
     return labels[role] || role;
-  };
-
-  const getTallerLabel = (taller) => {
-    if (!taller) return '-';
-    return taller === AMBIENTES.TALLER_1 ? 'Taller 1' : 'Taller 2';
   };
 
   if (loading) {
@@ -465,23 +449,6 @@ export function UserManagement() {
                       </select>
                     </div>
 
-                    {formData.role === ROLES.DOCENTE && (
-                      <div className="form-group">
-                        <label htmlFor="tallerAsignado">Taller Asignado *</label>
-                        <select
-                          id="tallerAsignado"
-                          name="tallerAsignado"
-                          value={formData.tallerAsignado}
-                          onChange={handleInputChange}
-                          required
-                          className="form-input"
-                        >
-                          <option value="">Seleccionar...</option>
-                          <option value={AMBIENTES.TALLER_1}>Taller 1</option>
-                          <option value={AMBIENTES.TALLER_2}>Taller 2</option>
-                        </select>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex-row mt-md">
@@ -549,22 +516,6 @@ export function UserManagement() {
                       </select>
                     </div>
 
-                    {editFormData.role === ROLES.DOCENTE && (
-                      <div className="form-group">
-                        <label htmlFor="editTaller">Taller Asignado</label>
-                        <select
-                          id="editTaller"
-                          name="tallerAsignado"
-                          value={editFormData.tallerAsignado}
-                          onChange={handleEditInputChange}
-                          className="form-input"
-                        >
-                          <option value="">Seleccionar...</option>
-                          <option value={AMBIENTES.TALLER_1}>Taller 1</option>
-                          <option value={AMBIENTES.TALLER_2}>Taller 2</option>
-                        </select>
-                      </div>
-                    )}
 
                     <div className="form-group">
                       <label>
@@ -617,11 +568,6 @@ export function UserManagement() {
                         <span className="badge badge--primary">
                           {getRoleLabel(u.role)}
                         </span>
-                        {u.tallerAsignado && (
-                          <span className="badge badge--info">
-                            {getTallerLabel(u.tallerAsignado)}
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td style={{ width: 110 }}>

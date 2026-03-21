@@ -7,6 +7,7 @@ import { useCommunications } from './useCommunications';
 import { useConversations } from './useConversations';
 import { ROLES, ADMIN_ROLES, COMMUNICATION_TYPES } from '../config/constants';
 import { resolveCategoryLabel } from '../config/ambienteActivities';
+import { getConversationActivityDate } from '../utils/conversationHelpers';
 
 const SNACK_TERMINAL_STATES = new Set(['cancelado', 'completado', 'suspendido']);
 
@@ -663,7 +664,7 @@ export function useNotifications() {
         type: 'conversacion',
         title: role === ROLES.FAMILY ? 'Nuevo mensaje de la escuela' : `Nueva consulta de ${senderName}`,
         message: conv.asunto || 'Conversacion',
-        timestamp: conv.ultimoMensajeAt?.toDate() || conv.actualizadoAt?.toDate() || new Date(),
+        timestamp: getConversationActivityDate(conv) || new Date(),
         urgent: conv.estado === 'pendiente',
         actionUrl: `${conversationsUrl}/${conv.id}`,
         metadata: { conversationId: conv.id, senderName }

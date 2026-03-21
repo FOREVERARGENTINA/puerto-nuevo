@@ -15,6 +15,7 @@ import {
 } from '../../utils/conversationHelpers';
 import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export function AdminConversationDetail() {
   const { id } = useParams();
@@ -30,6 +31,7 @@ export function AdminConversationDetail() {
   const [reassignTo, setReassignTo] = useState('');
   const [reassigning, setReassigning] = useState(false);
   const [reassignFeedback, setReassignFeedback] = useState(null);
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -119,8 +121,6 @@ export function AdminConversationDetail() {
 
   const handleClose = async () => {
     if (!conversation || !user) return;
-    const confirmed = window.confirm('¿Cerrar esta conversación?');
-    if (!confirmed) return;
     const result = await conversationsService.closeConversation(conversation.id, user.uid);
     if (!result.success) {
       setError(result.error || 'No se pudo cerrar');
@@ -176,8 +176,8 @@ export function AdminConversationDetail() {
 
   return (
     <div className="container page-container">
-      <div className="dashboard-header dashboard-header--compact">
-        <div>
+      <div className="dashboard-header dashboard-header--compact conversation-header-layout">
+        <div className="conversation-header-layout__main">
           <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
           <div className="conversation-header__meta">
             {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
@@ -189,10 +189,10 @@ export function AdminConversationDetail() {
           </div>
           <p className="dashboard-subtitle">Asunto: {conversation.asunto || 'Sin asunto'}</p>
         </div>
-        <div className="conversation-header__actions">
-          <div className="conversation-header__reassign">
-            <label htmlFor="reassign-area">Reasignar a</label>
-            <div className="conversation-header__reassign-controls">
+        <div className="conversation-header-layout__center">
+          <div className="conversation-management-card">
+            <label htmlFor="reassign-area" className="conversation-management-card__label">Reasignar a</label>
+            <div className="conversation-header__reassign-controls conversation-header__reassign-controls--inline">
               <select
                 id="reassign-area"
                 className="form-select"
@@ -213,8 +213,18 @@ export function AdminConversationDetail() {
               >
                 {reassigning ? 'Reasignando...' : 'Reasignar'}
               </button>
+              <button
+                className="btn btn--danger-outline conversation-management-card__close"
+                type="button"
+                onClick={() => setIsCloseDialogOpen(true)}
+                disabled={isClosed}
+              >
+                Marcar como resuelta o cerrar
+              </button>
             </div>
           </div>
+        </div>
+        <div className="conversation-header__actions conversation-header-layout__actions">
           <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--outline btn--back">
             <Icon name="chevron-left" size={16} />
             Volver
@@ -233,6 +243,17 @@ export function AdminConversationDetail() {
           {reassignFeedback.message}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={isCloseDialogOpen}
+        onClose={() => setIsCloseDialogOpen(false)}
+        onConfirm={handleClose}
+        title="Cerrar conversación"
+        message="Esta conversación se marcará como resuelta y cerrada."
+        confirmText="Cerrar conversación"
+        cancelText="Cancelar"
+        type="danger"
+      />
 
       <div className="conversation-thread">
         {messages.length === 0 ? (
@@ -277,37 +298,37 @@ export function AdminConversationDetail() {
         )}
       </div>
 
-      <div className="conversation-admin-actions">
-        <button className="btn btn--danger" type="button" onClick={handleClose} disabled={isClosed}>
-          Marcar como resuelta y cerrar
-        </button>
-      </div>
-
-      <form className="conversation-compose" onSubmit={handleSend}>
-        <textarea
-          className="form-textarea"
-          placeholder={isClosed ? 'Conversación cerrada' : 'Escribí tu respuesta...'}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          disabled={sending || isClosed}
-        />
-        <div className="conversation-compose__actions">
-          <div style={{ width: '100%' }}>
-            <FileUploadSelector
-              id="admin-conversation-file"
-              multiple={false}
-              onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
-              disabled={sending || isClosed}
-              hint="Adjunto opcional"
-            />
-            {file && (
-              <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
-            )}
-          </div>
-          <button className="btn btn--primary" type="submit" disabled={sending || isClosed}>
-            {sending ? 'Enviando...' : 'Enviar mensaje'}
+      <form className="conversation-composer conversation-composer--admin" onSubmit={handleSend}>
+        <div className="conversation-composer__shell">
+          <textarea
+            className="conversation-composer__input"
+            placeholder={isClosed ? 'Conversación cerrada' : 'Escribí tu respuesta...'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            disabled={sending || isClosed}
+          />
+          <button
+            className="conversation-composer__send"
+            type="submit"
+            disabled={sending || isClosed || (!text.trim() && !file)}
+            aria-label={sending ? 'Enviando mensaje' : 'Enviar mensaje'}
+            title={sending ? 'Enviando mensaje' : 'Enviar mensaje'}
+          >
+            <Icon name="send" size={18} />
           </button>
+        </div>
+        <div className="conversation-composer__attachment">
+          <FileUploadSelector
+            id="admin-conversation-file"
+            multiple={false}
+            onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
+            disabled={sending || isClosed}
+            hint="Adjunto opcional"
+          />
+          {file && (
+            <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
+          )}
         </div>
         {error && <div className="alert alert--error mt-sm">{error}</div>}
       </form>

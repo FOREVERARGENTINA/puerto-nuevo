@@ -5,12 +5,14 @@ import AlbumGrid from '../../components/gallery/viewer/AlbumGrid';
 import AlbumMosaic from '../../components/gallery/viewer/AlbumMosaic';
 import GalleryBreadcrumbs from '../../components/gallery/shared/GalleryBreadcrumbs';
 import { InstitutionalLightbox } from '../../components/gallery/shared/InstitutionalLightbox';
+import { ROLES } from '../../config/constants';
 import { institutionalGalleryService } from '../../services/institutionalGallery.service';
 import { useAuth } from '../../hooks/useAuth';
 
 const InstitutionalGallery = () => {
   const location = useLocation();
   const { role } = useAuth();
+  const usesDenseAlbumMosaic = role === ROLES.FAMILY || role === ROLES.DOCENTE;
   const [currentView, setCurrentView] = useState('categories'); // 'categories' | 'albums' | 'mosaic' | 'media'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
@@ -191,8 +193,8 @@ const InstitutionalGallery = () => {
             items={mediaItems}
             loading={loadingMedia}
             onSelectItem={handleSelectMedia}
-            dense={role === 'family'}
-            showLoadMore={role === 'family'}
+            dense={usesDenseAlbumMosaic}
+            showLoadMore={usesDenseAlbumMosaic}
           />
         )}
 

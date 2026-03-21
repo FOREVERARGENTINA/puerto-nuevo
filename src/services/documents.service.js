@@ -12,8 +12,9 @@
   limit,
   serverTimestamp
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { db, storage, functions } from '../config/firebase';
 import { fixMojibakeDeep } from '../utils/textEncoding';
 import { documentReadReceiptsService } from './documentReadReceipts.service';
 
@@ -22,7 +23,7 @@ const usersCollection = collection(db, 'users');
 const childrenCollection = collection(db, 'children');
 
 const ROLE_ALIASES = {
-  docente: ['docente', 'teacher']
+  docente: ['docente', 'teacher', 'Teacher', 'TEACHER', 'Docente', 'DOCENTE', 'teachers', 'Teachers', 'TEACHERS', 'doeente', 'Doeente', 'DOEENTE']
 };
 
 const KNOWN_ROLES = ['superadmin', 'coordinacion', 'docente', 'facturacion', 'tallerista', 'family', 'aspirante'];
@@ -58,7 +59,7 @@ const normalizeRoles = (roles) => {
     const role = typeof rawRole === 'string' ? rawRole.trim().toLowerCase() : '';
     if (!role) return;
 
-    if (role === 'teacher') {
+    if (role === 'teacher' || role === 'teachers' || role === 'doeente') {
       set.add('docente');
       return;
     }
@@ -80,7 +81,36 @@ const extractFamilyAmbiente = (childData) => {
 
 const matchesResponsable = (entry, uid) => toRecipientUid(entry) === uid;
 
+const isPermissionDenied = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    code === 'permission-denied' ||
+    code === 'firestore/permission-denied' ||
+    code.includes('permission-denied') ||
+    code.includes('permission_denied') ||
+    message.includes('missing or insufficient permissions')
+  );
+};
+
 export const documentsService = {
+  async getAccessibleDocumentsFallback() {
+    const callable = httpsCallable(functions, 'listAccessibleDocuments');
+    const result = await callable({});
+    const data = result?.data || {};
+    const documents = Array.isArray(data.documents) ? data.documents : [];
+
+    return {
+      success: true,
+      documents: documents.map((documentItem) => ({
+        ...fixMojibakeDeep(documentItem),
+        createdAt: documentItem?.createdAt ?? null,
+        updatedAt: documentItem?.updatedAt ?? null
+      }))
+    };
+  },
+
   async getAllDocuments() {
     try {
       const q = query(documentsCollection, orderBy('createdAt', 'desc'));
@@ -91,6 +121,14 @@ export const documentsService = {
       }));
       return { success: true, documents };
     } catch (error) {
+      if (isPermissionDenied(error)) {
+        try {
+          return await this.getAccessibleDocumentsFallback();
+        } catch (fallbackError) {
+          return { success: false, error: fallbackError.message || error.message };
+        }
+      }
+
       return { success: false, error: error.message };
     }
   },
@@ -137,6 +175,26 @@ export const documentsService = {
 
       return { success: true, documents };
     } catch (error) {
+      if (isPermissionDenied(error)) {
+        try {
+          const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+          const userId = typeof options?.userId === 'string' ? options.userId.trim() : '';
+          const fallback = await this.getAccessibleDocumentsFallback();
+          if (!fallback.success) return fallback;
+
+          let documents = Array.isArray(fallback.documents) ? fallback.documents : [];
+
+          if (normalizedRole === 'family') {
+            const familyAmbientes = await this.getFamilyAmbientesForUser(userId);
+            documents = this.filterDocumentsByFamilyAmbiente(documents, familyAmbientes);
+          }
+
+          return { success: true, documents };
+        } catch (fallbackError) {
+          return { success: false, error: fallbackError.message || error.message };
+        }
+      }
+
       return { success: false, error: error.message };
     }
   },

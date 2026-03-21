@@ -1,9 +1,10 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES } from '../config/constants';
 import { conversationsService } from '../services/conversations.service';
 import { CONVERSATION_READ_EVENT, emitConversationRead } from '../utils/conversationEvents';
+import { sortConversationsByLatestMessage } from '../utils/conversationHelpers';
 
 const resolveAreaForRole = (role) => {
   if (role === ROLES.COORDINACION) return 'coordinacion';
@@ -50,16 +51,15 @@ export function useConversations({ user, role, limitCount = 200 }) {
     let q;
 
     if (role === ROLES.FAMILY) {
-      q = query(collectionRef, where('familiaUid', '==', user.uid), orderBy('actualizadoAt', 'desc'));
+      q = query(collectionRef, where('familiaUid', '==', user.uid));
     } else if (role === ROLES.SUPERADMIN) {
       // SUPERADMIN ve TODO (nivel 6)
-      q = query(collectionRef, orderBy('actualizadoAt', 'desc'));
+      q = query(collectionRef);
     } else if (role === ROLES.COORDINACION) {
       // Reglas Firestore: coordinación solo puede leer conversaciones del área "coordinacion".
       q = query(
         collectionRef,
-        where('destinatarioEscuela', '==', 'coordinacion'),
-        orderBy('actualizadoAt', 'desc')
+        where('destinatarioEscuela', '==', 'coordinacion')
       );
     } else {
       // FACTURACION y otros roles con área específica
@@ -69,14 +69,14 @@ export function useConversations({ user, role, limitCount = 200 }) {
         setLoading(false);
         return;
       }
-      q = query(collectionRef, where('destinatarioEscuela', '==', area), orderBy('actualizadoAt', 'desc'));
+      q = query(collectionRef, where('destinatarioEscuela', '==', area));
     }
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const data = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-        setConversations(data.slice(0, limitCount));
+        const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        setConversations(sortConversationsByLatestMessage(data).slice(0, limitCount));
         setLoading(false);
       },
       (err) => {

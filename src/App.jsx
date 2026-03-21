@@ -10,7 +10,7 @@ import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import { ROLES } from './config/constants';
+import { ROLES, ROUTES } from './config/constants';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 // Lazy load páginas admin
@@ -165,7 +165,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE, ROLES.FACTURACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
                     <ReadReceiptsPanel />
                   </RoleGuard>
                 </Layout>
@@ -633,6 +633,18 @@ function App() {
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
                     <TeacherDashboard />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.TEACHER_COMMUNICATIONS}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <ReadReceiptsPanel />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

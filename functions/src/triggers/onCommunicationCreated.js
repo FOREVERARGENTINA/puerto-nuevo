@@ -207,6 +207,7 @@ exports.onCommunicationCreated = onDocumentCreated(
                 const safeBodyHtml = getSafeCommunicationBodyHtml(commData);
                 const attachmentList = renderAttachmentList(commData.attachments);
                 const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+                const safeSenderName = escapeHtml(commData.sentByDisplayName || 'Equipo de Montessori Puerto Nuevo');
                 const isFamilyRecipient = u.role === 'family';
                 const safePortalUrl = escapeHtml(getCommunicationPortalUrl(u.role, commId));
 
@@ -220,6 +221,7 @@ exports.onCommunicationCreated = onDocumentCreated(
                     (commData.title || 'Comunicado de la escuela') + (studentList ? ` - ${studentList}` : ''),
                   htmlContent: buildCommunicationEmailHtml({
                     safeStudentList,
+                    safeSenderName,
                     safeBodyHtml,
                     attachmentsHtml,
                     safePortalUrl,
@@ -351,6 +353,7 @@ exports.onCommunicationUpdated = onDocumentUpdated(
           const safeBodyHtml = getSafeCommunicationBodyHtml(after);
           const attachmentList = renderAttachmentList(after.attachments);
           const attachmentsHtml = attachmentList ? `<h4>Archivos adjuntos</h4>${attachmentList}` : '';
+          const safeSenderName = escapeHtml(after.sentByDisplayName || 'Equipo de Montessori Puerto Nuevo');
           const isFamilyRecipient = u.role === 'family';
           const safePortalUrl = escapeHtml(getCommunicationPortalUrl(u.role, commId));
 
@@ -376,6 +379,7 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                   to: [{ email }],
                   subject: after.title || 'Comunicado de la escuela',
                   htmlContent: buildCommunicationEmailHtml({
+                    safeSenderName,
                     safeBodyHtml,
                     attachmentsHtml,
                     safePortalUrl,
@@ -445,11 +449,20 @@ function getCommunicationPortalUrl(role, commId) {
     return `https://montessoripuertonuevo.com.ar/portal/familia/comunicados/${encodeURIComponent(commId)}`;
   }
 
+  if (role === 'docente') {
+    return 'https://montessoripuertonuevo.com.ar/portal/docente';
+  }
+
+  if (role === 'tallerista') {
+    return 'https://montessoripuertonuevo.com.ar/portal/tallerista';
+  }
+
   return 'https://montessoripuertonuevo.com.ar/portal/admin/comunicar';
 }
 
 function buildCommunicationEmailHtml({
   safeStudentList = null,
+  safeSenderName = 'Equipo de Montessori Puerto Nuevo',
   safeBodyHtml,
   attachmentsHtml = '',
   safePortalUrl,
@@ -466,6 +479,7 @@ function buildCommunicationEmailHtml({
   return `
     <div lang="es">
     <p>${openingText}</p>
+    <p style="font-size:0.95em;color:#555;"><strong>Enviado por:</strong> ${safeSenderName}</p>
     ${safeStudentList ? `<p><strong>Comunicado para:</strong> ${safeStudentList}</p>` : ''}
     <div>${safeBodyHtml}</div>
     ${attachmentsHtml}
@@ -512,7 +526,6 @@ async function getAmbienteRecipients(ambiente) {
     .firestore()
     .collection('users')
     .where('role', '==', 'docente')
-    .where('tallerAsignado', '==', ambiente)
     .where('disabled', '==', false)
     .get();
 

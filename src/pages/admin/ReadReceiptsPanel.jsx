@@ -5,10 +5,12 @@ import { communicationsService } from '../../services/communications.service';
 import { CommunicationRichContent } from '../../components/communications/CommunicationRichContent';
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
-import { ROLES } from '../../config/constants';
+import { useAuth } from '../../hooks/useAuth';
+import { ROLES, ROUTES } from '../../config/constants';
 
 export function ReadReceiptsPanel() {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
   const [communications, setCommunications] = useState([]);
   const [selectedComm, setSelectedComm] = useState(null);
   const [stats, setStats] = useState(null);
@@ -38,9 +40,10 @@ export function ReadReceiptsPanel() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
+    if (!user?.uid) return;
     loadCommunications();
     loadFamilies();
-  }, []);
+  }, [user?.uid, isAdmin]);
 
   const loadFamilies = async () => {
     setLoadingFamilies(true);
@@ -61,9 +64,11 @@ export function ReadReceiptsPanel() {
     setError(null);
 
     try {
-      const result = await communicationsService.getAllCommunications(200);
+      const result = isAdmin
+        ? await communicationsService.getAllCommunications(200)
+        : await communicationsService.getCommunicationsBySender(user.uid, 200);
+
       if (result.success) {
-        // Mostrar todos los comunicados (no solo los que requieren lectura obligatoria)
         setCommunications(result.communications);
         loadAllStats(result.communications);
       } else {
@@ -378,12 +383,16 @@ export function ReadReceiptsPanel() {
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">Comunicados</h1>
-          <p className="dashboard-subtitle">Confirmaciones de lectura y detalle por familia</p>
+          <h1 className="dashboard-title">{isAdmin ? 'Comunicados' : 'Mis comunicados'}</h1>
+          <p className="dashboard-subtitle">
+            {isAdmin
+              ? 'Confirmaciones de lectura y detalle por familia'
+              : 'Seguimiento de lectura y detalle por familia de tus comunicados'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           <span className="badge badge--info">{communications.length} comunicados</span>
-          <button className="btn btn--primary" onClick={() => navigate('/portal/admin/comunicar/nuevo')}>
+          <button className="btn btn--primary" onClick={() => navigate(`${ROUTES.SEND_COMMUNICATION}/nuevo`)}>
             Crear comunicado
           </button>
         </div>

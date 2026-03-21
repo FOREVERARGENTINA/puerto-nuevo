@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { childrenService } from '../../services/children.service';
 import { talleresService } from '../../services/talleres.service';
 import { eventsService } from '../../services/events.service';
+import { usersService } from '../../services/users.service';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { InstitutionalLightbox } from '../../components/gallery/shared/InstitutionalLightbox';
@@ -79,6 +80,7 @@ export function TalleresEspeciales() {
   const location = useLocation();
   const [children, setChildren] = useState([]);
   const [talleres, setTalleres] = useState([]);
+  const [talleristasById, setTalleristasById] = useState(new Map());
   const [selectedTaller, setSelectedTaller] = useState(null);
   const [albums, setAlbums] = useState([]);
   const [loadingAlbums, setLoadingAlbums] = useState(false);
@@ -116,6 +118,17 @@ export function TalleresEspeciales() {
       </div>
     </div>
   );
+
+  const getTalleristaName = (talleristaId) => {
+    const ids = Array.isArray(talleristaId) ? talleristaId : [talleristaId].filter(Boolean);
+    const names = ids
+      .map((id) => talleristasById.get(id))
+      .filter(Boolean)
+      .map((tallerista) => tallerista.displayName || '')
+      .filter(Boolean);
+
+    return names.join(', ');
+  };
 
   const selectTaller = async (taller, options = {}) => {
     // Normalización de horarios igual que en MyTallerEspecial
@@ -261,7 +274,21 @@ export function TalleresEspeciales() {
       
       const ambientes = [...new Set(childrenResult.children.map(c => c.ambiente).filter(Boolean))];
       
-      const talleresResult = await talleresService.getAllTalleres();
+      const [talleresResult, talleristasResult] = await Promise.all([
+        talleresService.getAllTalleres(),
+        usersService.getUsersByRole('tallerista')
+      ]);
+
+      if (talleristasResult.success) {
+        const nextTalleristas = new Map();
+        (talleristasResult.users || []).forEach((tallerista) => {
+          nextTalleristas.set(tallerista.id, tallerista);
+        });
+        setTalleristasById(nextTalleristas);
+      } else {
+        setTalleristasById(new Map());
+      }
+
       if (talleresResult.success) {
         const talleresFiltrados = talleresResult.talleres.filter(t => 
           ambientes.includes(t.ambiente)
@@ -378,6 +405,16 @@ export function TalleresEspeciales() {
                             {slot.trim()}
                           </span>
                         ))}
+                    </div>
+                  </div>
+                )}
+                {getTalleristaName(selectedTaller.talleristaId) && (
+                  <div className="family-talleres-selector__meta-row">
+                    <span className="family-talleres-selector__meta-label">Tallerista</span>
+                    <div className="family-talleres-selector__pills">
+                      <span className="family-talleres-selector__pill">
+                        {getTalleristaName(selectedTaller.talleristaId)}
+                      </span>
                     </div>
                   </div>
                 )}

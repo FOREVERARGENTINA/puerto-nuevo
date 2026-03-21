@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/auth.service';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_DASHBOARDS } from '../../config/constants';
+import { normalizeRole } from '../../utils/roles';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../common/Modal';
 import Icon from '../ui/Icon';
 
@@ -34,7 +35,7 @@ export function LoginForm() {
 
       // Obtener el rol del token
       const tokenResult = await result.user.getIdTokenResult();
-      const userRole = tokenResult.claims.role || 'family';
+      const userRole = normalizeRole(tokenResult.claims.role) || 'family';
 
       // Redirigir según rol
       const dashboard = ROLE_DASHBOARDS[userRole] || '/';

@@ -8,6 +8,8 @@ import { formatRelativeTime } from '../../utils/dateHelpers';
 import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
+  getConversationActivityDate,
+  getConversationActivityTime,
   getCategoryLabel,
   getConversationStatusBadge,
   getConversationStatusLabel
@@ -21,17 +23,6 @@ const STATUS_FILTERS = {
   CERRADAS: 'cerradas'
 };
 
-const toMillis = (value) => {
-  if (!value) return 0;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value?.toDate === 'function') {
-    const date = value.toDate();
-    return date instanceof Date ? date.getTime() : 0;
-  }
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
 const isClosedConversation = (conv) => conv?.estado === CONVERSATION_STATUS.CERRADA;
 const hasUnreadForSchool = (conv) => !isClosedConversation(conv) && (conv?.mensajesSinLeerEscuela || 0) > 0;
 const isPendingSchoolReply = (conv) => {
@@ -40,9 +31,6 @@ const isPendingSchoolReply = (conv) => {
   if (hasUnreadForSchool(conv)) return true;
   return conv?.estado === CONVERSATION_STATUS.PENDIENTE;
 };
-const getConversationSortTime = (conv) => (
-  toMillis(conv?.ultimoMensajeAt) || toMillis(conv?.actualizadoAt)
-);
 
 export function AdminConversations() {
   const { user, role } = useAuth();
@@ -96,7 +84,7 @@ export function AdminConversations() {
       return [...result].sort((a, b) => {
         const unreadPriority = Number(hasUnreadForSchool(b)) - Number(hasUnreadForSchool(a));
         if (unreadPriority !== 0) return unreadPriority;
-        return getConversationSortTime(b) - getConversationSortTime(a);
+        return getConversationActivityTime(b) - getConversationActivityTime(a);
       });
     }
 
@@ -286,7 +274,7 @@ export function AdminConversations() {
                         </span>
                       )}
                       <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
-                        {conv.ultimoMensajeAt ? formatRelativeTime(conv.ultimoMensajeAt) : ''}
+                        {getConversationActivityDate(conv) ? formatRelativeTime(getConversationActivityDate(conv)) : ''}
                       </span>
                     </div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>

@@ -34,6 +34,42 @@ const { maskEmail } = require('./src/utils/logging');
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
 const VALID_ROLES = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
 
+const normalizeRole = (value) => {
+  if (typeof value !== 'string') return '';
+  const role = value.trim().toLowerCase();
+  if (role === 'teacher' || role === 'teachers' || role === 'doeente') return 'docente';
+  return role;
+};
+
+const normalizeScope = (value) => {
+  if (typeof value !== 'string') return 'global';
+  const scope = value.trim().toLowerCase();
+  if (!scope || scope === 'todos' || scope === 'all') return 'global';
+  if (scope === 'taller1' || scope === 'taller2' || scope === 'global') return scope;
+  return 'global';
+};
+
+const normalizeDocumentRoles = (roles) => {
+  if (!Array.isArray(roles)) return [];
+  return Array.from(new Set(
+    roles
+      .map((role) => normalizeRole(role))
+      .filter(Boolean)
+  ));
+};
+
+const toMillisOrNull = (value) => {
+  if (value && typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.getTime();
+  }
+
+  return null;
+};
+
 const ensureDataObject = (data) => {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new HttpsError('invalid-argument', 'request.data debe ser un objeto');
@@ -76,15 +112,84 @@ const normalizeAndValidateEmail = (emailValue) => {
 
 const getUserRole = async (uid) => {
   const authUser = await admin.auth().getUser(uid);
-  let role = authUser.customClaims?.role || null;
+  let role = normalizeRole(authUser.customClaims?.role || null);
 
   // Fallback para cuentas legacy sin custom claim pero con rol en Firestore.
   if (!role) {
     const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    role = userDoc.exists ? userDoc.data()?.role || null : null;
+    role = userDoc.exists ? normalizeRole(userDoc.data()?.role || null) : null;
   }
 
   return role;
+};
+
+const matchesResponsable = (entry, uid) => {
+  if (typeof entry === 'string') {
+    return entry.trim() === uid;
+  }
+
+  if (entry && typeof entry.uid === 'string') {
+    return entry.uid.trim() === uid;
+  }
+
+  return false;
+};
+
+const getFamilyAmbientes = async (uid) => {
+  const ambientes = new Set();
+  const db = admin.firestore();
+
+  const directSnapshot = await db
+    .collection('children')
+    .where('responsables', 'array-contains', uid)
+    .limit(120)
+    .get();
+
+  directSnapshot.forEach((childDoc) => {
+    const ambiente = normalizeScope(childDoc.data()?.ambiente);
+    if (ambiente === 'taller1' || ambiente === 'taller2') {
+      ambientes.add(ambiente);
+    }
+  });
+
+  if (ambientes.size === 2) {
+    return ambientes;
+  }
+
+  const fallbackSnapshot = await db
+    .collection('children')
+    .where('ambiente', 'in', ['taller1', 'taller2'])
+    .limit(300)
+    .get();
+
+  fallbackSnapshot.forEach((childDoc) => {
+    const childData = childDoc.data() || {};
+    const responsables = Array.isArray(childData.responsables) ? childData.responsables : [];
+    if (!responsables.some((entry) => matchesResponsable(entry, uid))) return;
+
+    const ambiente = normalizeScope(childData.ambiente);
+    if (ambiente === 'taller1' || ambiente === 'taller2') {
+      ambientes.add(ambiente);
+    }
+  });
+
+  return ambientes;
+};
+
+const canUserReadDocument = async ({ uid, role, documentData, familyAmbientes = null }) => {
+  if (!role) return false;
+  if (['superadmin', 'coordinacion'].includes(role)) return true;
+
+  const documentRoles = normalizeDocumentRoles(documentData?.roles);
+  if (!documentRoles.includes(role)) return false;
+
+  if (role !== 'family') return true;
+
+  const documentScope = normalizeScope(documentData?.ambiente);
+  if (documentScope === 'global') return true;
+
+  const ambientes = familyAmbientes || await getFamilyAmbientes(uid);
+  return ambientes.has(documentScope);
 };
 
 /**
@@ -104,7 +209,7 @@ exports.setUserRole = onCallWithCors(async (request) => {
 
   const data = ensureDataObject(request.data);
   const uid = requireNonEmptyString(data.uid, 'uid', 128);
-  const role = requireNonEmptyString(data.role, 'role', 64);
+  const role = normalizeRole(requireNonEmptyString(data.role, 'role', 64));
 
   if (!VALID_ROLES.includes(role)) {
     throw new HttpsError('invalid-argument', `Rol invalido. Debe ser uno de: ${VALID_ROLES.join(', ')}`);
@@ -162,7 +267,7 @@ exports.createUserWithRole = onCallWithCors(async (request) => {
   const data = ensureDataObject(request.data);
   const email = normalizeAndValidateEmail(data.email);
   const password = requireNonEmptyString(data.password, 'password', 1024);
-  const role = requireNonEmptyString(data.role, 'role', 64);
+  const role = normalizeRole(requireNonEmptyString(data.role, 'role', 64));
   const displayName = optionalString(data.displayName, 'displayName', 128);
 
   if (password.length < 8) {
@@ -293,6 +398,57 @@ exports.checkUserEmail = onCallWithCors(async (request) => {
   }
 
   return { exists: !snapshot.empty };
+});
+
+exports.listAccessibleDocuments = onCallWithCors(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Debe estar autenticado');
+  }
+
+  const uid = request.auth.uid;
+  const role = await getUserRole(uid);
+
+  if (!role) {
+    throw new HttpsError('permission-denied', 'No se pudo resolver el rol del usuario');
+  }
+
+  try {
+    const db = admin.firestore();
+    const docsSnapshot = await db
+      .collection('documents')
+      .orderBy('createdAt', 'desc')
+      .limit(500)
+      .get();
+
+    const familyAmbientes = role === 'family' ? await getFamilyAmbientes(uid) : null;
+
+    const documents = [];
+    for (const docSnap of docsSnapshot.docs) {
+      const data = docSnap.data() || {};
+      const allowed = await canUserReadDocument({
+        uid,
+        role,
+        documentData: data,
+        familyAmbientes
+      });
+
+      if (!allowed) continue;
+
+      documents.push({
+        id: docSnap.id,
+        ...data,
+        roles: normalizeDocumentRoles(data.roles),
+        ambiente: normalizeScope(data.ambiente),
+        createdAt: toMillisOrNull(data.createdAt),
+        updatedAt: toMillisOrNull(data.updatedAt)
+      });
+    }
+
+    return { success: true, documents, role };
+  } catch (error) {
+    console.error('Error listando documentos accesibles:', error);
+    throw new HttpsError('internal', 'No se pudieron listar documentos');
+  }
 });
 
 /**

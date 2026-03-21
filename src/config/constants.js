@@ -239,7 +239,7 @@ export const ROUTES = {
 
   // Teacher
   TEACHER_DASHBOARD: '/portal/docente',
-  MY_TALLER: '/portal/docente/mi-taller',
+  TEACHER_COMMUNICATIONS: '/portal/docente/comunicados',
   TEACHER_DOCUMENTS: '/portal/docente/documentos',
   INSTITUTIONAL_GALLERY_TEACHER: '/portal/docente/galeria',
   TEACHER_ACTIVITIES: '/portal/docente/actividades',

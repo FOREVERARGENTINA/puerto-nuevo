@@ -19,7 +19,8 @@ const CommunicationRichTextEditor = lazy(() =>
 
 export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const returnRoute = role === ROLES.DOCENTE ? ROUTES.TEACHER_COMMUNICATIONS : ROUTES.SEND_COMMUNICATION;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const maxEventMediaSizeBytes = 50 * 1024 * 1024;
@@ -405,7 +406,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
           if (embedded) {
             if (onSuccess) onSuccess();
           } else {
-            navigate(ROUTES.ADMIN_DASHBOARD);
+            navigate(returnRoute);
           }
         }, 1000);
       } else {
@@ -1022,7 +1023,7 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
         <button
           type="button"
           className="btn btn--outline"
-          onClick={() => (onCancel ? onCancel() : navigate(ROUTES.ADMIN_DASHBOARD))}
+          onClick={() => (onCancel ? onCancel() : navigate(returnRoute))}
           disabled={loading}
         >
           Cancelar

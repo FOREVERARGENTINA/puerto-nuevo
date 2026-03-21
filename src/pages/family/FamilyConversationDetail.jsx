@@ -179,31 +179,37 @@ export function FamilyConversationDetail() {
       </div>
 
       {!isClosed && (
-        <form className="conversation-reply" onSubmit={handleSend}>
-          <textarea
-            className="conversation-reply__input"
+        <form className="conversation-composer conversation-composer--family" onSubmit={handleSend}>
+          <div className="conversation-composer__shell">
+            <textarea
+              className="conversation-composer__input"
             placeholder="Escribí tu mensaje..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
             disabled={sending}
-          />
-          <div className="conversation-reply__footer">
-            <div style={{ width: '100%' }}>
-              <FileUploadSelector
-                id="family-conversation-file"
-                multiple={false}
-                onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
-                disabled={sending}
-                hint="Adjunto opcional"
-              />
-              {file && (
-                <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
-              )}
-            </div>
-            <button className="btn btn--primary" type="submit" disabled={sending || (!text.trim() && !file)}>
-              {sending ? 'Enviando...' : 'Enviar'}
+            />
+            <button
+              className="conversation-composer__send"
+              type="submit"
+              disabled={sending || (!text.trim() && !file)}
+              aria-label={sending ? 'Enviando mensaje' : 'Enviar mensaje'}
+              title={sending ? 'Enviando mensaje' : 'Enviar mensaje'}
+            >
+              <Icon name="send" size={18} />
             </button>
+          </div>
+          <div className="conversation-composer__attachment">
+            <FileUploadSelector
+              id="family-conversation-file"
+              multiple={false}
+              onFilesSelected={(files) => setFile(Array.isArray(files) ? files[0] || null : null)}
+              disabled={sending}
+              hint="Adjunto opcional"
+            />
+            {file && (
+              <FileSelectionList files={[file]} onRemove={() => setFile(null)} />
+            )}
           </div>
           {error && <div className="alert alert--error mt-sm">{error}</div>}
         </form>

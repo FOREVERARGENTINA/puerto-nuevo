@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useDocumentUnreadCount } from '../../hooks/useDocumentUnreadCount';
 import { useDirectMessagesUnreadCount } from '../../hooks/useDirectMessages';
-import { ROLES } from '../../config/constants';
+import { ROLES, ROUTES } from '../../config/constants';
 import Icon from '../ui/Icon';
 import { EventCalendar } from './EventCalendar';
 import { socialService } from '../../services/social.service';
@@ -54,7 +54,8 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/admin/galeria-institucional', icon: 'image', label: 'Galería' }
     ],
     [ROLES.DOCENTE]: [
-      { path: '/portal/docente', icon: 'home', label: 'Inicio' },
+      { path: ROUTES.TEACHER_DASHBOARD, icon: 'home', label: 'Inicio' },
+      { path: ROUTES.TEACHER_COMMUNICATIONS, icon: 'send', label: 'Comunicados' },
       { path: '/portal/docente/eventos', icon: 'event', label: 'Eventos' },
       { path: '/portal/docente/actividades', icon: 'edit', label: 'Actividades' },
       { path: '/portal/docente/documentos', icon: 'file', label: 'Documentos' },

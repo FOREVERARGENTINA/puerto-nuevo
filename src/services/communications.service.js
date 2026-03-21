@@ -18,6 +18,14 @@ import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const communicationsCollection = collection(db, 'communications');
 
+function sortByCreatedAtDesc(items) {
+  return [...items].sort((a, b) => {
+    const aMillis = a?.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+    const bMillis = b?.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+    return bMillis - aMillis;
+  });
+}
+
 export const communicationsService = {
   async createCommunication(data) {
     try {
@@ -81,6 +89,25 @@ export const communicationsService = {
         id: doc.id,
         ...fixMojibakeDeep(doc.data())
       }));
+      return { success: true, communications };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async getCommunicationsBySender(senderId, limitCount = 50) {
+    try {
+      const q = query(
+        communicationsCollection,
+        where('sentBy', '==', senderId)
+      );
+      const snapshot = await getDocs(q);
+      const communications = sortByCreatedAtDesc(
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...fixMojibakeDeep(doc.data())
+        }))
+      ).slice(0, limitCount);
       return { success: true, communications };
     } catch (error) {
       return { success: false, error: error.message };

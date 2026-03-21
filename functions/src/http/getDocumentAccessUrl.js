@@ -15,7 +15,9 @@ function normalizeString(value) {
 }
 
 function normalizeRole(value) {
-  return normalizeString(value).toLowerCase();
+  const role = normalizeString(value).toLowerCase();
+  if (role === 'teacher' || role === 'teachers' || role === 'doeente') return 'docente';
+  return role;
 }
 
 function normalizeScope(rawValue) {

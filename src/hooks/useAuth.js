@@ -11,6 +11,7 @@ import {
   CAN_VIEW_MEDICAL_INFO,
   CAN_MANAGE_APPOINTMENTS
 } from '../config/constants';
+import { normalizeRole } from '../utils/roles';
 
 const AuthContext = createContext({});
 
@@ -25,7 +26,7 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         // Obtener custom claims del token
         const tokenResult = await firebaseUser.getIdTokenResult();
-        const userRole = tokenResult.claims.role || ROLES.FAMILY;
+        const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
 
         setUser(firebaseUser);
         setRole(userRole);
@@ -46,7 +47,7 @@ export function AuthProvider({ children }) {
     if (user) {
       await user.getIdToken(true); // Force refresh
       const tokenResult = await user.getIdTokenResult();
-      const userRole = tokenResult.claims.role || ROLES.FAMILY;
+      const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
       setRole(userRole);
       setPermissions(getRolePermissions(userRole));
     }
