@@ -534,8 +534,10 @@ const AppointmentsManager = () => {
 
     const slots = [];
     const targetDayOfWeek = parseInt(diaSemana);
-    const startDate = new Date(fechaDesde);
-    const endDate = new Date(fechaHasta);
+    const [startY, startM, startD] = String(fechaDesde).split('-').map(Number);
+    const [endY, endM, endD] = String(fechaHasta).split('-').map(Number);
+    const startDate = new Date(startY, startM - 1, startD);
+    const endDate = new Date(endY, endM - 1, endD);
 
     let currentDate = new Date(startDate);
     while (currentDate.getDay() !== targetDayOfWeek) {
