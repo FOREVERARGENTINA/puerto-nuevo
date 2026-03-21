@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usersService } from '../../services/users.service';
+import { childrenService } from '../../services/children.service';
 import { conversationsService } from '../../services/conversations.service';
 import { CONVERSATION_CATEGORIES, ESCUELA_AREAS, ROLES, ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
@@ -47,10 +48,24 @@ export function AdminNewConversation() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Modo: individual o grupal
+  const [modo, setModo] = useState('individual');
+
+  // ── Estado modo individual ──
   const [familyUsers, setFamilyUsers] = useState([]);
   const [selectedFamilies, setSelectedFamilies] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // ── Estado modo grupal ──
+  const [childOptions, setChildOptions] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
+  const [responsablesInfo, setResponsablesInfo] = useState([]); // [{ uid, displayName, email }]
+  const [childSearchTerm, setChildSearchTerm] = useState('');
+  const [showChildDropdown, setShowChildDropdown] = useState(false);
+  const [loadingResponsables, setLoadingResponsables] = useState(false);
+
   const [file, setFile] = useState(null);
 
   const [form, setForm] = useState({
@@ -60,6 +75,7 @@ export function AdminNewConversation() {
     mensaje: ''
   });
 
+  // Cargar familias para modo individual
   useEffect(() => {
     const loadFamilies = async () => {
       const result = await usersService.getUsersByRole(ROLES.FAMILY);
@@ -70,6 +86,19 @@ export function AdminNewConversation() {
     loadFamilies();
   }, []);
 
+  // Cargar niños para modo grupal (lazy)
+  useEffect(() => {
+    if (modo !== 'grupal' || childOptions.length > 0) return;
+    const loadChildren = async () => {
+      const result = await childrenService.getAllChildren();
+      if (result.success) {
+        setChildOptions(result.children);
+      }
+    };
+    loadChildren();
+  }, [modo, childOptions.length]);
+
+  // ── Helpers modo individual ──
   const filteredFamilies = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return familyUsers
@@ -103,6 +132,44 @@ export function AdminNewConversation() {
   const getSelectedFamiliesInfo = () =>
     familyUsers.filter(f => selectedFamilies.includes(f.id));
 
+  // ── Helpers modo grupal ──
+  const filteredChildren = useMemo(() => {
+    const term = childSearchTerm.toLowerCase();
+    return childOptions
+      .filter(c => (c.nombreCompleto || '').toLowerCase().includes(term))
+      .slice(0, 10);
+  }, [childOptions, childSearchTerm]);
+
+  const handleChildSelect = async (child) => {
+    setSelectedChild(child);
+    setChildSearchTerm('');
+    setShowChildDropdown(false);
+    setResponsablesInfo([]);
+
+    if (!child.responsables || child.responsables.length === 0) return;
+
+    setLoadingResponsables(true);
+    const results = await Promise.all(
+      child.responsables.map(uid => usersService.getUserById(uid))
+    );
+    const info = results
+      .filter(r => r.success && r.user)
+      .map(r => ({
+        uid: r.user.id,
+        displayName: r.user.displayName || r.user.email || r.user.id,
+        email: r.user.email || ''
+      }));
+    setResponsablesInfo(info);
+    setLoadingResponsables(false);
+  };
+
+  const handleClearChild = () => {
+    setSelectedChild(null);
+    setResponsablesInfo([]);
+    setChildSearchTerm('');
+  };
+
+  // ── Formulario ──
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
@@ -111,47 +178,88 @@ export function AdminNewConversation() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
-    if (selectedFamilies.length === 0) {
-      setError('Debes seleccionar al menos una familia');
-      return;
-    }
-    if (selectedFamilies.length > 50) {
-      setError('Máximo 50 familias por envío. Dividí el envío en tandas.');
-      return;
-    }
 
     setLoading(true);
     setError(null);
 
-    const selected = getSelectedFamiliesInfo();
-    const results = await Promise.all(selected.map(fam =>
-      conversationsService.createConversationWithMessage({
-        familiaUid: fam.id,
-        familiaDisplayName: fam.displayName,
-        familiaEmail: fam.email,
+    if (modo === 'individual') {
+      if (selectedFamilies.length === 0) {
+        setError('Debes seleccionar al menos una familia');
+        setLoading(false);
+        return;
+      }
+      if (selectedFamilies.length > 50) {
+        setError('Máximo 50 familias por envío. Dividí el envío en tandas.');
+        setLoading(false);
+        return;
+      }
+
+      const selected = getSelectedFamiliesInfo();
+      const results = await Promise.all(selected.map(fam =>
+        conversationsService.createConversationWithMessage({
+          familiaUid: fam.id,
+          familiaDisplayName: fam.displayName,
+          familiaEmail: fam.email,
+          destinatarioEscuela: form.destinatarioEscuela,
+          asunto: form.asunto.trim(),
+          categoria: form.categoria,
+          iniciadoPor: 'escuela',
+          autorUid: user.uid,
+          autorDisplayName: user.displayName || user.email,
+          autorRol: role,
+          texto: form.mensaje.trim(),
+          archivos: file ? [file] : []
+        })
+      ));
+
+      const failed = results.filter(r => !r.success);
+      if (failed.length > 0) {
+        setError('Algunas conversaciones no se pudieron crear. Reintentar.');
+        setLoading(false);
+        return;
+      }
+    } else {
+      // Modo grupal
+      if (!selectedChild) {
+        setError('Debes seleccionar un niño/a');
+        setLoading(false);
+        return;
+      }
+      if (responsablesInfo.length === 0) {
+        setError('El niño/a seleccionado no tiene responsables registrados');
+        setLoading(false);
+        return;
+      }
+
+      const participantesUids = responsablesInfo.map(r => r.uid);
+      const participantes = {};
+      responsablesInfo.forEach(r => {
+        participantes[r.uid] = { displayName: r.displayName, email: r.email };
+      });
+
+      const result = await conversationsService.createGroupConversation({
+        participantesUids,
+        participantes,
+        childNombre: selectedChild.nombreCompleto || '',
         destinatarioEscuela: form.destinatarioEscuela,
         asunto: form.asunto.trim(),
         categoria: form.categoria,
-        iniciadoPor: 'escuela',
         autorUid: user.uid,
         autorDisplayName: user.displayName || user.email,
         autorRol: role,
         texto: form.mensaje.trim(),
         archivos: file ? [file] : []
-      })
-    ));
+      });
 
-    const failed = results.filter(r => !r.success);
-    if (failed.length > 0) {
-      setError('Algunas conversaciones no se pudieron crear. Reintentar.');
-      setLoading(false);
-      return;
+      if (!result.success) {
+        setError(result.error || 'No se pudo crear la conversación grupal');
+        setLoading(false);
+        return;
+      }
     }
 
     navigate(ROUTES.ADMIN_CONVERSATIONS);
   };
-
-  /* icons moved to module scope (UploadIcon / AreaIcons) */
 
   const formatFileSize = (size = 0) => {
     if (!size) return '';
@@ -160,12 +268,28 @@ export function AdminNewConversation() {
     return `${(kb / 1024).toFixed(1)} MB`;
   };
 
+  const submitDisabled = loading || (
+    modo === 'individual'
+      ? selectedFamilies.length === 0
+      : !selectedChild || responsablesInfo.length === 0 || loadingResponsables
+  );
+
+  const submitLabel = loading
+    ? 'Enviando...'
+    : modo === 'individual'
+      ? `Enviar a ${selectedFamilies.length || '…'} familia${selectedFamilies.length !== 1 ? 's' : ''}`
+      : 'Crear conversación grupal';
+
   return (
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">Nuevo mensaje</h1>
-          <p className="dashboard-subtitle">Se crearán conversaciones separadas por cada familia seleccionada.</p>
+          <p className="dashboard-subtitle">
+            {modo === 'individual'
+              ? 'Se crearán conversaciones separadas por cada familia seleccionada.'
+              : 'Se creará un chat grupal con todos los responsables del niño/a.'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
           <Link to={ROUTES.ADMIN_CONVERSATIONS} className="btn btn--outline">
@@ -178,112 +302,237 @@ export function AdminNewConversation() {
         <div className="card__body">
           <form onSubmit={handleSubmit}>
 
-            {/* ── SECCIÓN 1: Destinatarios ── */}
+            {/* ── Toggle de modo ── */}
             <div className="sc-section">
               <div className="sc-section__header">
                 <span className="sc-section__num">1</span>
+                <h3 className="sc-section__title">Tipo de conversación</h3>
+              </div>
+              <div className="sc-type-grid sc-type-grid--2col">
+                <button
+                  type="button"
+                  className={`sc-type-card${modo === 'individual' ? ' sc-type-card--active' : ''}`}
+                  onClick={() => setModo('individual')}
+                  disabled={loading}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M6 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <span className="sc-type-card__label">Individual</span>
+                  <span className="sc-type-card__desc">Una familia por conversación</span>
+                </button>
+                <button
+                  type="button"
+                  className={`sc-type-card${modo === 'grupal' ? ' sc-type-card--active' : ''}`}
+                  onClick={() => setModo('grupal')}
+                  disabled={loading}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M3 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <circle cx="17" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M21 20v-.5A4.5 4.5 0 0 0 14.5 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                  <span className="sc-type-card__label">Familiar (grupal)</span>
+                  <span className="sc-type-card__desc">Todos los responsables de un niño/a</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── SECCIÓN 2: Destinatarios ── */}
+            <div className="sc-section">
+              <div className="sc-section__header">
+                <span className="sc-section__num">2</span>
                 <h3 className="sc-section__title">Destinatarios</h3>
               </div>
 
-              <div className="form-group">
-                <label className="required">Familias</label>
-                <div className="recipient-card">
-                  <div className="recipient-content">
-                    {selectedFamilies.length > 0 && (
-                      <div className="selected-families-chips recipient-chips">
-                        <div className="chips-label">
-                          Seleccionadas ({selectedFamilies.length}):
-                        </div>
-                        <div className="chips-container">
-                          {getSelectedFamiliesInfo().map(fam => (
-                            <div key={fam.id} className="recipient-chip">
-                              <span className="chip-text">{fam.displayName || fam.email}</span>
-                              <button
-                                type="button"
-                                className="chip-remove"
-                                onClick={() => handleRemoveFamily(fam.id)}
-                                disabled={loading}
-                                aria-label={`Remover ${fam.displayName || fam.email}`}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="family-autocomplete">
-                      <div className="recipient-search-input">
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="Buscar familias por nombre o email..."
-                          value={searchTerm}
-                          onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            setShowDropdown(e.target.value.length >= 2);
-                          }}
-                          onFocus={() => searchTerm.length >= 2 && setShowDropdown(true)}
-                          disabled={loading}
-                        />
-                      </div>
-
-                      {showDropdown && filteredFamilies.length > 0 && (
-                        <div className="family-dropdown">
-                          {filteredFamilies.map(fam => (
-                            <div
-                              key={fam.id}
-                              className="family-dropdown-item"
-                              onClick={() => handleFamilySelect(fam.id)}
-                            >
-                              <div className="family-info">
-                                <span className="family-name">{fam.displayName || fam.email}</span>
-                                <span className="family-email">{fam.email}</span>
+              {modo === 'individual' ? (
+                /* ── Modo individual: selección de familias ── */
+                <div className="form-group">
+                  <label className="required">Familias</label>
+                  <div className="recipient-card">
+                    <div className="recipient-content">
+                      {selectedFamilies.length > 0 && (
+                        <div className="selected-families-chips recipient-chips">
+                          <div className="chips-label">
+                            Seleccionadas ({selectedFamilies.length}):
+                          </div>
+                          <div className="chips-container">
+                            {getSelectedFamiliesInfo().map(fam => (
+                              <div key={fam.id} className="recipient-chip">
+                                <span className="chip-text">{fam.displayName || fam.email}</span>
+                                <button
+                                  type="button"
+                                  className="chip-remove"
+                                  onClick={() => handleRemoveFamily(fam.id)}
+                                  disabled={loading}
+                                  aria-label={`Remover ${fam.displayName || fam.email}`}
+                                >
+                                  ×
+                                </button>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {showDropdown && searchTerm.length >= 2 && filteredFamilies.length === 0 && (
-                        <div className="family-dropdown">
-                          <div className="family-dropdown-empty">
-                            No se encontraron familias con &ldquo;{searchTerm}&rdquo;
+                            ))}
                           </div>
                         </div>
                       )}
-                    </div>
 
-                    <div className="recipient-quick-actions">
-                      <button
-                        type="button"
-                        className="btn btn--sm btn--outline"
-                        onClick={handleSelectAll}
-                        disabled={loading}
-                      >
-                        Seleccionar todas ({familyUsers.length})
-                      </button>
-                      {selectedFamilies.length > 0 && (
+                      <div className="family-autocomplete">
+                        <div className="recipient-search-input">
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Buscar familias por nombre o email..."
+                            value={searchTerm}
+                            onChange={(e) => {
+                              setSearchTerm(e.target.value);
+                              setShowDropdown(e.target.value.length >= 2);
+                            }}
+                            onFocus={() => searchTerm.length >= 2 && setShowDropdown(true)}
+                            disabled={loading}
+                          />
+                        </div>
+
+                        {showDropdown && filteredFamilies.length > 0 && (
+                          <div className="family-dropdown">
+                            {filteredFamilies.map(fam => (
+                              <div
+                                key={fam.id}
+                                className="family-dropdown-item"
+                                onClick={() => handleFamilySelect(fam.id)}
+                              >
+                                <div className="family-info">
+                                  <span className="family-name">{fam.displayName || fam.email}</span>
+                                  <span className="family-email">{fam.email}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {showDropdown && searchTerm.length >= 2 && filteredFamilies.length === 0 && (
+                          <div className="family-dropdown">
+                            <div className="family-dropdown-empty">
+                              No se encontraron familias con &ldquo;{searchTerm}&rdquo;
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="recipient-quick-actions">
                         <button
                           type="button"
                           className="btn btn--sm btn--outline"
-                          onClick={handleClearAll}
+                          onClick={handleSelectAll}
                           disabled={loading}
                         >
-                          Limpiar selección
+                          Seleccionar todas ({familyUsers.length})
                         </button>
+                        {selectedFamilies.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn btn--sm btn--outline"
+                            onClick={handleClearAll}
+                            disabled={loading}
+                          >
+                            Limpiar selección
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ── Modo grupal: búsqueda de niño/a ── */
+                <div className="form-group">
+                  <label className="required">Niño/a</label>
+                  <div className="recipient-card">
+                    <div className="recipient-content">
+                      {selectedChild ? (
+                        <div className="sc-group-selected">
+                          <div className="sc-group-selected__header">
+                            <strong>{selectedChild.nombreCompleto}</strong>
+                            <button
+                              type="button"
+                              className="chip-remove"
+                              onClick={handleClearChild}
+                              disabled={loading}
+                              aria-label="Cambiar niño/a"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {loadingResponsables ? (
+                            <p className="sc-group-selected__loading">Cargando responsables...</p>
+                          ) : responsablesInfo.length > 0 ? (
+                            <div className="sc-group-selected__participants">
+                              <span className="sc-group-selected__label">Participantes en el chat:</span>
+                              <div className="chips-container" style={{ marginTop: 'var(--spacing-xs)' }}>
+                                {responsablesInfo.map(r => (
+                                  <div key={r.uid} className="recipient-chip recipient-chip--readonly">
+                                    <span className="chip-text">{r.displayName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="sc-group-selected__empty">
+                              Este niño/a no tiene responsables registrados.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="family-autocomplete">
+                          <div className="recipient-search-input">
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Buscar niño/a por nombre..."
+                              value={childSearchTerm}
+                              onChange={(e) => {
+                                setChildSearchTerm(e.target.value);
+                                setShowChildDropdown(e.target.value.length >= 2);
+                              }}
+                              onFocus={() => childSearchTerm.length >= 2 && setShowChildDropdown(true)}
+                              disabled={loading}
+                            />
+                          </div>
+
+                          {showChildDropdown && filteredChildren.length > 0 && (
+                            <div className="family-dropdown">
+                              {filteredChildren.map(child => (
+                                <div
+                                  key={child.id}
+                                  className="family-dropdown-item"
+                                  onClick={() => handleChildSelect(child)}
+                                >
+                                  <div className="family-info">
+                                    <span className="family-name">{child.nombreCompleto}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {showChildDropdown && childSearchTerm.length >= 2 && filteredChildren.length === 0 && (
+                            <div className="family-dropdown">
+                              <div className="family-dropdown-empty">
+                                No se encontraron alumnos con &ldquo;{childSearchTerm}&rdquo;
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* ── SECCIÓN 2: Detalles del mensaje ── */}
+            {/* ── SECCIÓN 3: Detalles del mensaje ── */}
             <div className="sc-section">
               <div className="sc-section__header">
-                <span className="sc-section__num">2</span>
+                <span className="sc-section__num">3</span>
                 <h3 className="sc-section__title">Detalles del mensaje</h3>
               </div>
 
@@ -420,13 +669,10 @@ export function AdminNewConversation() {
               <button
                 type="submit"
                 className="btn btn--primary"
-                disabled={loading || selectedFamilies.length === 0}
+                disabled={submitDisabled}
               >
                 <Icon name="send" size={16} />
-                {loading
-                  ? 'Enviando...'
-                  : `Enviar a ${selectedFamilies.length || '…'} familia${selectedFamilies.length !== 1 ? 's' : ''}`
-                }
+                {submitLabel}
               </button>
               <button
                 type="button"

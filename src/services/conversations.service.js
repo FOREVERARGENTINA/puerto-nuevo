@@ -1,4 +1,4 @@
-﻿import {
+import {
   collection,
   doc,
   setDoc,
@@ -73,6 +73,7 @@ export const conversationsService = {
         familiaUid,
         familiaDisplayName: familiaDisplayName || null,
         familiaEmail: familiaEmail || null,
+        participantesUids: [familiaUid],
         destinatarioEscuela,
         asunto,
         categoria,
@@ -115,6 +116,87 @@ export const conversationsService = {
     }
   },
 
+  async createGroupConversation({
+    participantesUids,
+    participantes,
+    childNombre,
+    destinatarioEscuela,
+    asunto,
+    categoria,
+    autorUid,
+    autorDisplayName,
+    autorRol,
+    texto,
+    archivos
+  }) {
+    try {
+      const convRef = doc(conversationsCollection);
+      const primaryUid = participantesUids[0];
+
+      // mensajesSinLeer: 1 para cada participante familiar (escuela inició)
+      const mensajesSinLeer = {};
+      participantesUids.forEach(uid => { mensajesSinLeer[uid] = 1; });
+
+      // ultimoMensajeVisto: null para cada participante
+      const ultimoMensajeVisto = {};
+      participantesUids.forEach(uid => { ultimoMensajeVisto[uid] = null; });
+
+      // participanteMap: { uid: true } — permite query por campo anidado
+      // que Firestore puede validar estáticamente en security rules
+      const participanteMap = {};
+      participantesUids.forEach(uid => { participanteMap[uid] = true; });
+
+      await setDoc(convRef, {
+        esGrupal: true,
+        familiaUid: primaryUid,
+        familiaDisplayName: childNombre || null,
+        familiaEmail: participantes[primaryUid]?.email || null,
+        participantesUids,
+        participanteMap,
+        participantes,
+        destinatarioEscuela,
+        asunto,
+        categoria,
+        iniciadoPor: 'escuela',
+        estado: CONVERSATION_STATUS.RESPONDIDA,
+        hasFamilyReply: false,
+        hasSchoolReply: true,
+        mensajesSinLeer,
+        ultimoMensajeVisto,
+        mensajesSinLeerEscuela: 0,
+        creadoAt: serverTimestamp(),
+        actualizadoAt: serverTimestamp()
+      });
+
+      const messageRef = doc(collection(db, 'conversations', convRef.id, 'messages'));
+      const attachments = await uploadAttachments(convRef.id, messageRef.id, archivos);
+      const preview = buildPreview(texto, attachments);
+
+      await setDoc(messageRef, {
+        autorUid,
+        autorDisplayName: autorDisplayName || null,
+        autorRol,
+        texto: texto || '',
+        adjuntos: attachments,
+        creadoAt: serverTimestamp(),
+        tipoMensaje: 'normal'
+      });
+
+      await updateDoc(convRef, {
+        ultimoMensajeUid: messageRef.id,
+        ultimoMensajeAutor: autorRol,
+        ultimoMensajeTexto: preview,
+        ultimoMensajeAt: serverTimestamp(),
+        actualizadoAt: serverTimestamp()
+      });
+
+      return { success: true, id: convRef.id };
+    } catch (error) {
+      console.error('Error creando conversación grupal:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   async sendMessage(conversationId, { autorUid, autorDisplayName, autorRol, texto, archivos }) {
     try {
       const convRef = doc(conversationsCollection, conversationId);
@@ -149,7 +231,7 @@ export const conversationsService = {
         tipoMensaje: 'normal'
       });
 
-      await updateDoc(convRef, {
+      const updates = {
         estado,
         hasFamilyReply,
         hasSchoolReply,
@@ -157,10 +239,31 @@ export const conversationsService = {
         ultimoMensajeAutor: autorRol,
         ultimoMensajeTexto: preview,
         ultimoMensajeAt: serverTimestamp(),
-        actualizadoAt: serverTimestamp(),
-        mensajesSinLeerFamilia: isFamily ? 0 : increment(1),
-        mensajesSinLeerEscuela: isFamily ? increment(1) : 0
-      });
+        actualizadoAt: serverTimestamp()
+      };
+
+      if (convData.esGrupal) {
+        const participants = convData.participantesUids || [];
+        if (isFamily) {
+          updates[`mensajesSinLeer.${autorUid}`] = 0;
+          participants.forEach(uid => {
+            if (uid !== autorUid) {
+              updates[`mensajesSinLeer.${uid}`] = increment(1);
+            }
+          });
+          updates.mensajesSinLeerEscuela = increment(1);
+        } else {
+          participants.forEach(uid => {
+            updates[`mensajesSinLeer.${uid}`] = increment(1);
+          });
+          updates.mensajesSinLeerEscuela = 0;
+        }
+      } else {
+        updates.mensajesSinLeerFamilia = isFamily ? 0 : increment(1);
+        updates.mensajesSinLeerEscuela = isFamily ? increment(1) : 0;
+      }
+
+      await updateDoc(convRef, updates);
 
       return { success: true, id: messageRef.id };
     } catch (error) {
@@ -259,19 +362,32 @@ export const conversationsService = {
 
   async closeConversation(conversationId, closedByUid) {
     try {
-      // Al cerrar una conversación, también limpiamos los contadores de mensajes sin leer
-      // para evitar que usuarios (familia/escuela) sigan viendo notificaciones pendientes.
-      await updateDoc(doc(conversationsCollection, conversationId), {
+      const convRef = doc(conversationsCollection, conversationId);
+      const convSnap = await getDoc(convRef);
+      if (!convSnap.exists()) {
+        return { success: false, error: 'Conversación no encontrada' };
+      }
+      const convData = convSnap.data();
+
+      const updates = {
         estado: CONVERSATION_STATUS.CERRADA,
         cerradoAt: serverTimestamp(),
         cerradoPor: closedByUid || null,
-        mensajesSinLeerFamilia: 0,
         mensajesSinLeerEscuela: 0,
-        // opcional: actualizar timestamps de "visto" para coherencia con markConversationRead
-        ultimoMensajeVistoPorFamilia: serverTimestamp(),
         ultimoMensajeVistoPorEscuela: serverTimestamp(),
         actualizadoAt: serverTimestamp()
-      });
+      };
+
+      if (convData.esGrupal && Array.isArray(convData.participantesUids)) {
+        convData.participantesUids.forEach(uid => {
+          updates[`mensajesSinLeer.${uid}`] = 0;
+        });
+      } else {
+        updates.mensajesSinLeerFamilia = 0;
+        updates.ultimoMensajeVistoPorFamilia = serverTimestamp();
+      }
+
+      await updateDoc(convRef, updates);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -291,14 +407,19 @@ export const conversationsService = {
     }
   },
 
-  async markConversationRead(conversationId, forRole) {
+  async markConversationRead(conversationId, forRole, { familiaUid, esGrupal } = {}) {
     try {
       const payload = {
         actualizadoAt: serverTimestamp()
       };
       if (forRole === 'family') {
-        payload.mensajesSinLeerFamilia = 0;
-        payload.ultimoMensajeVistoPorFamilia = serverTimestamp();
+        if (esGrupal && familiaUid) {
+          payload[`mensajesSinLeer.${familiaUid}`] = 0;
+          payload[`ultimoMensajeVisto.${familiaUid}`] = serverTimestamp();
+        } else {
+          payload.mensajesSinLeerFamilia = 0;
+          payload.ultimoMensajeVistoPorFamilia = serverTimestamp();
+        }
       } else {
         payload.mensajesSinLeerEscuela = 0;
         payload.ultimoMensajeVistoPorEscuela = serverTimestamp();

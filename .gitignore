@@ -47,3 +47,6 @@ assign-admin.js
 
 # Git worktrees
 .worktrees/
+
+
+service-account.json

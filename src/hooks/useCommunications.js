@@ -77,22 +77,18 @@ export function useCommunications(limitCount = 50) {
 
     const unsubscribe = onSnapshot(
       q,
-      async (snapshot) => {
-        try {
-          const comms = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
+      (snapshot) => {
+        const comms = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-          currentComms = comms;
-          setCommunications(comms);
-          await checkUnreadCommunications(comms);
-          setLoading(false);
-        } catch (err) {
-          console.error('Error procesando comunicados:', err);
-          setError(err.message);
-          setLoading(false);
-        }
+        currentComms = comms;
+        setCommunications(comms);
+        setLoading(false);
+        checkUnreadCommunications(comms).catch((err) => {
+          console.error('Error verificando lecturas:', err);
+        });
       },
       (err) => {
         console.error('Error en listener de comunicados:', err);

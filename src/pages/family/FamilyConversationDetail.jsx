@@ -59,10 +59,23 @@ export function FamilyConversationDetail() {
 
   useEffect(() => {
     if (!conversation || !user) return;
-    if ((conversation.mensajesSinLeerFamilia || 0) > 0) {
-      setConversation((prev) => (prev ? { ...prev, mensajesSinLeerFamilia: 0 } : prev));
-      emitConversationRead(conversation.id, 'family');
-      conversationsService.markConversationRead(conversation.id, 'family').catch(() => {
+    const unread = conversation.esGrupal
+      ? (conversation.mensajesSinLeer?.[user.uid] || 0)
+      : (conversation.mensajesSinLeerFamilia || 0);
+    if (unread > 0) {
+      if (conversation.esGrupal) {
+        setConversation((prev) => prev ? {
+          ...prev,
+          mensajesSinLeer: { ...(prev.mensajesSinLeer || {}), [user.uid]: 0 }
+        } : prev);
+      } else {
+        setConversation((prev) => (prev ? { ...prev, mensajesSinLeerFamilia: 0 } : prev));
+      }
+      emitConversationRead(conversation.id, 'family', user.uid);
+      conversationsService.markConversationRead(conversation.id, 'family', {
+        familiaUid: user.uid,
+        esGrupal: conversation.esGrupal
+      }).catch(() => {
         // no-op: el listener remoto corrige estado final
       });
     }
@@ -128,10 +141,24 @@ export function FamilyConversationDetail() {
                 {getConversationStatusLabel(conversation.estado, role)}
               </span>
             )}
+            {conversation.esGrupal && (
+              <span className="conversation-meta-item conversation-meta-item--grupal">Chat grupal</span>
+            )}
             <span className="conversation-meta-item">{getAreaLabel(conversation.destinatarioEscuela)}</span>
             <span className="conversation-meta-divider">·</span>
             <span className="conversation-meta-item">{getCategoryLabel(conversation.categoria)}</span>
           </div>
+          {conversation.esGrupal && conversation.participantes && (() => {
+            const otros = Object.entries(conversation.participantes)
+              .filter(([uid]) => uid !== user?.uid)
+              .map(([, p]) => p.displayName || p.email)
+              .filter(Boolean);
+            return otros.length > 0 ? (
+              <p className="conversation-detail-participants">
+                También en esta conversación: {otros.join(', ')}
+              </p>
+            ) : null;
+          })()}
         </div>
         <div className="conversations-header__actions">
           <Link to={ROUTES.FAMILY_CONVERSATIONS} className="btn btn--outline btn--back btn--sm">

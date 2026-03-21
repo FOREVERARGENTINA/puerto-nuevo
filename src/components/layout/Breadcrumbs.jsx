@@ -108,9 +108,14 @@ export function Breadcrumbs() {
     ? (isPortalRoute ? `/portal/${roleSegment}` : `/${roleSegment}`)
     : (isSharedDocumentsRoute ? resolveRoleRootPath(role) : '/');
 
+  const hasTrailingDocumentId = isDocumentId(pathSegments[pathSegments.length - 1] || '');
+  const parentPathFromTrailingId = hasTrailingDocumentId
+    ? `/${pathSegments.slice(0, -1).join('/')}`
+    : null;
+
   const mobileBackPath = breadcrumbs.length > 1
     ? breadcrumbs[breadcrumbs.length - 2].path
-    : roleRootPath;
+    : (parentPathFromTrailingId || roleRootPath);
   const isDocumentDetailRoute = pathSegments[pathSegments.length - 2] === 'documentos'
     && isDocumentId(pathSegments[pathSegments.length - 1] || '');
 

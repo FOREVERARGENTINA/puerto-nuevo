@@ -43,7 +43,11 @@
       "mcp__firebase__auth_get_users",
       "Bash(node -e \"require\\(''''./functions/src/triggers/onDirectMessageCreated''''\\)\")",
       "mcp__plugin_firebase_firebase__firestore_get_document",
-      "mcp__plugin_firebase_firebase__firestore_query_collection"
+      "mcp__plugin_firebase_firebase__firestore_query_collection",
+      "Bash(node --input-type=module --eval \":*)",
+      "Bash(echo:*)",
+      "mcp__plugin_firebase_firebase__firestore_list_documents",
+      "mcp__plugin_firebase_firebase__auth_get_users"
     ],
     "deny": [],
     "ask": []

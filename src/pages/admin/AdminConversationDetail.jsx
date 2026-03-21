@@ -84,8 +84,18 @@ export function AdminConversationDetail() {
 
   const getMsgReceipt = (msg) => {
     if (msg.autorRol === 'family') return null;
-    const visto = conversation?.ultimoMensajeVistoPorFamilia;
     if (!msg.creadoAt) return 'sent';
+    let visto;
+    if (conversation?.esGrupal && conversation?.ultimoMensajeVisto) {
+      // "leído" si al menos un participante lo vio
+      const timestamps = Object.values(conversation.ultimoMensajeVisto).filter(Boolean);
+      if (timestamps.length === 0) return 'sent';
+      const toMs = (t) => typeof t.toMillis === 'function' ? t.toMillis() : (t.seconds || 0) * 1000;
+      const maxMs = Math.max(...timestamps.map(toMs));
+      const msgMs = toMs(msg.creadoAt);
+      return msgMs <= maxMs ? 'read' : 'sent';
+    }
+    visto = conversation?.ultimoMensajeVistoPorFamilia;
     if (!visto) return 'sent';
     const msgMs = typeof msg.creadoAt.toMillis === 'function' ? msg.creadoAt.toMillis() : (msg.creadoAt.seconds || 0) * 1000;
     const vistoMs = typeof visto.toMillis === 'function' ? visto.toMillis() : (visto.seconds || 0) * 1000;
@@ -179,6 +189,14 @@ export function AdminConversationDetail() {
       <div className="dashboard-header dashboard-header--compact conversation-header-layout">
         <div className="conversation-header-layout__main">
           <h1 className="dashboard-title">{conversation.familiaDisplayName || conversation.familiaEmail || 'Familia'}</h1>
+          {conversation.esGrupal && conversation.participantes && (
+            <p className="conversation-header__participants text-muted">
+              {Object.values(conversation.participantes)
+                .map(p => p.displayName || p.email)
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          )}
           <div className="conversation-header__meta">
             {[CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.CERRADA].includes(conversation.estado) && (
               <span className={getConversationStatusBadge(conversation.estado)}>

@@ -38,11 +38,65 @@ const NOTES_ALLOWED_MIME_TYPES = new Set([
   'image/heic-sequence',
   'image/heif-sequence'
 ]);
+const MANUAL_SLOT_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'));
+const MANUAL_SLOT_MINUTE_OPTIONS = ['00', '15', '30', '45'];
 
 const getAppointmentModeLabel = (value) => {
   if (value === 'virtual') return 'Virtual';
   if (value === 'presencial') return 'Presencial';
   return 'Sin definir';
+};
+const formatDateInputValueLocal = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const formatTimeInputValueLocal = (date) => {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+const buildLocalDateTime = (dateValue, timeValue) => {
+  const [year, month, day] = String(dateValue || '').split('-').map(Number);
+  const [hour, minute] = String(timeValue || '').split(':').map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return null;
+  }
+
+  const candidate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  return Number.isNaN(candidate.getTime()) ? null : candidate;
+};
+const getDefaultManualSlotDraft = (baseDate = new Date()) => {
+  const candidate = new Date(baseDate);
+  candidate.setSeconds(0, 0);
+
+  if (candidate.getHours() < 9) {
+    candidate.setHours(9, 0, 0, 0);
+  } else {
+    candidate.setMinutes(0, 0, 0);
+    if (baseDate.getMinutes() > 0 || baseDate.getSeconds() > 0 || baseDate.getMilliseconds() > 0) {
+      candidate.setHours(candidate.getHours() + 1);
+    }
+
+    if (candidate.getHours() >= 18) {
+      candidate.setDate(candidate.getDate() + 1);
+      candidate.setHours(9, 0, 0, 0);
+    }
+  }
+
+  return {
+    fecha: formatDateInputValueLocal(candidate),
+    hora: formatTimeInputValueLocal(candidate),
+    duracionMinutos: 30
+  };
 };
 
 const AppointmentsManager = () => {
@@ -50,6 +104,7 @@ const AppointmentsManager = () => {
   const [loading, setLoading] = useState(true);
   const [visibleAppointmentsCount, setVisibleAppointmentsCount] = useState(30);
   const [showCreateSlots, setShowCreateSlots] = useState(false);
+  const [showCreateManualSlot, setShowCreateManualSlot] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -58,6 +113,7 @@ const AppointmentsManager = () => {
   const [showPastAppointments, setShowPastAppointments] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const handleSearchChange = (e) => setSearchTerm(e.target.value.trimStart());
+  const [assignmentOptionsLoading, setAssignmentOptionsLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -77,6 +133,15 @@ const AppointmentsManager = () => {
     duracionMinutos: 30,
     intervaloMinutos: 0
   });
+  const [manualSlotForm, setManualSlotForm] = useState(() => getDefaultManualSlotDraft());
+  const [manualAssignNow, setManualAssignNow] = useState(true);
+  const [manualAssignError, setManualAssignError] = useState('');
+  const [manualChildSearchTerm, setManualChildSearchTerm] = useState('');
+  const [manualSelectedChildId, setManualSelectedChildId] = useState('');
+  const [manualFamilySearchTerm, setManualFamilySearchTerm] = useState('');
+  const [manualSelectedFamilyIds, setManualSelectedFamilyIds] = useState([]);
+  const [manualAssignMode, setManualAssignMode] = useState('');
+  const [manualSlotSubmitting, setManualSlotSubmitting] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesLoading, setNotesLoading] = useState(false);
   const [notesSaving, setNotesSaving] = useState(false);
@@ -108,9 +173,9 @@ const AppointmentsManager = () => {
       (date.getFullYear() === todayYear && date.getMonth() < todayMonth);
   };
 
-  const loadAppointments = async () => {
+  const loadAppointments = async (monthToLoad = currentMonth) => {
     setLoading(true);
-    const { start, end } = getMonthRange(currentMonth);
+    const { start, end } = getMonthRange(monthToLoad);
     const result = await appointmentsService.getAppointmentsByDateRange(start, end);
     if (result.success) {
       setAppointments(result.appointments);
@@ -120,15 +185,14 @@ const AppointmentsManager = () => {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-    loadAppointments();
+    loadAppointments(currentMonth);
   }, [currentMonth]);
 
   useEffect(() => {
-    if (!showAssignModal) return;
+    if (!showAssignModal && !showCreateManualSlot) return;
 
-    const loadAssignOptions = async () => {
-      setAssignLoading(true);
-      setAssignError('');
+    const loadAssignmentOptions = async () => {
+      setAssignmentOptionsLoading(true);
       const [usersResult, childrenResult] = await Promise.all([
         usersService.getUsersByRole(ROLES.FAMILY),
         childrenService.getAllChildren()
@@ -142,14 +206,19 @@ const AppointmentsManager = () => {
         setChildren(childrenResult.children);
       }
 
-      setAssignLoading(false);
+      setAssignmentOptionsLoading(false);
     };
 
+    loadAssignmentOptions();
+  }, [showAssignModal, showCreateManualSlot]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+    setAssignError('');
     setChildSearchTerm('');
     setFamilySearchTerm('');
     setSelectedChildId('');
     setSelectedFamilyIds([]);
-    loadAssignOptions();
   }, [showAssignModal]);
 
   useEffect(() => {
@@ -157,6 +226,13 @@ const AppointmentsManager = () => {
     setSelectedFamilyIds([]);
     setFamilySearchTerm('');
   }, [selectedChildId, showAssignModal]);
+
+  useEffect(() => {
+    if (!showCreateManualSlot) return;
+    setManualSelectedFamilyIds([]);
+    setManualFamilySearchTerm('');
+    setManualAssignError('');
+  }, [manualSelectedChildId, showCreateManualSlot]);
 
   useEffect(() => {
     setVisibleAppointmentsCount(30);
@@ -168,6 +244,104 @@ const AppointmentsManager = () => {
       ...prev,
       [name]: value
     }));
+  };
+  const handleManualSlotFormChange = (e) => {
+    const { name, value } = e.target;
+    setManualSlotForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  const handleManualSlotTimePartChange = (part, value) => {
+    setManualSlotForm(prev => {
+      const [currentHour = '00', currentMinute = '00'] = String(prev.hora || '00:00').split(':');
+      return {
+        ...prev,
+        hora: part === 'hour'
+          ? `${value}:${currentMinute}`
+          : `${currentHour}:${value}`
+      };
+    });
+  };
+  const resetManualAssignmentState = () => {
+    setManualAssignNow(true);
+    setManualAssignError('');
+    setManualChildSearchTerm('');
+    setManualSelectedChildId('');
+    setManualFamilySearchTerm('');
+    setManualSelectedFamilyIds([]);
+    setManualAssignMode('');
+  };
+  const resetManualSlotState = () => {
+    setManualSlotForm(getDefaultManualSlotDraft());
+    resetManualAssignmentState();
+  };
+  const handleChildSearchChange = (e) => {
+    const value = e.target.value.trimStart();
+    setChildSearchTerm(value);
+
+    if (!selectedChildId) return;
+
+    const currentSelectedChild = children.find(child => child.id === selectedChildId);
+    const normalizedValue = value.trim().toLowerCase();
+    const selectedName = (currentSelectedChild?.nombreCompleto || '').toLowerCase();
+
+    if (!normalizedValue || !selectedName.includes(normalizedValue)) {
+      setSelectedChildId('');
+    }
+  };
+  const handleSelectChild = (child) => {
+    if (!child?.id) return;
+    setSelectedChildId(child.id);
+    setChildSearchTerm(child.nombreCompleto || '');
+  };
+  const handleManualChildSearchChange = (e) => {
+    const value = e.target.value.trimStart();
+    setManualChildSearchTerm(value);
+
+    if (!manualSelectedChildId) return;
+
+    const currentSelectedChild = children.find(child => child.id === manualSelectedChildId);
+    const normalizedValue = value.trim().toLowerCase();
+    const selectedName = (currentSelectedChild?.nombreCompleto || '').toLowerCase();
+
+    if (!normalizedValue || !selectedName.includes(normalizedValue)) {
+      setManualSelectedChildId('');
+    }
+    setManualAssignError('');
+  };
+  const handleSelectManualChild = (child) => {
+    if (!child?.id) return;
+    setManualSelectedChildId(child.id);
+    setManualChildSearchTerm(child.nombreCompleto || '');
+    setManualAssignError('');
+  };
+  const toggleSelectionWithLimit = ({ uid, selectedIds, setSelectedIds, setError }) => {
+    if (selectedIds.includes(uid)) {
+      setSelectedIds(prev => prev.filter(id => id !== uid));
+      return;
+    }
+
+    if (selectedIds.length >= 2) {
+      setError('Podés seleccionar hasta 2 familias.');
+      return;
+    }
+
+    setError('');
+    setSelectedIds(prev => [...prev, uid]);
+  };
+  const toggleCreateSlots = () => {
+    const next = !showCreateSlots;
+    setShowCreateSlots(next);
+    if (next) setShowCreateManualSlot(false);
+  };
+  const toggleCreateManualSlot = () => {
+    const next = !showCreateManualSlot;
+    setShowCreateManualSlot(next);
+    if (next) setShowCreateSlots(false);
+    if (!next) {
+      resetManualSlotState();
+    }
   };
 
   const handleNotesChange = (e) => {
@@ -392,6 +566,80 @@ const AppointmentsManager = () => {
 
     return slots;
   };
+  const buildManualSlotPayload = () => {
+    const { fecha, hora, duracionMinutos } = manualSlotForm;
+
+    if (!fecha || !hora || !duracionMinutos) {
+      return { error: 'Completa fecha, hora y duración para crear el sobreturno.' };
+    }
+
+    const startDate = buildLocalDateTime(fecha, hora);
+    if (!startDate) {
+      return { error: 'La fecha u hora del sobreturno no es válida.' };
+    }
+
+    const duration = parseInt(duracionMinutos, 10);
+    if (!Number.isInteger(duration) || duration <= 0) {
+      return { error: 'La duración del sobreturno debe ser un número válido.' };
+    }
+
+    if (startDate.getTime() < Date.now()) {
+      return { error: 'No se puede crear un sobreturno en una fecha u hora pasada.' };
+    }
+
+    return {
+      startDate,
+      payload: {
+        fechaHora: startDate,
+        duracionMinutos: duration,
+        creadoPorUid: user?.uid || ''
+      }
+    };
+  };
+  const buildFamiliesInfo = (familyIds) => (
+    familyIds
+      .map(uid => {
+        const currentUser = familyUsers.find(item => item.id === uid);
+        return {
+          uid,
+          email: currentUser?.email || '',
+          displayName: currentUser?.displayName || ''
+        };
+      })
+      .filter(info => info.email || info.displayName)
+  );
+  const buildAssignmentPayload = ({ childId, familyIds, mode }) => {
+    if (!childId) {
+      return { error: 'Seleccioná un alumno.' };
+    }
+    if (!Array.isArray(familyIds) || familyIds.length === 0) {
+      return { error: 'Seleccioná al menos una familia.' };
+    }
+    if (!mode) {
+      return { error: 'Seleccioná la modalidad de la reunión.' };
+    }
+
+    const familiesInfo = buildFamiliesInfo(familyIds);
+    const primaryFamily = familiesInfo[0] || {};
+    const childInfo = children.find(child => child.id === childId);
+
+    return {
+      payload: {
+        estado: 'reservado',
+        familiaUid: familyIds[0],
+        familiasUids: familyIds,
+        hijoId: childId,
+        modalidad: mode,
+        familiaEmail: primaryFamily.email || '',
+        familiaDisplayName: primaryFamily.displayName || '',
+        familiasInfo: familiesInfo,
+        hijoNombre: childInfo?.nombreCompleto || '',
+        assignedAt: serverTimestamp()
+      },
+      childInfo,
+      familiesInfo
+    };
+  };
 
   const handleCreateSlots = async () => {
     const slots = generateTimeSlots();
@@ -423,6 +671,88 @@ const AppointmentsManager = () => {
             title: 'Error',
             message: 'Error al crear turnos: ' + result.error,
             type: 'error'
+          });
+        }
+      }
+    });
+  };
+  const handleCreateManualSlot = () => {
+    const prepared = buildManualSlotPayload();
+
+    if (prepared.error) {
+      alertDialog.openDialog({
+        title: 'Validación',
+        message: prepared.error,
+        type: 'warning'
+      });
+      return;
+    }
+
+    const { startDate, payload } = prepared;
+    const assignmentData = manualAssignNow
+      ? buildAssignmentPayload({
+          childId: manualSelectedChildId,
+          familyIds: manualSelectedFamilyIds,
+          mode: manualAssignMode
+        })
+      : null;
+
+    if (assignmentData?.error) {
+      setManualAssignError(assignmentData.error);
+      return;
+    }
+
+    const summaryTime = startDate.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const assignmentSummary = assignmentData?.payload
+      ? ` y se asignará a ${assignmentData.payload.hijoNombre || 'la familia seleccionada'} en modalidad ${getAppointmentModeLabel(assignmentData.payload.modalidad)}`
+      : '';
+
+    confirmDialog.openDialog({
+      title: 'Crear sobreturno',
+      message: `Se creará 1 sobreturno el ${formatFullDate(startDate)} a las ${summaryTime} por ${payload.duracionMinutos} minutos${assignmentSummary}. ¿Deseas continuar?`,
+      onConfirm: async () => {
+        setManualSlotSubmitting(true);
+        const result = await appointmentsService.createManualSlot({
+          ...payload,
+          ...(assignmentData?.payload ? { assignmentPayload: assignmentData.payload } : {})
+        });
+        setManualSlotSubmitting(false);
+
+        if (result.success) {
+          const slotMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+          const sameMonth = (
+            currentMonth.getFullYear() === slotMonth.getFullYear() &&
+            currentMonth.getMonth() === slotMonth.getMonth()
+          );
+
+          setShowCreateManualSlot(false);
+          resetManualSlotState();
+          setSelectedDay(startDate.getDate());
+          setCurrentMonth(slotMonth);
+          if (sameMonth) {
+            await loadAppointments(slotMonth);
+          }
+
+          alertDialog.openDialog({
+            title: 'Éxito',
+            message: result.assigned
+              ? 'Sobreturno creado y asignado exitosamente.'
+              : 'Sobreturno creado exitosamente.',
+            type: 'success'
+          });
+        } else {
+          if (result.partialSuccess) {
+            const slotMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            setShowCreateManualSlot(false);
+            resetManualSlotState();
+            setSelectedDay(startDate.getDate());
+            setCurrentMonth(slotMonth);
+          }
+
+          alertDialog.openDialog({
+            title: result.code === 'APPOINTMENT_CONFLICT' ? 'Conflicto de horario' : 'Error',
+            message: result.error || 'No se pudo crear el sobreturno.',
+            type: result.code === 'APPOINTMENT_CONFLICT' ? 'warning' : 'error'
           });
         }
       }
@@ -602,62 +932,37 @@ const AppointmentsManager = () => {
   };
 
   const toggleFamilySelection = (uid) => {
-    if (selectedFamilyIds.includes(uid)) {
-      setSelectedFamilyIds(prev => prev.filter(id => id !== uid));
-      return;
-    }
-
-    if (selectedFamilyIds.length >= 2) {
-      setAssignError('Podés seleccionar hasta 2 familias.');
-      return;
-    }
-
-    setAssignError('');
-    setSelectedFamilyIds(prev => [...prev, uid]);
+    toggleSelectionWithLimit({
+      uid,
+      selectedIds: selectedFamilyIds,
+      setSelectedIds: setSelectedFamilyIds,
+      setError: setAssignError
+    });
+  };
+  const toggleManualFamilySelection = (uid) => {
+    toggleSelectionWithLimit({
+      uid,
+      selectedIds: manualSelectedFamilyIds,
+      setSelectedIds: setManualSelectedFamilyIds,
+      setError: setManualAssignError
+    });
   };
 
   const handleAssignFamilies = async () => {
     if (!selectedAppointment) return;
-    if (!selectedChildId) {
-      setAssignError('Seleccioná un alumno.');
-      return;
-    }
-    if (selectedFamilyIds.length === 0) {
-      setAssignError('Seleccioná al menos una familia.');
-      return;
-    }
-    if (!assignMode) {
-      setAssignError('Seleccioná la modalidad de la reunión.');
+    const assignment = buildAssignmentPayload({
+      childId: selectedChildId,
+      familyIds: selectedFamilyIds,
+      mode: assignMode
+    });
+    if (assignment.error) {
+      setAssignError(assignment.error);
       return;
     }
 
     setAssignLoading(true);
     setAssignError('');
-    const familiesInfo = selectedFamilyIds
-      .map(uid => {
-        const user = familyUsers.find(item => item.id === uid);
-        return {
-          uid,
-          email: user?.email || '',
-          displayName: user?.displayName || ''
-        };
-      })
-      .filter(info => info.email || info.displayName);
-    const primaryFamily = familiesInfo[0] || {};
-    const childInfo = children.find(child => child.id === selectedChildId);
-
-    const result = await appointmentsService.updateAppointment(selectedAppointment.id, {
-      estado: 'reservado',
-      familiaUid: selectedFamilyIds[0],
-      familiasUids: selectedFamilyIds,
-      hijoId: selectedChildId,
-      modalidad: assignMode,
-      familiaEmail: primaryFamily.email || '',
-      familiaDisplayName: primaryFamily.displayName || '',
-      familiasInfo: familiesInfo,
-      hijoNombre: childInfo?.nombreCompleto || '',
-      assignedAt: serverTimestamp()
-    });
+    const result = await appointmentsService.updateAppointment(selectedAppointment.id, assignment.payload);
 
     setAssignLoading(false);
 
@@ -749,8 +1054,7 @@ const AppointmentsManager = () => {
   };
 
   const getTodayMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    return formatDateInputValueLocal(new Date());
   };
 
   if (loading) {
@@ -763,11 +1067,18 @@ const AppointmentsManager = () => {
           </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
             <button
-              onClick={() => setShowCreateSlots(!showCreateSlots)}
+              onClick={toggleCreateSlots}
               className="btn btn--primary"
               disabled
             >
               + Crear Turnos
+            </button>
+            <button
+              onClick={toggleCreateManualSlot}
+              className="btn btn--outline"
+              disabled
+            >
+              Crear sobreturno
             </button>
           </div>
         </div>
@@ -896,14 +1207,27 @@ const AppointmentsManager = () => {
         (child.nombreCompleto || '').toLowerCase().includes(childSearchTerm.trim().toLowerCase())
       )
     : children;
+  const filteredManualChildren = manualChildSearchTerm.trim()
+    ? children.filter(child =>
+        (child.nombreCompleto || '').toLowerCase().includes(manualChildSearchTerm.trim().toLowerCase())
+      )
+    : children;
 
   const selectedChild = selectedChildId
     ? children.find(child => child.id === selectedChildId)
     : null;
+  const selectedManualChild = manualSelectedChildId
+    ? children.find(child => child.id === manualSelectedChildId)
+    : null;
 
   const childResponsables = Array.isArray(selectedChild?.responsables) ? selectedChild.responsables : [];
+  const manualChildResponsables = Array.isArray(selectedManualChild?.responsables) ? selectedManualChild.responsables : [];
 
   const responsablesInfo = childResponsables.map(uid => {
+    const user = familyUsersMap.get(uid);
+    return user || { id: uid, displayName: '', email: '' };
+  });
+  const manualResponsablesInfo = manualChildResponsables.map(uid => {
     const user = familyUsersMap.get(uid);
     return user || { id: uid, displayName: '', email: '' };
   });
@@ -915,6 +1239,13 @@ const AppointmentsManager = () => {
           (user.email || '').toLowerCase().includes(term);
       })
     : responsablesInfo;
+  const filteredManualResponsables = manualFamilySearchTerm.trim()
+    ? manualResponsablesInfo.filter(user => {
+        const term = manualFamilySearchTerm.trim().toLowerCase();
+        return (user.displayName || '').toLowerCase().includes(term) ||
+          (user.email || '').toLowerCase().includes(term);
+      })
+    : manualResponsablesInfo;
 
   const selectedFamiliesInfo = Array.isArray(selectedAppointment?.familiasInfo)
     ? selectedAppointment.familiasInfo
@@ -929,21 +1260,35 @@ const AppointmentsManager = () => {
         </div>
         <div className="appointments-header__actions">
           <button
-            onClick={() => setShowCreateSlots(!showCreateSlots)}
+            onClick={toggleCreateSlots}
             className={showCreateSlots ? 'btn btn--outline' : 'btn btn--primary'}
           >
             {showCreateSlots ? 'Cerrar formulario' : '+ Crear Turnos'}
+          </button>
+          <button
+            onClick={toggleCreateManualSlot}
+            className={showCreateManualSlot ? 'btn btn--outline' : 'btn btn--secondary'}
+          >
+            {showCreateManualSlot ? 'Cerrar sobreturno' : 'Crear sobreturno'}
           </button>
         </div>
       </div>
 
       <div className="appointments-mobile-create-trigger">
-        <button
-          onClick={() => setShowCreateSlots(!showCreateSlots)}
-          className={showCreateSlots ? 'btn btn--outline' : 'btn btn--primary'}
-        >
-          {showCreateSlots ? 'Cerrar formulario' : 'Crear turnos'}
-        </button>
+        <div className="appointments-mobile-create-actions">
+          <button
+            onClick={toggleCreateSlots}
+            className={showCreateSlots ? 'btn btn--outline' : 'btn btn--primary'}
+          >
+            {showCreateSlots ? 'Cerrar formulario' : 'Crear turnos'}
+          </button>
+          <button
+            onClick={toggleCreateManualSlot}
+            className={showCreateManualSlot ? 'btn btn--outline' : 'btn btn--secondary'}
+          >
+            {showCreateManualSlot ? 'Cerrar sobreturno' : 'Crear sobreturno'}
+          </button>
+        </div>
       </div>
 
       {showCreateSlots && (
@@ -1080,6 +1425,250 @@ const AppointmentsManager = () => {
         </div>
       )}
 
+      {showCreateManualSlot && (
+        <div className="card create-slots-form-card">
+          <div className="card__header">
+            <div>
+              <h2 className="card__title">Crear sobreturno manual</h2>
+              <p className="card__subtitle">Creá un sobreturno libre o asignalo en el momento a una familia.</p>
+            </div>
+          </div>
+          <div className="card__body">
+            <div className="create-slots-layout">
+              <section className="create-slots-section">
+                <div className="manual-slot-scheduler">
+                  <div className="manual-slot-input-card">
+                    <div className="manual-slot-input-card__header">
+                      <Icon name="calendar" size={18} />
+                      <div>
+                        <strong>Fecha</strong>
+                      </div>
+                    </div>
+                    <input
+                      className="form-input"
+                      type="date"
+                      id="manualSlotFecha"
+                      name="fecha"
+                      value={manualSlotForm.fecha}
+                      onChange={handleManualSlotFormChange}
+                      min={getTodayMinDate()}
+                    />
+                  </div>
+
+                  <div className="manual-slot-input-card">
+                    <div className="manual-slot-input-card__header">
+                      <Icon name="event" size={18} />
+                      <div>
+                        <strong>Hora</strong>
+                      </div>
+                    </div>
+                    <div className="manual-slot-time-selects">
+                      <div className="manual-slot-time-select">
+                        <label htmlFor="manualSlotHoraSelect">Hora</label>
+                        <select
+                          id="manualSlotHoraSelect"
+                          className="form-input"
+                          value={String(manualSlotForm.hora || '09:00').split(':')[0] || '09'}
+                          onChange={(e) => handleManualSlotTimePartChange('hour', e.target.value)}
+                        >
+                          {MANUAL_SLOT_HOUR_OPTIONS.map(option => (
+                            <option key={`manual-slot-hour-${option}`} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="manual-slot-time-select">
+                        <label htmlFor="manualSlotMinutoSelect">Minutos</label>
+                        <select
+                          id="manualSlotMinutoSelect"
+                          className="form-input"
+                          value={String(manualSlotForm.hora || '09:00').split(':')[1] || '00'}
+                          onChange={(e) => handleManualSlotTimePartChange('minute', e.target.value)}
+                        >
+                          {MANUAL_SLOT_MINUTE_OPTIONS.map(option => (
+                            <option key={`manual-slot-minute-${option}`} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="create-slots-grid create-slots-grid--setup" style={{ marginTop: 'var(--spacing-sm)' }}>
+                  <div className="form-group">
+                    <label htmlFor="manualSlotDuracion">Duración (minutos)</label>
+                    <input
+                      id="manualSlotDuracion"
+                      name="duracionMinutos"
+                      className="form-input"
+                      type="number"
+                      min="15"
+                      step="5"
+                      value={manualSlotForm.duracionMinutos}
+                      onChange={handleManualSlotFormChange}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="create-slots-section">
+                <label className="assign-inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={manualAssignNow}
+                    onChange={(e) => {
+                      setManualAssignNow(e.target.checked);
+                      setManualAssignError('');
+                    }}
+                  />
+                  <span>Asignar a una familia ahora</span>
+                </label>
+
+                {manualAssignError && (
+                  <div className="alert alert--error" style={{ marginTop: 'var(--spacing-sm)' }}>
+                    {manualAssignError}
+                  </div>
+                )}
+
+                {manualAssignNow ? (
+                  assignmentOptionsLoading ? (
+                    <div style={{ padding: 'var(--spacing-md) 0' }}>
+                      <div className="spinner"></div>
+                      <p className="empty-state__text" style={{ marginTop: 'var(--spacing-sm)' }}>Cargando opciones...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="form-group" style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <label htmlFor="manual-assign-child-search">Buscar alumno</label>
+                        <input
+                          id="manual-assign-child-search"
+                          type="text"
+                          className="form-input"
+                          placeholder="Buscar por nombre de alumno..."
+                          value={manualChildSearchTerm}
+                          onChange={handleManualChildSearchChange}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="manual-assign-child-search">Alumno *</label>
+                        <div className="assign-child-list" role="listbox" aria-label="Resultados de alumnos para sobreturno">
+                          {filteredManualChildren.length === 0 ? (
+                            <p className="empty-state__text">No hay alumnos que coincidan con la búsqueda.</p>
+                          ) : (
+                            filteredManualChildren.map(child => {
+                              const isSelected = manualSelectedChildId === child.id;
+                              return (
+                                <button
+                                  key={`manual-child-${child.id}`}
+                                  type="button"
+                                  className={`assign-child-item ${isSelected ? 'assign-child-item--selected' : ''}`}
+                                  onClick={() => handleSelectManualChild(child)}
+                                >
+                                  {child.nombreCompleto}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedManualChild ? (
+                        <>
+                          <div className="form-group">
+                            <label htmlFor="manual-assign-family-search">Buscar familia</label>
+                            <input
+                              id="manual-assign-family-search"
+                              type="text"
+                              className="form-input"
+                              placeholder="Buscar por nombre o email..."
+                              value={manualFamilySearchTerm}
+                              onChange={(e) => {
+                                setManualFamilySearchTerm(e.target.value.trimStart());
+                                setManualAssignError('');
+                              }}
+                            />
+                          </div>
+
+                          <div className="assign-family-list">
+                            {filteredManualResponsables.length === 0 ? (
+                              <p className="empty-state__text">No hay familias responsables para este alumno.</p>
+                            ) : (
+                              filteredManualResponsables.map(currentUser => {
+                                const label = currentUser.displayName || currentUser.email || 'Familia';
+                                const secondary = currentUser.displayName && currentUser.email ? currentUser.email : '';
+                                const isSelected = manualSelectedFamilyIds.includes(currentUser.id);
+                                const disableSelection = !isSelected && manualSelectedFamilyIds.length >= 2;
+
+                                return (
+                                  <label
+                                    key={`manual-family-${currentUser.id}`}
+                                    className={`assign-family-item ${disableSelection ? 'assign-family-item--disabled' : ''}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      disabled={disableSelection}
+                                      onChange={() => toggleManualFamilySelection(currentUser.id)}
+                                    />
+                                    <span className="assign-family-label">
+                                      <span>{label}</span>
+                                      {secondary && <small>{secondary}</small>}
+                                    </span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <p className="assign-family-hint">Podés seleccionar hasta 2 familias responsables del alumno.</p>
+                        </>
+                      ) : (
+                        <p className="empty-state__text">Seleccioná un alumno para ver sus responsables.</p>
+                      )}
+
+                      <div className="form-group">
+                        <label htmlFor="manual-assign-mode">Modalidad de reunión *</label>
+                        <select
+                          id="manual-assign-mode"
+                          className="form-input"
+                          value={manualAssignMode}
+                          onChange={(e) => {
+                            setManualAssignMode(e.target.value);
+                            setManualAssignError('');
+                          }}
+                        >
+                          <option value="">Seleccionar modalidad...</option>
+                          <option value="presencial">Presencial</option>
+                          <option value="virtual">Virtual</option>
+                        </select>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <p className="form-help" style={{ marginTop: 'var(--spacing-sm)', marginBottom: 0 }}>
+                    Se creará un sobreturno disponible para asignar más tarde desde el listado de reuniones.
+                  </p>
+                )}
+              </section>
+            </div>
+
+            <div className="create-slots-actions">
+              <button
+                onClick={handleCreateManualSlot}
+                className="btn btn--secondary"
+                disabled={manualSlotSubmitting}
+              >
+                {manualSlotSubmitting ? 'Guardando...' : manualAssignNow ? 'Crear y asignar sobreturno' : 'Crear sobreturno'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-content">
         <div className="appointments-manager-layout">
           <div className="appointments-list-panel">
@@ -1165,6 +1754,7 @@ const AppointmentsManager = () => {
                                   <div className="appointment-time">{formatTime(app.fechaHora)}</div>
                                   <div className="appointment-duration">
                                     {app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}
+                                    {app.origenSlot === 'manual' ? ' • Sobreturno' : ''}
                                   </div>
                                 </div>
                                 <div className="appointment-info-section">
@@ -1423,14 +2013,14 @@ const AppointmentsManager = () => {
                   <>
                     <button
                       onClick={() => confirmMarkAttended(selectedAppointment.id)}
-                      className="btn btn--primary btn--full"
+                      className="btn btn--full modal-action-btn modal-action-btn--attend"
                       disabled={actionLoading}
                     >
                       Marcar como Asistió
                     </button>
                     <button
                       onClick={() => confirmCancelAppointment(selectedAppointment.id)}
-                      className="btn btn--danger btn--full"
+                      className="btn btn--full modal-action-btn modal-action-btn--cancel"
                       disabled={actionLoading}
                     >
                       Cancelar Turno
@@ -1459,7 +2049,7 @@ const AppointmentsManager = () => {
 
                 <button
                   onClick={() => confirmDeleteAppointment(selectedAppointment.id)}
-                  className="btn btn--danger btn--outline btn--full"
+                  className="btn btn--full modal-action-btn modal-action-btn--delete"
                   disabled={actionLoading}
                 >
                   Eliminar permanentemente
@@ -1580,15 +2170,15 @@ const AppointmentsManager = () => {
       {showAssignModal && selectedAppointment && (
         <div className="modal-overlay" onClick={closeAssignModal}>
           <div className="modal-content modal-content--actions" onClick={(e) => e.stopPropagation()}>
-            {assignLoading && (
+            {(assignLoading || assignmentOptionsLoading) && (
               <div className="modal-loading-overlay">
                 <div className="spinner"></div>
-                <p>Asignando turno...</p>
+                <p>{assignmentOptionsLoading ? 'Cargando opciones...' : 'Asignando turno...'}</p>
               </div>
             )}
             <div className="modal-header">
               <h3>Asignar turno a familia/s</h3>
-              <button onClick={closeAssignModal} className="modal-close" disabled={assignLoading}>X</button>
+              <button onClick={closeAssignModal} className="modal-close" disabled={assignLoading || assignmentOptionsLoading}>X</button>
             </div>
             <div className="modal-body">
               {assignError && (
@@ -1605,25 +2195,31 @@ const AppointmentsManager = () => {
                   className="form-input"
                   placeholder="Buscar por nombre de alumno..."
                   value={childSearchTerm}
-                  onChange={(e) => setChildSearchTerm(e.target.value.trimStart())}
+                  onChange={handleChildSearchChange}
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="assign-child-select">Alumno *</label>
-                <select
-                  id="assign-child-select"
-                  className="form-input"
-                  value={selectedChildId}
-                  onChange={(e) => setSelectedChildId(e.target.value)}
-                >
-                  <option value="">Seleccionar alumno...</option>
-                  {filteredChildren.map(child => (
-                    <option key={child.id} value={child.id}>
-                      {child.nombreCompleto}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="assign-child-search">Alumno *</label>
+                <div className="assign-child-list" role="listbox" aria-label="Resultados de alumnos">
+                  {filteredChildren.length === 0 ? (
+                    <p className="empty-state__text">No hay alumnos que coincidan con la búsqueda.</p>
+                  ) : (
+                    filteredChildren.map(child => {
+                      const isSelected = selectedChildId === child.id;
+                      return (
+                        <button
+                          key={child.id}
+                          type="button"
+                          className={`assign-child-item ${isSelected ? 'assign-child-item--selected' : ''}`}
+                          onClick={() => handleSelectChild(child)}
+                        >
+                          {child.nombreCompleto}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               {selectedChild && (
@@ -1698,7 +2294,7 @@ const AppointmentsManager = () => {
               <button
                 className="btn btn--primary"
                 onClick={handleAssignFamilies}
-                disabled={assignLoading}
+                disabled={assignLoading || assignmentOptionsLoading}
               >
                 {assignLoading ? 'Asignando...' : 'Asignar turno'}
               </button>

@@ -5456,6 +5456,43 @@
   overflow-y: auto;
 }
 
+.assign-child-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.assign-child-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.assign-child-item:hover {
+  background-color: var(--color-background-warm);
+  border-color: rgba(72, 130, 132, 0.18);
+}
+
+.assign-child-item--selected {
+  background-color: rgba(72, 130, 132, 0.12);
+  border-color: rgba(72, 130, 132, 0.35);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .assign-family-item {
   display: flex;
   gap: var(--spacing-sm);
@@ -5494,6 +5531,44 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+}
+
+.modal-action-btn {
+  box-shadow: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+.modal-action-btn--attend {
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
+  color: color-mix(in srgb, var(--color-success) 68%, var(--color-text));
+}
+
+.modal-action-btn--attend:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 20%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+}
+
+.modal-action-btn--cancel {
+  background: color-mix(in srgb, var(--color-warning) 16%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-border));
+  color: color-mix(in srgb, var(--color-warning) 72%, var(--color-text));
+}
+
+.modal-action-btn--cancel:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-warning) 22%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-warning) 44%, var(--color-border));
+}
+
+.modal-action-btn--delete {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-error) 36%, var(--color-border));
+  color: color-mix(in srgb, var(--color-error) 82%, var(--color-text));
+}
+
+.modal-action-btn--delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 16%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-error) 48%, var(--color-border));
 }
 
 /* Admin Month View */
@@ -8650,6 +8725,19 @@
     width: 100%;
   }
 
+  .appointments-mobile-create-actions {
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+
+  .manual-slot-scheduler {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-slot-time-selects {
+    grid-template-columns: 1fr;
+  }
+
   .appointments-manager-page > .create-slots-form-card {
     order: 4;
     margin-top: var(--spacing-md);
@@ -9208,6 +9296,11 @@
   display: none;
 }
 
+.appointments-mobile-create-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
 .create-slots-form-card {
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
@@ -9240,6 +9333,73 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-primary);
+}
+
+.assign-inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.assign-inline-toggle input {
+  margin: 0;
+}
+
+.manual-slot-scheduler {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+.manual-slot-input-card {
+  display: grid;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-background) 84%, white);
+}
+
+.manual-slot-input-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
+}
+
+.manual-slot-input-card__header strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.manual-slot-input-card__header span {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+.manual-slot-time-selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.manual-slot-time-select {
+  display: grid;
+  gap: 6px;
+}
+
+.manual-slot-time-select label {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-light);
 }
 
 .create-slots-grid {
@@ -10699,8 +10859,29 @@
   color: var(--color-text-light);
 }
 
+.conversation-meta-item--grupal {
+  color: #154f56;
+  background: #d9eff1;
+  border: 1px solid rgba(21, 79, 86, 0.22);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
 .conversation-meta-divider {
   color: var(--color-text-lighter);
+}
+
+.conversation-detail-participants {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: var(--spacing-xs) 0 0;
+}
+
+.conversation-header__participants {
+  font-size: var(--font-size-sm);
+  margin: 2px 0 var(--spacing-xs);
 }
 
 .conversation-messages {

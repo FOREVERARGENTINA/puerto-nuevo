@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES } from '../config/constants';
@@ -13,10 +13,13 @@ const resolveAreaForRole = (role) => {
   return null;
 };
 
-const patchConversationAsRead = (items, conversationId, forRole) => (
+const patchConversationAsRead = (items, conversationId, forRole, uid) => (
   items.map((conv) => {
     if (conv.id !== conversationId) return conv;
     if (forRole === 'family') {
+      if (conv.esGrupal && uid) {
+        return { ...conv, mensajesSinLeer: { ...(conv.mensajesSinLeer || {}), [uid]: 0 } };
+      }
       return { ...conv, mensajesSinLeerFamilia: 0 };
     }
     return { ...conv, mensajesSinLeerEscuela: 0 };
@@ -24,16 +27,27 @@ const patchConversationAsRead = (items, conversationId, forRole) => (
 );
 
 export function useConversations({ user, role, limitCount = 200 }) {
-  const [conversations, setConversations] = useState([]);
+  // rawLegacy: familiaUid == uid (individual legacy + new individual)
+  // rawGroup: participantesUids array-contains uid (grupales + secundarios)
+  const [rawLegacy, setRawLegacy] = useState([]);
+  const [rawGroup, setRawGroup] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Merged, deduped, sorted conversations
+  const conversations = useMemo(() => {
+    const map = new Map();
+    rawLegacy.forEach(c => map.set(c.id, c));
+    rawGroup.forEach(c => map.set(c.id, c));
+    return sortConversationsByLatestMessage(Array.from(map.values())).slice(0, limitCount);
+  }, [rawLegacy, rawGroup, limitCount]);
+
   useEffect(() => {
     const handleConversationRead = (event) => {
-      const conversationId = event?.detail?.conversationId;
-      const forRole = event?.detail?.forRole;
+      const { conversationId, forRole, uid } = event?.detail || {};
       if (!conversationId || !forRole) return;
-      setConversations((prev) => patchConversationAsRead(prev, conversationId, forRole));
+      setRawLegacy((prev) => patchConversationAsRead(prev, conversationId, forRole, uid));
+      setRawGroup((prev) => patchConversationAsRead(prev, conversationId, forRole, uid));
     };
 
     window.addEventListener(CONVERSATION_READ_EVENT, handleConversationRead);
@@ -42,30 +56,60 @@ export function useConversations({ user, role, limitCount = 200 }) {
 
   useEffect(() => {
     if (!user || !role) {
-      setConversations([]);
+      setRawLegacy([]);
+      setRawGroup([]);
       setLoading(false);
       return;
     }
 
     const collectionRef = collection(db, 'conversations');
-    let q;
 
     if (role === ROLES.FAMILY) {
-      q = query(collectionRef, where('familiaUid', '==', user.uid));
-    } else if (role === ROLES.SUPERADMIN) {
-      // SUPERADMIN ve TODO (nivel 6)
+      // Q1: conversaciones individuales (legacy + nuevas con familiaUid == uid)
+      const q1 = query(collectionRef, where('familiaUid', '==', user.uid));
+      const unsubQ1 = onSnapshot(
+        q1,
+        (snapshot) => {
+          setRawLegacy(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setLoading(false);
+        },
+        (err) => {
+          console.error('Error en listener Q1 de conversaciones:', err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+
+      // Q2: conversaciones grupales donde el uid es participante secundario
+      // Usamos participanteMap.uid == true (campo anidado) en vez de array-contains
+      // porque Firestore puede validar este patrón estáticamente en security rules.
+      const q2 = query(collectionRef, where(`participanteMap.${user.uid}`, '==', true));
+      const unsubQ2 = onSnapshot(
+        q2,
+        (snapshot) => {
+          setRawGroup(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        },
+        (err) => {
+          console.error('Error listener Q2 (participantesUids):', err.code, err.message);
+        }
+      );
+
+      return () => {
+        unsubQ1();
+        unsubQ2();
+      };
+    }
+
+    // Roles no-family: un solo listener (comportamiento existente)
+    let q;
+    if (role === ROLES.SUPERADMIN) {
       q = query(collectionRef);
     } else if (role === ROLES.COORDINACION) {
-      // Reglas Firestore: coordinación solo puede leer conversaciones del área "coordinacion".
-      q = query(
-        collectionRef,
-        where('destinatarioEscuela', '==', 'coordinacion')
-      );
+      q = query(collectionRef, where('destinatarioEscuela', '==', 'coordinacion'));
     } else {
-      // FACTURACION y otros roles con área específica
       const area = resolveAreaForRole(role);
       if (!area) {
-        setConversations([]);
+        setRawLegacy([]);
         setLoading(false);
         return;
       }
@@ -75,8 +119,7 @@ export function useConversations({ user, role, limitCount = 200 }) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-        setConversations(sortConversationsByLatestMessage(data).slice(0, limitCount));
+        setRawLegacy(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
         setLoading(false);
       },
       (err) => {
@@ -91,23 +134,37 @@ export function useConversations({ user, role, limitCount = 200 }) {
 
   const unreadCount = useMemo(() => {
     if (!role) return 0;
-    const key = role === ROLES.FAMILY ? 'mensajesSinLeerFamilia' : 'mensajesSinLeerEscuela';
-    return conversations.reduce((sum, c) => sum + (c[key] || 0), 0);
-  }, [conversations, role]);
+    if (role === ROLES.FAMILY) {
+      return conversations.reduce((sum, c) => {
+        const unread = c.esGrupal
+          ? (c.mensajesSinLeer?.[user?.uid] || 0)
+          : (c.mensajesSinLeerFamilia || 0);
+        return sum + unread;
+      }, 0);
+    }
+    return conversations.reduce((sum, c) => sum + (c.mensajesSinLeerEscuela || 0), 0);
+  }, [conversations, role, user]);
 
-  const markAsRead = useCallback(async (conversationId) => {
+  const markAsRead = useCallback(async (conversationId, esGrupal = false) => {
     if (!conversationId || !role) return { success: false, error: 'Datos incompletos' };
 
     const forRole = role === ROLES.FAMILY ? 'family' : 'school';
-    setConversations((prev) => patchConversationAsRead(prev, conversationId, forRole));
-    emitConversationRead(conversationId, forRole);
+    const familiaUid = role === ROLES.FAMILY ? user?.uid : null;
 
-    const result = await conversationsService.markConversationRead(conversationId, forRole);
+    setRawLegacy((prev) => patchConversationAsRead(prev, conversationId, forRole, familiaUid));
+    setRawGroup((prev) => patchConversationAsRead(prev, conversationId, forRole, familiaUid));
+    emitConversationRead(conversationId, forRole, familiaUid);
+
+    const result = await conversationsService.markConversationRead(
+      conversationId,
+      forRole,
+      { familiaUid, esGrupal }
+    );
     if (!result.success) {
       setError(result.error || 'No se pudo marcar como leído');
     }
     return result;
-  }, [role]);
+  }, [role, user]);
 
   return {
     conversations,

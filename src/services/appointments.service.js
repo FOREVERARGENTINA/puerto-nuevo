@@ -29,6 +29,23 @@ const emitAppointmentsUpdated = () => {
 const normalizeAppointmentMode = (value) => (
   value === 'virtual' || value === 'presencial' ? value : null
 );
+const APPOINTMENT_CONFLICT_BUFFER_MINUTES = 10;
+const APPOINTMENT_DEFAULT_DURATION_MINUTES = 30;
+const ACTIVE_CONFLICT_STATUSES = new Set(['disponible', 'reservado', 'bloqueado', 'asistio']);
+const toDate = (value) => (
+  value?.toDate ? value.toDate() : new Date(value)
+);
+const getDayBounds = (date) => ({
+  start: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0),
+  end: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+});
+const hasMinimumBufferBetweenIntervals = (startA, endA, startB, endB, bufferMinutes = APPOINTMENT_CONFLICT_BUFFER_MINUTES) => {
+  const bufferMs = bufferMinutes * 60 * 1000;
+  return startA.getTime() >= endB.getTime() + bufferMs || startB.getTime() >= endA.getTime() + bufferMs;
+};
+const formatConflictTime = (date) => (
+  date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+);
 
 export const appointmentsService = {
   async createAppointment(data) {
@@ -361,7 +378,108 @@ export const appointmentsService = {
         });
       });
       await Promise.all(promises);
+      emitAppointmentsUpdated();
       return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async createManualSlot(data) {
+    try {
+      const startDate = toDate(data?.fechaHora);
+      const durationMinutes = parseInt(data?.duracionMinutos, 10);
+
+      if (Number.isNaN(startDate.getTime())) {
+        return { success: false, error: 'La fecha u hora del sobreturno no es válida.' };
+      }
+
+      if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+        return { success: false, error: 'La duración del sobreturno no es válida.' };
+      }
+
+      if (startDate.getTime() < Date.now()) {
+        return { success: false, error: 'No se puede crear un sobreturno en una fecha u hora pasada.' };
+      }
+
+      const endDate = new Date(startDate.getTime() + (durationMinutes * 60 * 1000));
+      const { start, end } = getDayBounds(startDate);
+      const dayQuery = query(
+        appointmentsCollection,
+        where('fechaHora', '>=', Timestamp.fromDate(start)),
+        where('fechaHora', '<=', Timestamp.fromDate(end)),
+        orderBy('fechaHora', 'asc')
+      );
+      const snapshot = await getDocs(dayQuery);
+      const conflictingAppointment = snapshot.docs
+        .map(docSnapshot => ({ id: docSnapshot.id, ...fixMojibakeDeep(docSnapshot.data()) }))
+        .find((appointment) => {
+          if (!ACTIVE_CONFLICT_STATUSES.has(appointment.estado)) return false;
+          const appointmentStart = toDate(appointment.fechaHora);
+          const appointmentDuration = parseInt(
+            appointment?.duracionMinutos ?? APPOINTMENT_DEFAULT_DURATION_MINUTES,
+            10
+          );
+          const safeDuration = Number.isInteger(appointmentDuration) && appointmentDuration > 0
+            ? appointmentDuration
+            : APPOINTMENT_DEFAULT_DURATION_MINUTES;
+          const appointmentEnd = new Date(appointmentStart.getTime() + (safeDuration * 60 * 1000));
+          return !hasMinimumBufferBetweenIntervals(
+            startDate,
+            endDate,
+            appointmentStart,
+            appointmentEnd
+          );
+        });
+
+      if (conflictingAppointment) {
+        const conflictStart = toDate(conflictingAppointment.fechaHora);
+        return {
+          success: false,
+          error: `Conflicto con un turno ${conflictingAppointment.estado} a las ${formatConflictTime(conflictStart)}.`,
+          code: 'APPOINTMENT_CONFLICT',
+          conflict: conflictingAppointment
+        };
+      }
+
+      const mode = normalizeAppointmentMode(data?.modalidad);
+      const docRef = await addDoc(appointmentsCollection, {
+        fechaHora: Timestamp.fromDate(startDate),
+        duracionMinutos: durationMinutes,
+        ...(mode ? { modalidad: mode } : {}),
+        estado: 'disponible',
+        familiaUid: null,
+        hijoId: null,
+        origenSlot: 'manual',
+        creadoPorUid: data?.creadoPorUid || '',
+        createdAt: serverTimestamp()
+      });
+      const assignmentPayload = data?.assignmentPayload && typeof data.assignmentPayload === 'object'
+        ? data.assignmentPayload
+        : null;
+
+      if (assignmentPayload) {
+        try {
+          await updateDoc(doc(appointmentsCollection, docRef.id), {
+            ...assignmentPayload,
+            updatedAt: serverTimestamp()
+          });
+          emitAppointmentsUpdated();
+          return { success: true, id: docRef.id, assigned: true };
+        } catch (assignmentError) {
+          emitAppointmentsUpdated();
+          return {
+            success: false,
+            error: `El sobreturno se creó, pero no se pudo asignar a la familia. ${assignmentError.message}`,
+            code: 'MANUAL_SLOT_ASSIGNMENT_FAILED',
+            partialSuccess: true,
+            id: docRef.id
+          };
+        }
+      }
+
+      emitAppointmentsUpdated();
+      return { success: true, id: docRef.id, assigned: false };
     } catch (error) {
       return { success: false, error: error.message };
     }

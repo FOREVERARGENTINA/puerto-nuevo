@@ -157,7 +157,10 @@ service cloud.firestore {
     }
 
     function isConversationFamily(conv) {
-      return isFamily() && request.auth.uid == conv.familiaUid;
+      return isFamily() && (
+        request.auth.uid == conv.familiaUid ||
+        (conv.participantesUids is list && request.auth.uid in conv.participantesUids)
+      );
     }
 
     function isConversationSchool(conv) {
@@ -302,7 +305,19 @@ service cloud.firestore {
 
     // Colección: /conversations (conversaciones privadas)
     match /conversations/{convId} {
-      allow read: if isAuthenticated() && isConversationParticipant(resource.data);
+      // get (documento individual): verificación completa de participante
+      allow get: if isAuthenticated() && isConversationParticipant(resource.data);
+
+      // list (queries de colección): sin get() interno para que Firestore pueda
+      // validar estáticamente el acceso cuando se usa array-contains.
+      // - Admin: por área destinataria
+      // - Familia: por familiaUid (Q1) o por participantesUids (Q2, grupales)
+      allow list: if isAuthenticated() && (
+        isConversationSchool(resource.data) ||
+        resource.data.familiaUid == request.auth.uid ||
+        ('participanteMap' in resource.data &&
+          resource.data.participanteMap[request.auth.uid] == true)
+      );
 
       // Crear: familia crea su consulta o admin/coordinación crea mensaje
       allow create: if isAuthenticated() && (
@@ -312,8 +327,7 @@ service cloud.firestore {
 
       // Actualizar: admin/coordinación (según área) o familia participante
       allow update: if (isAdmin() && isConversationSchool(resource.data)) || (
-        isFamily() &&
-        request.auth.uid == resource.data.familiaUid &&
+        isConversationFamily(resource.data) &&
         resource.data.estado != 'cerrada' &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'familiaUid',
@@ -377,7 +391,10 @@ service cloud.firestore {
       // Actualizar: Admin puede todo, familias solo reservar disponibles o cancelar sus turnos
       allow update: if canManageAppointments() || (
         isFamily() && (
-          (resource.data.estado == 'disponible' && request.resource.data.familiaUid == request.auth.uid && request.resource.data.estado == 'reservado') ||
+          (resource.data.estado == 'disponible' &&
+            resource.data.get('origenSlot', '') != 'manual' &&
+            request.resource.data.familiaUid == request.auth.uid &&
+            request.resource.data.estado == 'reservado') ||
           ((resource.data.familiaUid == request.auth.uid || request.auth.uid in resource.data.get('familiasUids', [])) && request.resource.data.estado == 'cancelado')
         )
       );

@@ -651,7 +651,12 @@ export function useNotifications() {
 
   const conversationNotifications = conversations
     .filter((conv) => {
-      if (role === ROLES.FAMILY) return (conv.mensajesSinLeerFamilia || 0) > 0;
+      if (role === ROLES.FAMILY) {
+        const unread = conv.esGrupal
+          ? (conv.mensajesSinLeer?.[user?.uid] || 0)
+          : (conv.mensajesSinLeerFamilia || 0);
+        return unread > 0;
+      }
       if (ADMIN_ROLES.includes(role)) return (conv.mensajesSinLeerEscuela || 0) > 0;
       return false;
     })

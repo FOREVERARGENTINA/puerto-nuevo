@@ -236,10 +236,75 @@
   margin-top: 0;
 }
 
+/* ─── GRID 2 COLUMNAS (modo toggle) ────────────────── */
+
+.sc-type-grid--2col {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* ─── MODO GRUPAL: niño seleccionado ───────────────── */
+
+.sc-group-selected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.sc-group-selected__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sc-group-selected__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  font-weight: var(--font-weight-medium);
+}
+
+.sc-group-selected__loading,
+.sc-group-selected__empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+.sc-group-selected__participants {
+  display: flex;
+  flex-direction: column;
+}
+
+.recipient-chip--readonly {
+  cursor: default;
+  pointer-events: none;
+  background: var(--color-background-alt);
+}
+
+/* ─── PARTICIPANTES en detalle de conversación ──────── */
+
+.conversation-detail-participants {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  margin: var(--spacing-xs) 0 0;
+}
+
+.conversation-meta-item--grupal {
+  background: var(--color-primary-light, #e8f4f8);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
 /* ─── RESPONSIVE ────────────────────────────────────── */
 
 @media (max-width: 640px) {
   .sc-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-type-grid--2col {
     grid-template-columns: 1fr;
   }
 

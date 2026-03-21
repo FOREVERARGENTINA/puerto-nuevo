@@ -10,7 +10,6 @@ import {
   getCategoryLabel,
   getConversationStatusLabel
 } from '../../utils/conversationHelpers';
-import Avatar from '../../components/ui/Avatar';
 
 export function FamilyConversations() {
   const { user, role } = useAuth();
@@ -114,15 +113,17 @@ export function FamilyConversations() {
                 to={`${ROUTES.FAMILY_CONVERSATIONS}/${conv.id}`}
                 className={`conversation-row ${hasUnread ? 'conversation-row--unread' : ''}`}
               >
-                <Avatar
-                  name={areaLabel}
-                  size={44}
-                  className="conversation-row__avatar"
-                />
-                
                 <div className="conversation-row__content">
                   <div className="conversation-row__top">
-                    <span className="conversation-row__subject">
+                    <span className="conversation-row__subject" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      {conv.esGrupal && (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-label="Chat grupal" style={{ color: 'var(--color-text-light)', flexShrink: 0 }}>
+                          <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                          <path d="M3 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                          <circle cx="18" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          <path d="M22 20v-.5A4.5 4.5 0 0 0 15 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                      )}
                       {conv.asunto || 'Sin asunto'}
                     </span>
                     <span className="conversation-row__time">

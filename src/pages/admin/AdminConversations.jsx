@@ -255,7 +255,15 @@ export function AdminConversations() {
                 >
                   <div className="conversation-item__main">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                      <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600 }}>
+                      <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {conv.esGrupal && (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-label="Conversación grupal" style={{ color: 'var(--color-text-light)', flexShrink: 0, marginTop: '1px' }}>
+                            <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                            <path d="M3 20v-1a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+                            <circle cx="18" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            <path d="M22 20v-.5A4.5 4.5 0 0 0 15 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        )}
                         {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
                       </h3>
                       {isClosed && (

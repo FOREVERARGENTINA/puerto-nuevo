@@ -71,6 +71,7 @@ const BookAppointment = () => {
       setEarliestAllowed(earliestAllowedDate);
       const available = result.appointments.filter(app => 
         app.estado === 'disponible' &&
+        app.origenSlot !== 'manual' &&
         !app.familiaUid &&
         (!Array.isArray(app.familiasUids) || app.familiasUids.length === 0) &&
         (app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora)) >= earliestAllowedDate
