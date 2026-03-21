@@ -466,10 +466,14 @@ export const appointmentsService = {
       }
 
       const mode = normalizeAppointmentMode(data?.modalidad);
+      const ambiente = data?.ambiente && (data.ambiente === AMBIENTES.TALLER_1 || data.ambiente === AMBIENTES.TALLER_2)
+        ? data.ambiente
+        : null;
       const docRef = await addDoc(appointmentsCollection, {
         fechaHora: Timestamp.fromDate(startDate),
         duracionMinutos: durationMinutes,
         ...(mode ? { modalidad: mode } : {}),
+        ...(ambiente ? { ambiente } : {}),
         estado: 'disponible',
         familiaUid: null,
         hijoId: null,
