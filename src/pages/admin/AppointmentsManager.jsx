@@ -46,6 +46,11 @@ const getAppointmentModeLabel = (value) => {
   if (value === 'presencial') return 'Presencial';
   return 'Sin definir';
 };
+const getAmbienteLabel = (ambiente) => {
+  if (ambiente === AMBIENTES.TALLER_1) return 'T1';
+  if (ambiente === AMBIENTES.TALLER_2) return 'T2';
+  return null;
+};
 const formatDateInputValueLocal = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1792,6 +1797,7 @@ const AppointmentsManager = () => {
                                   <div className="appointment-duration">
                                     {app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}
                                     {app.origenSlot === 'manual' ? ' • Sobreturno' : ''}
+                                    {getAmbienteLabel(app.ambiente) ? ` • ${getAmbienteLabel(app.ambiente)}` : ''}
                                   </div>
                                 </div>
                                 <div className="appointment-info-section">
