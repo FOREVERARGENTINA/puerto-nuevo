@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { AMBIENTES } from '../../config/constants';
 import { AlertDialog } from '../common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import Icon from '../ui/Icon';
@@ -20,6 +21,12 @@ const VirtualIcon = () => (
   </svg>
 );
 
+const getAmbienteLabel = (ambiente) => {
+  if (ambiente === AMBIENTES.TALLER_1) return 'Taller 1';
+  if (ambiente === AMBIENTES.TALLER_2) return 'Taller 2';
+  return null;
+};
+
 const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     hijoId: '',
@@ -30,18 +37,24 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   const alertDialog = useDialog();
 
   useEffect(() => {
-    if (userChildren && userChildren.length === 1) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData(prev => ({ ...prev, hijoId: userChildren[0].id }));
-    }
-  }, [userChildren]);
-
-  useEffect(() => {
     setFormData(prev => ({
       ...prev,
       modalidad: ''
     }));
   }, [appointment?.id, appointment?.modalidad]);
+
+  // Hijos compatibles con el ambiente del slot. Si el slot no tiene ambiente, se muestran todos.
+  const eligibleChildren = useMemo(() => {
+    if (!appointment?.ambiente) return userChildren || [];
+    return (userChildren || []).filter(child => child.ambiente === appointment.ambiente);
+  }, [appointment?.ambiente, userChildren]);
+
+  useEffect(() => {
+    if (eligibleChildren.length === 1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFormData(prev => ({ ...prev, hijoId: eligibleChildren[0].id }));
+    }
+  }, [eligibleChildren]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -117,6 +130,15 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                   </span>
                 </>
               )}
+              {getAmbienteLabel(appointment?.ambiente) && (
+                <>
+                  <span className="booking-summary-separator" aria-hidden="true">&#8226;</span>
+                  <span className="booking-summary-chip">
+                    <span className="booking-summary-label">Taller</span>
+                    <span className="booking-summary-value">{getAmbienteLabel(appointment.ambiente)}</span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -172,7 +194,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                   className="form-select"
                 >
                   <option value="">Seleccionar alumno...</option>
-                  {userChildren && userChildren.map(child => (
+                  {eligibleChildren.map(child => (
                     <option key={child.id} value={child.id}>
                       {child.nombreCompleto}
                     </option>
