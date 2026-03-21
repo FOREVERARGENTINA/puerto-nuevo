@@ -85,6 +85,10 @@ service cloud.firestore {
       return isSuperAdmin() || isCoordinacion();
     }
 
+    function isValidAmbiente(ambiente) {
+      return ambiente in ['taller1', 'taller2'];
+    }
+
     function canManageTalleres() {
       // SuperAdmin y Coordinación
       return isAdmin();
@@ -385,17 +389,28 @@ service cloud.firestore {
         isFamily()
       );
 
-      // Crear: Solo SuperAdmin y Coordinación (Emilse, Camila, Rosana)
-      allow create: if canManageAppointments();
+      // Crear: Solo SuperAdmin y Coordinacion.
+      // Si el slot declara ambiente, debe ser un valor valido.
+      allow create: if canManageAppointments() &&
+        (!('ambiente' in request.resource.data) ||
+         isValidAmbiente(request.resource.data.ambiente));
 
-      // Actualizar: Admin puede todo, familias solo reservar disponibles o cancelar sus turnos
+      // Actualizar: Admin puede todo, familias solo reservar disponibles o cancelar sus turnos.
+      // Al reservar: si el slot tiene ambiente, validar que el hijo pertenezca al mismo ambiente.
       allow update: if canManageAppointments() || (
         isFamily() && (
           (resource.data.estado == 'disponible' &&
             resource.data.get('origenSlot', '') != 'manual' &&
             request.resource.data.familiaUid == request.auth.uid &&
-            request.resource.data.estado == 'reservado') ||
-          ((resource.data.familiaUid == request.auth.uid || request.auth.uid in resource.data.get('familiasUids', [])) && request.resource.data.estado == 'cancelado')
+            request.resource.data.estado == 'reservado' &&
+            (
+              !('ambiente' in resource.data) ||
+              (request.resource.data.hijoId is string &&
+               get(/databases/$(database)/documents/children/$(request.resource.data.hijoId)).data.ambiente == resource.data.ambiente)
+            )) ||
+          ((resource.data.familiaUid == request.auth.uid ||
+            request.auth.uid in resource.data.get('familiasUids', [])) &&
+            request.resource.data.estado == 'cancelado')
         )
       );
 
