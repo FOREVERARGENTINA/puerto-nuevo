@@ -428,10 +428,15 @@ export const appointmentsService = {
         orderBy('fechaHora', 'asc')
       );
       const snapshot = await getDocs(dayQuery);
+      const newAmbiente = data?.ambiente || null;
       const conflictingAppointment = snapshot.docs
         .map(docSnapshot => ({ id: docSnapshot.id, ...fixMojibakeDeep(docSnapshot.data()) }))
         .find((appointment) => {
           if (!ACTIVE_CONFLICT_STATUSES.has(appointment.estado)) return false;
+          // El buffer y solapamiento solo aplican dentro del mismo ambiente.
+          // Si ambos tienen ambiente definido y son distintos: compatible.
+          // Slots legacy sin ambiente siempre se consideran conflicto (conservador).
+          if (newAmbiente && appointment.ambiente && appointment.ambiente !== newAmbiente) return false;
           const appointmentStart = toDate(appointment.fechaHora);
           const appointmentDuration = parseInt(
             appointment?.duracionMinutos ?? APPOINTMENT_DEFAULT_DURATION_MINUTES,
