@@ -9,7 +9,7 @@ import { FileSelectionList, FileUploadSelector } from '../../components/common/F
 import { useDialog } from '../../hooks/useDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { Timestamp, serverTimestamp } from 'firebase/firestore';
-import { ROLES } from '../../config/constants';
+import { ROLES, AMBIENTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 
 const NOTES_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
@@ -95,7 +95,8 @@ const getDefaultManualSlotDraft = (baseDate = new Date()) => {
   return {
     fecha: formatDateInputValueLocal(candidate),
     hora: formatTimeInputValueLocal(candidate),
-    duracionMinutos: 30
+    duracionMinutos: 30,
+    ambiente: ''
   };
 };
 
@@ -589,11 +590,17 @@ const AppointmentsManager = () => {
       return { error: 'No se puede crear un sobreturno en una fecha u hora pasada.' };
     }
 
+    const ambiente = manualSlotForm.ambiente;
+    if (ambiente !== AMBIENTES.TALLER_1 && ambiente !== AMBIENTES.TALLER_2) {
+      return { error: 'Seleccioná el taller para el sobreturno.' };
+    }
+
     return {
       startDate,
       payload: {
         fechaHora: startDate,
         duracionMinutos: duration,
+        ambiente,
         creadoPorUid: user?.uid || ''
       }
     };
@@ -1438,6 +1445,34 @@ const AppointmentsManager = () => {
           <div className="card__body">
             <div className="create-slots-layout">
               <section className="create-slots-section">
+                <div className="form-group">
+                  <label className="required">Taller</label>
+                  <div className="radio-group">
+                    <label className="radio-option">
+                      <input
+                        type="radio"
+                        name="ambiente"
+                        value={AMBIENTES.TALLER_1}
+                        checked={manualSlotForm.ambiente === AMBIENTES.TALLER_1}
+                        onChange={handleManualSlotFormChange}
+                        disabled={manualSlotSubmitting}
+                      />
+                      Taller 1
+                    </label>
+                    <label className="radio-option">
+                      <input
+                        type="radio"
+                        name="ambiente"
+                        value={AMBIENTES.TALLER_2}
+                        checked={manualSlotForm.ambiente === AMBIENTES.TALLER_2}
+                        onChange={handleManualSlotFormChange}
+                        disabled={manualSlotSubmitting}
+                      />
+                      Taller 2
+                    </label>
+                  </div>
+                </div>
+
                 <div className="manual-slot-scheduler">
                   <div className="manual-slot-input-card">
                     <div className="manual-slot-input-card__header">
