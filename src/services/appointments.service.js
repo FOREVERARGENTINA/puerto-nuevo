@@ -11,7 +11,8 @@ import {
   where,
   orderBy,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -505,5 +506,56 @@ export const appointmentsService = {
     } catch (error) {
       return { success: false, error: error.message };
     }
-  }
+  },
+
+  async bookSlot(appointmentId, data) {
+    try {
+      const slotRef = doc(appointmentsCollection, appointmentId);
+      const childRef = doc(collection(db, 'children'), data.payload.hijoId);
+
+      const result = await runTransaction(db, async (transaction) => {
+        const [slotDoc, childDoc] = await Promise.all([
+          transaction.get(slotRef),
+          transaction.get(childRef)
+        ]);
+
+        if (!slotDoc.exists()) {
+          return { success: false, error: 'El turno no existe.' };
+        }
+
+        const slot = slotDoc.data();
+
+        if (slot.estado !== 'disponible') {
+          return { success: false, error: 'El turno ya no esta disponible.' };
+        }
+
+        // Validacion defensiva: leer ambiente del hijo directamente de Firestore.
+        // No se confia en ningun valor enviado por el cliente.
+        const slotAmbiente = slot.ambiente || null;
+        const childAmbiente = childDoc.exists() ? (childDoc.data().ambiente || null) : null;
+
+        if (slotAmbiente && childAmbiente && slotAmbiente !== childAmbiente) {
+          return {
+            success: false,
+            error: 'El alumno seleccionado no corresponde al taller de este turno.',
+            code: 'AMBIENTE_MISMATCH'
+          };
+        }
+
+        transaction.update(slotRef, {
+          ...data.payload,
+          updatedAt: serverTimestamp()
+        });
+
+        return { success: true };
+      });
+
+      if (result.success) {
+        emitAppointmentsUpdated();
+      }
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
 };

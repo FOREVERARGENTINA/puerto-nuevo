@@ -173,23 +173,19 @@ const BookAppointment = () => {
       ? data.modalidad
       : null;
 
-    const result = await appointmentsService.updateAppointment(data.appointmentId, {
-      familiaUid: user.uid,
-      familiasUids: [user.uid],
-      hijoId: data.hijoId,
-      ...(selectedMode ? { modalidad: selectedMode } : {}),
-      nota: data.nota,
-      estado: 'reservado',
-      familiaEmail: user.email || '',
-      familiaDisplayName: user.displayName || '',
-      familiasInfo: [
-        {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || ''
-        }
-      ],
-      hijoNombre: selectedChild?.nombreCompleto || ''
+    const result = await appointmentsService.bookSlot(data.appointmentId, {
+      payload: {
+        familiaUid: user.uid,
+        familiasUids: [user.uid],
+        familiasInfo: [{ uid: user.uid, email: user.email || '', displayName: user.displayName || '' }],
+        hijoId: data.hijoId,
+        ...(selectedMode ? { modalidad: selectedMode } : {}),
+        nota: data.nota,
+        estado: 'reservado',
+        familiaEmail: user.email || '',
+        familiaDisplayName: user.displayName || '',
+        hijoNombre: selectedChild?.nombreCompleto || ''
+      }
     });
 
     if (result.success) {
