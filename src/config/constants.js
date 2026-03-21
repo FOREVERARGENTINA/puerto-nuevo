@@ -142,6 +142,12 @@ export const AMBIENTES = {
   TALLER_2: 'taller2'
 };
 
+// Fecha de corte para slots legacy sin ambiente.
+// Los slots sin 'ambiente' con fechaHora >= esta fecha quedan ocultos para familias.
+// ACTUALIZAR al dia real de deploy antes de produccion.
+// Nota: el mes en `new Date` usa indice 0-based (0 = enero).
+export const LEGACY_SLOTS_CUTOFF_DATE = new Date(2026, 3, 1, 0, 0, 0, 0); // 1 de abril 2026
+
 // Tipos de comunicación
 export const COMMUNICATION_TYPES = {
   GLOBAL: 'global',
