@@ -47,7 +47,8 @@
       "Bash(node --input-type=module --eval \":*)",
       "Bash(echo:*)",
       "mcp__plugin_firebase_firebase__firestore_list_documents",
-      "mcp__plugin_firebase_firebase__auth_get_users"
+      "mcp__plugin_firebase_firebase__auth_get_users",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

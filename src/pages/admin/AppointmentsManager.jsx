@@ -47,8 +47,8 @@ const getAppointmentModeLabel = (value) => {
   return 'Sin definir';
 };
 const getAmbienteLabel = (ambiente) => {
-  if (ambiente === AMBIENTES.TALLER_1) return 'T1';
-  if (ambiente === AMBIENTES.TALLER_2) return 'T2';
+  if (ambiente === AMBIENTES.TALLER_1) return 'Taller 1';
+  if (ambiente === AMBIENTES.TALLER_2) return 'Taller 2';
   return null;
 };
 const formatDateInputValueLocal = (date) => {
@@ -1155,9 +1155,15 @@ const AppointmentsManager = () => {
     : filteredAppointments;
 
   const sortedAppointments = (() => {
+    const ambienteOrder = { [AMBIENTES.TALLER_1]: 0, [AMBIENTES.TALLER_2]: 1 };
+    const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     const sorted = [...searchedAppointments].sort((a, b) => {
       const dateA = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
       const dateB = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+      const dayDiff = dayKey(dateA).localeCompare(dayKey(dateB));
+      if (dayDiff !== 0) return dayDiff;
+      const ambienteDiff = (ambienteOrder[a.ambiente] ?? 2) - (ambienteOrder[b.ambiente] ?? 2);
+      if (ambienteDiff !== 0) return ambienteDiff;
       return dateA - dateB;
     });
     return sorted;
@@ -1216,11 +1222,13 @@ const AppointmentsManager = () => {
   })();
 
   const familyUsersMap = new Map(familyUsers.map(user => [user.id, user]));
-  const filteredChildren = childSearchTerm.trim()
+  const assignSlotAmbiente = selectedAppointment?.ambiente || null;
+  const filteredChildren = (childSearchTerm.trim()
     ? children.filter(child =>
         (child.nombreCompleto || '').toLowerCase().includes(childSearchTerm.trim().toLowerCase())
       )
-    : children;
+    : children
+  ).filter(child => !assignSlotAmbiente || child.ambiente === assignSlotAmbiente);
   const filteredManualChildren = manualChildSearchTerm.trim()
     ? children.filter(child =>
         (child.nombreCompleto || '').toLowerCase().includes(manualChildSearchTerm.trim().toLowerCase())
@@ -1789,7 +1797,7 @@ const AppointmentsManager = () => {
                             return (
                               <div
                                 key={app.id}
-                                className={`admin-day-appointment-item admin-day-appointment-item--${app.estado}`}
+                                className={`admin-day-appointment-item admin-day-appointment-item--${app.estado}${app.ambiente ? ` admin-day-appointment-item--${app.estado}-${app.ambiente}` : ''}`}
                                 onClick={() => handleSelectSlot(app)}
                               >
                                 <div className="appointment-time-section">
@@ -1797,7 +1805,11 @@ const AppointmentsManager = () => {
                                   <div className="appointment-duration">
                                     {app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}
                                     {app.origenSlot === 'manual' ? ' • Sobreturno' : ''}
-                                    {getAmbienteLabel(app.ambiente) ? ` • ${getAmbienteLabel(app.ambiente)}` : ''}
+                                    {getAmbienteLabel(app.ambiente) && (
+                                      <span className={`admin-ambiente-badge admin-ambiente-badge--${app.ambiente}`}>
+                                        {getAmbienteLabel(app.ambiente)}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="appointment-info-section">
@@ -2026,18 +2038,18 @@ const AppointmentsManager = () => {
                 {selectedAppointment.estado === 'disponible' && (
                   <>
                     <button
-                      onClick={() => confirmBlockAppointment(selectedAppointment.id)}
-                      className="btn btn--secondary btn--full"
-                      disabled={actionLoading}
-                    >
-                      Bloquear turno
-                    </button>
-                    <button
                       onClick={handleOpenAssignModal}
-                      className="btn btn--primary btn--full"
+                      className="btn btn--full modal-action-btn modal-action-btn--assign"
                       disabled={isPastAppointment(selectedAppointment) || actionLoading}
                     >
                       Asignar a familia/s
+                    </button>
+                    <button
+                      onClick={() => confirmBlockAppointment(selectedAppointment.id)}
+                      className="btn btn--full modal-action-btn modal-action-btn--block"
+                      disabled={actionLoading}
+                    >
+                      Bloquear turno
                     </button>
                   </>
                 )}
@@ -2074,7 +2086,7 @@ const AppointmentsManager = () => {
                 {selectedAppointment.estado === 'cancelado' && (
                   <button
                     onClick={() => confirmUnblockAppointment(selectedAppointment.id)}
-                    className="btn btn--primary btn--full"
+                    className="btn btn--success btn--full"
                     disabled={actionLoading}
                   >
                     Liberar turno (dejar disponible)

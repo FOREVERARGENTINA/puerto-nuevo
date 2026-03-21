@@ -22,7 +22,7 @@ export function ConfirmDialog({
         <p className="confirm-message">{message}</p>
       </ModalBody>
       <ModalFooter>
-        <button onClick={onClose} className="btn btn--outline">
+        <button onClick={onClose} className="btn btn--danger">
           {cancelText}
         </button>
         <button
@@ -30,7 +30,7 @@ export function ConfirmDialog({
           className={`btn ${
             type === 'danger' ? 'btn--danger' :
             type === 'warning' ? 'btn--warning' :
-            'btn--primary'
+            'btn--success'
           }`}
         >
           {confirmText}

@@ -43,6 +43,17 @@
   box-shadow: 0 4px 8px rgba(230, 126, 94, 0.3);
 }
 
+.btn--success {
+  background-color: var(--color-success);
+  color: white;
+  box-shadow: 0 2px 4px rgba(39, 174, 96, 0.2);
+}
+
+.btn--success:hover:not(:disabled) {
+  background-color: #219a52;
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
 .btn--secondary {
   background-color: var(--color-primary);
   color: white;
@@ -4851,6 +4862,42 @@
 .slot-duration {
   font-size: var(--font-size-sm);
   color: var(--color-text-light);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-ambiente-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  background: #f0f0f0;
+  color: #666;
+}
+
+.slot-ambiente-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  opacity: 0.75;
+}
+
+.slot-ambiente-badge--t1 {
+  background: #e8f0fb;
+  color: #3b6dbf;
+}
+
+.slot-ambiente-badge--t2 {
+  background: #fce8f3;
+  color: #b03a7a;
 }
 
 /* My Appointments List */
@@ -5337,9 +5384,10 @@
 }
 
 .admin-day-appointment-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 160px 110px 1fr;
   align-items: center;
+  gap: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
   background-color: white;
   border-radius: var(--radius-md);
@@ -5349,6 +5397,18 @@
   transition: all var(--transition-fast);
 }
 
+.appointment-time-section {
+  min-width: 0;
+}
+
+.appointment-info-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+  grid-column: 2 / -1;
+}
+
 .admin-day-appointment-item:hover {
   box-shadow: var(--shadow-md);
 }
@@ -5356,6 +5416,14 @@
 .admin-day-appointment-item--disponible {
   border-left-color: var(--color-success);
   background-color: #F0FFF4;
+}
+.admin-day-appointment-item--disponible-taller1 {
+  background-color: #edfaf2;
+  border-left-color: #4caf7d;
+}
+.admin-day-appointment-item--disponible-taller2 {
+  background-color: #e3f5ec;
+  border-left-color: #2e8b5a;
 }
 
 .admin-day-appointment-item--bloqueado {
@@ -5367,10 +5435,26 @@
   border-left-color: var(--color-warning);
   background-color: #FFFBF0;
 }
+.admin-day-appointment-item--reservado-taller1 {
+  background-color: #fff8ee;
+  border-left-color: #e8a44a;
+}
+.admin-day-appointment-item--reservado-taller2 {
+  background-color: #fff3e2;
+  border-left-color: #c97d2a;
+}
 
 .admin-day-appointment-item--asistio {
   border-left-color: var(--color-info);
   background-color: #E8F4FD;
+}
+.admin-day-appointment-item--asistio-taller1 {
+  background-color: #eaf5fd;
+  border-left-color: #5aabdc;
+}
+.admin-day-appointment-item--asistio-taller2 {
+  background-color: #ddeef9;
+  border-left-color: #2d84b8;
 }
 
 .admin-day-appointment-item--cancelado {
@@ -5536,6 +5620,28 @@
 .modal-action-btn {
   box-shadow: none;
   font-weight: var(--font-weight-semibold);
+}
+
+.modal-action-btn--assign {
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-success) 34%, var(--color-border));
+  color: color-mix(in srgb, var(--color-success) 78%, var(--color-text));
+}
+
+.modal-action-btn--assign:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-success) 46%, var(--color-border));
+}
+
+.modal-action-btn--block {
+  background: color-mix(in srgb, var(--color-text-muted) 18%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-text-muted) 36%, var(--color-border));
+  color: color-mix(in srgb, var(--color-text-muted) 82%, var(--color-text));
+}
+
+.modal-action-btn--block:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text-muted) 24%, var(--color-background));
+  border-color: color-mix(in srgb, var(--color-text-muted) 48%, var(--color-border));
 }
 
 .modal-action-btn--attend {

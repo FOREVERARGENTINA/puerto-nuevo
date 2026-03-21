@@ -371,7 +371,17 @@ const BookAppointment = () => {
 
   const upcomingAppointments = getUpcomingAppointments();
   const hasUpcomingAppointments = upcomingAppointments.length > 0;
-  const selectedDateAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
+  const selectedDateAppointments = selectedDate
+    ? getAppointmentsForDate(selectedDate).slice().sort((a, b) => {
+        const order = { taller1: 0, taller2: 1 };
+        const aOrder = order[a.ambiente] ?? 2;
+        const bOrder = order[b.ambiente] ?? 2;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        const aTime = a.fechaHora?.toDate ? a.fechaHora.toDate() : new Date(a.fechaHora);
+        const bTime = b.fechaHora?.toDate ? b.fechaHora.toDate() : new Date(b.fechaHora);
+        return aTime - bTime;
+      })
+    : [];
   const upcomingAppointmentIds = new Set(upcomingAppointments.map(app => app.id));
   const appointmentHistory = myAppointments
     .filter(app => !upcomingAppointmentIds.has(app.id))
@@ -596,7 +606,11 @@ const BookAppointment = () => {
                         <div key={app.id} className="available-slot-item">
                           <div className="slot-time-info">
                             <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                            <div className="slot-duration">{getSlotSummary(app)}</div>
+                            <div className="slot-duration">
+                              {getSlotSummary(app)}
+                              {app.ambiente === 'taller1' && <span className="slot-ambiente-badge slot-ambiente-badge--t1">Taller 1</span>}
+                              {app.ambiente === 'taller2' && <span className="slot-ambiente-badge slot-ambiente-badge--t2">Taller 2</span>}
+                            </div>
                           </div>
                           <button
                             onClick={() => handleSelectSlot(app)}
@@ -640,7 +654,11 @@ const BookAppointment = () => {
                       <div key={app.id} className="available-slot-item">
                         <div className="slot-time-info">
                           <div className="slot-time">{formatTime(app.fechaHora)}</div>
-                          <div className="slot-duration">{getSlotSummary(app)}</div>
+                          <div className="slot-duration">
+                            {getSlotSummary(app)}
+                            {app.ambiente === 'taller1' && <span className="slot-ambiente-badge slot-ambiente-badge--t1">Taller 1</span>}
+                            {app.ambiente === 'taller2' && <span className="slot-ambiente-badge slot-ambiente-badge--t2">Taller 2</span>}
+                          </div>
                         </div>
                         <button
                           onClick={() => handleSelectSlot(app)}
