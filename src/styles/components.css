@@ -12698,6 +12698,101 @@
   gap: 6px;
 }
 
+.social-hidden-dropdown {
+  position: relative;
+}
+
+.social-hidden-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, 82vw);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+}
+
+.social-hidden-dropdown__header,
+.social-hidden-dropdown__actions,
+.social-hidden-dropdown__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+}
+
+.social-hidden-dropdown__header {
+  margin-bottom: var(--spacing-sm);
+}
+
+.social-hidden-dropdown__header strong {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.social-hidden-dropdown__header span {
+  color: var(--color-text-light);
+  font-size: var(--font-size-xs);
+}
+
+.social-hidden-dropdown__actions {
+  margin-bottom: var(--spacing-sm);
+}
+
+.social-hidden-dropdown__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-sm);
+}
+
+.social-hidden-dropdown__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+  cursor: pointer;
+}
+
+.social-hidden-dropdown__item:hover {
+  background: var(--color-primary-soft);
+}
+
+.social-hidden-dropdown__item input {
+  margin-top: 2px;
+}
+
+.social-hidden-dropdown__item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.social-hidden-dropdown__item-text span {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.social-hidden-dropdown__item-text small {
+  color: var(--color-text-light);
+  font-size: var(--font-size-xs);
+}
+
+.social-hidden-dropdown__footer {
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
 .social-fullscreen-btn {
   white-space: nowrap;
 }

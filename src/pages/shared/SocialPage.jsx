@@ -787,6 +787,7 @@ export default function SocialPage() {
   const cacheRef = useRef({});
   const containerRef = useRef(null);
   const mapCardRef = useRef(null);
+  const hiddenNodesDropdownRef = useRef(null);
   const hasInitialAutoCenteredRef = useRef(false);
   const roleTransitionTimerRef = useRef(null);
   const entranceAnimationFrameRef = useRef(null);
@@ -806,6 +807,9 @@ export default function SocialPage() {
 
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [hiddenNodeIds, setHiddenNodeIds] = useState([]);
+  const [hiddenNodes, setHiddenNodes] = useState([]);
+  const [showHiddenNodesDropdown, setShowHiddenNodesDropdown] = useState(false);
+  const [selectedHiddenNodeIds, setSelectedHiddenNodeIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -907,6 +911,17 @@ export default function SocialPage() {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, [updateDimensions]);
 
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!hiddenNodesDropdownRef.current?.contains(event.target)) {
+        setShowHiddenNodesDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
   const loadGraph = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -914,6 +929,8 @@ export default function SocialPage() {
       const data = await socialService.getSocialGraphData();
       setGraphData(seedGraphLayout(data));
       setHiddenNodeIds(Array.isArray(data?.hiddenNodeIds) ? data.hiddenNodeIds : []);
+      setHiddenNodes(Array.isArray(data?.hiddenNodes) ? data.hiddenNodes : []);
+      setSelectedHiddenNodeIds([]);
     } catch (loadError) {
       setError(loadError.message || 'No se pudo cargar el mapa social');
     } finally {
@@ -1661,6 +1678,7 @@ export default function SocialPage() {
       }
 
       await refreshAll();
+      setShowHiddenNodesDropdown(false);
       showSuccess('Se volvieron a mostrar todos los perfiles ocultos');
     } catch (restoreError) {
       setError(restoreError.message || 'No se pudieron restaurar los perfiles ocultos');
@@ -1668,6 +1686,42 @@ export default function SocialPage() {
       setSaving(false);
     }
   }, [hiddenNodeIds.length, isAdmin, refreshAll, showSuccess]);
+
+  const handleToggleHiddenNodeSelection = useCallback((nodeId) => {
+    setSelectedHiddenNodeIds((previous) => (
+      previous.includes(nodeId)
+        ? previous.filter((currentId) => currentId !== nodeId)
+        : [...previous, nodeId]
+    ));
+  }, []);
+
+  const handleRestoreSelectedHiddenNodes = useCallback(async () => {
+    if (!isAdmin || selectedHiddenNodeIds.length === 0) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const results = await Promise.all(
+        selectedHiddenNodeIds.map((nodeId) => socialService.showGraphNode(nodeId))
+      );
+      const failed = results.find((result) => !result.success);
+      if (failed) {
+        throw new Error(failed.error || 'No se pudieron restaurar algunos perfiles ocultos');
+      }
+
+      await refreshAll();
+      setShowHiddenNodesDropdown(false);
+      showSuccess(
+        selectedHiddenNodeIds.length === 1
+          ? 'Se volvió a mostrar el perfil seleccionado'
+          : `Se volvieron a mostrar ${selectedHiddenNodeIds.length} perfiles ocultos`
+      );
+    } catch (restoreError) {
+      setError(restoreError.message || 'No se pudieron restaurar los perfiles ocultos');
+    } finally {
+      setSaving(false);
+    }
+  }, [isAdmin, refreshAll, selectedHiddenNodeIds, showSuccess]);
 
   const handleContactChange = (field, value) => {
     setMyProfile((prev) => ({
@@ -1854,6 +1908,10 @@ export default function SocialPage() {
     const radius = baseRadius * (0.9 + (entranceProgress * 0.1));
     const frameNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const pulse = 0.5 + (0.5 * Math.sin((frameNow * 0.003) + ((hashString(node.id) % 1000) * 0.006)));
+    const photoBorderColor = hasImage ? fillColor : null;
+    const defaultBorderColor = isSelected || isHovered || isFocusPrimary
+      ? '#111827'
+      : `rgba(255, 255, 255, ${focusState.active && !isFocusNeighbor ? (1 - (0.28 * focusFade)) : 1})`;
 
     if (entranceProgress <= 0.01) {
       return;
@@ -1911,10 +1969,14 @@ export default function SocialPage() {
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
     ctx.closePath();
-    ctx.lineWidth = isSelected ? 3 : isHovered || isFocusPrimary ? 2.4 : 1.4;
-    ctx.strokeStyle = isSelected || isHovered || isFocusPrimary
-      ? '#111827'
-      : `rgba(255, 255, 255, ${focusState.active && !isFocusNeighbor ? (1 - (0.28 * focusFade)) : 1})`;
+    ctx.lineWidth = hasImage
+      ? (isSelected ? 4.4 : isHovered || isFocusPrimary ? 3.6 : 3)
+      : (isSelected ? 3 : isHovered || isFocusPrimary ? 2.4 : 1.4);
+    ctx.strokeStyle = photoBorderColor
+      ? (isSelected || isHovered || isFocusPrimary
+        ? darkenHexColor(photoBorderColor, 0.18)
+        : photoBorderColor)
+      : defaultBorderColor;
     ctx.stroke();
 
     if ((isSelected || isHovered || isFocusPrimary || isFocusNeighbor || globalScale > 1.25) && entranceProgress > 0.72) {
@@ -1929,6 +1991,14 @@ export default function SocialPage() {
   }, [colorMap, entranceNow, focusState, focusVisualProgress, hoveredNode?.id, imageRenderTick, prefersReducedMotion, selectedNode?.id]);
 
   const selectedContact = extractVisibleContact(selectedNode?.contact);
+  const hiddenNodeEntries = useMemo(
+    () => (
+      hiddenNodes.length > 0
+        ? hiddenNodes
+        : hiddenNodeIds.map((nodeId) => ({ id: nodeId, displayName: nodeId, type: '', ambiente: null }))
+    ),
+    [hiddenNodeIds, hiddenNodes]
+  );
   const selectedAmbienteLabel = useMemo(() => {
     const key = normalizeAmbienteKey(selectedNode?.ambiente);
     if (key && AMBIENTE_CENTERS[key]?.label) return AMBIENTE_CENTERS[key].label;
@@ -1974,15 +2044,81 @@ export default function SocialPage() {
                   Mostrar todos
                 </button>
               )}
-              {isAdmin && hiddenNodeIds.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn--outline btn--sm"
-                  onClick={handleShowAllHiddenNodes}
-                  disabled={saving}
-                >
-                  Mostrar ocultos ({hiddenNodeIds.length})
-                </button>
+              {isAdmin && hiddenNodeEntries.length > 0 && (
+                <div ref={hiddenNodesDropdownRef} className="social-hidden-dropdown">
+                  <button
+                    type="button"
+                    className={`btn btn--outline btn--sm ${showHiddenNodesDropdown ? 'is-active' : ''}`}
+                    onClick={() => setShowHiddenNodesDropdown((previous) => !previous)}
+                    disabled={saving}
+                  >
+                    Ocultos ({hiddenNodeEntries.length})
+                  </button>
+
+                  {showHiddenNodesDropdown && (
+                    <div className="social-hidden-dropdown__menu">
+                      <div className="social-hidden-dropdown__header">
+                        <strong>Perfiles ocultos</strong>
+                        <span>{selectedHiddenNodeIds.length} seleccionados</span>
+                      </div>
+
+                      <div className="social-hidden-dropdown__actions">
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm"
+                          onClick={() => setSelectedHiddenNodeIds(hiddenNodeEntries.map((node) => node.id))}
+                          disabled={saving}
+                        >
+                          Seleccionar todos
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm"
+                          onClick={() => setSelectedHiddenNodeIds([])}
+                          disabled={saving || selectedHiddenNodeIds.length === 0}
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+
+                      <div className="social-hidden-dropdown__list">
+                        {hiddenNodeEntries.map((node) => (
+                          <label key={node.id} className="social-hidden-dropdown__item">
+                            <input
+                              type="checkbox"
+                              checked={selectedHiddenNodeIds.includes(node.id)}
+                              onChange={() => handleToggleHiddenNodeSelection(node.id)}
+                              disabled={saving}
+                            />
+                            <div className="social-hidden-dropdown__item-text">
+                              <span>{node.displayName || node.id}</span>
+                              <small>{getNodeRoleText(node) || 'Perfil oculto'}</small>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div className="social-hidden-dropdown__footer">
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          onClick={handleRestoreSelectedHiddenNodes}
+                          disabled={saving || selectedHiddenNodeIds.length === 0}
+                        >
+                          Mostrar seleccionados
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm"
+                          onClick={handleShowAllHiddenNodes}
+                          disabled={saving}
+                        >
+                          Mostrar todos
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               <button
                 type="button"

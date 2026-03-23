@@ -330,6 +330,26 @@ export const socialService = {
       });
     });
 
+    const hiddenNodes = hiddenNodeIds
+      .map((nodeId) => {
+        const node = nodeMap.get(nodeId);
+        if (node) {
+          return {
+            id: node.id,
+            type: node.type,
+            displayName: node.displayName,
+            ambiente: node.ambiente || null
+          };
+        }
+
+        return {
+          id: nodeId,
+          type: '',
+          displayName: nodeId,
+          ambiente: null
+        };
+      });
+
     const nodes = Array.from(nodeMap.values()).filter((node) => !hiddenNodeIdSet.has(node.id));
     const visibleNodeIds = new Set(nodes.map((node) => node.id));
     const links = Array.from(linkMap.values()).filter((link) =>
@@ -339,7 +359,8 @@ export const socialService = {
     return {
       nodes,
       links,
-      hiddenNodeIds
+      hiddenNodeIds,
+      hiddenNodes
     };
   },
 
