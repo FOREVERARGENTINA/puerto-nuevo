@@ -4,6 +4,46 @@ import Icon from '../../components/ui/Icon';
 import { useAuth } from '../../hooks/useAuth';
 import { ambienteActivitiesService } from '../../services/ambienteActivities.service';
 
+const ImageLightbox = ({ src, alt, onClose }) => {
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'zoom-out'
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '95vw', maxHeight: '95vh', borderRadius: 'var(--radius-md)', cursor: 'default' }}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Cerrar"
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          background: 'rgba(255,255,255,0.15)', border: 'none',
+          color: '#fff', borderRadius: '50%', width: 40, height: 40,
+          fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+};
+
 const HORARIOS_BY_AMBIENTE = {
   taller1: {
     label: 'Taller 1',
@@ -24,6 +64,7 @@ export function FamilyHorariosPlaceholder() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloadingAmbiente, setDownloadingAmbiente] = useState('');
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   useEffect(() => {
     const loadFamilyAmbientes = async () => {
@@ -75,6 +116,14 @@ export function FamilyHorariosPlaceholder() {
   };
 
   return (
+    <>
+    {lightboxSrc && (
+      <ImageLightbox
+        src={lightboxSrc}
+        alt="Horario semanal en tamaño completo"
+        onClose={() => setLightboxSrc(null)}
+      />
+    )}
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
@@ -127,16 +176,13 @@ export function FamilyHorariosPlaceholder() {
                   </p>
                 </div>
 
-                <a
-                  href={schedule.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setLightboxSrc(schedule.url)}
                   aria-label={`Abrir horario de ${schedule.label} en tamaño completo`}
                   style={{
-                    display: 'block',
-                    borderRadius: 'var(--radius-lg)',
-                    overflow: 'hidden',
-                    border: '1px solid var(--color-border)',
+                    display: 'block', width: '100%', padding: 0, border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-lg)', overflow: 'hidden', cursor: 'zoom-in',
                     background: 'var(--color-surface-secondary, #f6f7f7)'
                   }}
                 >
@@ -145,17 +191,9 @@ export function FamilyHorariosPlaceholder() {
                     alt={`Horario semanal de ${schedule.label}`}
                     style={{ display: 'block', width: '100%', height: 'auto' }}
                   />
-                </a>
+                </button>
 
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                  <a
-                    href={schedule.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn--outline btn--sm"
-                  >
-                    Ver en grande
-                  </a>
                   <button
                     type="button"
                     className="btn btn--primary btn--sm"
@@ -171,5 +209,6 @@ export function FamilyHorariosPlaceholder() {
         </div>
       )}
     </div>
+    </>
   );
 }
