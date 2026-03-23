@@ -3618,6 +3618,8 @@
 }
 
 .children-page .child-card--admin .child-card__medical-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -10050,6 +10052,68 @@
   color: var(--color-text-light);
 }
 
+.child-form__medical-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.child-form__medical-section h3,
+.child-form__medical-section > p {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.child-form__medical-compact-field {
+  min-width: 0;
+}
+
+.child-form__medical-compact-textarea {
+  min-height: 76px;
+}
+
+.child-form__medical-wide-field {
+  grid-column: 1 / -1;
+}
+
+.child-form__pickup-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.child-form__pickup-card {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+}
+
+.child-form__pickup-card-title {
+  margin-bottom: 10px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-dark);
+}
+
+.child-form__pickup-card .form-group {
+  margin-bottom: 10px;
+}
+
+.child-form__pickup-card .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.child-form__pickup-card .form-label {
+  font-size: var(--font-size-xs);
+  margin-bottom: 4px;
+}
+
+.child-form__pickup-card .form-input {
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+}
+
 .child-form__actions {
   display: flex;
   justify-content: flex-end;
@@ -10058,7 +10122,35 @@
   border-top: 1px solid var(--color-secondary-light);
 }
 
+@media (max-width: 1400px) {
+  .child-form__pickup-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .child-form__pickup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
+  .children-page .child-card--admin .child-card__medical-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .child-form__medical-section {
+    grid-template-columns: 1fr;
+  }
+
+  .child-form__medical-wide-field {
+    grid-column: auto;
+  }
+
+  .child-form__pickup-grid {
+    grid-template-columns: 1fr;
+  }
+
   .child-form__actions {
     flex-direction: column;
   }

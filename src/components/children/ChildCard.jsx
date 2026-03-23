@@ -62,6 +62,7 @@
     child.datosMedicos.alergias ||
     child.datosMedicos.medicamentos ||
     child.datosMedicos.indicaciones ||
+    child.datosMedicos.aptoFisico ||
     child.datosMedicos.obraSocial ||
     child.datosMedicos.numeroAfiliado
   );
@@ -72,6 +73,11 @@
   const medicalBadgeText = 'Info médica';
   const medicalTitle = 'Información médica';
   const documentsTitle = 'Documentos';
+  const retiroAutorizados = Array.isArray(child.personasAutorizadasRetiro)
+    ? child.personasAutorizadasRetiro.filter((persona) => (
+      persona && (persona.nombreCompleto || persona.dni || persona.telefono)
+    ))
+    : [];
   const hasMeetingNotes = Array.isArray(meetingNotes) && meetingNotes.length > 0;
   const shouldShowMeetingNotes = meetingNotesLoading || hasMeetingNotes || meetingNotesLoaded;
   const cardClassName = isAdmin ? 'child-card child-card--admin' : 'child-card';
@@ -157,6 +163,12 @@
                   <span>{child.datosMedicos.indicaciones}</span>
                 </div>
               )}
+              {child.datosMedicos.aptoFisico && (
+                <div className="child-card__medical-item">
+                  <strong>Apto Fisico:</strong>
+                  <span>{child.datosMedicos.aptoFisico === 'si' ? 'Si' : 'No'}</span>
+                </div>
+              )}
               {child.datosMedicos.obraSocial && (
                 <div className="child-card__medical-item">
                   <strong>Obra social / prepaga:</strong>
@@ -224,6 +236,21 @@
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {isAdmin && retiroAutorizados.length > 0 && (
+          <div className="child-card__section child-card__section--medical">
+            <span className="child-card__section-title">Autorizados para retiro</span>
+            <div className="child-card__medical-grid">
+              {retiroAutorizados.map((persona, index) => (
+                <div key={`${child.id}-retiro-${index}`} className="child-card__medical-item">
+                  <strong>{persona.nombreCompleto || `Autorizado ${index + 1}`}</strong>
+                  {persona.dni && <span>DNI: {persona.dni}</span>}
+                  {persona.telefono && <span>Telefono: {persona.telefono}</span>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

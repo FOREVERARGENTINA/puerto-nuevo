@@ -302,10 +302,10 @@ const ChildrenManager = () => {
             <p className="dashboard-subtitle">Actualizá la información del alumno y sus responsables.</p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <button onClick={handleCancel} className="btn btn--outline btn--back">
               <Icon name="chevron-left" size={16} />
               Volver
-            </Link>
+            </button>
           </div>
         </div>
         <div className="card new-form-card">

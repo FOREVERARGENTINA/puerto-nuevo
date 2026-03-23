@@ -9,12 +9,26 @@ const DEFAULT_DATOS_MEDICOS = {
   alergias: '',
   medicamentos: '',
   indicaciones: '',
+  aptoFisico: '',
   contactosEmergencia: '',
   obraSocial: '',
   numeroAfiliado: '',
   clinicaCercana: '',
   telefonoClinica: ''
 };
+
+const createEmptyRetiroAutorizado = () => ({
+  nombreCompleto: '',
+  dni: '',
+  telefono: ''
+});
+
+const getRetiroAutorizados = (personas = []) => (
+  Array.from({ length: 5 }, (_, index) => ({
+    ...createEmptyRetiroAutorizado(),
+    ...(Array.isArray(personas) ? personas[index] : {})
+  }))
+);
 
 const ChildForm = ({ child = null, onSubmit, onCancel }) => {
   const { isSuperAdmin, isCoordinacion } = useAuth();
@@ -26,6 +40,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
     ambiente: 'taller1',
     responsables: [],
     documentos: [],
+    personasAutorizadasRetiro: getRetiroAutorizados(),
     datosMedicos: {
       ...DEFAULT_DATOS_MEDICOS
     }
@@ -60,6 +75,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
         ambiente: child.ambiente || 'taller1',
         responsables: child.responsables || [],
         documentos: child.documentos || [],
+        personasAutorizadasRetiro: getRetiroAutorizados(child.personasAutorizadasRetiro),
         datosMedicos: {
           ...DEFAULT_DATOS_MEDICOS,
           ...(child.datosMedicos || {})
@@ -108,6 +124,17 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
       };
     });
     setResponsablesError('');
+  };
+
+  const handleRetiroAutorizadoChange = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      personasAutorizadasRetiro: prev.personasAutorizadasRetiro.map((persona, personaIndex) => (
+        personaIndex === index
+          ? { ...persona, [field]: value }
+          : persona
+      ))
+    }));
   };
 
   const handleFileSelect = (selectedFiles) => {
@@ -209,10 +236,10 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
   return (
     <form onSubmit={handleSubmit} className="child-form">
       <div className="child-form__grid">
-        <div className="form-section">
+        <div className="form-section child-form__medical-section">
           <h3>Datos Personales</h3>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="nombreCompleto" className="form-label required">Nombre Completo</label>
             <input
               type="text"
@@ -225,7 +252,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="fechaNacimiento" className="form-label required">Fecha de Nacimiento</label>
             <input
               type="date"
@@ -238,7 +265,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="ambiente" className="form-label required">Ambiente</label>
             <select
               id="ambiente"
@@ -253,7 +280,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label id="responsables-label" className="form-label required">Responsables</label>
             {familyUsers.length === 0 ? (
               <p className="form-helper-text">No hay familias disponibles para asignar.</p>
@@ -311,7 +338,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
           </div>
         </div>
 
-        <div className="form-section">
+        <div className="form-section child-form__medical-section">
           <h3>Datos Médicos</h3>
           {!canEditMedical && (
             <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
@@ -319,41 +346,57 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             </p>
           )}
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="alergias" className="form-label">Alergias</label>
             <textarea
               id="alergias"
               name="alergias"
               value={formData.datosMedicos.alergias}
               onChange={handleMedicalDataChange}
-              rows="3"
-              className="form-textarea"
+              rows="2"
+              className="form-textarea child-form__medical-compact-textarea"
               disabled={!canEditMedical}
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
+            <label htmlFor="aptoFisico" className="form-label">Apto Fisico</label>
+            <select
+              id="aptoFisico"
+              name="aptoFisico"
+              value={formData.datosMedicos.aptoFisico}
+              onChange={handleMedicalDataChange}
+              className="form-select"
+              disabled={!canEditMedical}
+            >
+              <option value="">Seleccionar</option>
+              <option value="si">Si</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="medicamentos" className="form-label">Medicamentos</label>
             <textarea
               id="medicamentos"
               name="medicamentos"
               value={formData.datosMedicos.medicamentos}
               onChange={handleMedicalDataChange}
-              rows="3"
-              className="form-textarea"
+              rows="2"
+              className="form-textarea child-form__medical-compact-textarea"
               disabled={!canEditMedical}
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-compact-field">
             <label htmlFor="indicaciones" className="form-label">Indicaciones Médicas</label>
             <textarea
               id="indicaciones"
               name="indicaciones"
               value={formData.datosMedicos.indicaciones}
               onChange={handleMedicalDataChange}
-              rows="3"
-              className="form-textarea"
+              rows="2"
+              className="form-textarea child-form__medical-compact-textarea"
               disabled={!canEditMedical}
             />
           </div>
@@ -389,7 +432,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
 
           <div className="form-group">
             <label htmlFor="clinicaCercana" className="form-label required">
-              Clínica u hospital cercano (San Martín)
+              Clínica/hospital cercano (San Martín)
             </label>
             <input
               type="text"
@@ -418,7 +461,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group child-form__medical-wide-field">
             <label htmlFor="contactosEmergencia" className="form-label">Contactos de Emergencia</label>
             <textarea
               id="contactosEmergencia"
@@ -435,6 +478,57 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
       </div>
 
       {/* Sección de documentos adjuntos */}
+      <div className="form-section child-form__pickup-section" style={{ gridColumn: '1 / -1' }}>
+        <h3>Personas autorizadas para retiro</h3>
+        <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
+          Carga hasta 5 personas que puedan retirar al alumno de la escuela.
+        </p>
+
+        <div className="child-form__pickup-grid">
+          {formData.personasAutorizadasRetiro.map((persona, index) => (
+            <div key={`retiro-${index}`} className="child-form__pickup-card">
+              <div className="child-form__pickup-card-title">Autorizado {index + 1}</div>
+
+              <div className="form-group">
+                <label htmlFor={`retiro-nombre-${index}`} className="form-label">Nombre y apellido</label>
+                <input
+                  type="text"
+                  id={`retiro-nombre-${index}`}
+                  value={persona.nombreCompleto}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'nombreCompleto', e.target.value)}
+                  className="form-input"
+                  placeholder="Nombre completo"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor={`retiro-dni-${index}`} className="form-label">DNI</label>
+                <input
+                  type="text"
+                  id={`retiro-dni-${index}`}
+                  value={persona.dni}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'dni', e.target.value)}
+                  className="form-input"
+                  placeholder="Documento"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor={`retiro-telefono-${index}`} className="form-label">Telefono</label>
+                <input
+                  type="text"
+                  id={`retiro-telefono-${index}`}
+                  value={persona.telefono}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'telefono', e.target.value)}
+                  className="form-input"
+                  placeholder="Telefono de contacto"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="form-section" style={{ gridColumn: '1 / -1', marginTop: 'var(--spacing-md)', borderTop: '2px solid var(--color-border)', paddingTop: 'var(--spacing-md)' }}>
         <h3>Documentos Adjuntos</h3>
         <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
