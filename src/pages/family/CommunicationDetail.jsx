@@ -157,10 +157,6 @@ export function CommunicationDetail() {
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <Link to={ROUTES.COMMUNICATIONS} className="btn btn--outline btn--back" style={{ marginBottom: 'var(--spacing-xs)' }}>
-            <Icon name="chevron-left" size={16} />
-            Volver
-          </Link>
           <h1 className="dashboard-title">{communication.title}</h1>
           <p className="dashboard-subtitle">
             {communication.createdAt && (
@@ -178,7 +174,7 @@ export function CommunicationDetail() {
             {loadingSender ? 'Cargando remitente...' : `Enviado por ${senderName || communication.sentByDisplayName || '—'}`}
           </p>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
           {communication.requiereLecturaObligatoria && (
             hasRead ? (
               <span className="badge badge--success">
@@ -192,6 +188,10 @@ export function CommunicationDetail() {
               </span>
             )
           )}
+          <Link to={ROUTES.COMMUNICATIONS} className="btn btn--outline btn--back">
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </Link>
         </div>
       </div>
 

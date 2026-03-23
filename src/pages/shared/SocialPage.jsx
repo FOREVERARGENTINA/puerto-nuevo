@@ -2012,12 +2012,6 @@ export default function SocialPage() {
 
   return (
     <div className="container page-container social-page">
-      <div className="dashboard-header dashboard-header--compact">
-        <div>
-          <h1 className="dashboard-title">Comunidad Social</h1>
-        </div>
-      </div>
-
       {error && <div className="alert alert--error">{error}</div>}
       {success && <div className="alert alert--success">{success}</div>}
 

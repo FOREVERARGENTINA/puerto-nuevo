@@ -8,6 +8,7 @@ import { InstitutionalLightbox } from '../../components/gallery/shared/Instituti
 import { ROLES } from '../../config/constants';
 import { institutionalGalleryService } from '../../services/institutionalGallery.service';
 import { useAuth } from '../../hooks/useAuth';
+import Icon from '../../components/ui/Icon';
 
 const InstitutionalGallery = () => {
   const location = useLocation();
@@ -167,12 +168,20 @@ const InstitutionalGallery = () => {
         </div>
       </div>
 
-      <GalleryBreadcrumbs
-        category={selectedCategory}
-        album={selectedAlbum}
-        currentView={currentView}
-        onNavigate={handleNavigate}
-      />
+      <div className="gallery-nav-row">
+        <GalleryBreadcrumbs
+          category={selectedCategory}
+          album={selectedAlbum}
+          currentView={currentView}
+          onNavigate={handleNavigate}
+        />
+        {(currentView === 'mosaic' || currentView === 'albums') && (
+          <button type="button" className="btn btn--outline btn--back" onClick={() => handleNavigate('categories')}>
+            <Icon name="chevron-left" size={16} />
+            Volver
+          </button>
+        )}
+      </div>
 
       <div className="gallery-content">
         {loadingDeepLink && <div className="loading">Abriendo album...</div>}

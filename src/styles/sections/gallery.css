@@ -1805,6 +1805,17 @@
   }
 }
 
+.gallery-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+}
+
+.gallery-nav-row .gallery-breadcrumbs {
+  margin-bottom: 0;
+}
+
 .gallery-breadcrumbs {
   display: flex;
   align-items: center;

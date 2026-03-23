@@ -124,7 +124,6 @@ const MosaicTile = ({ item, index, isFirst, onClick }) => {
   );
 };
 
-// onBack omitted — back navigation is handled by GalleryBreadcrumbs
 const AlbumMosaic = ({ items, loading, onSelectItem, dense = false, showLoadMore = false }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
