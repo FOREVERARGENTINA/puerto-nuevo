@@ -100,14 +100,23 @@
     <!-- JSON-LD structured data -->
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"EducationalOrganization","@id":"https://montessoripuertonuevo.com.ar/#org","name":"Montessori Puerto Nuevo","url":"https://montessoripuertonuevo.com.ar/","logo":"https://montessoripuertonuevo.com.ar/logo-login.png","image":"https://montessoripuertonuevo.com.ar/og-image.jpg?v=20260318","description":"Montessori Puerto Nuevo: propuesta pedag\u00f3gica, acompa\u00f1amiento integral y vida escolar. Conoc\u00e9 nuestro proyecto educativo.","telephone":"+54 11 2708-4000","sameAs":["https://www.facebook.com/puertonuevomontessori","https://instagram.com/puertonuevomontessori","https://www.linkedin.com/company/puertonuevomontessori"],"address":{"@type":"PostalAddress","addressCountry":"AR"}}</script>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q9Y7HWD6K8"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+      (function loadAnalytics() {
+        var measurementId = 'G-Q9Y7HWD6K8';
 
-      gtag('config', 'G-Q9Y7HWD6K8');
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = window.gtag || function gtag() {
+          window.dataLayer.push(arguments);
+        };
+
+        var script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=' + measurementId;
+        document.head.appendChild(script);
+
+        window.gtag('js', new Date());
+        window.gtag('config', measurementId);
+      })();
     </script>
   </head>
   <body>
