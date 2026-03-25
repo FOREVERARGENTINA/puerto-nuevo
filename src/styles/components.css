@@ -2246,6 +2246,18 @@
   --color-accent-light: #7dbec1;
 }
 
+.login-page--transition {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0) scale(0.992);
+  transition: opacity 320ms ease-out, transform 320ms ease-out;
+  will-change: opacity, transform;
+}
+
+.login-page--ready {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
 .login-split {
   display: flex;
   width: 100%;
@@ -2632,6 +2644,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .login-page--transition {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
   .loading-screen,
   .loading-screen__content,
   .loading-screen__logo-container::after,

@@ -11,6 +11,15 @@
     radial-gradient(70% 60% at 10% 10%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0%, transparent 100%),
     radial-gradient(60% 50% at 90% 90%, color-mix(in srgb, var(--color-accent) 10%, transparent) 0%, transparent 100%),
     linear-gradient(180deg, var(--color-background) 0%, var(--color-background-warm) 100%);
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 460ms ease-out, transform 460ms ease-out;
+  will-change: opacity, transform;
+}
+
+.under-construction--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
 }
 
 .under-construction::before {
@@ -26,7 +35,7 @@
 .under-construction__content {
   max-width: 780px;
   width: 100%;
-  max-height: calc(100dvh - 16px);
+  max-height: calc(100dvh - 24px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -152,7 +161,7 @@
 
   .under-construction__content {
     padding: 10px;
-    max-height: calc(100dvh - 12px);
+    max-height: calc(100dvh - 20px);
   }
 
   .under-construction__title {
@@ -177,6 +186,7 @@
 @media (max-width: 480px) {
   .under-construction__content {
     padding: 8px;
+    max-height: calc(100dvh - 16px);
   }
 
   .under-construction__title {
@@ -195,6 +205,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .under-construction {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
   .under-construction__content {
     animation: none;
     opacity: 1;

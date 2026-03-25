@@ -9,6 +9,7 @@ import { DMsFeatureGuard } from './components/auth/DMsFeatureGuard';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/Login';
 import { AuthAction } from './pages/AuthAction';
+import { UnderConstruction } from './pages/UnderConstruction';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { ROLES, ROUTES } from './config/constants';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
@@ -67,7 +68,6 @@ const SocialPage = lazy(() => import('./pages/shared/SocialPage'));
 
 // Lazy load páginas aspirante
 const AspiranteDashboard = lazy(() => import('./pages/aspirante/AspiranteDashboard').then(m => ({ default: m.AspiranteDashboard })));
-const UnderConstruction = lazy(() => import('./pages/UnderConstruction').then(m => ({ default: m.UnderConstruction })));
 
 // Importar CSS
 import './styles/design-system.css';

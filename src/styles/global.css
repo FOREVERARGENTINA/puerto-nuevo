@@ -11,6 +11,7 @@ html {
   font-size: 16px; /* Base para rem */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable both-edges;
   
   /* Transición suave al cambiar tema */
   transition: background-color var(--transition-normal), 
@@ -24,6 +25,7 @@ body {
   color: var(--color-text);
   background-color: var(--color-background-alt);
   min-height: 100vh;
+  overflow-x: hidden;
   
   /* Transición suave para el tema */
   transition: background-color var(--transition-normal), 

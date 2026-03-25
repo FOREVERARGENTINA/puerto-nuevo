@@ -1,12 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/under-construction.css';
 
 export const UnderConstruction = () => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
 
   return (
-    <div className="under-construction">
+    <div className={`under-construction${isVisible ? ' under-construction--visible' : ''}`}>
       <div className="under-construction__content">
         <div className="under-construction__image-container">
           <img
