@@ -39,7 +39,7 @@ exports.onCommunicationCreated = onDocumentCreated(
 
     // Paso 1: expandir destinatarios antes de cualquier envio.
     let destinatarios = Array.isArray(commData.destinatarios) ? commData.destinatarios : [];
-    const parentToStudents = {};
+    const parentToStudents = new Map();
 
     try {
       if (commData.type === 'global') {
@@ -60,7 +60,9 @@ exports.onCommunicationCreated = onDocumentCreated(
         );
 
         for (let idx = 0; idx < destinatarios.length; idx++) {
+          // eslint-disable-next-line security/detect-object-injection
           const id = destinatarios[idx];
+          // eslint-disable-next-line security/detect-object-injection
           const childFetch = childFetches[idx];
           const childSnap = childFetch && childFetch.status === 'fulfilled' ? childFetch.value : null;
 
@@ -79,8 +81,8 @@ exports.onCommunicationCreated = onDocumentCreated(
             if (Array.isArray(childData.responsables)) {
               childData.responsables.forEach((uid) => {
                 finalSet.add(uid);
-                parentToStudents[uid] = parentToStudents[uid] || [];
-                parentToStudents[uid].push(childName);
+                if (!parentToStudents.has(uid)) parentToStudents.set(uid, []);
+                parentToStudents.get(uid).push(childName);
               });
             }
           } else {
@@ -202,7 +204,7 @@ exports.onCommunicationCreated = onDocumentCreated(
           if (email) {
             try {
               if (brevoApiKey.value()) {
-                const studentList = parentToStudents[uid] ? parentToStudents[uid].join(', ') : null;
+                const studentList = parentToStudents.has(uid) ? parentToStudents.get(uid).join(', ') : null;
                 const safeStudentList = studentList ? escapeHtml(studentList) : null;
                 const safeBodyHtml = getSafeCommunicationBodyHtml(commData);
                 const attachmentList = renderAttachmentList(commData.attachments);

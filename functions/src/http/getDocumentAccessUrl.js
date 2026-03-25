@@ -6,7 +6,8 @@ const ALLOWED_ORIGINS = new Set([
   'https://montessoripuertonuevo.com.ar',
   'https://www.montessoripuertonuevo.com.ar',
 ]);
-const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/localhost(:\d+)?$/i;
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored regex, no catastrophic backtracking possible
+const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/localhost(:\d{1,5})?$/i;
 const SIGNED_URL_TTL_MS = 10 * 60 * 1000;
 
 function normalizeString(value) {

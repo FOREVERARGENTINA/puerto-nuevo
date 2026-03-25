@@ -2,6 +2,7 @@ import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import security from 'eslint-plugin-security'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
@@ -35,6 +36,8 @@ export default defineConfig([
   },
   {
     files: ['functions/**/*.{js,jsx,cjs}', 'scripts/**/*.{js,cjs}'],
+    plugins: { security },
+    extends: [security.configs.recommended],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,
@@ -58,6 +61,15 @@ export default defineConfig([
           message: 'No usar snapshot.ref.update(...) en paths criticos. Usa runTransaction con merge seguro.',
         },
       ],
+    },
+  },
+  {
+    // Scripts de migración/utilidad: usan rutas de archivo como variables por diseño (argumento de CLI)
+    files: ['scripts/**/*.{js,cjs}'],
+    rules: {
+      'security/detect-non-literal-fs-filename': 'off',
+      'security/detect-non-literal-regexp': 'off',
+      'security/detect-object-injection': 'off',
     },
   },
 ])

@@ -401,6 +401,7 @@ exports.checkUserEmail = onCallWithCors(async (request) => {
 });
 
 exports.listAccessibleDocuments = onCallWithCors(async (request) => {
+  ensureDataObject(request.data || {});
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Debe estar autenticado');
   }

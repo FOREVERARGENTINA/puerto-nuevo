@@ -28,7 +28,7 @@ function sanitizeText(value, maxLength = 140) {
 
 function normalizeCategory(value) {
   const category = sanitizeText(value, 40).toLowerCase();
-  return CATEGORY_LABELS[category] ? category : 'otra';
+  return Object.hasOwn(CATEGORY_LABELS, category) ? category : 'otra';
 }
 
 function normalizeCustomCategory(value) {
@@ -39,7 +39,8 @@ function resolveCategoryLabel(category, customCategory) {
   if (category === 'otra') {
     return customCategory || 'Otra';
   }
-  return CATEGORY_LABELS[category] || 'Actividad';
+  // eslint-disable-next-line security/detect-object-injection -- hasOwn check above ensures key is own property
+  return Object.hasOwn(CATEGORY_LABELS, category) ? CATEGORY_LABELS[category] : 'Actividad';
 }
 
 function toRecipientUid(rawValue) {

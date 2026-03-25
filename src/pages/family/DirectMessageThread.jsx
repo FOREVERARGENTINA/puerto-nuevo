@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
@@ -48,7 +48,6 @@ function formatTime(value) {
 export function DirectMessageThread() {
   const { convId } = useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { messages, loading } = useDirectMessageThread(convId);
 
   const [thread, setThread] = useState(null);
@@ -64,14 +63,14 @@ export function DirectMessageThread() {
 
   // Derivar otherUid directamente del convId, sin depender del documento cargado.
   // convId siempre tiene la forma "uidMenor_uidMayor" (sort lexicografico).
-  const otherUid = useMemo(() => {
+  const otherUid = (() => {
     if (!convId || !user?.uid) return null;
     const idx = convId.indexOf('_');
     if (idx < 0) return null;
     const part1 = convId.slice(0, idx);
     const part2 = convId.slice(idx + 1);
     return part1 === user.uid ? part2 : part1;
-  }, [convId, user?.uid]);
+  })();
 
   // Suscripcion en tiempo real al documento del hilo (P2 + refleja bloqueo remoto)
   useEffect(() => {

@@ -9,14 +9,16 @@ function buildInboxDoc(convId, conv, ownerUid, otherUid) {
   return {
     convId,
     otherUid,
-    otherName: conv.participantNames?.[otherUid] || 'Familia',
+    // eslint-disable-next-line security/detect-object-injection -- hasOwn check guards access; otherUid is a Firebase UID
+    otherName: (conv.participantNames && Object.hasOwn(conv.participantNames, otherUid)) ? conv.participantNames[otherUid] : 'Familia',
     participants: Array.isArray(conv.participants) ? conv.participants : [],
     createdAt: conv.createdAt || null,
     updatedAt: conv.updatedAt || conv.createdAt || null,
     lastMessageAt: conv.lastMessageAt || conv.updatedAt || conv.createdAt || null,
     lastMessageText: conv.lastMessageText || '',
     lastMessageAuthorUid: conv.lastMessageAuthorUid || null,
-    unreadCount: Number(conv.unreadCount?.[ownerUid] || 0),
+    // eslint-disable-next-line security/detect-object-injection -- hasOwn check guards access; ownerUid is a Firebase UID
+    unreadCount: Number((conv.unreadCount && Object.hasOwn(conv.unreadCount, ownerUid)) ? conv.unreadCount[ownerUid] : 0),
     status: conv.status || 'active',
     blockedBy: conv.blockedBy || null
   };

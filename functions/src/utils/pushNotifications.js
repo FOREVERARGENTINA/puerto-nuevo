@@ -206,7 +206,7 @@ async function sendPushNotificationToUsers(payload, options = {}) {
     response.responses.forEach((result, idx) => {
       if (!result.error?.code) return;
       if (!CLEANUP_ERROR_CODES.has(result.error.code)) return;
-      invalidTokens.add(tokenChunk[idx]);
+      invalidTokens.add(tokenChunk[idx]); // eslint-disable-line security/detect-object-injection
     });
   }
 

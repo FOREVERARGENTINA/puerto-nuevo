@@ -814,7 +814,6 @@ export default function SocialPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [graphFilters, setGraphFilters] = useState(INITIAL_GRAPH_FILTERS);
   const [selectedNode, setSelectedNode] = useState(null);

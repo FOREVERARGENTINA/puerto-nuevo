@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { AMBIENTES } from '../../config/constants';
 import { AlertDialog } from '../common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
@@ -44,10 +44,10 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   }, [appointment?.id, appointment?.modalidad]);
 
   // Hijos compatibles con el ambiente del slot. Si el slot no tiene ambiente, se muestran todos.
-  const eligibleChildren = useMemo(() => {
+  const eligibleChildren = (() => {
     if (!appointment?.ambiente) return userChildren || [];
     return (userChildren || []).filter(child => child.ambiente === appointment.ambiente);
-  }, [appointment?.ambiente, userChildren]);
+  })();
 
   useEffect(() => {
     if (eligibleChildren.length === 1) {
