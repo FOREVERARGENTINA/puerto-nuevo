@@ -20,15 +20,18 @@ exports.onConversationMessageCreated = onDocumentCreated(
 
     const conversation = convSnap.data();
     const isFromFamily = message.autorRol === 'family';
+    const recipientUserIds = conversation.esGrupal
+      ? (conversation.participantesUids || [])
+      : (conversation.familiaUid ? [conversation.familiaUid] : []);
 
     // Conversaciones: no enviar emails (solo push + in-app).
     // In-app queda cubierto por la lectura directa en Firestore desde el frontend.
-    if (isFromFamily || !conversation.familiaUid) return;
+    if (isFromFamily || recipientUserIds.length === 0) return;
 
     const body = (message.texto || '').slice(0, 180) || (message.adjuntos && message.adjuntos.length ? 'Adjunto disponible' : '');
 
     // Fase 1: push solo cuando la escuela responde a la familia.
-    // Protección adicional: no enviar push si la conversación está cerrada (evita notificaciones inválidas)
+    // Proteccion adicional: no enviar push si la conversacion esta cerrada.
     if (conversation.estado === 'cerrada') {
       console.log(`[Push] Ignorar push para conversacion cerrada ${convId}`);
       return;
@@ -42,7 +45,7 @@ exports.onConversationMessageCreated = onDocumentCreated(
           clickAction: `/portal/familia/conversaciones/${convId}`,
         },
         {
-          userIds: [conversation.familiaUid],
+          userIds: recipientUserIds,
           familyOnly: true,
         }
       );
