@@ -145,14 +145,15 @@ function buildReminderCommunication({
   const dateRange = `del ${formatDate(assignment.fechaInicio)} al ${formatDate(assignment.fechaFin)}`;
   const familyFirstName = getFirstName(recipientName);
   const childFirstName = getFirstName(assignment.childName);
-  const childLabel = childFirstName ? ` (Alumno: ${childFirstName})` : '';
+  const ambienteLabel = formatAmbiente(assignment.ambiente);
+  const targetLabel = childFirstName || ambienteLabel;
   const greeting = familyFirstName ? `Hola ${familyFirstName},` : 'Hola,';
   const automaticFooter =
     'Este recordatorio fue enviado automaticamente por la plataforma sobre una asignacion realizada por el equipo del colegio.';
 
   const body = isConfirmedReminder
-    ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${assignment.ambiente}${childLabel}.\n\nPor favor, trae los ingredientes el dia lunes.\n\nGracias por tu colaboracion.\n\n${automaticFooter}`
-    : `${greeting}\n\nTe recordamos que la proxima semana (${dateRange}) te corresponde traer los snacks para ${assignment.ambiente}${childLabel}.\n\nPor favor, confirma o solicita cambio desde el portal en "Mis Turnos de Snacks".\n\n${automaticFooter}`;
+    ? `${greeting}\n\nTe recordamos que tu semana de snacks es ${dateRange} para ${targetLabel}.\n\nPor favor, trae los ingredientes el dia lunes segun el listado que corresponde a ${ambienteLabel}.\n\nGracias por tu colaboracion.\n\n${automaticFooter}`
+    : `${greeting}\n\nTe recordamos que la proxima semana (${dateRange}) te corresponde traer los snacks para ${targetLabel}.\n\nPor favor, confirma o solicita cambio desde el portal en "Mis Turnos de Snacks".\n\n${automaticFooter}`;
 
   return {
     title: 'Recordatorio de snacks de la proxima semana',
@@ -221,4 +222,11 @@ function getFirstName(value) {
   if (!normalized) return '';
 
   return normalized.split(' ')[0] || '';
+}
+
+function formatAmbiente(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'taller1') return 'Taller 1';
+  if (normalized === 'taller2') return 'Taller 2';
+  return String(value || '').trim() || 'el taller asignado';
 }

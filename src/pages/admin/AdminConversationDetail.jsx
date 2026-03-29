@@ -85,20 +85,27 @@ export function AdminConversationDetail() {
   const getMsgReceipt = (msg) => {
     if (msg.autorRol === 'family') return null;
     if (!msg.creadoAt) return 'sent';
-    let visto;
+    const toMs = (t) => typeof t.toMillis === 'function' ? t.toMillis() : (t.seconds || 0) * 1000;
+    const msgMs = toMs(msg.creadoAt);
+
     if (conversation?.esGrupal && conversation?.ultimoMensajeVisto) {
-      // "leído" si al menos un participante lo vio
-      const timestamps = Object.values(conversation.ultimoMensajeVisto).filter(Boolean);
-      if (timestamps.length === 0) return 'sent';
-      const toMs = (t) => typeof t.toMillis === 'function' ? t.toMillis() : (t.seconds || 0) * 1000;
-      const maxMs = Math.max(...timestamps.map(toMs));
-      const msgMs = toMs(msg.creadoAt);
-      return msgMs <= maxMs ? 'read' : 'sent';
+      const participantUids = Array.isArray(conversation.participantesUids)
+        ? conversation.participantesUids
+        : Object.keys(conversation.ultimoMensajeVisto);
+
+      if (participantUids.length === 0) return 'sent';
+
+      const everyoneRead = participantUids.every((uid) => {
+        const vistoParticipante = conversation.ultimoMensajeVisto?.[uid];
+        if (!vistoParticipante) return false;
+        return msgMs <= toMs(vistoParticipante);
+      });
+
+      return everyoneRead ? 'read' : 'sent';
     }
-    visto = conversation?.ultimoMensajeVistoPorFamilia;
+    const visto = conversation?.ultimoMensajeVistoPorFamilia;
     if (!visto) return 'sent';
-    const msgMs = typeof msg.creadoAt.toMillis === 'function' ? msg.creadoAt.toMillis() : (msg.creadoAt.seconds || 0) * 1000;
-    const vistoMs = typeof visto.toMillis === 'function' ? visto.toMillis() : (visto.seconds || 0) * 1000;
+    const vistoMs = toMs(visto);
     return msgMs <= vistoMs ? 'read' : 'sent';
   };
 
@@ -282,17 +289,21 @@ export function AdminConversationDetail() {
           messages.map(msg => {
             const isOwn = msg.autorUid === user?.uid;
             const createdLabel = formatDateTimeBuenosAires(msg.creadoAt) || '-';
+            const receipt = getMsgReceipt(msg);
+            const receiptTitle = receipt === 'read'
+              ? (conversation?.esGrupal ? 'Leído por todos los integrantes' : 'Leído por la familia')
+              : 'Enviado';
             return (
               <div key={msg.id} className={`message-bubble ${isOwn ? 'message-bubble--own' : ''}`}>
                 <div className="message-bubble__header">
                   <strong>{msg.autorDisplayName || (msg.autorRol === 'family' ? 'Familia' : 'Escuela')}</strong>
                   <span className="message-bubble__meta">
                     {createdLabel}
-                    {getMsgReceipt(msg) && (
+                    {receipt && (
                       <span
-                        className={`msg-receipt msg-receipt--${getMsgReceipt(msg)}`}
-                        title={getMsgReceipt(msg) === 'read' ? 'Leído por la familia' : 'Enviado'}
-                        aria-label={getMsgReceipt(msg) === 'read' ? 'Leído' : 'Enviado'}
+                        className={`msg-receipt msg-receipt--${receipt}`}
+                        title={receiptTitle}
+                        aria-label={receiptTitle}
                       >
                         <svg width="18" height="11" viewBox="0 0 18 11" fill="none" aria-hidden="true">
                           <path d="M1 5.5L4.5 9L10.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
