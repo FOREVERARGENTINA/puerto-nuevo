@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Agregar 12 archivos de unit tests (Vitest) para toda la lógica pura del repo y 5 smoke tests E2E (Playwright) para los flujos críticos de usuario.
+**Goal:** Agregar 12 archivos de unit tests (Vitest) para toda la lógica pura del repo y 7 smoke tests E2E (Playwright) para los flujos críticos de usuario.
 
 **Architecture:** Vitest corre dentro del mismo `vite.config.js` existente para los tests del frontend. Los tests de `functions/` tienen su propia config Vitest en `functions/vitest.config.mjs` y se instalan por separado. Playwright levanta el dev server automáticamente y corre smoke tests contra Firebase real con cuentas dedicadas.
 
@@ -1437,27 +1437,109 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Crear el directorio e2e**
+- [ ] **Step 3: Crear el directorio `e2e/`**
 
+Crear la carpeta `e2e/` en la raíz del proyecto (desde el explorador de archivos o con cualquier herramienta).
+
+- [ ] **Step 4: Crear script para provisionar cuentas de prueba**
+
+Crear `scripts/create-e2e-accounts.cjs`:
+
+```js
+// scripts/create-e2e-accounts.cjs
+// Crea o actualiza cuentas de prueba para E2E con custom claims correctos.
+// Requiere service-account.json en la raíz del proyecto.
+// Correr: node scripts/create-e2e-accounts.cjs
+
+const admin = require('firebase-admin');
+const serviceAccount = require('../service-account.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const TEST_USERS = [
+  {
+    email: 'test-family@test.local',
+    password: 'TestFamily2024!',
+    role: 'family',
+    displayName: 'Test Family',
+  },
+  {
+    email: 'test-admin@test.local',
+    password: 'TestAdmin2024!',
+    role: 'coordinacion',
+    displayName: 'Test Admin',
+  },
+];
+
+async function createOrUpdateUser({ email, password, role, displayName }) {
+  let userRecord;
+  try {
+    userRecord = await admin.auth().getUserByEmail(email);
+    console.log(`Usuario ${email} ya existe. Actualizando custom claims...`);
+  } catch {
+    userRecord = await admin.auth().createUser({ email, password, displayName });
+    console.log(`Usuario ${email} creado.`);
+  }
+
+  // El custom claim "role" es lo que lee useAuth.js:29 (tokenResult.claims.role)
+  await admin.auth().setCustomUserClaims(userRecord.uid, { role });
+
+  await admin.firestore().collection('users').doc(userRecord.uid).set(
+    { email, displayName, role, disabled: false },
+    { merge: true }
+  );
+
+  console.log(`  → rol "${role}" asignado (uid: ${userRecord.uid})`);
+  return userRecord;
+}
+
+async function main() {
+  for (const user of TEST_USERS) {
+    await createOrUpdateUser(user);
+  }
+  console.log('\n✓ Cuentas E2E listas.');
+  console.log('Completar .env.test.local con las passwords definidas arriba.');
+  process.exit(0);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+Correr el script:
 ```bash
-mkdir -p e2e
+node scripts/create-e2e-accounts.cjs
 ```
 
-- [ ] **Step 4: Crear `.env.test.local` con template**
+Resultado esperado:
+```
+Usuario test-family@test.local creado.
+  → rol "family" asignado (uid: ...)
+Usuario test-admin@test.local creado.
+  → rol "coordinacion" asignado (uid: ...)
 
-Crear el archivo `.env.test.local` (NO hacer commit de este archivo — ya está en `.gitignore`):
+✓ Cuentas E2E listas.
+```
+
+- [ ] **Step 5: Crear `.env.test.local`**
+
+Crear el archivo `.env.test.local` en la raíz (NO hacer commit — ya está en `.gitignore`):
 
 ```
-# Cuentas dedicadas para tests E2E — nunca usar cuentas de familias o staff real
+# Cuentas dedicadas para E2E — nunca usar cuentas de familias o staff real
 PLAYWRIGHT_FAMILY_EMAIL=test-family@test.local
-PLAYWRIGHT_FAMILY_PASSWORD=COMPLETAR
+PLAYWRIGHT_FAMILY_PASSWORD=TestFamily2024!
 PLAYWRIGHT_ADMIN_EMAIL=test-admin@test.local
-PLAYWRIGHT_ADMIN_PASSWORD=COMPLETAR
+PLAYWRIGHT_ADMIN_PASSWORD=TestAdmin2024!
 ```
 
-**Antes de continuar con los tests E2E**, crear manualmente las cuentas en Firebase Auth del proyecto `puerto-nuevo-montessori` con los emails definidos arriba, y asignarles los roles `family` y `coordinacion` en Firestore. La cuenta family necesita al menos un hijo asociado y debe existir al menos un evento publicado.
+**Nota:** La cuenta family necesita al menos un hijo asociado en Firestore y debe existir al menos un evento publicado para que las pantallas carguen sin error.
 
-- [ ] **Step 5: Verificar config con un test mínimo**
+- [ ] **Step 6: Verificar config con un test mínimo**
 
 Crear temporalmente `e2e/_smoke.spec.js`:
 
@@ -1478,12 +1560,12 @@ npm run test:e2e
 
 Resultado esperado: `1 passed`. Si falla por timeout del webServer, aumentar `timeout` en el bloque `webServer` de `playwright.config.js`.
 
-- [ ] **Step 6: Eliminar smoke test y hacer commit**
+- [ ] **Step 7: Eliminar smoke test y hacer commit**
 
 ```bash
 rm e2e/_smoke.spec.js
-git add playwright.config.js package.json
-git commit -m "chore: agregar Playwright con config base"
+git add playwright.config.js package.json scripts/create-e2e-accounts.cjs
+git commit -m "chore: agregar Playwright con config base y script de cuentas E2E"
 ```
 
 ---
@@ -1561,6 +1643,11 @@ git commit -m "test: agregar smoke tests E2E para login"
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  // Capturar errores de consola y de página para detectar fallos silenciosos
+  page.on('pageerror', (err) => {
+    throw new Error(`Error de página no capturado: ${err.message}`);
+  });
+
   await page.goto('/portal/login');
   await page.fill('#email', process.env.PLAYWRIGHT_FAMILY_EMAIL);
   await page.fill('#password', process.env.PLAYWRIGHT_FAMILY_PASSWORD);
@@ -1568,17 +1655,27 @@ test.beforeEach(async ({ page }) => {
   await page.waitForURL(/\/portal\/familia/, { timeout: 15000 });
 });
 
-test('family puede ver la lista de conversaciones sin error', async ({ page }) => {
+test('family puede ver la lista de conversaciones', async ({ page }) => {
+  const consoleErrors = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
+
   await page.goto('/portal/familia/conversaciones');
-  // No redirigió a login (está autenticado)
+
+  // No redirigió a login
   await expect(page).not.toHaveURL(/\/portal\/login/);
-  // No hay error de carga visible
-  const errorAlert = page.locator('[role="alert"]');
-  const hasError = await errorAlert.isVisible().catch(() => false);
-  if (hasError) {
-    const errorText = await errorAlert.textContent();
-    throw new Error(`Página muestra error: ${errorText}`);
-  }
+
+  // La lista de conversaciones renderizó — esperar un contenedor de la sección
+  // (el h1, o cualquier elemento que indique que la página cargó)
+  await expect(page.locator('main, [role="main"], .page-content, h1, h2').first())
+    .toBeVisible({ timeout: 10000 });
+
+  // Sin errores críticos de consola
+  const criticalErrors = consoleErrors.filter(
+    (e) => !e.includes('favicon') && !e.includes('ERR_BLOCKED_BY_CLIENT')
+  );
+  expect(criticalErrors, `Errores de consola: ${criticalErrors.join('\n')}`).toHaveLength(0);
 });
 ```
 
@@ -1587,26 +1684,53 @@ test('family puede ver la lista de conversaciones sin error', async ({ page }) =
 ```js
 import { test, expect } from '@playwright/test';
 
-test('family puede acceder al dashboard con calendario de eventos', async ({ page }) => {
+async function loginAs(page, email, password) {
   await page.goto('/portal/login');
-  await page.fill('#email', process.env.PLAYWRIGHT_FAMILY_EMAIL);
-  await page.fill('#password', process.env.PLAYWRIGHT_FAMILY_PASSWORD);
+  await page.fill('#email', email);
+  await page.fill('#password', password);
   await page.click('button[type="submit"]');
+}
+
+test('family ve el dashboard con sección de eventos visible', async ({ page }) => {
+  const consoleErrors = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
+
+  await loginAs(page, process.env.PLAYWRIGHT_FAMILY_EMAIL, process.env.PLAYWRIGHT_FAMILY_PASSWORD);
   await page.waitForURL(/\/portal\/familia/, { timeout: 15000 });
-  // El dashboard cargó sin redirigir a login
-  await expect(page).not.toHaveURL(/\/portal\/login/);
+
+  // Algún contenedor del dashboard debe ser visible
+  await expect(page.locator('main, [role="main"], .dashboard, .page-content').first())
+    .toBeVisible({ timeout: 10000 });
+
+  // Sin errores críticos de consola
+  const criticalErrors = consoleErrors.filter(
+    (e) => !e.includes('favicon') && !e.includes('ERR_BLOCKED_BY_CLIENT')
+  );
+  expect(criticalErrors, `Errores de consola: ${criticalErrors.join('\n')}`).toHaveLength(0);
 });
 
-test('admin puede acceder a EventsManager sin ser redirigido', async ({ page }) => {
-  await page.goto('/portal/login');
-  await page.fill('#email', process.env.PLAYWRIGHT_ADMIN_EMAIL);
-  await page.fill('#password', process.env.PLAYWRIGHT_ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
+test('admin puede acceder a EventsManager y la página renderiza', async ({ page }) => {
+  const consoleErrors = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
+
+  await loginAs(page, process.env.PLAYWRIGHT_ADMIN_EMAIL, process.env.PLAYWRIGHT_ADMIN_PASSWORD);
   await page.waitForURL(/\/portal\/admin/, { timeout: 15000 });
+
   await page.goto('/portal/admin/eventos');
-  // No redirigió a login ni a otra sección
-  await expect(page).not.toHaveURL(/\/portal\/login/);
   await expect(page).toHaveURL(/\/portal\/admin\/eventos/, { timeout: 8000 });
+
+  // La página renderizó contenido — no quedó en blanco ni redirigió
+  await expect(page.locator('main, [role="main"], .page-content, h1, h2').first())
+    .toBeVisible({ timeout: 10000 });
+
+  const criticalErrors = consoleErrors.filter(
+    (e) => !e.includes('favicon') && !e.includes('ERR_BLOCKED_BY_CLIENT')
+  );
+  expect(criticalErrors, `Errores de consola: ${criticalErrors.join('\n')}`).toHaveLength(0);
 });
 ```
 
