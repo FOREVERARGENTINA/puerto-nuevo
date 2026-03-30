@@ -52,7 +52,7 @@ Dentro de `"scripts"`, agregar:
 "setup:functions":  "npm ci --prefix functions",
 "test:functions":   "npm --prefix functions test",
 "test:e2e":         "playwright test",
-"test:all":         "npm run test && npm run test:functions && npm run test:e2e"
+"test:all":         "npm run test && npm run setup:functions && npm run test:functions && npm run test:e2e"
 ```
 
 - [ ] **Step 4: Verificar que Vitest funciona con un test trivial**
@@ -80,7 +80,7 @@ Resultado esperado: `1 passed` en verde.
 
 ```bash
 rm src/utils/_smoke.test.js
-git add vite.config.js package.json
+git add vite.config.js package.json package-lock.json
 git commit -m "chore: agregar Vitest con config base"
 ```
 
@@ -1306,7 +1306,7 @@ Resultado esperado: todos los tests pasan.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add functions/package.json functions/vitest.config.mjs functions/src/utils/sanitize.test.js
+git add functions/package.json functions/package-lock.json functions/vitest.config.mjs functions/src/utils/sanitize.test.js
 git commit -m "test: setup Vitest en functions y tests para sanitize utils"
 ```
 
@@ -1586,7 +1586,7 @@ Resultado esperado: `1 passed`. Si falla por timeout del webServer, aumentar `ti
 
 ```bash
 rm e2e/_smoke.spec.js
-git add playwright.config.js package.json scripts/create-e2e-accounts.cjs
+git add playwright.config.js package.json package-lock.json scripts/create-e2e-accounts.cjs
 # NO agregar .env.test.local — contiene credenciales, ya está en .gitignore
 git commit -m "chore: agregar Playwright con config base y script de cuentas E2E"
 ```
