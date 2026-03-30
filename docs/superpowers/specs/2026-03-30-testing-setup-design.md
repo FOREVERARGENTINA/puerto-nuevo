@@ -7,14 +7,26 @@
 
 ## Objetivo
 
-Agregar cobertura de tests al proyecto: unit tests para toda la lógica pura del frontend y backend, y E2E para los flujos críticos de usuario. Sin Firebase Emulator. Sin costo de infraestructura.
+Agregar cobertura de tests al proyecto: unit tests para toda la lógica pura del frontend y backend, y smoke tests E2E para los flujos críticos de usuario.
 
 ---
 
 ## Stack
 
 - **Vitest** — unit tests, integrado en vite.config.js existente
-- **Playwright** — E2E contra `localhost` (dev server), sin tocar Firebase real
+- **Playwright** — smoke tests E2E contra `localhost` (dev server) + **Firebase real de producción**
+
+---
+
+## Nota importante sobre E2E y Firebase
+
+`src/config/firebase.js` tiene la configuración hardcodeada (sin variables de entorno). El frontend siempre conecta al proyecto real `puerto-nuevo-montessori`. Por lo tanto, los tests E2E **son smoke tests contra Firebase real** con cuentas dedicadas solo para testing.
+
+Implicaciones:
+- Las cuentas de prueba deben existir en Firebase Auth del proyecto real
+- Son cuentas exclusivas para tests, nunca cuentas de familias o staff real
+- Las credenciales se guardan en `.env.test.local` (ya está en `.gitignore`)
+- Playwright carga `.env.test.local` explícitamente vía `dotenv` en `playwright.config.js`
 
 ---
 
@@ -45,6 +57,7 @@ e2e/
   events.spec.js
 
 playwright.config.js
+.env.test.local          ← gitignoreado, credenciales de cuentas de prueba
 ```
 
 ---
@@ -52,10 +65,14 @@ playwright.config.js
 ## Scripts npm
 
 ```json
-"test":        "vitest run",
-"test:watch":  "vitest",
-"test:e2e":    "playwright test"
+"test":           "vitest run",
+"test:watch":     "vitest",
+"test:functions": "cd functions && npm install && vitest run",
+"test:e2e":       "playwright test",
+"test:all":       "npm run test && npm run test:functions && npm run test:e2e"
 ```
+
+`test:functions` instala las dependencias de `functions/` primero para garantizar reproducibilidad en instalación limpia.
 
 ---
 
@@ -80,11 +97,13 @@ playwright.config.js
 - `getAreaLabel` cubre coordinacion, administracion, direccion, default
 
 ### `dateHelpers.test.js`
+Usa `vi.useFakeTimers()` y `vi.setSystemTime()` para fijar el reloj — los tests no dependen del momento en que se ejecutan.
+
 - `isNext24Hours` → true para fecha en 12h, false para fecha en 48h
 - `isNext24Hours` → false para fecha pasada
 - `isNext48Hours` → true para fecha en 36h
 - `formatRelativeTime` → "Hace menos de 1 hora", "Hace 3 horas", "Ayer", "Hace 5 días"
-- Acepta tanto `Date` como Timestamp de Firestore
+- Acepta tanto `Date` como Timestamp de Firestore (objeto con `.toDate()`)
 
 ### `dmAccess.test.js`
 - Rol no-family (docente, admin) → siempre `false`
@@ -103,7 +122,7 @@ playwright.config.js
 ### `roles.test.js`
 - `'teacher'` → `'docente'`
 - `'teachers'` → `'docente'`
-- `'doeente'` (typo conocido) → `'docente'`
+- `'doeente'` (typo conocido en el código) → `'docente'`
 - `'family'` → `'family'` (pasa sin cambio)
 - `null` / número → `''`
 
@@ -148,6 +167,8 @@ playwright.config.js
 - `getRolePermissions(FAMILY)` devuelve array vacío
 
 ### `functions/src/utils/sanitize.test.js`
+Usa `require()` (CommonJS, igual que `functions/`). Corre con `test:functions`.
+
 - `escapeHtml` escapa `<`, `>`, `&`, `"`, `'`
 - `escapeHtml` con `null`/`undefined` devuelve `''`
 - `sanitizeUrl` acepta http y https
@@ -159,6 +180,8 @@ playwright.config.js
 - `renderAttachmentList` devuelve `''` para array vacío
 
 ### `functions/src/utils/rateLimiter.test.js`
+Usa `require()` (CommonJS). Corre con `test:functions`.
+
 - `isRateLimitError` detecta status 429
 - `isRateLimitError` detecta mensaje "too many requests"
 - `isRateLimitError` detecta código `'429'`
@@ -168,21 +191,39 @@ playwright.config.js
 
 ---
 
-## E2E Tests — detalle por archivo
+## E2E Tests — smoke tests contra Firebase real
+
+### Cuentas de prueba requeridas
+Antes de correr E2E se deben crear manualmente en Firebase Auth:
+- Una cuenta con rol `family` (ej: `test-family@test.local`)
+- Una cuenta con rol `coordinacion` (ej: `test-admin@test.local`)
+
+Las credenciales se guardan en `.env.test.local`:
+```
+PLAYWRIGHT_FAMILY_EMAIL=test-family@test.local
+PLAYWRIGHT_FAMILY_PASSWORD=...
+PLAYWRIGHT_ADMIN_EMAIL=test-admin@test.local
+PLAYWRIGHT_ADMIN_PASSWORD=...
+```
+
+### Contratos mínimos de datos
+Las cuentas de prueba deben tener al menos un documento en Firestore para que las pantallas carguen sin errores:
+- La cuenta family debe tener al menos un hijo asociado
+- Debe existir al menos un evento publicado
 
 ### `e2e/login.spec.js`
-- Login con credenciales de familia válidas → redirige a `/portal/familia`
-- Login con credenciales de admin válidas → redirige a `/portal/admin`
+- Login con cuenta family → redirige a `/portal/familia`
+- Login con cuenta admin → redirige a `/portal/admin`
 - Login con password incorrecto → muestra mensaje de error, no navega
 - Login con email inexistente → muestra mensaje de error
 
 ### `e2e/conversations.spec.js`
-- Usuario familia autenticado puede ver la lista de conversaciones en `/portal/familia/conversaciones`
+- Usuario family autenticado ve la lista de conversaciones en `/portal/familia/conversaciones`
 - La página carga sin errores de consola críticos
 
 ### `e2e/events.spec.js`
-- Usuario familia puede ver el calendario de eventos en `/portal/familia`
-- Usuario admin puede acceder a `/portal/admin/eventos`
+- Usuario family ve el calendario de eventos en `/portal/familia`
+- Usuario admin accede a `/portal/admin/eventos`
 
 ---
 
@@ -196,27 +237,27 @@ test: {
 }
 ```
 
-> Los tests de frontend que usan APIs de DOM (DOMParser, window) quedan excluidos del alcance actual. Se testea solo lógica pura.
-
-> **Nota CommonJS vs ESM:** `functions/src/utils/` usa CommonJS (`module.exports`). Los test files de functions usan `require()`. Vitest en ambiente `node` maneja ambos sin configuración extra.
-
 ### playwright.config.js
 ```js
-baseURL: 'http://localhost:5173',
-webServer: {
-  command: 'npm run dev',
-  url: 'http://localhost:5173',
-  reuseExistingServer: true,
-}
-```
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.test.local' });
 
-Los tests E2E requieren un archivo `.env.test` con credenciales de prueba (usuarios reales del proyecto).
+export default {
+  baseURL: 'http://localhost:5173',
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: true,
+  },
+  use: { baseURL: 'http://localhost:5173' },
+};
+```
 
 ---
 
 ## Lo que queda fuera del alcance
 
-- Firebase Emulator / tests de Cloud Functions triggers
+- Firebase Emulator — requeriría refactorizar `firebase.js` para usar env vars y conectar al emulador según entorno
 - Tests de componentes React (React Testing Library)
 - `communicationRichText.js` — depende de DOMPurify + DOMParser (browser)
 - `conversationEvents.js` — solo dispara eventos de window, lógica trivial
