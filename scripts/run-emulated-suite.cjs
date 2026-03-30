@@ -41,10 +41,10 @@ async function runSuite() {
   };
 
   await prepareEnvironment();
-  await runCommand([vitestCli, 'run', 'tests/rules']);
+  await runCommand([vitestCli, 'run', '--config', 'vitest.emulator.config.js', 'tests/rules']);
 
   await prepareEnvironment();
-  await runCommand([vitestCli, 'run', 'tests/functions']);
+  await runCommand([vitestCli, 'run', '--config', 'vitest.emulator.config.js', 'tests/functions']);
 
   await prepareEnvironment();
   await runCommand([

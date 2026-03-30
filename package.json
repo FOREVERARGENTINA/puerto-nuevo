@@ -19,7 +19,7 @@
     "scheduled:appointments": "node scripts/run-scheduled.cjs appointments",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "vitest run tests/rules",
+    "test:rules": "vitest run --config vitest.emulator.config.js tests/rules",
     "setup:functions":  "npm ci --prefix functions",
     "test:functions":   "npm --prefix functions test",
     "test:e2e": "playwright test",
