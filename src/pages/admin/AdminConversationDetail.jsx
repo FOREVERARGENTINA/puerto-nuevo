@@ -17,6 +17,26 @@ import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
+const toMillisSafe = (value) => (
+  typeof value?.toMillis === 'function'
+    ? value.toMillis()
+    : (value?.seconds || 0) * 1000
+);
+
+const getParticipantFirstName = (participant, uid) => {
+  const rawName = participant?.displayName || participant?.email || uid || '';
+  const safeName = String(rawName).trim();
+  if (!safeName) return 'Familia';
+
+  const primaryToken = safeName.includes('@')
+    ? safeName.split('@')[0].split(/[._-]+/)[0]
+    : safeName.split(/\s+/)[0];
+
+  return primaryToken
+    ? primaryToken.charAt(0).toUpperCase() + primaryToken.slice(1)
+    : 'Familia';
+};
+
 export function AdminConversationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -84,29 +104,54 @@ export function AdminConversationDetail() {
 
   const getMsgReceipt = (msg) => {
     if (msg.autorRol === 'family') return null;
-    if (!msg.creadoAt) return 'sent';
-    const toMs = (t) => typeof t.toMillis === 'function' ? t.toMillis() : (t.seconds || 0) * 1000;
-    const msgMs = toMs(msg.creadoAt);
+    if (!msg.creadoAt) return { status: 'sent', title: 'Enviado', label: '' };
+    const msgMs = toMillisSafe(msg.creadoAt);
 
     if (conversation?.esGrupal && conversation?.ultimoMensajeVisto) {
       const participantUids = Array.isArray(conversation.participantesUids)
         ? conversation.participantesUids
         : Object.keys(conversation.ultimoMensajeVisto);
 
-      if (participantUids.length === 0) return 'sent';
+      if (participantUids.length === 0) {
+        return { status: 'sent', title: 'Enviado', label: '' };
+      }
 
-      const everyoneRead = participantUids.every((uid) => {
+      const readBy = participantUids.filter((uid) => {
         const vistoParticipante = conversation.ultimoMensajeVisto?.[uid];
         if (!vistoParticipante) return false;
-        return msgMs <= toMs(vistoParticipante);
+        return msgMs <= toMillisSafe(vistoParticipante);
       });
 
-      return everyoneRead ? 'read' : 'sent';
+      if (readBy.length === 0) {
+        return { status: 'sent', title: 'Enviado', label: '' };
+      }
+
+      const everyoneRead = readBy.length === participantUids.length;
+      if (everyoneRead) {
+        return {
+          status: 'read',
+          title: 'Leído por todos los integrantes',
+          label: ''
+        };
+      }
+
+      const firstReaderName = getParticipantFirstName(conversation.participantes?.[readBy[0]], readBy[0]);
+      const label = readBy.length === 1
+        ? `Leída por ${firstReaderName}`
+        : `Leída por ${firstReaderName} y ${readBy.length - 1} más`;
+
+      return {
+        status: 'partial',
+        title: label,
+        label
+      };
     }
     const visto = conversation?.ultimoMensajeVistoPorFamilia;
-    if (!visto) return 'sent';
-    const vistoMs = toMs(visto);
-    return msgMs <= vistoMs ? 'read' : 'sent';
+    if (!visto) return { status: 'sent', title: 'Enviado', label: '' };
+    const vistoMs = toMillisSafe(visto);
+    return msgMs <= vistoMs
+      ? { status: 'read', title: 'Leído por la familia', label: '' }
+      : { status: 'sent', title: 'Enviado', label: '' };
   };
 
   const handleSend = async (e) => {
@@ -290,9 +335,6 @@ export function AdminConversationDetail() {
             const isOwn = msg.autorUid === user?.uid;
             const createdLabel = formatDateTimeBuenosAires(msg.creadoAt) || '-';
             const receipt = getMsgReceipt(msg);
-            const receiptTitle = receipt === 'read'
-              ? (conversation?.esGrupal ? 'Leído por todos los integrantes' : 'Leído por la familia')
-              : 'Enviado';
             return (
               <div key={msg.id} className={`message-bubble ${isOwn ? 'message-bubble--own' : ''}`}>
                 <div className="message-bubble__header">
@@ -300,16 +342,21 @@ export function AdminConversationDetail() {
                   <span className="message-bubble__meta">
                     {createdLabel}
                     {receipt && (
-                      <span
-                        className={`msg-receipt msg-receipt--${receipt}`}
-                        title={receiptTitle}
-                        aria-label={receiptTitle}
-                      >
-                        <svg width="18" height="11" viewBox="0 0 18 11" fill="none" aria-hidden="true">
-                          <path d="M1 5.5L4.5 9L10.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M7 5.5L10.5 9L16.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
+                      <>
+                        <span
+                          className={`msg-receipt msg-receipt--${receipt.status}`}
+                          title={receipt.title}
+                          aria-label={receipt.title}
+                        >
+                          <svg width="18" height="11" viewBox="0 0 18 11" fill="none" aria-hidden="true">
+                            <path className="msg-receipt__tick msg-receipt__tick--first" d="M1 5.5L4.5 9L10.5 2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path className="msg-receipt__tick msg-receipt__tick--second" d="M7 5.5L10.5 9L16.5 2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                        {receipt.label && (
+                          <span className="msg-receipt__label">{receipt.label}</span>
+                        )}
+                      </>
                     )}
                   </span>
                 </div>

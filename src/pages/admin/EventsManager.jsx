@@ -46,6 +46,7 @@ export function EventsManager() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [selectedEventForView, setSelectedEventForView] = useState(null);
   const [showEventDetail, setShowEventDetail] = useState(false);
+  const [nextUpcomingEvents, setNextUpcomingEvents] = useState([]);
   const maxMediaSizeBytes = 50 * 1024 * 1024;
   const maxMediaSizeLabel = '50MB';
   const allowedMediaExtensions = new Set([
@@ -88,6 +89,17 @@ export function EventsManager() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  const loadNextUpcoming = useCallback(async () => {
+    const result = await eventsService.getUpcomingEvents(3);
+    if (result.success) {
+      setNextUpcomingEvents(result.events);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNextUpcoming();
+  }, [loadNextUpcoming]);
 
   useEffect(() => {
     let active = true;
@@ -203,6 +215,13 @@ export function EventsManager() {
     const today = new Date();
     setSelectedMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDay(today.getDate());
+  };
+
+  const handleGoToNextEventMonth = (event) => {
+    const eventDate = normalizeEventDate(event.fecha);
+    if (!eventDate) return;
+    setSelectedMonth(new Date(eventDate.getFullYear(), eventDate.getMonth(), 1));
+    setSelectedDay(null);
   };
 
   const toDateInputValue = (date) => {
@@ -401,6 +420,7 @@ export function EventsManager() {
       });
       handleCloseModal();
       loadEvents();
+      loadNextUpcoming();
     } else {
       setAlertDialog({
         isOpen: true,
@@ -426,6 +446,7 @@ export function EventsManager() {
       setShowDeleteConfirm(false);
       setEventToDelete(null);
       loadEvents();
+      loadNextUpcoming();
     } else {
       setAlertDialog({
         isOpen: true,
@@ -515,17 +536,44 @@ export function EventsManager() {
     return sortedFilteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
   }, [sortedFilteredEvents]);
 
+  const hasUpcomingInCurrentMonth = useMemo(() => (
+    sortedFilteredEvents.some(event => !isPastEvent(event))
+  ), [sortedFilteredEvents]);
+
+  const nextCrossMonthEvent = useMemo(() => {
+    if (upcomingEventsPreview.length > 0) return null;
+    return nextUpcomingEvents.find(event => {
+      const eventDate = normalizeEventDate(event.fecha);
+      if (!eventDate) return false;
+      return !(eventDate.getFullYear() === selectedMonthYear && eventDate.getMonth() === selectedMonthIndex);
+    }) ?? null;
+  }, [upcomingEventsPreview, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex]);
+
+  const nextCrossMonthEventDisplay = useMemo(() => {
+    if (!nextCrossMonthEvent) return null;
+    const eventDate = normalizeEventDate(nextCrossMonthEvent.fecha);
+    return {
+      dateStr: eventDate
+        ? new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(eventDate)
+        : '',
+      monthStr: eventDate
+        ? new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(eventDate)
+        : ''
+    };
+  }, [nextCrossMonthEvent]);
+
   const upcomingEventsSummary = useMemo(() => {
     if (upcomingEventsPreview.length === 0) {
-      return 'Próximos eventos: sin eventos próximos en este rango.';
+      if (nextCrossMonthEvent && nextCrossMonthEventDisplay) {
+        return `Sin próximos en este mes → próximo: ${nextCrossMonthEvent.titulo}${nextCrossMonthEventDisplay.dateStr ? ` (${nextCrossMonthEventDisplay.dateStr})` : ''}`;
+      }
+      return 'Sin eventos próximos en este mes.';
     }
-
     if (upcomingEventsPreview.length === 1) {
       return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
     }
-
     return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
-  }, [upcomingEventsPreview]);
+  }, [upcomingEventsPreview, nextCrossMonthEvent, nextCrossMonthEventDisplay]);
 
   const visibleEvents = useMemo(() => {
     return sortedFilteredEvents.slice(0, visibleEventsCount);
@@ -705,12 +753,45 @@ export function EventsManager() {
               {eventsForMonth.length === 0 ? (
                 <div className="empty-state">
                   <p className="empty-state__text">No hay eventos para este mes</p>
+                  {nextCrossMonthEvent && nextCrossMonthEventDisplay && (
+                    <div className="events-next-event-hint">
+                      <p className="events-next-event-hint__text">
+                        Próximo evento: <strong>{nextCrossMonthEvent.titulo}</strong>
+                        {nextCrossMonthEventDisplay.dateStr && ` — ${nextCrossMonthEventDisplay.dateStr}`}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--outline"
+                        onClick={() => handleGoToNextEventMonth(nextCrossMonthEvent)}
+                      >
+                        Ver en {nextCrossMonthEventDisplay.monthStr || 'el siguiente mes'}
+                      </button>
+                    </div>
+                  )}
                   <button onClick={() => handleOpenModal()} className="btn btn--primary">
                     Crear Primer Evento
                   </button>
                 </div>
               ) : (
                 <>
+                  {!hasUpcomingInCurrentMonth && nextCrossMonthEvent && nextCrossMonthEventDisplay && (
+                    <div className="events-next-month-banner">
+                      <div className="events-next-month-banner__content">
+                        <span className="events-next-month-banner__label">Próximo evento</span>
+                        <strong className="events-next-month-banner__title">{nextCrossMonthEvent.titulo}</strong>
+                        {nextCrossMonthEventDisplay.dateStr && (
+                          <span className="events-next-month-banner__date">{nextCrossMonthEventDisplay.dateStr}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--primary"
+                        onClick={() => handleGoToNextEventMonth(nextCrossMonthEvent)}
+                      >
+                        Ver en {nextCrossMonthEventDisplay.monthStr || 'el siguiente mes'}
+                      </button>
+                    </div>
+                  )}
                   <div className="events-list-header">
                     <div>
                       <h3 className="events-list-title">

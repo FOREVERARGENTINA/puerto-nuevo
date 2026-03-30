@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getMessaging, getToken, isSupported as isMessagingSupported, onMessage } from 'firebase/messaging';
-import app from '../config/firebase';
+import app, { isUsingFirebaseEmulators } from '../config/firebase';
 import { usersService } from '../services/users.service';
 
 const PUSH_SW_PATH = '/firebase-messaging-sw.js';
@@ -136,6 +136,15 @@ export function usePushNotifications(user) {
     let mounted = true;
 
     const checkSupportAndSync = async () => {
+      if (isUsingFirebaseEmulators) {
+        if (mounted) {
+          setIsPushSupported(false);
+          setIsPushEnabled(false);
+          setPushError('');
+        }
+        return;
+      }
+
       if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
         if (mounted) {
           setIsPushSupported(false);
@@ -182,6 +191,11 @@ export function usePushNotifications(user) {
   }, [registerToken, user?.uid]);
 
   const enablePush = useCallback(async () => {
+    if (isUsingFirebaseEmulators) {
+      setPushError('');
+      return false;
+    }
+
     if (!user?.uid) {
       setPushError('Debes iniciar sesion para activar notificaciones');
       return false;

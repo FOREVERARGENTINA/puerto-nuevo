@@ -1,5 +1,6 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 const { toPlainText } = require('../utils/sanitize');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
@@ -47,7 +48,7 @@ async function createInAppNotifications(userIds, eventId, eventData) {
   const db = admin.firestore();
   const title = 'Nuevo evento';
   const eventTitle = normalizeString(eventData?.titulo, 140) || 'Hay un nuevo evento en el calendario';
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
 
   let batch = db.batch();
   let writes = 0;
@@ -138,4 +139,3 @@ exports.onEventCreated = onDocumentCreated(
     }
   }
 );
-

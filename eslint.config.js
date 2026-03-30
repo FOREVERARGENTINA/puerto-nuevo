@@ -35,6 +35,16 @@ export default defineConfig([
     },
   },
   {
+    files: ['tests/**/*.{js,jsx}', 'vitest.config.js'],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+  },
+  {
     files: ['functions/**/*.{js,jsx,cjs}', 'scripts/**/*.{js,cjs}'],
     plugins: { security },
     extends: [security.configs.recommended],

@@ -40,6 +40,10 @@ lerna-debug.log*
 
 # Testing
 coverage/
+playwright-report/
+test-results/
+.tmp/
+firestore-debug.log
 
 # Temporal
 leer.md

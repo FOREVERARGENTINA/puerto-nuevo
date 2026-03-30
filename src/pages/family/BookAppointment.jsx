@@ -62,6 +62,15 @@ const BookAppointment = () => {
 
   const alertDialog = useDialog();
   const requestedAppointmentId = searchParams.get('appointmentId')?.trim() || '';
+  const dialogElement = (
+    <AlertDialog
+      isOpen={alertDialog.isOpen}
+      onClose={alertDialog.closeDialog}
+      title={alertDialog.dialogData.title}
+      message={alertDialog.dialogData.message}
+      type={alertDialog.dialogData.type}
+    />
+  );
 
   const loadAvailableAppointments = async (children = []) => {
     const { start, end } = getMonthRange(currentMonth);
@@ -352,6 +361,7 @@ const BookAppointment = () => {
             <p style={{ marginTop: 'var(--spacing-sm)' }}>Cargando turnos disponibles...</p>
           </div>
         </div>
+        {dialogElement}
       </div>
     );
   }
@@ -365,6 +375,7 @@ const BookAppointment = () => {
           onSubmit={handleBookingSubmit}
           onCancel={handleCancelBooking}
         />
+        {dialogElement}
       </div>
     );
   }
@@ -395,7 +406,6 @@ const BookAppointment = () => {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
   const todayDateString = new Date().toISOString().split('T')[0];
-  const earliestAllowedDate = earliestAllowed || null;
   const currentMonthYear = currentMonth.getFullYear();
   const currentMonthIndex = currentMonth.getMonth();
 
@@ -546,7 +556,6 @@ const BookAppointment = () => {
                   const dayDate = day ? new Date(currentMonthYear, currentMonthIndex, day) : null;
                   const isToday = dayDate && dayDate.toISOString().split('T')[0] === todayDateString;
                   const hasAppointments = day && daysWithAppointments.has(day);
-                  const isTooSoon = dayDate && earliestAllowedDate && dayDate < earliestAllowedDate;
                   const isSelected = selectedDate &&
                     day &&
                     selectedDate.toISOString().split('T')[0] === new Date(currentMonthYear, currentMonthIndex, day).toISOString().split('T')[0];
@@ -559,7 +568,7 @@ const BookAppointment = () => {
                         isSelected ? 'event-calendar__day--selected' : ''
                       } ${isToday ? 'event-calendar__day--today' : ''}`}
                       onClick={() => {
-                        if (day && !isTooSoon) {
+                        if (day) {
                           setSelectedDate(new Date(currentMonthYear, currentMonthIndex, day));
                           setIsMobileSlotsOpen(true);
                         }
@@ -800,6 +809,7 @@ const BookAppointment = () => {
         </div>
 
       </div>
+      {dialogElement}
     </div>
   );
 };

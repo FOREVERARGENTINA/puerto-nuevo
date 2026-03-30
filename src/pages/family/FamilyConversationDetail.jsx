@@ -75,8 +75,8 @@ export function FamilyConversationDetail() {
       conversationsService.markConversationRead(conversation.id, 'family', {
         familiaUid: user.uid,
         esGrupal: conversation.esGrupal
-      }).catch(() => {
-        // no-op: el listener remoto corrige estado final
+      }).catch((markReadError) => {
+        console.warn('No se pudo registrar lectura de la conversación:', markReadError);
       });
     }
   }, [conversation, user]);

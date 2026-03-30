@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 const { toPlainText } = require('./sanitize');
 
 const NON_SCHOOL_ROLES = new Set(['family', 'aspirante']);
@@ -178,5 +178,5 @@ module.exports = {
   buildAlbumClickAction,
   countPendingAlbumMedia,
   buildFamilyNotificationState,
-  FieldValue: admin.firestore.FieldValue,
+  FieldValue,
 };

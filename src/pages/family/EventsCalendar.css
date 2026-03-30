@@ -112,6 +112,82 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* ─── Banner próximo evento (mes sin eventos futuros) ───── */
+
+.events-calendar-page .events-next-month-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--ec-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--ec-border));
+  border-radius: var(--ec-radius);
+  margin-bottom: var(--spacing-sm);
+}
+
+[data-theme="dark"] .events-calendar-page .events-next-month-banner {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--ec-surface));
+}
+
+.events-calendar-page .events-next-month-banner__content {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px var(--spacing-xs);
+  min-width: 0;
+}
+
+.events-calendar-page .events-next-month-banner__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.events-calendar-page .events-next-month-banner__title {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.events-calendar-page .events-next-month-banner__date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  flex-shrink: 0;
+}
+
+/* ─── Hint de próximo evento en estado vacío ──────────── */
+
+.events-calendar-page .events-next-event-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--ec-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--ec-border));
+  border-radius: var(--radius-md);
+  text-align: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.events-calendar-page .events-next-event-hint__text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+.events-calendar-page .events-next-event-hint__text strong {
+  color: var(--color-text);
+}
+
 .events-calendar-page .events-list {
   display: flex;
   flex-direction: column;

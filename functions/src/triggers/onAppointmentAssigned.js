@@ -1,8 +1,9 @@
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { mailLimiter } = require('../utils/rateLimiter');
+const { FieldPath } = require('firebase-admin/firestore');
 const { escapeHtml } = require('../utils/sanitize');
+const { sendEmailMessage } = require('../utils/emailDelivery');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
 
@@ -62,13 +63,13 @@ exports.onAppointmentAssigned = onDocumentUpdated(
     for (let i = 0; i < newRecipients.length; i += batchSize) {
       const batch = newRecipients.slice(i, i + batchSize);
       const usersSnap = await admin.firestore().collection('users')
-        .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+        .where(FieldPath.documentId(), 'in', batch)
         .get();
 
       for (const uDoc of usersSnap.docs) {
         const user = uDoc.data();
         const email = user.email || null;
-        if (!email || !brevoApiKey.value()) continue;
+        if (!email) continue;
 
         const safeFechaTexto = escapeHtml(fechaTexto);
         const safeChildName = childName ? escapeHtml(childName) : '';
@@ -94,31 +95,25 @@ exports.onAppointmentAssigned = onDocumentUpdated(
         `;
 
         try {
-          await mailLimiter.retryWithBackoff(async () => {
-            const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-              method: 'POST',
-              headers: {
-                'accept': 'application/json',
-                'api-key': brevoApiKey.value(),
-                'content-type': 'application/json'
+          const result = await sendEmailMessage({
+            apiKey: brevoApiKey.value(),
+            payload: {
+              sender: {
+                name: 'Montessori Puerto Nuevo',
+                email: 'info@montessoripuertonuevo.com.ar'
               },
-              body: JSON.stringify({
-                sender: {
-                  name: 'Montessori Puerto Nuevo',
-                  email: 'info@montessoripuertonuevo.com.ar'
-                },
-                to: [{ email }],
-                subject,
-                htmlContent: html
-              })
-            });
-
-            if (!res.ok) {
-              const text = await res.text();
-              throw new Error(`Brevo error: ${res.status} ${text}`);
-            }
-            return await res.json();
+              to: [{ email }],
+              subject,
+              htmlContent: html
+            },
+            source: 'onAppointmentAssigned',
+            metadata: {
+              appointmentId: event.params.appointmentId,
+              userId: uDoc.id,
+            },
           });
+
+          if (result.mode === 'missing-api-key') continue;
         } catch (err) {
           console.error('Error enviando email de turno asignado:', err);
         }

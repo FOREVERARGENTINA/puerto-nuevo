@@ -22,7 +22,7 @@ async function acquireNotificationLock(mediaId) {
     await lockRef.create({
       type: LOCK_TYPE,
       mediaId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return true;
   } catch (error) {

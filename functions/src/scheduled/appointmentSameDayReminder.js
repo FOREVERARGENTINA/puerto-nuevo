@@ -1,10 +1,90 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { mailLimiter } = require('../utils/rateLimiter');
 const { escapeHtml } = require('../utils/sanitize');
+const { sendEmailMessage } = require('../utils/emailDelivery');
+const { isEmulatorRuntime } = require('../utils/emulatorMode');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
+
+async function runAppointmentSameDayReminder({
+  db = admin.firestore(),
+  now = new Date(),
+  apiKey = brevoApiKey.value(),
+} = {}) {
+  const { startUtc, endUtc, localDateKey } = getArgentinaDayWindow(now);
+
+  console.log(`Running same-day appointment reminders for ${localDateKey}`);
+
+  const snapshot = await db
+    .collection('appointments')
+    .where('fechaHora', '>=', admin.firestore.Timestamp.fromDate(startUtc))
+    .where('fechaHora', '<=', admin.firestore.Timestamp.fromDate(endUtc))
+    .orderBy('fechaHora', 'asc')
+    .get();
+
+  if (snapshot.empty) {
+    console.log('No appointments found for today.');
+    return { success: true, reminders: 0 };
+  }
+
+  if (!apiKey && !isEmulatorRuntime()) {
+    console.log('BREVO_API_KEY not configured, skipping same-day appointment reminders.');
+    return { success: true, reminders: 0, skipped: 'missing-brevo-key' };
+  }
+
+  let remindersSent = 0;
+
+  for (const docSnap of snapshot.docs) {
+    const appointment = docSnap.data() || {};
+    const appointmentId = docSnap.id;
+
+    if (appointment.estado !== 'reservado') continue;
+
+    const appointmentDate = toJsDate(appointment.fechaHora);
+    if (!appointmentDate || appointmentDate.getTime() <= now.getTime()) continue;
+
+    const recipients = collectFamilyUids(appointment);
+    if (recipients.length === 0) continue;
+
+    const reminderState = appointment.recordatorioReunionMismoDia || {};
+    const alreadySentToday = reminderState.fecha === localDateKey
+      ? new Set(Array.isArray(reminderState.uids) ? reminderState.uids : [])
+      : new Set();
+
+    const pendingRecipients = recipients.filter((uid) => !alreadySentToday.has(uid));
+    if (pendingRecipients.length === 0) continue;
+
+    const sentToUids = await sendAppointmentReminderEmails({
+      db,
+      recipientUids: pendingRecipients,
+      appointmentDate,
+      modality: appointment.modalidad || null,
+      childName: appointment.hijoNombre || appointment.childName || null,
+      appointmentId,
+      apiKey,
+    });
+
+    if (sentToUids.length === 0) continue;
+
+    const mergedUids = Array.from(new Set([...alreadySentToday, ...sentToUids]));
+    await db.collection('appointments').doc(appointmentId).update({
+      recordatorioReunionMismoDia: {
+        fecha: localDateKey,
+        uids: mergedUids,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    remindersSent += sentToUids.length;
+  }
+
+  console.log(`Same-day appointment reminders sent: ${remindersSent}`);
+  return { success: true, reminders: remindersSent };
+}
+
+exports.runAppointmentSameDayReminder = runAppointmentSameDayReminder;
 
 exports.sendAppointmentSameDayReminder = onSchedule(
   {
@@ -13,79 +93,7 @@ exports.sendAppointmentSameDayReminder = onSchedule(
     region: 'us-central1',
     secrets: [brevoApiKey]
   },
-  async (_event) => {
-    const db = admin.firestore();
-    const { startUtc, endUtc, localDateKey } = getArgentinaDayWindow(new Date());
-
-    console.log(`Running same-day appointment reminders for ${localDateKey}`);
-
-    const snapshot = await db
-      .collection('appointments')
-      .where('fechaHora', '>=', admin.firestore.Timestamp.fromDate(startUtc))
-      .where('fechaHora', '<=', admin.firestore.Timestamp.fromDate(endUtc))
-      .orderBy('fechaHora', 'asc')
-      .get();
-
-    if (snapshot.empty) {
-      console.log('No appointments found for today.');
-      return { success: true, reminders: 0 };
-    }
-
-    if (!brevoApiKey.value()) {
-      console.log('BREVO_API_KEY not configured, skipping same-day appointment reminders.');
-      return { success: true, reminders: 0, skipped: 'missing-brevo-key' };
-    }
-
-    const now = new Date();
-    let remindersSent = 0;
-
-    for (const docSnap of snapshot.docs) {
-      const appointment = docSnap.data() || {};
-      const appointmentId = docSnap.id;
-
-      if (appointment.estado !== 'reservado') continue;
-
-      const appointmentDate = toJsDate(appointment.fechaHora);
-      if (!appointmentDate || appointmentDate.getTime() <= now.getTime()) continue;
-
-      const recipients = collectFamilyUids(appointment);
-      if (recipients.length === 0) continue;
-
-      const reminderState = appointment.recordatorioReunionMismoDia || {};
-      const alreadySentToday = reminderState.fecha === localDateKey
-        ? new Set(Array.isArray(reminderState.uids) ? reminderState.uids : [])
-        : new Set();
-
-      const pendingRecipients = recipients.filter((uid) => !alreadySentToday.has(uid));
-      if (pendingRecipients.length === 0) continue;
-
-      const sentToUids = await sendAppointmentReminderEmails({
-        db,
-        recipientUids: pendingRecipients,
-        appointmentDate,
-        modality: appointment.modalidad || null,
-        childName: appointment.hijoNombre || appointment.childName || null,
-        appointmentId
-      });
-
-      if (sentToUids.length === 0) continue;
-
-      const mergedUids = Array.from(new Set([...alreadySentToday, ...sentToUids]));
-      await db.collection('appointments').doc(appointmentId).update({
-        recordatorioReunionMismoDia: {
-          fecha: localDateKey,
-          uids: mergedUids,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      remindersSent += sentToUids.length;
-    }
-
-    console.log(`Same-day appointment reminders sent: ${remindersSent}`);
-    return { success: true, reminders: remindersSent };
-  }
+  async () => runAppointmentSameDayReminder()
 );
 
 async function sendAppointmentReminderEmails({
@@ -94,7 +102,8 @@ async function sendAppointmentReminderEmails({
   appointmentDate,
   modality,
   childName,
-  appointmentId
+  appointmentId,
+  apiKey,
 }) {
   const sentToUids = [];
   const batchSize = 10;
@@ -152,32 +161,25 @@ async function sendAppointmentReminderEmails({
       `;
 
       try {
-        await mailLimiter.retryWithBackoff(async () => {
-          const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-              accept: 'application/json',
-              'api-key': brevoApiKey.value(),
-              'content-type': 'application/json'
+        const result = await sendEmailMessage({
+          apiKey,
+          payload: {
+            sender: {
+              name: 'Montessori Puerto Nuevo',
+              email: 'info@montessoripuertonuevo.com.ar'
             },
-            body: JSON.stringify({
-              sender: {
-                name: 'Montessori Puerto Nuevo',
-                email: 'info@montessoripuertonuevo.com.ar'
-              },
-              to: [{ email }],
-              subject,
-              htmlContent: html
-            })
-          });
-
-          if (!res.ok) {
-            const text = await res.text();
-            throw new Error(`Brevo error: ${res.status} ${text}`);
-          }
-          return await res.json();
+            to: [{ email }],
+            subject,
+            htmlContent: html
+          },
+          source: 'sendAppointmentSameDayReminder',
+          metadata: {
+            appointmentId,
+            userId: uid,
+          },
         });
 
+        if (result.mode === 'missing-api-key') continue;
         sentToUids.push(uid);
       } catch (error) {
         console.error(

@@ -11372,12 +11372,31 @@
   flex-shrink: 0;
 }
 
+.msg-receipt__tick {
+  stroke: currentColor;
+}
+
+.msg-receipt__label {
+  display: inline-block;
+  font-size: 0.78rem;
+  color: var(--color-text-light);
+  white-space: normal;
+}
+
 .msg-receipt--sent {
   color: #aab8c2;
 }
 
 .msg-receipt--read {
   color: #4fc3f7;
+}
+
+.msg-receipt--partial {
+  color: #aab8c2;
+}
+
+.msg-receipt--partial .msg-receipt__tick--second {
+  stroke: #4fc3f7;
 }
 
 .conversation-compose {

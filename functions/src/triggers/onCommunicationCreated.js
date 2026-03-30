@@ -1,7 +1,6 @@
 ﻿const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
-const { mailLimiter } = require('../utils/rateLimiter');
 const {
   escapeHtml,
   toSafeHtmlParagraph,
@@ -11,6 +10,8 @@ const {
 } = require('../utils/sanitize');
 const { maskEmail } = require('../utils/logging');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
+const { sendEmailMessage } = require('../utils/emailDelivery');
+const { isEmulatorRuntime } = require('../utils/emulatorMode');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
 
@@ -203,7 +204,7 @@ exports.onCommunicationCreated = onDocumentCreated(
 
           if (email) {
             try {
-              if (brevoApiKey.value()) {
+              if (brevoApiKey.value() || isEmulatorRuntime()) {
                 const studentList = parentToStudents.has(uid) ? parentToStudents.get(uid).join(', ') : null;
                 const safeStudentList = studentList ? escapeHtml(studentList) : null;
                 const safeBodyHtml = getSafeCommunicationBodyHtml(commData);
@@ -231,37 +232,36 @@ exports.onCommunicationCreated = onDocumentCreated(
                   }),
                 };
 
-                const result = await mailLimiter.retryWithBackoff(async () => {
-                  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-                    method: 'POST',
-                    headers: {
-                      accept: 'application/json',
-                      'api-key': brevoApiKey.value(),
-                      'content-type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
+                const result = await sendEmailMessage({
+                  apiKey: brevoApiKey.value(),
+                  payload,
+                  source: 'onCommunicationCreated',
+                  metadata: {
+                    communicationId: commId,
+                    userId: uid,
+                  },
+                });
+
+                if (result.mode === 'missing-api-key') {
+                  await statusRef.update({
+                    status: 'queued',
+                    lastError: 'BREVO_API_KEY not configured',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  });
+                  console.log(`BREVO_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
+                } else {
+                  await statusRef.update({
+                    status: 'sent',
+                    attempts: admin.firestore.FieldValue.increment(1),
+                    providerMessageId: result.messageId || null,
+                    deliveryMode: result.mode,
+                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                   });
 
-                  if (!res.ok) {
-                    const text = await res.text();
-                    const error = new Error(`Brevo error: ${res.status} ${text}`);
-                    error.status = res.status;
-                    throw error;
-                  }
-
-                  return await res.json();
-                });
-
-                await statusRef.update({
-                  status: 'sent',
-                  attempts: admin.firestore.FieldValue.increment(1),
-                  providerMessageId: result.messageId || null,
-                  sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-
-                console.log(`Email enviado a ${maskEmail(email)} (uid: ${uid})`);
-                totalSent++;
+                  console.log(`Email enviado a ${maskEmail(email)} (uid: ${uid})`);
+                  totalSent++;
+                }
               } else {
                 await statusRef.update({
                   status: 'queued',
@@ -372,7 +372,7 @@ exports.onCommunicationUpdated = onDocumentUpdated(
 
           if (email) {
             try {
-              if (brevoApiKey.value()) {
+              if (brevoApiKey.value() || isEmulatorRuntime()) {
                 const payload = {
                   sender: {
                     name: 'Montessori Puerto Nuevo',
@@ -389,36 +389,35 @@ exports.onCommunicationUpdated = onDocumentUpdated(
                   }),
                 };
 
-                const result = await mailLimiter.retryWithBackoff(async () => {
-                  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-                    method: 'POST',
-                    headers: {
-                      accept: 'application/json',
-                      'api-key': brevoApiKey.value(),
-                      'content-type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
+                const result = await sendEmailMessage({
+                  apiKey: brevoApiKey.value(),
+                  payload,
+                  source: 'onCommunicationUpdated',
+                  metadata: {
+                    communicationId: commId,
+                    userId: uid,
+                  },
+                });
+
+                if (result.mode === 'missing-api-key') {
+                  await statusRef.update({
+                    status: 'queued',
+                    lastError: 'BREVO_API_KEY not configured',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  });
+                  console.log(`BREVO_API_KEY no configurada: ${maskEmail(email)} marcado como queued`);
+                } else {
+                  await statusRef.update({
+                    status: 'sent',
+                    attempts: admin.firestore.FieldValue.increment(1),
+                    providerMessageId: result.messageId || null,
+                    deliveryMode: result.mode,
+                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                   });
 
-                  if (!res.ok) {
-                    const text = await res.text();
-                    const error = new Error(`Brevo error: ${res.status} ${text}`);
-                    error.status = res.status;
-                    throw error;
-                  }
-
-                  return await res.json();
-                });
-
-                await statusRef.update({
-                  status: 'sent',
-                  attempts: admin.firestore.FieldValue.increment(1),
-                  providerMessageId: result.messageId || null,
-                  sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-
-                console.log(`Email con adjuntos enviado a ${maskEmail(email)} (uid: ${uid})`);
+                  console.log(`Email con adjuntos enviado a ${maskEmail(email)} (uid: ${uid})`);
+                }
               } else {
                 await statusRef.update({
                   status: 'queued',
@@ -556,4 +555,3 @@ async function getTallerRecipients(tallerEspecial) {
 
   return [...new Set(recipients)];
 }
-

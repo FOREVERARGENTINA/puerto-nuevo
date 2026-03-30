@@ -175,6 +175,16 @@ service cloud.firestore {
       return isConversationFamily(conv) || isConversationSchool(conv);
     }
 
+    function isConversationReadReceiptOnlyUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'mensajesSinLeer',
+        'ultimoMensajeVisto',
+        'mensajesSinLeerFamilia',
+        'ultimoMensajeVistoPorFamilia',
+        'actualizadoAt'
+      ]);
+    }
+
     // Configuración de módulos / feature flags
     match /appConfig/{docId} {
       allow read: if isAuthenticated();
@@ -332,7 +342,6 @@ service cloud.firestore {
       // Actualizar: admin/coordinación (según área) o familia participante
       allow update: if (isAdmin() && isConversationSchool(resource.data)) || (
         isConversationFamily(resource.data) &&
-        resource.data.estado != 'cerrada' &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'familiaUid',
           'familiaDisplayName',
@@ -345,7 +354,11 @@ service cloud.firestore {
           'cerradoAt',
           'cerradoPor',
           'reasignadoAt'
-        ])
+        ]) &&
+        (
+          resource.data.estado != 'cerrada' ||
+          isConversationReadReceiptOnlyUpdate()
+        )
       );
 
       // Eliminar: solo superadmin

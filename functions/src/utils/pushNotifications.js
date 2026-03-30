@@ -1,5 +1,7 @@
 const admin = require('firebase-admin');
 const { toPlainText } = require('./sanitize');
+const { isEmulatorRuntime } = require('./emulatorMode');
+const { writeEmulatorOutboxEntry } = require('./emulatorOutbox');
 
 const MAX_IN_QUERY = 10;
 const MAX_MULTICAST_TOKENS = 500;
@@ -181,6 +183,39 @@ async function sendPushNotificationToUsers(payload, options = {}) {
       successCount: 0,
       failureCount: 0,
       cleanedCount: 0,
+    };
+  }
+
+  if (isEmulatorRuntime()) {
+    const recipientUids = Array.from(
+      new Set(
+        Array.from(tokenOwners.values()).flatMap((ownerSet) => Array.from(ownerSet))
+      )
+    );
+
+    await writeEmulatorOutboxEntry({
+      type: 'push',
+      source: 'pushNotifications.sendPushNotificationToUsers',
+      recipientUids,
+      payload: {
+        title,
+        body,
+        clickAction,
+        tokens,
+      },
+      metadata: {
+        familyOnly,
+        usersLoaded,
+      },
+    });
+
+    return {
+      usersLoaded,
+      tokensTargeted: tokens.length,
+      successCount: tokens.length,
+      failureCount: 0,
+      cleanedCount: 0,
+      mode: 'emulator',
     };
   }
 

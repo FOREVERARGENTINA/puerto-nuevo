@@ -367,7 +367,6 @@ export const conversationsService = {
       if (!convSnap.exists()) {
         return { success: false, error: 'Conversación no encontrada' };
       }
-      const convData = convSnap.data();
 
       const updates = {
         estado: CONVERSATION_STATUS.CERRADA,
@@ -377,15 +376,6 @@ export const conversationsService = {
         ultimoMensajeVistoPorEscuela: serverTimestamp(),
         actualizadoAt: serverTimestamp()
       };
-
-      if (convData.esGrupal && Array.isArray(convData.participantesUids)) {
-        convData.participantesUids.forEach(uid => {
-          updates[`mensajesSinLeer.${uid}`] = 0;
-        });
-      } else {
-        updates.mensajesSinLeerFamilia = 0;
-        updates.ultimoMensajeVistoPorFamilia = serverTimestamp();
-      }
 
       await updateDoc(convRef, updates);
       return { success: true };

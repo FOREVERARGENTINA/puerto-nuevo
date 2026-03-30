@@ -40,6 +40,7 @@ export function EventsCalendar() {
   const [showEventDetail, setShowEventDetail] = useState(false);
   const [eventFromQuery, setEventFromQuery] = useState(null);
   const [eventQueryResolved, setEventQueryResolved] = useState(false);
+  const [nextUpcomingEvents, setNextUpcomingEvents] = useState([]);
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -69,6 +70,17 @@ export function EventsCalendar() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  const loadNextUpcoming = useCallback(async () => {
+    const result = await eventsService.getUpcomingEvents(5);
+    if (result.success) {
+      setNextUpcomingEvents(result.events || []);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNextUpcoming();
+  }, [loadNextUpcoming]);
 
   useEffect(() => {
     const loadFamilyAmbientes = async () => {
@@ -141,6 +153,13 @@ export function EventsCalendar() {
     const today = new Date();
     setSelectedMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDay(today.getDate());
+  };
+
+  const handleGoToNextEventMonth = (event) => {
+    const eventDate = normalizeEventDate(event.fecha);
+    if (!eventDate) return;
+    setSelectedMonth(new Date(eventDate.getFullYear(), eventDate.getMonth(), 1));
+    setSelectedDay(null);
   };
 
   const handleEventClick = (event) => {
@@ -250,17 +269,45 @@ export function EventsCalendar() {
     return filteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
   }, [filteredEvents]);
 
+  const hasUpcomingInCurrentMonth = useMemo(() => (
+    filteredEvents.some(event => !isPastEvent(event))
+  ), [filteredEvents]);
+
+  const nextCrossMonthEvent = useMemo(() => {
+    if (upcomingEventsPreview.length > 0) return null;
+    return nextUpcomingEvents.find(event => {
+      if (!isEventVisibleForFamily(event, isFamily, familyAmbientes)) return false;
+      const eventDate = normalizeEventDate(event.fecha);
+      if (!eventDate) return false;
+      return !(eventDate.getFullYear() === selectedMonthYear && eventDate.getMonth() === selectedMonthIndex);
+    }) ?? null;
+  }, [upcomingEventsPreview, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex, isFamily, familyAmbientes]);
+
+  const nextCrossMonthEventDisplay = useMemo(() => {
+    if (!nextCrossMonthEvent) return null;
+    const eventDate = normalizeEventDate(nextCrossMonthEvent.fecha);
+    return {
+      dateStr: eventDate
+        ? new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(eventDate)
+        : '',
+      monthStr: eventDate
+        ? new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(eventDate)
+        : ''
+    };
+  }, [nextCrossMonthEvent]);
+
   const upcomingEventsSummary = useMemo(() => {
     if (upcomingEventsPreview.length === 0) {
-      return 'Próximos eventos: sin eventos próximos en este rango.';
+      if (nextCrossMonthEvent && nextCrossMonthEventDisplay) {
+        return `Sin próximos en este mes → próximo: ${nextCrossMonthEvent.titulo}${nextCrossMonthEventDisplay.dateStr ? ` (${nextCrossMonthEventDisplay.dateStr})` : ''}`;
+      }
+      return 'Sin eventos próximos en este mes.';
     }
-
     if (upcomingEventsPreview.length === 1) {
       return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
     }
-
     return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
-  }, [upcomingEventsPreview]);
+  }, [upcomingEventsPreview, nextCrossMonthEvent, nextCrossMonthEventDisplay]);
 
   const [daysWithEvents, daysWithUpcomingEvents, daysWithPastEvents] = useMemo(() => {
     const allDays = new Set();
@@ -429,9 +476,42 @@ export function EventsCalendar() {
               {events.length === 0 ? (
                 <div className="empty-state">
                   <p className="empty-state__text">No hay eventos para este mes</p>
+                  {nextCrossMonthEvent && nextCrossMonthEventDisplay && (
+                    <div className="events-next-event-hint">
+                      <p className="events-next-event-hint__text">
+                        Próximo evento: <strong>{nextCrossMonthEvent.titulo}</strong>
+                        {nextCrossMonthEventDisplay.dateStr && ` — ${nextCrossMonthEventDisplay.dateStr}`}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--outline"
+                        onClick={() => handleGoToNextEventMonth(nextCrossMonthEvent)}
+                      >
+                        Ver en {nextCrossMonthEventDisplay.monthStr || 'el siguiente mes'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
+                  {!hasUpcomingInCurrentMonth && nextCrossMonthEvent && nextCrossMonthEventDisplay && (
+                    <div className="events-next-month-banner">
+                      <div className="events-next-month-banner__content">
+                        <span className="events-next-month-banner__label">Próximo evento</span>
+                        <strong className="events-next-month-banner__title">{nextCrossMonthEvent.titulo}</strong>
+                        {nextCrossMonthEventDisplay.dateStr && (
+                          <span className="events-next-month-banner__date">{nextCrossMonthEventDisplay.dateStr}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--primary"
+                        onClick={() => handleGoToNextEventMonth(nextCrossMonthEvent)}
+                      >
+                        Ver en {nextCrossMonthEventDisplay.monthStr || 'el siguiente mes'}
+                      </button>
+                    </div>
+                  )}
                   <div className="events-list-header">
                     <div>
                       <h3 className="events-list-title">
