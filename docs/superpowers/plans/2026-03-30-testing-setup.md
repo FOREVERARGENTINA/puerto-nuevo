@@ -47,11 +47,12 @@ El archivo completo debe quedar con el bloque `test` dentro de `defineConfig({ .
 Dentro de `"scripts"`, agregar:
 
 ```json
-"test":           "vitest run",
-"test:watch":     "vitest",
-"test:functions": "cd functions && npm install && npm test",
-"test:e2e":       "playwright test",
-"test:all":       "npm run test && npm run test:functions && npm run test:e2e"
+"test":             "vitest run",
+"test:watch":       "vitest",
+"setup:functions":  "npm ci --prefix functions",
+"test:functions":   "npm --prefix functions test",
+"test:e2e":         "playwright test",
+"test:all":         "npm run test && npm run test:functions && npm run test:e2e"
 ```
 
 - [ ] **Step 4: Verificar que Vitest funciona con un test trivial**
@@ -1288,8 +1289,14 @@ describe('renderAttachmentList', () => {
 });
 ```
 
-- [ ] **Step 4: Instalar dependencias y correr tests de functions**
+- [ ] **Step 4: Instalar dependencias de functions (una sola vez) y correr tests**
 
+Si es la primera vez o después de cambiar `functions/package.json`:
+```bash
+npm run setup:functions
+```
+
+Correr tests:
 ```bash
 npm run test:functions
 ```
@@ -1443,47 +1450,74 @@ Crear la carpeta `e2e/` en la raíz del proyecto (desde el explorador de archivo
 
 - [ ] **Step 4: Crear script para provisionar cuentas de prueba**
 
-Crear `scripts/create-e2e-accounts.cjs`:
+- [ ] **Step 4a: Crear `.env.test.local` primero (fuente de verdad para credenciales)**
+
+Crear el archivo `.env.test.local` en la raíz (NO hacer commit — ya está en `.gitignore`).
+Elegir passwords seguros; este archivo es la única fuente de verdad:
+
+```
+# Cuentas dedicadas para E2E — nunca usar cuentas de familias o staff real
+PLAYWRIGHT_FAMILY_EMAIL=test-family@test.local
+PLAYWRIGHT_FAMILY_PASSWORD=ElegirPasswordSeguro1!
+PLAYWRIGHT_ADMIN_EMAIL=test-admin@test.local
+PLAYWRIGHT_ADMIN_PASSWORD=ElegirPasswordSeguro2!
+```
+
+- [ ] **Step 4b: Crear script `scripts/create-e2e-accounts.cjs`**
+
+El script lee los passwords desde `.env.test.local` y es idempotente: si la cuenta ya existe, sincroniza password y claims.
 
 ```js
 // scripts/create-e2e-accounts.cjs
 // Crea o actualiza cuentas de prueba para E2E con custom claims correctos.
+// Lee credenciales desde .env.test.local — no versionar passwords.
 // Requiere service-account.json en la raíz del proyecto.
 // Correr: node scripts/create-e2e-accounts.cjs
+
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env.test.local') });
 
 const admin = require('firebase-admin');
 const serviceAccount = require('../service-account.json');
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 const TEST_USERS = [
   {
-    email: 'test-family@test.local',
-    password: 'TestFamily2024!',
+    email: process.env.PLAYWRIGHT_FAMILY_EMAIL,
+    password: process.env.PLAYWRIGHT_FAMILY_PASSWORD,
     role: 'family',
     displayName: 'Test Family',
   },
   {
-    email: 'test-admin@test.local',
-    password: 'TestAdmin2024!',
+    email: process.env.PLAYWRIGHT_ADMIN_EMAIL,
+    password: process.env.PLAYWRIGHT_ADMIN_PASSWORD,
     role: 'coordinacion',
     displayName: 'Test Admin',
   },
 ];
 
 async function createOrUpdateUser({ email, password, role, displayName }) {
+  if (!email || !password) {
+    throw new Error(`Falta email o password para rol "${role}". Revisar .env.test.local`);
+  }
+
   let userRecord;
   try {
     userRecord = await admin.auth().getUserByEmail(email);
-    console.log(`Usuario ${email} ya existe. Actualizando custom claims...`);
-  } catch {
-    userRecord = await admin.auth().createUser({ email, password, displayName });
-    console.log(`Usuario ${email} creado.`);
+    // Sincronizar password para que .env.test.local siempre sea la fuente de verdad
+    await admin.auth().updateUser(userRecord.uid, { password, displayName });
+    console.log(`Usuario ${email} actualizado (password + claims sincronizados).`);
+  } catch (err) {
+    if (err.code === 'auth/user-not-found') {
+      userRecord = await admin.auth().createUser({ email, password, displayName });
+      console.log(`Usuario ${email} creado.`);
+    } else {
+      throw err;
+    }
   }
 
-  // El custom claim "role" es lo que lee useAuth.js:29 (tokenResult.claims.role)
+  // setCustomUserClaims es lo que lee useAuth.js:29 (tokenResult.claims.role)
   await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
   await admin.firestore().collection('users').doc(userRecord.uid).set(
@@ -1492,20 +1526,18 @@ async function createOrUpdateUser({ email, password, role, displayName }) {
   );
 
   console.log(`  → rol "${role}" asignado (uid: ${userRecord.uid})`);
-  return userRecord;
 }
 
 async function main() {
   for (const user of TEST_USERS) {
     await createOrUpdateUser(user);
   }
-  console.log('\n✓ Cuentas E2E listas.');
-  console.log('Completar .env.test.local con las passwords definidas arriba.');
+  console.log('\n✓ Cuentas E2E listas y sincronizadas con .env.test.local');
   process.exit(0);
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err.message || err);
   process.exit(1);
 });
 ```
@@ -1522,20 +1554,10 @@ Usuario test-family@test.local creado.
 Usuario test-admin@test.local creado.
   → rol "coordinacion" asignado (uid: ...)
 
-✓ Cuentas E2E listas.
+✓ Cuentas E2E listas y sincronizadas con .env.test.local
 ```
 
-- [ ] **Step 5: Crear `.env.test.local`**
-
-Crear el archivo `.env.test.local` en la raíz (NO hacer commit — ya está en `.gitignore`):
-
-```
-# Cuentas dedicadas para E2E — nunca usar cuentas de familias o staff real
-PLAYWRIGHT_FAMILY_EMAIL=test-family@test.local
-PLAYWRIGHT_FAMILY_PASSWORD=TestFamily2024!
-PLAYWRIGHT_ADMIN_EMAIL=test-admin@test.local
-PLAYWRIGHT_ADMIN_PASSWORD=TestAdmin2024!
-```
+El script es idempotente: correrlo de nuevo actualiza password y claims sin errores.
 
 **Nota:** La cuenta family necesita al menos un hijo asociado en Firestore y debe existir al menos un evento publicado para que las pantallas carguen sin error.
 
@@ -1565,6 +1587,7 @@ Resultado esperado: `1 passed`. Si falla por timeout del webServer, aumentar `ti
 ```bash
 rm e2e/_smoke.spec.js
 git add playwright.config.js package.json scripts/create-e2e-accounts.cjs
+# NO agregar .env.test.local — contiene credenciales, ya está en .gitignore
 git commit -m "chore: agregar Playwright con config base y script de cuentas E2E"
 ```
 
