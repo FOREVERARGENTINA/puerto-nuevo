@@ -79,6 +79,10 @@ export default defineConfig({
     },
     // Ajustar limite de warning (no subirlo por defecto)
     chunkSizeWarningLimit: 600
+  },
+  test: {
+    environment: 'node',
+    globals: true,
   }
 })
 
