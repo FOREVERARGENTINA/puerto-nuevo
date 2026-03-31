@@ -233,7 +233,7 @@ export default function App() {
             className="flex items-center gap-2 px-4 py-2 bg-slate-900/60 backdrop-blur-xl rounded-xl shadow-lg border border-white/10 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-all"
           >
             <Maximize2 className="w-4 h-4" />
-            Re-centrar Grafo
+            Re-centrar Mapa
           </button>
         </div>
       </div>

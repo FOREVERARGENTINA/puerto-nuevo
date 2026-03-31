@@ -994,26 +994,27 @@ export default function SocialPage() {
     const roleVisibleNodes = graphData.nodes.filter((node) => isNodeVisibleByFilters(node, graphFilters));
     const roleVisibleSet = new Set(roleVisibleNodes.map((node) => node.id));
 
-    if (!query) {
-      return roleVisibleSet;
-    }
-
-    const searchedIds = new Set(
-      roleVisibleNodes
-        .filter((node) => getNodeLabel(node).toLowerCase().includes(query))
-        .map((node) => node.id)
-    );
+    const baseIds = query
+      ? new Set(
+          roleVisibleNodes
+            .filter((node) => getNodeLabel(node).toLowerCase().includes(query))
+            .map((node) => node.id)
+        )
+      : roleVisibleSet;
 
     const selectedId = selectedNode?.id;
-    if (!selectedId || !searchedIds.has(selectedId)) {
-      return searchedIds;
+    // En búsqueda: solo expandir si el nodo seleccionado está en los resultados
+    if (!selectedId || (query && !baseIds.has(selectedId))) {
+      return baseIds;
     }
 
-    const expandedIds = new Set(searchedIds);
+    // El nodo seleccionado siempre visible (puede estar fuera del filtro de rol)
+    // y sus conexiones directas también, sin importar filtros de rol
+    const expandedIds = new Set(baseIds);
+    expandedIds.add(selectedId);
     graphData.links.forEach((link) => {
       const sourceId = getLinkNodeId(link.source);
       const targetId = getLinkNodeId(link.target);
-      if (!roleVisibleSet.has(sourceId) || !roleVisibleSet.has(targetId)) return;
       if (sourceId === selectedId) expandedIds.add(targetId);
       if (targetId === selectedId) expandedIds.add(sourceId);
     });
@@ -1481,7 +1482,9 @@ export default function SocialPage() {
       if (previous?.id === node.id) {
         return null;
       }
-      if (graphRef.current) {
+      // Solo centrar y hacer zoom en la primera selección (sidebar cerrado).
+      // Si ya hay un nodo seleccionado, solo actualizar el sidebar sin mover el mapa.
+      if (!previous && graphRef.current) {
         graphRef.current.centerAt(node.x, node.y, 680);
         const currentZoom = graphRef.current.zoom();
         if (currentZoom < 1.62) {
@@ -1658,7 +1661,7 @@ export default function SocialPage() {
       setSelectedNode(null);
       setHoveredNode(null);
       await refreshAll();
-      showSuccess(`${nodeName} ya no se muestra en el grafo`);
+      showSuccess(`${nodeName} ya no se muestra en el mapa`);
     } catch (hideError) {
       setError(hideError.message || 'No se pudo ocultar el perfil');
     } finally {
@@ -2164,7 +2167,7 @@ export default function SocialPage() {
               {loading ? (
                 <div className="social-map-card__loading">
                   <div className="spinner spinner--lg"></div>
-                  <p>Cargando grafo social...</p>
+                  <p>Cargando mapa social...</p>
                 </div>
               ) : (
                 <ForceGraph2D
@@ -2327,7 +2330,7 @@ export default function SocialPage() {
                               onClick={handleHideSelectedNode}
                               disabled={saving}
                             >
-                              Ocultar del grafo
+                              Ocultar del mapa
                             </button>
                           </div>
                         )}
