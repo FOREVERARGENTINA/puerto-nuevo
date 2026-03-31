@@ -7,7 +7,7 @@ async function loginAs(page, email, password) {
   await page.click('button[type="submit"]');
 }
 
-test('family ve el dashboard con sección de eventos visible', async ({ page }) => {
+test('@smoke family ve el dashboard con sección de eventos visible', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -25,7 +25,7 @@ test('family ve el dashboard con sección de eventos visible', async ({ page }) 
   expect(criticalErrors, `Errores de consola: ${criticalErrors.join('\n')}`).toHaveLength(0);
 });
 
-test('admin puede acceder a EventsManager y la página renderiza', async ({ page }) => {
+test('@smoke coordinacion puede acceder a EventsManager y la página renderiza', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());

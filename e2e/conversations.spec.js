@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.waitForURL(/\/portal\/familia/, { timeout: 15000 });
 });
 
-test('family puede ver la lista de conversaciones', async ({ page }) => {
+test('@smoke family puede ver la lista de conversaciones', async ({ page }) => {
   const consoleErrors = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());

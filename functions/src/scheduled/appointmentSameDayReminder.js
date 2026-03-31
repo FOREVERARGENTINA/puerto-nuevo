@@ -1,9 +1,11 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
+const { FieldPath } = require('firebase-admin/firestore');
 const { escapeHtml } = require('../utils/sanitize');
 const { sendEmailMessage } = require('../utils/emailDelivery');
 const { isEmulatorRuntime } = require('../utils/emulatorMode');
+const { isVisibleUserData } = require('../utils/testUsers');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
 
@@ -130,12 +132,13 @@ async function sendAppointmentReminderEmails({
     const chunk = recipientUids.slice(i, i + batchSize);
     const usersSnap = await db
       .collection('users')
-      .where(admin.firestore.FieldPath.documentId(), 'in', chunk)
+      .where(FieldPath.documentId(), 'in', chunk)
       .get();
 
     for (const userDoc of usersSnap.docs) {
       const user = userDoc.data() || {};
       const uid = userDoc.id;
+      if (!isVisibleUserData(user)) continue;
       const email = user.email || null;
       if (!email) continue;
 

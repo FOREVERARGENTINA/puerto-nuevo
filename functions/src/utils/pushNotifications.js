@@ -1,7 +1,9 @@
 const admin = require('firebase-admin');
+const { FieldPath } = require('firebase-admin/firestore');
 const { toPlainText } = require('./sanitize');
 const { isEmulatorRuntime } = require('./emulatorMode');
 const { writeEmulatorOutboxEntry } = require('./emulatorOutbox');
+const { isVisibleUserData } = require('./testUsers');
 
 const MAX_IN_QUERY = 10;
 const MAX_MULTICAST_TOKENS = 500;
@@ -53,12 +55,12 @@ async function resolveUsersAndTokens(userIds, options = {}) {
     const usersQuery = admin
       .firestore()
       .collection('users')
-      .where(admin.firestore.FieldPath.documentId(), 'in', userChunk);
+      .where(FieldPath.documentId(), 'in', userChunk);
 
     const pushTokensQuery = admin
       .firestore()
       .collection('userPushTokens')
-      .where(admin.firestore.FieldPath.documentId(), 'in', userChunk);
+      .where(FieldPath.documentId(), 'in', userChunk);
 
     const [usersSnap, pushTokensSnap] = await Promise.all([
       usersQuery.get(),
@@ -76,7 +78,7 @@ async function resolveUsersAndTokens(userIds, options = {}) {
       usersLoaded++;
       const userData = userDoc.data() || {};
 
-      if (userData.disabled === true) return;
+      if (!isVisibleUserData(userData)) return;
       if (familyOnly && userData.role !== 'family') return;
 
       // Preferimos la nueva colección privada userPushTokens.

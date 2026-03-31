@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const { FieldPath } = require('firebase-admin/firestore');
 const { escapeHtml } = require('../utils/sanitize');
 const { sendEmailMessage } = require('../utils/emailDelivery');
+const { isVisibleUserData } = require('../utils/testUsers');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
 
@@ -68,6 +69,7 @@ exports.onAppointmentAssigned = onDocumentUpdated(
 
       for (const uDoc of usersSnap.docs) {
         const user = uDoc.data();
+        if (!isVisibleUserData(user)) continue;
         const email = user.email || null;
         if (!email) continue;
 

@@ -3,6 +3,7 @@ const admin = require('firebase-admin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { toPlainText } = require('../utils/sanitize');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
+const { filterVisibleUserDocs, filterVisibleUserIds } = require('../utils/testUsers');
 
 const IN_APP_BATCH_LIMIT = 450;
 
@@ -30,7 +31,7 @@ async function getFamilyRecipientsForEvent(eventData) {
       });
     });
 
-    return Array.from(recipients);
+    return filterVisibleUserIds(db, Array.from(recipients), { role: 'family' });
   }
 
   const usersSnapshot = await db
@@ -39,7 +40,7 @@ async function getFamilyRecipientsForEvent(eventData) {
     .where('disabled', '==', false)
     .get();
 
-  return usersSnapshot.docs.map((doc) => doc.id);
+  return filterVisibleUserDocs(usersSnapshot.docs, { role: 'family' }).map((doc) => doc.id);
 }
 
 async function createInAppNotifications(userIds, eventId, eventData) {

@@ -50,6 +50,8 @@ async function runSuite() {
   await runCommand([
     playwrightCli,
     'test',
+    '--config',
+    'playwright.emulator.config.cjs',
     ...(isSmoke ? ['--grep', '@smoke'] : []),
   ]);
 }

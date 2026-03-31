@@ -1,5 +1,6 @@
 const { FieldValue } = require('firebase-admin/firestore');
 const { toPlainText } = require('./sanitize');
+const { filterVisibleUserDocs } = require('./testUsers');
 
 const NON_SCHOOL_ROLES = new Set(['family', 'aspirante']);
 const STAFF_ROLES = new Set(['superadmin', 'coordinacion', 'docente']);
@@ -68,7 +69,7 @@ async function getFamilyRecipients(db) {
     .where('disabled', '==', false)
     .get();
 
-  return usersSnapshot.docs
+  return filterVisibleUserDocs(usersSnapshot.docs, { role: 'family' })
     .map((userDoc) => userDoc.id)
     .filter((uid) => typeof uid === 'string' && uid.trim())
     .map((uid) => uid.trim());

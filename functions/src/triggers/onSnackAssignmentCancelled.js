@@ -1,5 +1,6 @@
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
+const { filterVisibleUserDocs } = require('../utils/testUsers');
 
 const LOCK_COLLECTION = 'notificationLocks';
 const LOCK_TYPE = 'snack-cancelled';
@@ -130,9 +131,7 @@ async function getStaffRecipients() {
     .where('role', 'in', TARGET_ROLES)
     .get();
 
-  usersSnapshot.docs.forEach((userDoc) => {
-    const userData = userDoc.data() || {};
-    if (userData.disabled === true) return;
+  filterVisibleUserDocs(usersSnapshot.docs).forEach((userDoc) => {
     recipients.add(userDoc.id);
   });
 

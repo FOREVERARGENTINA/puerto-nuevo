@@ -5,7 +5,7 @@
 // Correr: node scripts/create-e2e-accounts.cjs
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env.test.local') });
+require('dotenv').config({ path: path.join(__dirname, '../.env.test.local'), quiet: true });
 
 const admin = require('firebase-admin');
 const serviceAccount = require('../service-account.json');
@@ -17,13 +17,19 @@ const TEST_USERS = [
     email: process.env.PLAYWRIGHT_FAMILY_EMAIL,
     password: process.env.PLAYWRIGHT_FAMILY_PASSWORD,
     role: 'family',
-    displayName: 'Test Family',
+    displayName: 'E2E Family',
   },
   {
     email: process.env.PLAYWRIGHT_ADMIN_EMAIL,
     password: process.env.PLAYWRIGHT_ADMIN_PASSWORD,
     role: 'coordinacion',
-    displayName: 'Test Admin',
+    displayName: 'E2E Coordinacion',
+  },
+  {
+    email: process.env.PLAYWRIGHT_SUPERADMIN_EMAIL,
+    password: process.env.PLAYWRIGHT_SUPERADMIN_PASSWORD,
+    role: 'superadmin',
+    displayName: 'E2E SuperAdmin',
   },
 ];
 
@@ -49,7 +55,14 @@ async function createOrUpdateUser({ email, password, role, displayName }) {
   await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
   await admin.firestore().collection('users').doc(userRecord.uid).set(
-    { email, displayName, role, disabled: false },
+    {
+      email,
+      displayName,
+      role,
+      disabled: false,
+      isTestUser: true,
+      testUserType: role
+    },
     { merge: true }
   );
 

@@ -1,29 +1,9 @@
 const path = require('path');
-const dotenv = require('dotenv');
 const { defineConfig, devices } = require('@playwright/test');
 
-const envPath = path.join(__dirname, '.env.test.local');
-dotenv.config({ path: envPath, quiet: true });
-
-const requiredEnvVars = [
-  'PLAYWRIGHT_FAMILY_EMAIL',
-  'PLAYWRIGHT_FAMILY_PASSWORD',
-  'PLAYWRIGHT_ADMIN_EMAIL',
-  'PLAYWRIGHT_ADMIN_PASSWORD',
-  'PLAYWRIGHT_SUPERADMIN_EMAIL',
-  'PLAYWRIGHT_SUPERADMIN_PASSWORD',
-];
-
-const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
-
-if (missingEnvVars.length > 0) {
-  throw new Error(
-    `Faltan variables para Playwright en ${envPath}: ${missingEnvVars.join(', ')}`
-  );
-}
-
 module.exports = defineConfig({
-  testDir: path.join(__dirname, 'e2e'),
+  testDir: path.join(__dirname, 'tests', 'e2e'),
+  globalSetup: path.join(__dirname, 'tests', 'e2e', 'global-setup.cjs'),
   fullyParallel: false,
   workers: 1,
   timeout: 90000,
@@ -38,7 +18,7 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run dev:test-e2e',
+    command: 'npm run dev:test-emulated',
     url: 'http://127.0.0.1:4173/portal/login',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

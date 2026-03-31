@@ -1,6 +1,7 @@
 ﻿const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
+const { FieldPath } = require('firebase-admin/firestore');
 const {
   escapeHtml,
   toSafeHtmlParagraph,
@@ -12,6 +13,7 @@ const { maskEmail } = require('../utils/logging');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 const { sendEmailMessage } = require('../utils/emailDelivery');
 const { isEmulatorRuntime } = require('../utils/emulatorMode');
+const { filterVisibleUserDocs, filterVisibleUserIds, isVisibleUserData } = require('../utils/testUsers');
 
 const brevoApiKey = defineSecret('BREVO_API_KEY');
 
@@ -92,7 +94,7 @@ exports.onCommunicationCreated = onDocumentCreated(
           }
         }
 
-        const finalRecipients = Array.from(finalSet);
+        const finalRecipients = await filterVisibleUserIds(db, Array.from(finalSet));
 
         // Update transaccional para evitar perder cambios por carreras en escritura concurrente.
         destinatarios = await db.runTransaction(async (tx) => {
@@ -176,11 +178,12 @@ exports.onCommunicationCreated = onDocumentCreated(
         const usersSnap = await admin
           .firestore()
           .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
+          .where(FieldPath.documentId(), 'in', batchUids)
           .get();
 
         for (const uDoc of usersSnap.docs) {
           const u = uDoc.data();
+          if (!isVisibleUserData(u)) continue;
           const uid = uDoc.id;
           const email = u.email || null;
 
@@ -335,11 +338,12 @@ exports.onCommunicationUpdated = onDocumentUpdated(
         const usersSnap = await admin
           .firestore()
           .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', batchUids)
+          .where(FieldPath.documentId(), 'in', batchUids)
           .get();
 
         for (const uDoc of usersSnap.docs) {
           const u = uDoc.data();
+          if (!isVisibleUserData(u)) continue;
           const uid = uDoc.id;
           const email = u.email || null;
 
@@ -504,7 +508,7 @@ async function getGlobalRecipients() {
     .where('disabled', '==', false)
     .get();
 
-  return usersSnapshot.docs.map((doc) => doc.id);
+  return filterVisibleUserDocs(usersSnapshot.docs).map((doc) => doc.id);
 }
 
 async function getAmbienteRecipients(ambiente) {
@@ -530,11 +534,11 @@ async function getAmbienteRecipients(ambiente) {
     .where('disabled', '==', false)
     .get();
 
-  teachersSnapshot.docs.forEach((doc) => {
+  filterVisibleUserDocs(teachersSnapshot.docs, { role: 'docente' }).forEach((doc) => {
     recipients.push(doc.id);
   });
 
-  return [...new Set(recipients)];
+  return filterVisibleUserIds(admin.firestore(), [...new Set(recipients)]);
 }
 
 async function getTallerRecipients(tallerEspecial) {

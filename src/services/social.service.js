@@ -257,7 +257,9 @@ export const socialService = {
     const hiddenNodeIds = toNodeIdList(socialConfigData.hiddenNodeIds);
     const hiddenNodeIdSet = new Set(hiddenNodeIds);
 
-    const users = usersSnap.docs.map((userDoc) => ({ id: userDoc.id, ...(userDoc.data() || {}) }));
+    const users = usersSnap.docs
+      .map((userDoc) => ({ id: userDoc.id, ...(userDoc.data() || {}) }))
+      .filter((user) => user.isTestUser !== true);
     const children = childrenSnap.docs.map((childDoc) => ({ id: childDoc.id, ...(childDoc.data() || {}) }));
     const talleres = talleresSnap.docs.map((tallerDoc) => ({ id: tallerDoc.id, ...(tallerDoc.data() || {}) }));
 

@@ -17,6 +17,16 @@ import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const usersCollection = collection(db, 'users');
 
+const mapUserDoc = (docRef) => ({
+  id: docRef.id,
+  ...fixMojibakeDeep(docRef.data())
+});
+
+const shouldIncludeUser = (userData, options = {}) => {
+  if (options.includeTestUsers === true) return true;
+  return userData?.isTestUser !== true;
+};
+
 export const usersService = {
   // Crear usuario en Firestore (después de crear en Auth)
   async createUserProfile(uid, data) {
@@ -46,13 +56,12 @@ export const usersService = {
   },
 
   // Obtener todos los usuarios (solo admin)
-  async getAllUsers() {
+  async getAllUsers(options = {}) {
     try {
       const snapshot = await getDocs(usersCollection);
-      const users = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...fixMojibakeDeep(doc.data())
-      }));
+      const users = snapshot.docs
+        .map(mapUserDoc)
+        .filter((user) => shouldIncludeUser(user, options));
       return { success: true, users };
     } catch (error) {
       return { success: false, error: error.message };
@@ -60,14 +69,13 @@ export const usersService = {
   },
 
   // Obtener usuarios por rol
-  async getUsersByRole(role) {
+  async getUsersByRole(role, options = {}) {
     try {
       const q = query(usersCollection, where('role', '==', role));
       const snapshot = await getDocs(q);
-      const users = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...fixMojibakeDeep(doc.data())
-      }));
+      const users = snapshot.docs
+        .map(mapUserDoc)
+        .filter((user) => shouldIncludeUser(user, options));
       return { success: true, users };
     } catch (error) {
       return { success: false, error: error.message };

@@ -232,6 +232,58 @@ if (!hasPermission(PERMISSIONS.VIEW_MEDICAL_INFO)) {
 
 ---
 
+## Testing Actual
+
+### Comandos base
+
+- `npm test` -> corre tests unitarios del frontend desde `src/**/*.test.js`
+- `npm run test:functions` -> corre tests unitarios de `functions/`
+- `npm run test:e2e` -> corre E2E reales con Playwright usando cuentas de prueba en Firebase Auth real
+- `npm run test:emulated:smoke` -> corre smoke tests contra emuladores Firebase
+
+### Configuración vigente
+
+- `vitest.config.js` queda reservado para unit tests del frontend
+- `playwright.config.cjs` usa la carpeta `e2e/` para E2E reales
+- `playwright.emulator.config.cjs` usa `tests/e2e/` para smoke tests emulados
+- `scripts/run-emulated-suite.cjs` ejecuta la suite emulada completa
+
+### Variables y secretos
+
+- `.env.test.local` es obligatorio para `npm run test:e2e`
+- `.env.test.local` NO se commitea nunca
+- `service-account.json` es obligatorio para `node scripts/create-e2e-accounts.cjs`
+- `service-account.json` NO se commitea nunca
+
+### Cuentas E2E
+
+- `PLAYWRIGHT_FAMILY_*` -> cuenta dedicada de prueba con rol `family`
+- `PLAYWRIGHT_ADMIN_*` -> cuenta dedicada de prueba con rol `coordinacion`
+- `PLAYWRIGHT_SUPERADMIN_*` -> cuenta dedicada de prueba con rol `superadmin`
+- Nunca reutilizar familias, docentes o admins reales de la escuela como usuarios E2E
+- Toda cuenta creada para testing real debe marcarse con `isTestUser: true`
+
+### Regla importante de roles
+
+- `coordinacion` y `superadmin` NO son equivalentes para testing
+- `coordinacion` no cubre vistas ni permisos exclusivos de `superadmin`
+- si un test valida gestión global de usuarios o acceso total a conversaciones, debe usar `superadmin`
+
+### Visibilidad de usuarios de test
+
+- Los usuarios con `isTestUser: true` deben quedar ocultos por defecto en listados, filtros, grupos y grafo social
+- Los servicios frontend deben excluirlos por defecto y solo mostrarlo con una opción explícita tipo `includeTestUsers: true`
+- Los flujos backend de destinatarios masivos también deben excluirlos para evitar mezclarlos con comunicaciones, eventos, recordatorios o push reales
+- Si un agente crea o normaliza cuentas E2E, debe verificar tanto el rol como `isTestUser: true`
+
+### Emuladores Firebase
+
+- Los emuladores requieren Java 21 disponible en PATH
+- Los smoke emulados deben pasar sin tocar Firebase real
+- Existe un warning no bloqueante en triggers de push notifications al crear eventos; no rompe la suite pero conviene revisarlo aparte
+
+---
+
 ## Roles y Permisos
 
 | Rol | Envía comunicados | Ve info médica | Gestiona turnos |
@@ -411,10 +463,10 @@ grep -n "Ã¢â€“" src/pages/family/MySnacks.jsx
 2. Sugerir verificar cambios recientes en el código antes de confiar en estas reglas
 3. Proponer actualizar este documento si detecta inconsistencias
 
-**Fecha de referencia:** Enero 2026  
+**Fecha de referencia:** Marzo 2026  
 **Umbral de advertencia:** 3 meses (Abril 2026)
 
 ---
 
-*Última actualización: Enero 2026*  
-*Versión: 2.0 (determinística)*
+*Última actualización: Marzo 2026*  
+*Versión: 2.1 (determinística)*

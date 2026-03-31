@@ -63,5 +63,18 @@ test('@smoke coordinacion puede revisar conversaciones y crear un evento con upl
   await page.getByRole('button', { name: 'Crear Evento' }).last().click();
 
   await expect(page.getByText('Evento creado correctamente.')).toBeVisible();
-  await expect(page.getByText('Evento E2E Demo')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Evento E2E Demo' }).first()).toBeVisible();
+});
+
+test('@smoke superadmin puede asignar rol SuperAdmin en gestion de usuarios', async ({ page }) => {
+  await loginAs(page, 'superadmin@demo.pn', '/portal/admin');
+
+  await page.goto('/portal/admin/usuarios');
+  await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();
+
+  await page.getByRole('button', { name: /\+ Crear Usuario|Cancelar/i }).click();
+  await expect(page.getByText('Crear Nuevo Usuario')).toBeVisible();
+
+  const roleSelect = page.locator('#role');
+  await expect(roleSelect.locator('option[value="superadmin"]')).toHaveCount(1);
 });

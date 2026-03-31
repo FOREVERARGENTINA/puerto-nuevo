@@ -7271,24 +7271,6 @@
   padding-left: calc(var(--spacing-lg) - 3px);
 }
 
-/* Sidebar responsivo (sin off-canvas) */
-@media (max-width: 1024px) {
-  .sidebar {
-    position: static;
-    left: auto;
-    top: auto;
-    z-index: auto;
-    transition: none;
-    box-shadow: none;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .sidebar--open {
-    left: auto;
-  }
-}
-
 /* ========================================
    EVENT CALENDAR (SIDEBAR)
    ======================================== */
@@ -9639,8 +9621,50 @@
 }
 
 @media (max-width: 1024px) {
-  .layout-container {
-    flex-direction: column;
+  .navbar__menu-toggle {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 0;
+    box-shadow: none;
+    border-right: none;
+    border-bottom: none;
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal), padding var(--transition-fast), border-color var(--transition-fast);
+    background: var(--color-background-alt);
+  }
+
+  .sidebar--open {
+    z-index: calc(var(--z-sticky) - 1);
+    max-height: calc(100dvh - (64px + env(safe-area-inset-top, 0px)));
+    padding: var(--spacing-sm) 0;
+    border-bottom: var(--border-width) solid var(--color-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(15, 23, 42, 0.24);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+    z-index: calc(var(--z-sticky) - 2);
+    cursor: pointer;
   }
 }
 
@@ -11525,6 +11549,30 @@
 }
 
 /* ========================================
+   RESPONSIVE - TABLET (conversation header)
+   ======================================== */
+
+@media (max-width: 1100px) {
+  .conversation-header-layout {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "main actions"
+      "center center";
+    row-gap: 12px;
+  }
+
+  .conversation-header-layout__main    { grid-area: main; }
+  .conversation-header-layout__center  { grid-area: center; width: 100%; }
+  .conversation-header-layout__actions { grid-area: actions; }
+
+  .conversation-management-card {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* ========================================
    RESPONSIVE - GLOBAL (MOBILE)
    ======================================== */
 
@@ -12057,11 +12105,14 @@
 
   .conversation-header-layout {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
     row-gap: 12px;
   }
 
+  .conversation-header-layout__main,
   .conversation-header-layout__center,
   .conversation-header-layout__actions {
+    grid-area: auto;
     width: 100%;
   }
 

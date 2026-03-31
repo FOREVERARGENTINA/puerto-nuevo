@@ -44,6 +44,7 @@ playwright-report/
 test-results/
 .tmp/
 firestore-debug.log
+tmp-emulated.log
 
 # Temporal
 leer.md
