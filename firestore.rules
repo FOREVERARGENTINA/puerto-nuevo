@@ -195,12 +195,11 @@ service cloud.firestore {
     match /users/{userId} {
       // Leer: Usuario puede ver su propio perfil, admin puede ver todos,
       // familias pueden ver otros responsables de sus hijos,
-      // docentes pueden ver familias y staff necesario para comunicados y vistas generales
+      // docentes y talleristas pueden ver todos los roles del grafo social
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (isDocente() && resource.data.role in ['family', 'docente', 'tallerista']) ||
-        ((isDocente() || isTallerista()) && resource.data.role == 'tallerista') ||
+        ((isDocente() || isTallerista()) && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion']) ||
         (isFamily() && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion'])
       );
 
@@ -263,11 +262,12 @@ service cloud.firestore {
 
     // Colección: /children (fichas de alumnos)
     match /children/{childId} {
-      // Leer: Admin ve todos, familias pueden leer sus hijos, docentes pueden ver alumnos en general
+      // Leer: Admin ve todos, familias pueden leer sus hijos, docentes y talleristas pueden ver alumnos (grafo social)
       // NOTA: No podemos validar array-contains en security rules, el filtrado lo hace la query
       allow read: if isAuthenticated() && (
         isAdmin() ||
         isDocente() ||
+        isTallerista() ||
         isFamily() ||
         (resource.data.responsables is list && request.auth.uid in resource.data.responsables)
       );

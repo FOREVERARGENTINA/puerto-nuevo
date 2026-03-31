@@ -780,7 +780,8 @@ function isNodeVisibleByFilters(node, filters) {
 }
 
 export default function SocialPage() {
-  const { user, role, isAdmin } = useAuth();
+  const { user, role } = useAuth();
+  const canManageGraphNodes = user?.email === 'admin@puerto.com';
   const navigate = useNavigate();
   const [dmConfig, setDmConfig] = useState({ enabled: false, pilotFamilyUids: [] });
   const graphRef = useRef(null);
@@ -1641,7 +1642,7 @@ export default function SocialPage() {
   }, []);
 
   const handleHideSelectedNode = useCallback(async () => {
-    if (!isAdmin || !selectedNode?.id) return;
+    if (!canManageGraphNodes || !selectedNode?.id) return;
 
     const nodeId = selectedNode.id;
     const nodeName = normalizeText(selectedNode.displayName) || 'Perfil';
@@ -1663,10 +1664,10 @@ export default function SocialPage() {
     } finally {
       setSaving(false);
     }
-  }, [isAdmin, refreshAll, selectedNode, showSuccess]);
+  }, [canManageGraphNodes, refreshAll, selectedNode, showSuccess]);
 
   const handleShowAllHiddenNodes = useCallback(async () => {
-    if (!isAdmin || hiddenNodeIds.length === 0) return;
+    if (!canManageGraphNodes || hiddenNodeIds.length === 0) return;
 
     setSaving(true);
     setError('');
@@ -1684,7 +1685,7 @@ export default function SocialPage() {
     } finally {
       setSaving(false);
     }
-  }, [hiddenNodeIds.length, isAdmin, refreshAll, showSuccess]);
+  }, [hiddenNodeIds.length, canManageGraphNodes, refreshAll, showSuccess]);
 
   const handleToggleHiddenNodeSelection = useCallback((nodeId) => {
     setSelectedHiddenNodeIds((previous) => (
@@ -1695,7 +1696,7 @@ export default function SocialPage() {
   }, []);
 
   const handleRestoreSelectedHiddenNodes = useCallback(async () => {
-    if (!isAdmin || selectedHiddenNodeIds.length === 0) return;
+    if (!canManageGraphNodes || selectedHiddenNodeIds.length === 0) return;
 
     setSaving(true);
     setError('');
@@ -1720,7 +1721,7 @@ export default function SocialPage() {
     } finally {
       setSaving(false);
     }
-  }, [isAdmin, refreshAll, selectedHiddenNodeIds, showSuccess]);
+  }, [canManageGraphNodes, refreshAll, selectedHiddenNodeIds, showSuccess]);
 
   const handleContactChange = (field, value) => {
     setMyProfile((prev) => ({
@@ -2037,7 +2038,7 @@ export default function SocialPage() {
                   Mostrar todos
                 </button>
               )}
-              {isAdmin && hiddenNodeEntries.length > 0 && (
+              {canManageGraphNodes && hiddenNodeEntries.length > 0 && (
                 <div ref={hiddenNodesDropdownRef} className="social-hidden-dropdown">
                   <button
                     type="button"
@@ -2318,7 +2319,7 @@ export default function SocialPage() {
                           </div>
                         )}
 
-                        {isAdmin && (
+                        {canManageGraphNodes && (
                           <div className="social-selected__admin-actions">
                             <button
                               type="button"
