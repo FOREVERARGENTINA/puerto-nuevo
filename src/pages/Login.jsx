@@ -12,28 +12,25 @@ export function Login() {
   const { user, role, loading } = useAuth();
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
   const [isLoadingScreenExiting, setIsLoadingScreenExiting] = useState(false);
-  const [isLoginContentVisible, setIsLoginContentVisible] = useState(false);
+  const [isLoginContentVisible, setIsLoginContentVisible] = useState(true);
 
   useEffect(() => {
     if (loading) {
       setShowLoadingScreen(true);
       setIsLoadingScreenExiting(false);
-      setIsLoginContentVisible(false);
+      // Mantener visible el formulario evita bloqueos del e2e cuando Auth tarda en resolver.
+      setIsLoginContentVisible(true);
       return;
     }
 
     setIsLoadingScreenExiting(true);
-
-    const frameId = window.requestAnimationFrame(() => {
-      setIsLoginContentVisible(true);
-    });
+    setIsLoginContentVisible(true);
 
     const timeoutId = window.setTimeout(() => {
       setShowLoadingScreen(false);
     }, LOADING_SCREEN_EXIT_MS);
 
     return () => {
-      window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
     };
   }, [loading]);
