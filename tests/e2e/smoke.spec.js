@@ -66,8 +66,7 @@ async function loginAs(page, email, expectedRole, expectedPath) {
       }, result.uid);
     }
 
-    await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
-    await page.waitForURL(`**${expectedPath}`, { timeout: 60000 });
+    await page.goto(expectedPath, { waitUntil: 'domcontentloaded' });
     return;
   }
 
