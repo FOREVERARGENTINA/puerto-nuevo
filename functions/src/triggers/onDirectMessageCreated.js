@@ -1,5 +1,6 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 const { sendPushNotificationToUsers } = require('../utils/pushNotifications');
 
 exports.onDirectMessageCreated = onDocumentCreated(
@@ -45,11 +46,11 @@ exports.onDirectMessageCreated = onDocumentCreated(
     // lastMessage* y unreadCount[other], nunca el cliente.
     try {
       await admin.firestore().collection('directMessages').doc(convId).update({
-        lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastMessageAt: FieldValue.serverTimestamp(),
         lastMessageText: String(message.text || '').slice(0, 160),
         lastMessageAuthorUid: message.authorUid,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        [`unreadCount.${recipientUid}`]: admin.firestore.FieldValue.increment(1)
+        updatedAt: FieldValue.serverTimestamp(),
+        [`unreadCount.${recipientUid}`]: FieldValue.increment(1)
       });
     } catch (err) {
       console.error('[DM] Error actualizando metadata del hilo:', err);

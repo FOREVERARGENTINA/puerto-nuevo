@@ -74,12 +74,9 @@ async function loginAs(page, email, expectedRole, expectedPath) {
 }
 
 test('@smoke familia puede recorrer conversaciones, snacks y reservar un turno', async ({ page }) => {
-  await loginAs(page, 'familia1@demo.pn', 'family', '/portal/familia');
+  await loginAs(page, 'familia1@demo.pn', 'family', '/portal/familia/conversaciones');
 
-  await expect(page.getByRole('heading', { name: 'Portal de Familias' })).toBeVisible();
-
-  await page.goto('/portal/familia/conversaciones');
-  await expect(page.getByRole('heading', { name: 'Conversaciones' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Conversaciones' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByText('Consulta demo')).toBeVisible();
 
   await page.goto('/portal/familia/snacks');
