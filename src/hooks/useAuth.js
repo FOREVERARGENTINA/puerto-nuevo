@@ -22,24 +22,54 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Obtener custom claims del token
-        const tokenResult = await firebaseUser.getIdTokenResult();
-        const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
+    let authResolved = false;
 
-        setUser(firebaseUser);
-        setRole(userRole);
-        setPermissions(getRolePermissions(userRole));
-      } else {
+    // Evita que la UI quede bloqueada indefinidamente si Auth no responde a tiempo.
+    const authFallbackTimeout = setTimeout(() => {
+      if (authResolved) return;
+      console.warn('[Auth] Timeout inicial al resolver sesión, se continúa en modo no autenticado.');
+      setUser(null);
+      setRole(null);
+      setPermissions([]);
+      setLoading(false);
+    }, 15000);
+
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (firebaseUser) => {
+        authResolved = true;
+        clearTimeout(authFallbackTimeout);
+
+        if (firebaseUser) {
+          // Obtener custom claims del token
+          const tokenResult = await firebaseUser.getIdTokenResult();
+          const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
+
+          setUser(firebaseUser);
+          setRole(userRole);
+          setPermissions(getRolePermissions(userRole));
+        } else {
+          setUser(null);
+          setRole(null);
+          setPermissions([]);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        authResolved = true;
+        clearTimeout(authFallbackTimeout);
+        console.error('[Auth] Error observando sesión:', error);
         setUser(null);
         setRole(null);
         setPermissions([]);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(authFallbackTimeout);
+      unsubscribe();
+    };
   }, []);
 
   // Forzar refresh del token (útil después de asignar roles)
