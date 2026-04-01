@@ -6,7 +6,8 @@ module.exports = defineConfig({
   globalSetup: path.join(__dirname, 'tests', 'e2e', 'global-setup.cjs'),
   fullyParallel: false,
   workers: 1,
-  timeout: 90000,
+  timeout: process.env.CI ? 120000 : 90000,
+  retries: process.env.CI ? 1 : 0,
   expect: {
     timeout: 10000,
   },

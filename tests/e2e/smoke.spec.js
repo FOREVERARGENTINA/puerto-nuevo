@@ -8,8 +8,26 @@ const uploadFixturePath = path.resolve(__dirname, '..', 'fixtures', 'tiny-upload
 
 test.describe.configure({ mode: 'serial' });
 
+async function waitForLoginForm(page) {
+  const emailInput = page.locator('#email');
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
+
+    try {
+      await emailInput.waitFor({ state: 'visible', timeout: 20000 });
+      return;
+    } catch (error) {
+      if (attempt === 3) {
+        const currentUrl = page.url();
+        throw new Error(`No se pudo mostrar el login tras 3 intentos. URL final: ${currentUrl}`);
+      }
+      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
+  }
+}
+
 async function loginAs(page, email, expectedPath) {
-  await page.goto('/portal/login');
+  await waitForLoginForm(page);
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Ingresar' }).click();

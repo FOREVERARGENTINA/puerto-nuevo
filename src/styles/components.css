@@ -2385,6 +2385,7 @@
   background-color: var(--color-primary-soft);
   border-color: rgba(47, 111, 106, 0.28);
   color: var(--color-primary-dark);
+  caret-color: var(--color-primary-dark);
 }
 
 .login-page .form-input::placeholder,
@@ -2398,6 +2399,9 @@
 .login-page .form-control:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(91, 165, 168, 0.2);
+  color: var(--color-primary-dark);
+  caret-color: var(--color-primary-dark);
+  -webkit-text-fill-color: var(--color-primary-dark);
 }
 
 .login-page .form-input:-webkit-autofill,
