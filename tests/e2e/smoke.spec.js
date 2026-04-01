@@ -66,6 +66,18 @@ async function loginAs(page, email, expectedRole, expectedPath) {
       }, result.uid);
     }
 
+    await page.waitForFunction(
+      async (role) => {
+        const { auth } = await import('/src/config/firebase.js');
+        const user = auth.currentUser;
+        if (!user) return false;
+        const tokenResult = await user.getIdTokenResult();
+        return (tokenResult?.claims?.role || null) === role;
+      },
+      expectedRole,
+      { timeout: 30000 }
+    );
+
     await page.goto(expectedPath, { waitUntil: 'domcontentloaded' });
     return;
   }
