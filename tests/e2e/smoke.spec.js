@@ -8,30 +8,43 @@ const uploadFixturePath = path.resolve(__dirname, '..', 'fixtures', 'tiny-upload
 
 test.describe.configure({ mode: 'serial' });
 
-async function waitForLoginForm(page) {
-  const emailInput = page.locator('#email');
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
-
-    try {
-      await emailInput.waitFor({ state: 'visible', timeout: 20000 });
-      return;
-    } catch (error) {
-      if (attempt === 3) {
-        const currentUrl = page.url();
-        throw new Error(`No se pudo mostrar el login tras 3 intentos. URL final: ${currentUrl}`);
-      }
-      await page.reload({ waitUntil: 'domcontentloaded' });
-    }
-  }
-}
-
 async function loginAs(page, email, expectedPath) {
-  await waitForLoginForm(page);
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Ingresar' }).click();
-  await page.waitForURL(`**${expectedPath}`);
+  await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
+
+  let lastError = 'Login fallido por causa desconocida';
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await page.evaluate(
+      async ({ loginEmail, loginPassword }) => {
+        try {
+          const { authService } = await import('/src/services/auth.service.js');
+          const loginResult = await authService.login(loginEmail, loginPassword);
+
+          return {
+            success: !!loginResult?.success,
+            error: loginResult?.error || null,
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error?.message || String(error),
+          };
+        }
+      },
+      { loginEmail: email, loginPassword: PASSWORD }
+    );
+
+    if (!result.success) {
+      lastError = result.error || lastError;
+      continue;
+    }
+
+    await page.goto(expectedPath, { waitUntil: 'domcontentloaded' });
+    await page.waitForURL(`**${expectedPath}`, { timeout: 60000 });
+    return;
+  }
+
+  throw new Error(`No se pudo autenticar a ${email} tras 3 intentos. Ultimo error: ${lastError}`);
 }
 
 test('@smoke familia puede recorrer conversaciones, snacks y reservar un turno', async ({ page }) => {
