@@ -14,6 +14,21 @@ if (typeof window !== 'undefined') {
     sessionStorage.setItem(guardKey, '1');
     window.location.reload();
   });
+
+  if (import.meta.env.DEV) {
+    // Evita que service workers/caches viejos interfieran durante desarrollo.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch(() => {});
+    }
+
+    if ('caches' in window) {
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+        .catch(() => {});
+    }
+  }
 }
 
 createRoot(document.getElementById('root')).render(

@@ -8,7 +8,7 @@ const uploadFixturePath = path.resolve(__dirname, '..', 'fixtures', 'tiny-upload
 
 test.describe.configure({ mode: 'serial' });
 
-async function loginAs(page, email, expectedPath) {
+async function loginAs(page, email, expectedRole, expectedPath) {
   await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
 
   let lastError = 'Login fallido por causa desconocida';
@@ -20,14 +20,30 @@ async function loginAs(page, email, expectedPath) {
           const { authService } = await import('/src/services/auth.service.js');
           const loginResult = await authService.login(loginEmail, loginPassword);
 
+          if (loginResult?.success && loginResult?.user) {
+            await loginResult.user.getIdToken(true);
+            const tokenResult = await loginResult.user.getIdTokenResult();
+
+            return {
+              success: true,
+              error: null,
+              role: tokenResult?.claims?.role || null,
+              uid: loginResult.user.uid,
+            };
+          }
+
           return {
             success: !!loginResult?.success,
             error: loginResult?.error || null,
+            role: null,
+            uid: null,
           };
         } catch (error) {
           return {
             success: false,
             error: error?.message || String(error),
+            role: null,
+            uid: null,
           };
         }
       },
@@ -39,7 +55,18 @@ async function loginAs(page, email, expectedPath) {
       continue;
     }
 
-    await page.goto(expectedPath, { waitUntil: 'domcontentloaded' });
+    if (result.role !== expectedRole) {
+      lastError = `Rol inesperado tras login: ${result.role || 'sin rol'} (esperado: ${expectedRole})`;
+      continue;
+    }
+
+    if (result.uid) {
+      await page.evaluate((uid) => {
+        window.localStorage.setItem(`pn_welcome_${uid}`, '1');
+      }, result.uid);
+    }
+
+    await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
     await page.waitForURL(`**${expectedPath}`, { timeout: 60000 });
     return;
   }
@@ -48,7 +75,7 @@ async function loginAs(page, email, expectedPath) {
 }
 
 test('@smoke familia puede recorrer conversaciones, snacks y reservar un turno', async ({ page }) => {
-  await loginAs(page, 'familia1@demo.pn', '/portal/familia');
+  await loginAs(page, 'familia1@demo.pn', 'family', '/portal/familia');
 
   await expect(page.getByRole('heading', { name: 'Portal de Familias' })).toBeVisible();
 
@@ -75,7 +102,7 @@ test('@smoke familia puede recorrer conversaciones, snacks y reservar un turno',
 });
 
 test('@smoke coordinacion puede revisar conversaciones y crear un evento con upload', async ({ page }) => {
-  await loginAs(page, 'coordinacion@demo.pn', '/portal/admin');
+  await loginAs(page, 'coordinacion@demo.pn', 'coordinacion', '/portal/admin');
 
   await page.goto('/portal/admin/conversaciones');
   await expect(page.getByRole('heading', { name: 'Conversaciones' })).toBeVisible();
@@ -98,7 +125,7 @@ test('@smoke coordinacion puede revisar conversaciones y crear un evento con upl
 });
 
 test('@smoke superadmin puede asignar rol SuperAdmin en gestion de usuarios', async ({ page }) => {
-  await loginAs(page, 'superadmin@demo.pn', '/portal/admin');
+  await loginAs(page, 'superadmin@demo.pn', 'superadmin', '/portal/admin');
 
   await page.goto('/portal/admin/usuarios');
   await expect(page.getByRole('heading', { name: 'Usuarios' })).toBeVisible();

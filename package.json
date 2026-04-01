@@ -5,6 +5,7 @@
   "description": "Plataforma Montessori Puerto Nuevo - Intranet educativa + Portal institucional",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/clean-dev-cache.cjs",
     "dev": "vite",
     "dev:emulated": "node scripts/dev-emulated.cjs",
     "dev:test-e2e": "vite --host 127.0.0.1 --port 4173 --strictPort",

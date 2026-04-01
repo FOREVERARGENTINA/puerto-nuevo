@@ -2236,6 +2236,7 @@
   min-height: 100vh;
   display: flex;
   align-items: stretch;
+  color-scheme: light;
   /* Paleta verde exclusiva de login */
   --color-primary: #2f6f6a;
   --color-primary-dark: #245b57;
@@ -2382,15 +2383,25 @@
 .login-page .form-textarea,
 .login-page .form-select,
 .login-page .form-control {
+  color-scheme: light;
   background-color: var(--color-primary-soft);
   border-color: rgba(47, 111, 106, 0.28);
   color: var(--color-primary-dark);
-  caret-color: var(--color-primary-dark);
+  caret-color: var(--color-primary-dark) !important;
 }
 
 .login-page .form-input::placeholder,
 .login-page .form-textarea::placeholder {
   color: rgba(36, 91, 87, 0.66);
+}
+
+.login-page input[type="email"],
+.login-page input[type="password"],
+.login-page input[type="text"] {
+  color: var(--color-primary-dark) !important;
+  caret-color: var(--color-primary-dark) !important;
+  -webkit-text-fill-color: var(--color-primary-dark) !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Crect x='11' y='2' width='2' height='20' fill='%23245b57'/%3E%3C/svg%3E") 12 12, text;
 }
 
 .login-page .form-input:focus,
@@ -2399,9 +2410,9 @@
 .login-page .form-control:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(91, 165, 168, 0.2);
-  color: var(--color-primary-dark);
-  caret-color: var(--color-primary-dark);
-  -webkit-text-fill-color: var(--color-primary-dark);
+  color: var(--color-primary-dark) !important;
+  caret-color: var(--color-primary-dark) !important;
+  -webkit-text-fill-color: var(--color-primary-dark) !important;
 }
 
 .login-page .form-input:-webkit-autofill,

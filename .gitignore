@@ -45,6 +45,8 @@ test-results/
 .tmp/
 firestore-debug.log
 tmp-emulated.log
+full-smoke.log
+smoke-family.log
 
 # Temporal
 leer.md
