@@ -38,9 +38,12 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus any open PWA window and navigate it to the target URL
       for (const client of clientList) {
-        if (client.url === targetUrl && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          return client.focus().then(() => {
+            if ('navigate' in client) return client.navigate(targetUrl);
+          });
         }
       }
 

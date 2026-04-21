@@ -28,6 +28,7 @@ const { onInstitutionalGalleryMediaCreated } = require('./src/triggers/onInstitu
 const { sendInstitutionalGalleryAlbumNotification } = require('./src/callables/sendInstitutionalGalleryAlbumNotification');
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 const { sendAppointmentSameDayReminder } = require('./src/scheduled/appointmentSameDayReminder');
+const { sendEventSameDayReminder } = require('./src/scheduled/eventSameDayReminder');
 const { getDocumentAccessUrl } = require('./src/http/getDocumentAccessUrl');
 const { maskEmail } = require('./src/utils/logging');
 
@@ -515,3 +516,4 @@ exports.getDocumentAccessUrl = getDocumentAccessUrl;
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;
 exports.sendAppointmentSameDayReminder = sendAppointmentSameDayReminder;
+exports.sendEventSameDayReminder = sendEventSameDayReminder;

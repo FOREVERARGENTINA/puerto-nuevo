@@ -1,0 +1,87 @@
+Montessori Puerto Nuevo - Portal Institucional y Comunidad Educativa
+
+Sitio institucional y portal digital para familias, aspirantes y equipo educativo Montessori.
+
+# About
+
+Montessori Puerto Nuevo es una institucion educativa en Argentina con enfoque Montessori.
+El sitio centraliza informacion institucional y acceso al portal interno para comunicacion, documentos y seguimiento de actividades.
+Prioriza usabilidad, seguridad y comunicacion clara entre familias y equipo pedagogico.
+
+# Creator
+
+- Estudio creador: FrandoWeb
+- Responsable: Hernan Frandolich
+- Especialidad: Diseno web, desarrollo full-stack, SEO y estrategia digital
+- Web: https://www.frandoweb.com.ar
+- Email: info@frandoweb.com.ar
+- WhatsApp: +54 9 11 2807-4000
+- Ubicacion: Buenos Aires, Argentina
+
+# Contact
+
+- Institucion: Montessori Puerto Nuevo
+- Telefono/WhatsApp: +54 11 2708-4000
+- Email: info.montessoripuertonuevo@gmail.com
+- Web: https://montessoripuertonuevo.com.ar/
+- Redes: https://www.facebook.com/puertonuevomontessori | https://instagram.com/puertonuevomontessori | https://www.linkedin.com/company/puertonuevomontessori
+- Ubicacion: Argentina
+
+# Services / Products
+
+1. Proyecto educativo Montessori
+- Acompanamiento pedagogico para infancias.
+- Duracion: ciclo lectivo anual.
+- URL: https://montessoripuertonuevo.com.ar/
+
+2. Portal para familias
+- Comunicados, calendario, documentos y seguimiento institucional.
+- Duracion: disponible durante todo el ciclo lectivo.
+- URL: https://montessoripuertonuevo.com.ar/
+
+3. Entrevistas e ingreso
+- Informacion para familias aspirantes y coordinacion institucional.
+- Duracion: segun disponibilidad.
+- URL: https://montessoripuertonuevo.com.ar/
+
+# Key Pages
+
+- Home: https://montessoripuertonuevo.com.ar/
+- llms.txt: https://montessoripuertonuevo.com.ar/llms.txt
+- robots.txt: https://montessoripuertonuevo.com.ar/robots.txt
+- Sitemap: https://montessoripuertonuevo.com.ar/sitemap.xml
+
+# Target Audience
+
+- Familias que buscan educacion Montessori en Argentina
+- Madres, padres y tutores de estudiantes actuales
+- Familias aspirantes interesadas en admision
+- Equipo educativo que usa el portal para gestion y comunicacion
+
+# Unique Value Proposition
+
+1. Comunidad educativa con enfoque Montessori y acompanamiento integral.
+2. Plataforma digital unificada para comunicacion y gestion.
+3. Experiencia clara con foco en seguridad de la informacion.
+
+# SEO Keywords
+
+- montessori puerto nuevo
+- escuela montessori argentina
+- proyecto educativo montessori
+- portal familias montessori
+- admision montessori
+- comunidad educativa montessori
+
+# Pricing
+
+- Aranceles y condiciones: consultar por entrevista institucional.
+- Este sitio no publica precios detallados en una pagina publica.
+
+# Tech Stack
+
+- Frontend: React 19 + Vite 7
+- Backend: Firebase (Firestore, Storage, Cloud Functions, Authentication)
+- Hosting: Firebase Hosting
+- Notificaciones: FCM + Resend
+- PWA: Service Worker + manifest.webmanifest
