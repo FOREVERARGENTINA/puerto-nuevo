@@ -8,6 +8,10 @@ const uploadFixturePath = path.resolve(__dirname, '..', 'fixtures', 'tiny-upload
 
 test.describe.configure({ mode: 'serial' });
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function loginAs(page, email, expectedRole, expectedPath) {
   await page.goto('/portal/login', { waitUntil: 'domcontentloaded' });
 
@@ -87,6 +91,16 @@ async function loginAs(page, email, expectedRole, expectedPath) {
         }
       },
       { loginEmail: email, loginPassword: PASSWORD, role: expectedRole },
+      { timeout: 30000 }
+    );
+
+    // Once Firebase Auth has the expected custom claim in this browser context,
+    // enter the target route again so React's AuthProvider/RoleGuard mount from a
+    // settled session. This removes a CI race where the route can briefly render
+    // login/unauthorized before the observer catches up.
+    await page.goto(expectedPath, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(
+      new RegExp(`${escapeRegExp(expectedPath)}(?:[?#].*)?$`),
       { timeout: 30000 }
     );
 
