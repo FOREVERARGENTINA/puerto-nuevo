@@ -7,9 +7,35 @@ import { AlertDialog } from '../../components/common/AlertDialog';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { EventDetailModal } from '../../components/common/EventDetailModal';
 import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
-import { ROUTES } from '../../config/constants';
+import { AMBIENTES, ROUTES } from '../../config/constants';
 import Icon from '../../components/ui/Icon';
 import './EventsManager.css';
+
+const EVENT_VISIBILITY = {
+  PUBLICO: 'publico',
+  TALLER_1: AMBIENTES.TALLER_1,
+  TALLER_2: AMBIENTES.TALLER_2
+};
+
+const getEventVisibilityValue = (event) => {
+  if (event?.scope === 'taller' && event?.ambiente === AMBIENTES.TALLER_1) {
+    return EVENT_VISIBILITY.TALLER_1;
+  }
+  if (event?.scope === 'taller' && event?.ambiente === AMBIENTES.TALLER_2) {
+    return EVENT_VISIBILITY.TALLER_2;
+  }
+  return EVENT_VISIBILITY.PUBLICO;
+};
+
+const buildEventVisibilityPayload = (visibility) => {
+  if (visibility === EVENT_VISIBILITY.TALLER_1) {
+    return { scope: 'taller', ambiente: AMBIENTES.TALLER_1 };
+  }
+  if (visibility === EVENT_VISIBILITY.TALLER_2) {
+    return { scope: 'taller', ambiente: AMBIENTES.TALLER_2 };
+  }
+  return { scope: 'publico', ambiente: null };
+};
 
 export function EventsManager() {
   const [events, setEvents] = useState([]);
@@ -36,7 +62,8 @@ export function EventsManager() {
     descripcion: '',
     fecha: '',
     hora: '',
-    tipo: 'general' // general, reuniones, talleres, muestra, acto
+    tipo: 'general', // general, reuniones, talleres, muestra, acto
+    audiencia: EVENT_VISIBILITY.PUBLICO
   });
   const [selectedMediaFiles, setSelectedMediaFiles] = useState([]);
   const [existingMedia, setExistingMedia] = useState([]);
@@ -239,7 +266,8 @@ export function EventsManager() {
         descripcion: event.descripcion || '',
         fecha: eventDate ? toDateInputValue(eventDate) : '',
         hora: event.hora || '',
-        tipo: event.tipo || 'general'
+        tipo: event.tipo || 'general',
+        audiencia: getEventVisibilityValue(event)
       });
       setExistingMedia(Array.isArray(event.media) ? event.media : []);
     } else {
@@ -249,7 +277,8 @@ export function EventsManager() {
         descripcion: '',
         fecha: '',
         hora: '',
-        tipo: 'general'
+        tipo: 'general',
+        audiencia: EVENT_VISIBILITY.PUBLICO
       });
       setExistingMedia([]);
     }
@@ -266,7 +295,8 @@ export function EventsManager() {
       descripcion: '',
       fecha: '',
       hora: '',
-      tipo: 'general'
+      tipo: 'general',
+      audiencia: EVENT_VISIBILITY.PUBLICO
     });
     setSelectedMediaFiles([]);
     setExistingMedia([]);
@@ -382,12 +412,15 @@ export function EventsManager() {
     }
 
     setSaving(true);
+    const visibilityPayload = buildEventVisibilityPayload(formData.audiencia);
     const eventData = {
       titulo: formData.titulo.trim(),
       descripcion: formData.descripcion.trim(),
       fecha: formData.fecha,
       hora: formData.hora.trim(),
-      tipo: formData.tipo
+      tipo: formData.tipo,
+      scope: visibilityPayload.scope,
+      ambiente: visibilityPayload.ambiente
     };
 
     let result;
@@ -479,10 +512,18 @@ export function EventsManager() {
     return labels[tipo] || tipo;
   };
 
+  const getVisibilityLabel = (event) => {
+    const visibility = getEventVisibilityValue(event);
+    if (visibility === EVENT_VISIBILITY.TALLER_1) return 'Taller 1';
+    if (visibility === EVENT_VISIBILITY.TALLER_2) return 'Taller 2';
+    return 'Público general';
+  };
+
   const getEventMeta = (event) => {
     const parts = [formatDate(event.fecha)];
     if (event.hora) parts.push(event.hora);
     parts.push(getTipoLabel(event.tipo));
+    parts.push(getVisibilityLabel(event));
     return parts.join(' • ');
   };
 
@@ -509,16 +550,8 @@ export function EventsManager() {
     return list;
   }, [eventsForMonth, searchTerm, typeFilter]);
 
-  const filteredEvents = useMemo(() => {
-    if (!selectedDay) return eventsForCalendar;
-    return eventsForCalendar.filter(event => {
-      const eventDate = normalizeEventDate(event.fecha);
-      return eventDate && eventDate.getDate() === selectedDay;
-    });
-  }, [eventsForCalendar, selectedDay]);
-
-  const sortedFilteredEvents = useMemo(() => {
-    return [...filteredEvents].sort((a, b) => {
+  const sortEventsByDisplayOrder = (list) => {
+    return [...list].sort((a, b) => {
       const pastA = isPastEvent(a);
       const pastB = isPastEvent(b);
       if (pastA !== pastB) return pastA ? 1 : -1;
@@ -530,24 +563,37 @@ export function EventsManager() {
       // Proximos en ascendente, pasados del mas reciente al mas lejano.
       return pastA ? dateB - dateA : dateA - dateB;
     });
-  }, [filteredEvents]);
+  };
 
+  const sortedEventsForMonth = useMemo(() => {
+    return sortEventsByDisplayOrder(eventsForCalendar);
+  }, [eventsForCalendar]);
+
+  const filteredEvents = useMemo(() => {
+    if (!selectedDay) return sortedEventsForMonth;
+    return sortedEventsForMonth.filter(event => {
+      const eventDate = normalizeEventDate(event.fecha);
+      return eventDate && eventDate.getDate() === selectedDay;
+    });
+  }, [selectedDay, sortedEventsForMonth]);
+
+  // El resumen de "proximos" debe seguir representando el mes aunque haya un dia seleccionado.
   const upcomingEventsPreview = useMemo(() => {
-    return sortedFilteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
-  }, [sortedFilteredEvents]);
+    return sortedEventsForMonth.filter(event => !isPastEvent(event)).slice(0, 2);
+  }, [sortedEventsForMonth]);
 
   const hasUpcomingInCurrentMonth = useMemo(() => (
-    sortedFilteredEvents.some(event => !isPastEvent(event))
-  ), [sortedFilteredEvents]);
+    sortedEventsForMonth.some(event => !isPastEvent(event))
+  ), [sortedEventsForMonth]);
 
   const nextCrossMonthEvent = useMemo(() => {
-    if (upcomingEventsPreview.length > 0) return null;
+    if (hasUpcomingInCurrentMonth) return null;
     return nextUpcomingEvents.find(event => {
       const eventDate = normalizeEventDate(event.fecha);
       if (!eventDate) return false;
       return !(eventDate.getFullYear() === selectedMonthYear && eventDate.getMonth() === selectedMonthIndex);
     }) ?? null;
-  }, [upcomingEventsPreview, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex]);
+  }, [hasUpcomingInCurrentMonth, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex]);
 
   const nextCrossMonthEventDisplay = useMemo(() => {
     if (!nextCrossMonthEvent) return null;
@@ -562,22 +608,21 @@ export function EventsManager() {
     };
   }, [nextCrossMonthEvent]);
 
-  const upcomingEventsSummary = useMemo(() => {
-    if (upcomingEventsPreview.length === 0) {
-      if (nextCrossMonthEvent && nextCrossMonthEventDisplay) {
-        return `Sin próximos en este mes → próximo: ${nextCrossMonthEvent.titulo}${nextCrossMonthEventDisplay.dateStr ? ` (${nextCrossMonthEventDisplay.dateStr})` : ''}`;
-      }
-      return 'Sin eventos próximos en este mes.';
-    }
-    if (upcomingEventsPreview.length === 1) {
-      return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
-    }
-    return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
-  }, [upcomingEventsPreview, nextCrossMonthEvent, nextCrossMonthEventDisplay]);
+  const nextEventSummary = useMemo(() => {
+    const nextEvent = upcomingEventsPreview[0] ?? nextCrossMonthEvent;
+    if (!nextEvent) return 'Sin próximos eventos.';
+
+    const eventDate = normalizeEventDate(nextEvent.fecha);
+    const dateStr = eventDate
+      ? new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long' }).format(eventDate)
+      : '';
+
+    return `Próximo evento: ${dateStr ? `${dateStr} · ` : ''}${nextEvent.titulo}`;
+  }, [upcomingEventsPreview, nextCrossMonthEvent]);
 
   const visibleEvents = useMemo(() => {
-    return sortedFilteredEvents.slice(0, visibleEventsCount);
-  }, [sortedFilteredEvents, visibleEventsCount]);
+    return filteredEvents.slice(0, visibleEventsCount);
+  }, [filteredEvents, visibleEventsCount]);
 
   const groupedEvents = useMemo(() => {
     const sorted = visibleEvents;
@@ -794,15 +839,17 @@ export function EventsManager() {
                   )}
                   <div className="events-list-header">
                     <div>
-                      <h3 className="events-list-title">
-                        {selectedDay
-                          ? `Eventos del ${selectedDay} de ${monthNames[selectedMonthIndex].toLowerCase()}`
-                          : `Eventos de ${monthNames[selectedMonthIndex].toLowerCase()}`}
-                      </h3>
-                      <p className="events-list-subtitle">
-                        {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
-                      </p>
-                      <p className="events-list-next">{upcomingEventsSummary}</p>
+                      <div className="events-list-title-row">
+                        <h3 className="events-list-title">
+                          {selectedDay
+                            ? `Eventos del ${selectedDay} de ${monthNames[selectedMonthIndex].toLowerCase()}`
+                            : `Eventos de ${monthNames[selectedMonthIndex].toLowerCase()}`}
+                        </h3>
+                        <p className="events-list-subtitle">
+                          {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+                        </p>
+                      </div>
+                      <p className="events-list-next">{nextEventSummary}</p>
                     </div>
                   </div>
 
@@ -904,7 +951,7 @@ export function EventsManager() {
                       ))
                     )}
                   </div>
-                  {sortedFilteredEvents.length > visibleEventsCount && (
+                  {filteredEvents.length > visibleEventsCount && (
                     <div style={{ marginTop: 'var(--spacing-md)', textAlign: 'center' }}>
                       <button
                         type="button"
@@ -999,6 +1046,29 @@ export function EventsManager() {
                 <option value="muestra">Muestra</option>
                 <option value="acto">Acto</option>
               </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="audiencia" className="form-label">
+                Alcance
+              </label>
+              <select
+                id="audiencia"
+                name="audiencia"
+                value={formData.audiencia}
+                onChange={handleChange}
+                className="form-select form-input--sm"
+                disabled={editingEvent?.source === 'taller'}
+              >
+                <option value={EVENT_VISIBILITY.PUBLICO}>Público (general)</option>
+                <option value={EVENT_VISIBILITY.TALLER_1}>Solo Taller 1</option>
+                <option value={EVENT_VISIBILITY.TALLER_2}>Solo Taller 2</option>
+              </select>
+              <p className="form-help">
+                {editingEvent?.source === 'taller'
+                  ? 'Este evento está vinculado a un taller. Su alcance se gestiona desde la pantalla del taller.'
+                  : 'Público llega a todas las familias. Taller 1 o Taller 2 solo se muestra y notifica a ese ambiente.'}
+              </p>
             </div>
 
             <div className="form-group">

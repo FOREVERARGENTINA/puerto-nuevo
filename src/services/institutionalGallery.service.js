@@ -34,6 +34,29 @@ const clearCategoriesByRoleCache = () => {
   categoriesByRoleCache.clear();
 };
 
+const getCategoryCreatedAtMs = (category) => {
+  const createdAt = category?.createdAt;
+
+  if (!createdAt) {
+    return 0;
+  }
+
+  if (typeof createdAt.toMillis === 'function') {
+    return createdAt.toMillis();
+  }
+
+  if (createdAt instanceof Date) {
+    return createdAt.getTime();
+  }
+
+  const timestamp = new Date(createdAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const sortCategoriesByNewest = (categories = []) => (
+  [...categories].sort((left, right) => getCategoryCreatedAtMs(right) - getCategoryCreatedAtMs(left))
+);
+
 const preloadCategoryCoverImages = (categories) => {
   categories.forEach((category) => {
     if (!category?.coverUrl || preloadedCategoryCovers.has(category.coverUrl)) {
@@ -60,10 +83,10 @@ export const institutionalGalleryService = {
         orderBy('createdAt', 'desc')
       );
       const snapshot = await getDocs(q);
-      const categories = snapshot.docs.map(doc => ({
+      const categories = sortCategoriesByNewest(snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })));
       return { success: true, categories };
     } catch (error) {
       console.error('Error getting categories:', error);
@@ -85,9 +108,9 @@ export const institutionalGalleryService = {
       const result = await this.getAllCategories();
       if (!result.success) return result;
 
-      const filtered = result.categories.filter(cat =>
+      const filtered = sortCategoriesByNewest(result.categories.filter(cat =>
         cat.allowedRoles && cat.allowedRoles.includes(userRole)
-      );
+      ));
 
       categoriesByRoleCache.set(cacheKey, {
         timestamp: Date.now(),

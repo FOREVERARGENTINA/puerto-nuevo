@@ -12,17 +12,23 @@ const InstitutionalGalleryManager = () => {
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [mediaSummary, setMediaSummary] = useState({ totalCount: 0, pendingCount: 0 });
+  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadCategories = async () => {
       const result = await institutionalGalleryService.getAllCategories();
-      if (result.success) {
+      if (!cancelled && result.success) {
         setCategories(result.categories);
       }
     };
 
     loadCategories();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryRefreshKey]);
 
   const handleSelectCategory = (category) => {
     setSelectedCategory(category);
@@ -59,6 +65,10 @@ const InstitutionalGalleryManager = () => {
     setActiveTab('categories');
   };
 
+  const handleCategoriesChanged = () => {
+    setCategoryRefreshKey(prev => prev + 1);
+  };
+
   return (
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
@@ -89,7 +99,7 @@ const InstitutionalGalleryManager = () => {
       </div>
       <div className="tab-content">
         {activeTab === 'categories' && (
-          <CategoryManager />
+          <CategoryManager onCategoriesChanged={handleCategoriesChanged} />
         )}
 
         {activeTab === 'media' && (

@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { AlertDialog } from '../../common/AlertDialog';
 import { LoadingModal } from '../../common/LoadingModal';
 
-const CategoryManager = () => {
+const CategoryManager = ({ onCategoriesChanged }) => {
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -202,6 +202,7 @@ const CategoryManager = () => {
       if (result.success) {
         // Recargar la lista ANTES de cerrar el modal
         await loadCategories();
+        await onCategoriesChanged?.();
         handleCloseForm();
         showAlert(
           editingCategory ? 'Categoría actualizada' : 'Categoría creada',
@@ -227,6 +228,7 @@ const CategoryManager = () => {
           const result = await institutionalGalleryService.deleteCategory(category.id);
           if (result.success) {
             await loadCategories();
+            await onCategoriesChanged?.();
             showAlert('Categoría eliminada', 'success');
           } else {
             showAlert('Error: ' + result.error, 'error');

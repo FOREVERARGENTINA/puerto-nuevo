@@ -260,11 +260,18 @@
   align-items: flex-end;
 }
 
+.events-manager-page .events-list-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
 .events-manager-page .events-list-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .events-manager-page .events-list-subtitle {
@@ -272,14 +279,15 @@
   color: var(--color-text-light);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.3px;
-  margin-top: 3px;
+  margin: 0;
 }
 
 .events-manager-page .events-list-next {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-light);
-  margin-top: 2px;
-  font-style: italic;
+  margin-top: 4px;
+  font-weight: var(--font-weight-medium);
+  font-style: normal;
 }
 
 /* ─── Filtros ────────────────────────────────────────────── */

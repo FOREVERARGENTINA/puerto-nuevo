@@ -90,6 +90,13 @@
   border-bottom: 1px solid var(--ec-border);
 }
 
+.events-calendar-page .events-list-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
 .events-calendar-page .events-list-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
@@ -100,13 +107,12 @@
 .events-calendar-page .events-list-subtitle {
   font-size: var(--font-size-xs);
   color: var(--color-text-light);
-  margin-top: 2px;
-  text-transform: uppercase;
+  margin: 0;
   letter-spacing: 0.5px;
 }
 
 .events-calendar-page .events-list-next {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-primary);
   margin-top: var(--spacing-xs);
   font-weight: var(--font-weight-medium);

@@ -243,14 +243,7 @@ export function EventsCalendar() {
     events.filter((event) => isEventVisibleForFamily(event, isFamily, familyAmbientes))
   ), [events, familyAmbientes, isFamily]);
 
-  const filteredEvents = useMemo(() => {
-    let list = visibleEvents;
-    if (selectedDay) {
-      list = list.filter(event => {
-        const eventDate = normalizeEventDate(event.fecha);
-        return eventDate && eventDate.getDate() === selectedDay;
-      });
-    }
+  const sortEventsByDisplayOrder = (list) => {
     return [...list].sort((a, b) => {
       const pastA = isPastEvent(a);
       const pastB = isPastEvent(b);
@@ -263,25 +256,38 @@ export function EventsCalendar() {
       // Próximos en orden ascendente, pasados del más reciente al más lejano.
       return pastA ? dateB - dateA : dateA - dateB;
     });
-  }, [selectedDay, visibleEvents]);
+  };
 
+  const sortedVisibleEvents = useMemo(() => (
+    sortEventsByDisplayOrder(visibleEvents)
+  ), [visibleEvents]);
+
+  const filteredEvents = useMemo(() => {
+    if (!selectedDay) return sortedVisibleEvents;
+    return sortedVisibleEvents.filter(event => {
+      const eventDate = normalizeEventDate(event.fecha);
+      return eventDate && eventDate.getDate() === selectedDay;
+    });
+  }, [selectedDay, sortedVisibleEvents]);
+
+  // El resumen de "proximos" debe seguir representando el mes aunque haya un dia seleccionado.
   const upcomingEventsPreview = useMemo(() => {
-    return filteredEvents.filter(event => !isPastEvent(event)).slice(0, 2);
-  }, [filteredEvents]);
+    return sortedVisibleEvents.filter(event => !isPastEvent(event)).slice(0, 2);
+  }, [sortedVisibleEvents]);
 
   const hasUpcomingInCurrentMonth = useMemo(() => (
-    filteredEvents.some(event => !isPastEvent(event))
-  ), [filteredEvents]);
+    sortedVisibleEvents.some(event => !isPastEvent(event))
+  ), [sortedVisibleEvents]);
 
   const nextCrossMonthEvent = useMemo(() => {
-    if (upcomingEventsPreview.length > 0) return null;
+    if (hasUpcomingInCurrentMonth) return null;
     return nextUpcomingEvents.find(event => {
       if (!isEventVisibleForFamily(event, isFamily, familyAmbientes)) return false;
       const eventDate = normalizeEventDate(event.fecha);
       if (!eventDate) return false;
       return !(eventDate.getFullYear() === selectedMonthYear && eventDate.getMonth() === selectedMonthIndex);
     }) ?? null;
-  }, [upcomingEventsPreview, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex, isFamily, familyAmbientes]);
+  }, [hasUpcomingInCurrentMonth, nextUpcomingEvents, selectedMonthYear, selectedMonthIndex, isFamily, familyAmbientes]);
 
   const nextCrossMonthEventDisplay = useMemo(() => {
     if (!nextCrossMonthEvent) return null;
@@ -296,18 +302,17 @@ export function EventsCalendar() {
     };
   }, [nextCrossMonthEvent]);
 
-  const upcomingEventsSummary = useMemo(() => {
-    if (upcomingEventsPreview.length === 0) {
-      if (nextCrossMonthEvent && nextCrossMonthEventDisplay) {
-        return `Sin próximos en este mes → próximo: ${nextCrossMonthEvent.titulo}${nextCrossMonthEventDisplay.dateStr ? ` (${nextCrossMonthEventDisplay.dateStr})` : ''}`;
-      }
-      return 'Sin eventos próximos en este mes.';
-    }
-    if (upcomingEventsPreview.length === 1) {
-      return `Próximo evento: ${upcomingEventsPreview[0].titulo}`;
-    }
-    return `Próximos eventos: ${upcomingEventsPreview.map(event => event.titulo).join(' / ')}`;
-  }, [upcomingEventsPreview, nextCrossMonthEvent, nextCrossMonthEventDisplay]);
+  const nextEventSummary = useMemo(() => {
+    const nextEvent = upcomingEventsPreview[0] ?? nextCrossMonthEvent;
+    if (!nextEvent) return 'Sin próximos eventos.';
+
+    const eventDate = normalizeEventDate(nextEvent.fecha);
+    const dateStr = eventDate
+      ? new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long' }).format(eventDate)
+      : '';
+
+    return `Próximo evento: ${dateStr ? `${dateStr} · ` : ''}${nextEvent.titulo}`;
+  }, [upcomingEventsPreview, nextCrossMonthEvent]);
 
   const [daysWithEvents, daysWithUpcomingEvents, daysWithPastEvents] = useMemo(() => {
     const allDays = new Set();
@@ -514,15 +519,17 @@ export function EventsCalendar() {
                   )}
                   <div className="events-list-header">
                     <div>
-                      <h3 className="events-list-title">
-                        {selectedDay
-                          ? `Eventos del ${selectedDay} de ${monthNames[selectedMonthIndex].toLowerCase()}`
-                          : `Eventos de ${monthNames[selectedMonthIndex].toLowerCase()}`}
-                      </h3>
-                      <p className="events-list-subtitle">
-                        {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
-                      </p>
-                      <p className="events-list-next">{upcomingEventsSummary}</p>
+                      <div className="events-list-title-row">
+                        <h3 className="events-list-title">
+                          {selectedDay
+                            ? `Eventos del ${selectedDay} de ${monthNames[selectedMonthIndex].toLowerCase()}`
+                            : `Eventos de ${monthNames[selectedMonthIndex].toLowerCase()}`}
+                        </h3>
+                        <p className="events-list-subtitle">
+                          {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+                        </p>
+                      </div>
+                      <p className="events-list-next">{nextEventSummary}</p>
                     </div>
                   </div>
 
