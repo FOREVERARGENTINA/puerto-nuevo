@@ -8,9 +8,15 @@ import { usersService } from '../../services/users.service';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLES, ROUTES } from '../../config/constants';
 
-export function ReadReceiptsPanel() {
+const getCommunicationDate = (comm) => {
+  const value = comm?.createdAt?.toDate ? comm.createdAt.toDate() : null;
+  return value && !Number.isNaN(value.getTime()) ? value : null;
+};
+
+export function ReadReceiptsPanel({ view = 'history' }) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const isAnalyticsView = view === 'analytics';
   const [communications, setCommunications] = useState([]);
   const [selectedComm, setSelectedComm] = useState(null);
   const [stats, setStats] = useState(null);
@@ -25,6 +31,7 @@ export function ReadReceiptsPanel() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailTab, setDetailTab] = useState('pending');
   const [communicationsWithStats, setCommunicationsWithStats] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [readUsers, setReadUsers] = useState([]);
@@ -65,8 +72,8 @@ export function ReadReceiptsPanel() {
 
     try {
       const result = isAdmin
-        ? await communicationsService.getAllCommunications(200)
-        : await communicationsService.getCommunicationsBySender(user.uid, 200);
+        ? await communicationsService.getAllCommunications()
+        : await communicationsService.getCommunicationsBySender(user.uid);
 
       if (result.success) {
         setCommunications(result.communications);
@@ -142,6 +149,7 @@ export function ReadReceiptsPanel() {
     setStats(comm.statsData);
     setPendingUsers([]);
     setReadUsers([]);
+    setDetailTab((comm.statsData?.pendientes || 0) > 0 ? 'pending' : 'read');
     setShowDetailModal(true);
 
     // Si no tenemos el nombre del remitente, intentar cargarlo desde usuarios
@@ -292,6 +300,33 @@ export function ReadReceiptsPanel() {
     }
   };
 
+  const renderSortArrow = (column) => {
+    if (sortBy !== column) return null;
+
+    return (
+      <span
+        aria-label={sortOrder === 'asc' ? 'Orden ascendente' : 'Orden descendente'}
+        title={sortOrder === 'asc' ? 'Orden ascendente' : 'Orden descendente'}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginLeft: 8,
+          width: 18,
+          height: 18,
+          borderRadius: 'var(--radius-sm)',
+          backgroundColor: 'color-mix(in srgb, var(--color-primary) 14%, transparent)',
+          fontSize: '0.95rem',
+          fontWeight: 700,
+          color: 'var(--color-primary)',
+          lineHeight: 1
+        }}
+      >
+        {sortOrder === 'asc' ? '▲' : '▼'}
+      </span>
+    );
+  };
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -327,6 +362,91 @@ export function ReadReceiptsPanel() {
     if (percentage >= 50) return <span className="badge badge--warning">En progreso</span>;
     return <span className="badge badge--error">Pendiente</span>;
   };
+
+  const analytics = useMemo(() => {
+    const base = filteredCommunications;
+    const totals = base.reduce((acc, comm) => {
+      const itemStats = comm.statsData || {};
+      const total = itemStats.total || 0;
+      const leidos = itemStats.leidos || 0;
+      const pendientes = itemStats.pendientes || 0;
+      const porcentaje = itemStats.porcentaje || 0;
+
+      acc.destinatarios += total;
+      acc.leidos += leidos;
+      acc.pendientes += pendientes;
+      if (porcentaje === 100 && total > 0) acc.completos += 1;
+      if (porcentaje > 0 && porcentaje < 100) acc.enProgreso += 1;
+      if (porcentaje === 0 && total > 0) acc.sinLecturas += 1;
+      if (comm.requiereLecturaObligatoria && pendientes > 0) acc.obligatoriosPendientes += 1;
+      return acc;
+    }, {
+      destinatarios: 0,
+      leidos: 0,
+      pendientes: 0,
+      completos: 0,
+      enProgreso: 0,
+      sinLecturas: 0,
+      obligatoriosPendientes: 0,
+    });
+
+    const lecturaGeneral = totals.destinatarios > 0
+      ? Math.round((totals.leidos / totals.destinatarios) * 100)
+      : 0;
+
+    const pendientesCriticos = [...base]
+      .filter(comm => (comm.statsData?.pendientes || 0) > 0)
+      .sort((a, b) => {
+        const pendingDiff = (b.statsData?.pendientes || 0) - (a.statsData?.pendientes || 0);
+        if (pendingDiff !== 0) return pendingDiff;
+        return (a.statsData?.porcentaje || 0) - (b.statsData?.porcentaje || 0);
+      })
+      .slice(0, 5);
+
+    const familyById = new Map(allFamilies.map(family => [family.id, family]));
+    const familiasPendientes = new Map();
+
+    base.forEach((comm) => {
+      if (!comm.destinatarios || !comm.familyStats) return;
+      comm.destinatarios.forEach((uid) => {
+        if (!familyById.has(uid)) return;
+        if (comm.familyStats[uid] !== false) return;
+        const current = familiasPendientes.get(uid) || {
+          family: familyById.get(uid),
+          pendientes: 0,
+        };
+        current.pendientes += 1;
+        familiasPendientes.set(uid, current);
+      });
+    });
+
+    const familiasConMasPendientes = Array.from(familiasPendientes.values())
+      .sort((a, b) => b.pendientes - a.pendientes)
+      .slice(0, 10);
+
+    const porTipo = Object.values(base.reduce((acc, comm) => {
+      const type = comm.type || 'sin_tipo';
+      if (!acc[type]) {
+        acc[type] = { type, comunicados: 0, destinatarios: 0, leidos: 0, pendientes: 0 };
+      }
+      acc[type].comunicados += 1;
+      acc[type].destinatarios += comm.statsData?.total || 0;
+      acc[type].leidos += comm.statsData?.leidos || 0;
+      acc[type].pendientes += comm.statsData?.pendientes || 0;
+      return acc;
+    }, {})).map((item) => ({
+      ...item,
+      porcentaje: item.destinatarios > 0 ? Math.round((item.leidos / item.destinatarios) * 100) : 0,
+    }));
+
+    return {
+      ...totals,
+      lecturaGeneral,
+      pendientesCriticos,
+      familiasConMasPendientes,
+      porTipo,
+    };
+  }, [filteredCommunications, allFamilies]);
 
   // Obtener estadísticas para familia seleccionada
   function getStatsForFamily(comm) {
@@ -383,20 +503,184 @@ export function ReadReceiptsPanel() {
     <div className="container page-container">
       <div className="dashboard-header dashboard-header--compact">
         <div>
-          <h1 className="dashboard-title">{isAdmin ? 'Comunicados' : 'Mis comunicados'}</h1>
+          <h1 className="dashboard-title">
+            {isAnalyticsView ? 'Confirmaciones' : (isAdmin ? 'Comunicados' : 'Mis comunicados')}
+          </h1>
           <p className="dashboard-subtitle">
-            {isAdmin
-              ? 'Confirmaciones de lectura y detalle por familia'
-              : 'Seguimiento de lectura y detalle por familia de tus comunicados'}
+            {isAnalyticsView
+              ? 'Lecturas, pendientes y seguimiento por familia'
+              : (isAdmin
+                ? 'Historial de comunicados enviados'
+                : 'Seguimiento de lectura y detalle por familia de tus comunicados')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           <span className="badge badge--info">{communications.length} comunicados</span>
-          <button className="btn btn--primary" onClick={() => navigate(`${ROUTES.SEND_COMMUNICATION}/nuevo`)}>
-            Crear comunicado
-          </button>
+          {!isAnalyticsView && isAdmin && (
+            <button className="btn btn--outline" onClick={() => navigate(ROUTES.READ_RECEIPTS)}>
+              Ver confirmaciones
+            </button>
+          )}
+          {!isAnalyticsView && (
+            <button className="btn btn--primary" onClick={() => navigate(`${ROUTES.SEND_COMMUNICATION}/nuevo`)}>
+              Crear comunicado
+            </button>
+          )}
         </div>
       </div>
+
+      {isAnalyticsView && communications.length > 0 && (
+        <>
+          <div className="admin-appointments-stats">
+            <div className="stat-card stat-card--info">
+              <div className="stat-card__value">{analytics.lecturaGeneral}%</div>
+              <div className="stat-card__label">Lectura general</div>
+            </div>
+            <div className="stat-card stat-card--danger">
+              <div className="stat-card__value">{analytics.pendientes}</div>
+              <div className="stat-card__label">Pendientes</div>
+            </div>
+            <div className="stat-card stat-card--success">
+              <div className="stat-card__value">{analytics.leidos}</div>
+              <div className="stat-card__label">Lecturas</div>
+            </div>
+            <div className="stat-card stat-card--warning">
+              <div className="stat-card__value">{analytics.obligatoriosPendientes}</div>
+              <div className="stat-card__label">Obligatorios abiertos</div>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)',
+            gap: 'var(--spacing-lg)',
+            marginBottom: 'var(--spacing-lg)'
+          }}>
+            <div className="card">
+              <div className="card__header card__header--compact">
+                <h2 className="card__title">Pendientes principales</h2>
+              </div>
+              <div className="card__body">
+                {analytics.pendientesCriticos.length === 0 ? (
+                  <div className="alert alert--success">No hay comunicados pendientes en la vista actual.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
+                    {analytics.pendientesCriticos.map((comm) => (
+                      <button
+                        key={comm.id}
+                        type="button"
+                        className="link-unstyled"
+                        onClick={() => loadDetailForCommunication(comm)}
+                        style={{
+                          textAlign: 'left',
+                          width: '100%',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          backgroundColor: 'var(--color-surface)',
+                          padding: 'var(--spacing-md)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <strong style={{ display: 'block', marginBottom: 4 }}>{comm.title}</strong>
+                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                              {getCommunicationDate(comm)?.toLocaleDateString('es-AR') || '-'} · {getTypeLabel(comm.type)}
+                            </span>
+                          </div>
+                          <div style={{ minWidth: 150 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
+                              <span>{comm.statsData?.porcentaje || 0}%</span>
+                              <span style={{ color: 'var(--color-error)', fontWeight: 600 }}>
+                                {comm.statsData?.pendientes || 0} pendientes
+                              </span>
+                            </div>
+                            <div style={{ height: 8, backgroundColor: 'var(--color-border)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${comm.statsData?.porcentaje || 0}%`,
+                                height: '100%',
+                                backgroundColor: (comm.statsData?.porcentaje || 0) === 100
+                                  ? 'var(--color-success)'
+                                  : 'var(--color-warning)'
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card__header card__header--compact">
+                <h2 className="card__title">Ranking de pendientes</h2>
+              </div>
+              <div className="card__body">
+                {analytics.familiasConMasPendientes.length === 0 ? (
+                  <div className="alert alert--success">Sin familias pendientes.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
+                    {analytics.familiasConMasPendientes.map(({ family, pendientes }) => (
+                      <div
+                        key={family.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          gap: 'var(--spacing-sm)',
+                          padding: 'calc(var(--spacing-xs) + 2px) 0',
+                          borderBottom: '1px solid var(--color-border)'
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {family.displayName || family.email}
+                          </strong>
+                        </div>
+                        <span className="badge badge--error">{pendientes}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {analytics.porTipo.length > 0 && (
+            <div className="card" style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <div className="card__header card__header--compact">
+                <h2 className="card__title">Lectura por tipo de comunicado</h2>
+              </div>
+              <div className="card__body">
+                <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
+                  {analytics.porTipo.map((item) => (
+                    <div key={item.type} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 90px', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                      <span className={getTypeBadgeClass(item.type)} style={{ justifyContent: 'center' }}>
+                        {getTypeLabel(item.type)}
+                      </span>
+                      <div style={{ height: 10, backgroundColor: 'var(--color-border)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${item.porcentaje}%`,
+                          height: '100%',
+                          backgroundColor: item.porcentaje === 100
+                            ? 'var(--color-success)'
+                            : item.porcentaje >= 50
+                            ? 'var(--color-warning)'
+                            : 'var(--color-error)'
+                        }} />
+                      </div>
+                      <span style={{ fontSize: 'var(--font-size-sm)', textAlign: 'right' }}>
+                        {item.porcentaje}% · {item.pendientes}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       <div className="card">
         <div className="card__body">
@@ -529,19 +813,19 @@ export function ReadReceiptsPanel() {
                         onClick={() => handleSort('title')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Título {sortBy === 'title' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
+                        Título {renderSortArrow('title')}
                       </th>
                       <th
                         onClick={() => handleSort('createdAt')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Fecha {sortBy === 'createdAt' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
+                        Fecha {renderSortArrow('createdAt')}
                       </th>
                       <th
                         onClick={() => handleSort('type')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Tipo {sortBy === 'type' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
+                        Tipo {renderSortArrow('type')}
                       </th>
                       {selectedFamilyId === 'all' && (
                         <>
@@ -551,7 +835,7 @@ export function ReadReceiptsPanel() {
                             onClick={() => handleSort('pendientes')}
                             style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                           >
-                            Pendientes {sortBy === 'pendientes' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
+                            Pendientes {renderSortArrow('pendientes')}
                           </th>
                         </>
                       )}
@@ -559,7 +843,7 @@ export function ReadReceiptsPanel() {
                         onClick={() => handleSort('percentage')}
                         style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center' }}
                       >
-                        {selectedFamilyId === 'all' ? 'Progreso' : 'Estado'} {sortBy === 'percentage' && (sortOrder === 'asc' ? 'ASC' : 'DESC')}
+                        {selectedFamilyId === 'all' ? 'Progreso' : 'Estado'} {renderSortArrow('percentage')}
                       </th>
                       {selectedFamilyId === 'all' && <th style={{ textAlign: 'center' }}>Estado</th>}
                     </tr>
@@ -869,67 +1153,97 @@ export function ReadReceiptsPanel() {
                 </>
               )}
 
-              {pendingUsers.length > 0 && (
-                <>
-                  <h3 style={{ marginBottom: 'var(--spacing-sm)', fontSize: 'var(--font-size-md)' }}>
-                    Familias Pendientes ({pendingUsers.length})
-                  </h3>
-                  <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Nombre</th>
-                          <th>Email</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingUsers.map(user => (
-                          <tr key={user.id}>
-                            <td>{user.displayName || 'Sin nombre'}</td>
-                            <td>{user.email}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-
-              {readUsers.length > 0 && (
-                <>
-                  <h3 style={{ marginBottom: 'var(--spacing-sm)', fontSize: 'var(--font-size-md)' }}>
-                    Familias que leyeron ({readUsers.length})
-                  </h3>
-                  <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: 'var(--spacing-md)' }}>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Nombre</th>
-                          <th>Fecha de lectura</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {readUsers.map(r => (
-                          <tr key={r.userId}>
-                            <td>{r.userDisplayName || r.userId}</td>
-                            <td style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
-                              {r.leidoAt?.toDate
-                                ? new Date(r.leidoAt.toDate()).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-
-              {pendingUsers.length === 0 && stats?.pendientes === 0 && (
-                <div className="alert alert--success">
-                  Todas las familias han leído este comunicado
+              <div style={{ marginTop: 'var(--spacing-md)' }}>
+                <div
+                  role="tablist"
+                  aria-label="Estado de lectura por familia"
+                  style={{
+                    display: 'flex',
+                    gap: 'var(--spacing-xs)',
+                    borderBottom: '1px solid var(--color-border)',
+                    marginBottom: 'var(--spacing-md)'
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={detailTab === 'pending'}
+                    className={`btn btn--sm ${detailTab === 'pending' ? 'btn--primary' : 'btn--outline'}`}
+                    onClick={() => setDetailTab('pending')}
+                    style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                  >
+                    Pendientes ({pendingUsers.length})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={detailTab === 'read'}
+                    className={`btn btn--sm ${detailTab === 'read' ? 'btn--primary' : 'btn--outline'}`}
+                    onClick={() => setDetailTab('read')}
+                    style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                  >
+                    Leídos ({readUsers.length})
+                  </button>
                 </div>
-              )}
+
+                {detailTab === 'pending' && (
+                  pendingUsers.length > 0 ? (
+                    <div style={{ maxHeight: '280px', overflowY: 'auto', marginBottom: 'var(--spacing-md)' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingUsers.map(user => (
+                            <tr key={user.id}>
+                              <td>{user.displayName || 'Sin nombre'}</td>
+                              <td>{user.email}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="alert alert--success">
+                      No hay familias pendientes para este comunicado.
+                    </div>
+                  )
+                )}
+
+                {detailTab === 'read' && (
+                  readUsers.length > 0 ? (
+                    <div style={{ maxHeight: '280px', overflowY: 'auto', marginBottom: 'var(--spacing-md)' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Fecha de lectura</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {readUsers.map(r => (
+                            <tr key={r.userId}>
+                              <td>{r.userDisplayName || r.userId}</td>
+                              <td style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
+                                {r.leidoAt?.toDate
+                                  ? new Date(r.leidoAt.toDate()).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                  : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="alert alert--info">
+                      Todavía no hay lecturas registradas.
+                    </div>
+                  )
+                )}
+              </div>
             </div>
 
             <div className="modal-footer">

@@ -26,7 +26,7 @@ const patchConversationAsRead = (items, conversationId, forRole, uid) => (
   })
 );
 
-export function useConversations({ user, role, limitCount = 200 }) {
+export function useConversations({ user, role }) {
   // rawLegacy: familiaUid == uid (individual legacy + new individual)
   // rawGroup: participantesUids array-contains uid (grupales + secundarios)
   const [rawLegacy, setRawLegacy] = useState([]);
@@ -39,8 +39,8 @@ export function useConversations({ user, role, limitCount = 200 }) {
     const map = new Map();
     rawLegacy.forEach(c => map.set(c.id, c));
     rawGroup.forEach(c => map.set(c.id, c));
-    return sortConversationsByLatestMessage(Array.from(map.values())).slice(0, limitCount);
-  }, [rawLegacy, rawGroup, limitCount]);
+    return sortConversationsByLatestMessage(Array.from(map.values()));
+  }, [rawLegacy, rawGroup]);
 
   useEffect(() => {
     const handleConversationRead = (event) => {
@@ -130,7 +130,7 @@ export function useConversations({ user, role, limitCount = 200 }) {
     );
 
     return () => unsubscribe();
-  }, [user, role, limitCount]);
+  }, [user, role]);
 
   const unreadCount = useMemo(() => {
     if (!role) return 0;

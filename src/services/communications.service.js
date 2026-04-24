@@ -77,12 +77,11 @@ export const communicationsService = {
     }
   },
 
-  async getAllCommunications(limitCount = 50) {
+  async getAllCommunications() {
     try {
       const q = query(
         communicationsCollection,
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
+        orderBy('createdAt', 'desc')
       );
       const snapshot = await getDocs(q);
       const communications = snapshot.docs.map(doc => ({
@@ -95,7 +94,7 @@ export const communicationsService = {
     }
   },
 
-  async getCommunicationsBySender(senderId, limitCount = 50) {
+  async getCommunicationsBySender(senderId) {
     try {
       const q = query(
         communicationsCollection,
@@ -107,7 +106,7 @@ export const communicationsService = {
           id: doc.id,
           ...fixMojibakeDeep(doc.data())
         }))
-      ).slice(0, limitCount);
+      );
       return { success: true, communications };
     } catch (error) {
       return { success: false, error: error.message };

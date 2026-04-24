@@ -1,27 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useConversations } from '../../hooks/useConversations';
+import { useAdminConversations } from '../../hooks/useAdminConversations';
 import { CONVERSATION_CATEGORIES, CONVERSATION_STATUS, ROUTES, ROLES } from '../../config/constants';
 import { formatRelativeTime } from '../../utils/dateHelpers';
 import Icon from '../../components/ui/Icon';
 import {
   getAreaLabel,
   getConversationActivityDate,
-  getConversationActivityTime,
   getCategoryLabel,
   getConversationStatusBadge,
-  getConversationStatusLabel
+  getConversationStatusLabel,
 } from '../../utils/conversationHelpers';
-
-const ITEMS_PER_PAGE = 20;
-const STATUS_FILTERS = {
-  TODAS: 'todas',
-  SIN_RESPONDER: 'sin_responder',
-  NO_LEIDAS: 'no_leidas',
-  CERRADAS: 'cerradas'
-};
 
 const isClosedConversation = (conv) => conv?.estado === CONVERSATION_STATUS.CERRADA;
 const hasUnreadForSchool = (conv) => !isClosedConversation(conv) && (conv?.mensajesSinLeerEscuela || 0) > 0;
@@ -33,72 +23,45 @@ const isPendingSchoolReply = (conv) => {
 };
 
 export function AdminConversations() {
-  const { user, role } = useAuth();
-  const { conversations, loading, error, unreadCount } = useConversations({ user, role });
-  const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS.TODAS);
-  const [categoryFilter, setCategoryFilter] = useState('todas');
-  const [initiatedFilter, setInitiatedFilter] = useState('todas');
+  const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  const hasFilters = statusFilter !== STATUS_FILTERS.TODAS || categoryFilter !== 'todas' || initiatedFilter !== 'todas' || searchTerm.trim() !== '';
+  const {
+    conversations,
+    counts,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    statusFilter,
+    setStatusFilter,
+    categoryFilter,
+    setCategoryFilter,
+    initiatedFilter,
+    setInitiatedFilter,
+    clearFilters,
+    loadMore,
+  } = useAdminConversations({ role });
 
-  const clearFilters = () => {
-    setStatusFilter(STATUS_FILTERS.TODAS);
-    setCategoryFilter('todas');
-    setInitiatedFilter('todas');
-    setSearchTerm('');
-  };
+  const hasFilters =
+    statusFilter !== 'todas' ||
+    categoryFilter !== 'todas' ||
+    initiatedFilter !== 'todas' ||
+    searchTerm.trim() !== '';
 
-  useEffect(() => {
-    setVisibleCount(ITEMS_PER_PAGE);
-  }, [statusFilter, categoryFilter, initiatedFilter, searchTerm]);
-
-  const counts = useMemo(() => {
-    return {
-      sinResponder: conversations.filter(isPendingSchoolReply).length,
-      noLeidas: conversations.filter(hasUnreadForSchool).length,
-      cerradas: conversations.filter(isClosedConversation).length
-    };
-  }, [conversations]);
-
-  const filtered = useMemo(() => {
-    const result = conversations.filter((conv) => {
-      if (statusFilter !== STATUS_FILTERS.TODAS) {
-        if (statusFilter === STATUS_FILTERS.SIN_RESPONDER && !isPendingSchoolReply(conv)) return false;
-        if (statusFilter === STATUS_FILTERS.NO_LEIDAS && !hasUnreadForSchool(conv)) return false;
-        if (statusFilter === STATUS_FILTERS.CERRADAS && !isClosedConversation(conv)) return false;
-      }
-
-      if (categoryFilter !== 'todas' && conv.categoria !== categoryFilter) return false;
-      if (initiatedFilter !== 'todas' && conv.iniciadoPor !== initiatedFilter) return false;
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase();
-        const name = (conv.familiaDisplayName || conv.familiaEmail || '').toLowerCase();
-        if (!name.includes(term)) return false;
-      }
-      return true;
-    });
-
-    if (statusFilter === STATUS_FILTERS.SIN_RESPONDER) {
-      return [...result].sort((a, b) => {
-        const unreadPriority = Number(hasUnreadForSchool(b)) - Number(hasUnreadForSchool(a));
-        if (unreadPriority !== 0) return unreadPriority;
-        return getConversationActivityTime(b) - getConversationActivityTime(a);
-      });
-    }
-
-    return result;
-  }, [conversations, statusFilter, categoryFilter, initiatedFilter, searchTerm]);
-
+  // Búsqueda por nombre/email en cliente (no indexable eficientemente en Firestore)
   const visible = useMemo(() => {
-    return filtered.slice(0, visibleCount);
-  }, [filtered, visibleCount]);
+    if (!searchTerm.trim()) return conversations;
+    const term = searchTerm.toLowerCase();
+    return conversations.filter((conv) => {
+      const name = (conv.familiaDisplayName || conv.familiaEmail || '').toLowerCase();
+      return name.includes(term);
+    });
+  }, [conversations, searchTerm]);
 
-  const hasMore = filtered.length > visibleCount;
-
-  const loadMore = () => {
-    setVisibleCount((prev) => prev + ITEMS_PER_PAGE);
+  const handleClearFilters = () => {
+    clearFilters();
+    setSearchTerm('');
   };
 
   if (loading) {
@@ -125,9 +88,6 @@ export function AdminConversations() {
           <p className="dashboard-subtitle">Mensajes privados y consultas individuales</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
-          {unreadCount > 0 && (
-            <span className="badge badge--warning">{unreadCount} sin leer</span>
-          )}
           <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
             <Icon name="chevron-left" size={16} />
             Volver
@@ -144,7 +104,7 @@ export function AdminConversations() {
             <div className="user-toolbar__left">
               <div className="user-toolbar__summary">
                 <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', flexWrap: 'wrap' }}>
-                  <strong>Total:</strong> {conversations.length}
+                  <strong>Total:</strong> {counts.total}
                   <span style={{ color: 'var(--color-text-light)' }}>|</span>
                   <span style={{
                     color: counts.sinResponder > 0 ? 'var(--color-error)' : 'var(--color-text)',
@@ -176,10 +136,10 @@ export function AdminConversations() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value={STATUS_FILTERS.TODAS}>Todas</option>
-                  <option value={STATUS_FILTERS.SIN_RESPONDER}>Sin responder</option>
-                  <option value={STATUS_FILTERS.NO_LEIDAS}>No leidas</option>
-                  <option value={STATUS_FILTERS.CERRADAS}>Cerradas</option>
+                  <option value="todas">Todas</option>
+                  <option value="sin_responder">Sin responder</option>
+                  <option value="no_leidas">No leidas</option>
+                  <option value="cerradas">Cerradas</option>
                 </select>
               </div>
 
@@ -213,7 +173,7 @@ export function AdminConversations() {
               </div>
 
               {hasFilters && (
-                <button type="button" className="btn btn--sm btn--outline" onClick={clearFilters}>
+                <button type="button" className="btn btn--sm btn--outline" onClick={handleClearFilters}>
                   Limpiar filtros
                 </button>
               )}
@@ -222,7 +182,7 @@ export function AdminConversations() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="card">
           <div className="card__body">
             <div className="empty-state">
@@ -238,7 +198,7 @@ export function AdminConversations() {
             color: 'var(--color-text-light)',
             paddingLeft: 'var(--spacing-sm)'
           }}>
-            Mostrando {visible.length} de {filtered.length}
+            Mostrando {visible.length}{hasMore ? '+' : ''} de {counts.total}
           </div>
           <div className="conversation-list">
             {visible.map((conv) => {
@@ -307,8 +267,12 @@ export function AdminConversations() {
           </div>
           {hasMore && (
             <div style={{ textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
-              <button onClick={loadMore} className="btn btn--outline">
-                Cargar mas ({filtered.length - visibleCount} restantes)
+              <button
+                onClick={loadMore}
+                className="btn btn--outline"
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'Cargando...' : `Cargar más conversaciones`}
               </button>
             </div>
           )}

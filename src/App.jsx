@@ -166,7 +166,7 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
-                    <ReadReceiptsPanel />
+                    <ReadReceiptsPanel view="history" />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
@@ -190,7 +190,7 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
-                    <ReadReceiptsPanel />
+                    <ReadReceiptsPanel view="analytics" />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>
