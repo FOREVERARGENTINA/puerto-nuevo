@@ -637,7 +637,7 @@ export function useNotifications() {
     role === ROLES.FAMILY
       ? '/portal/familia/comunicados'
       : role === ROLES.DOCENTE
-        ? '/portal/docente'
+        ? '/portal/docente/comunicados'
         : role === ROLES.TALLERISTA
           ? '/portal/tallerista'
         : '/portal/admin';
@@ -859,7 +859,7 @@ export function useNotifications() {
       message: comm.title,
       timestamp: comm.createdAt?.toDate() || new Date(),
       urgent: comm.requiereLecturaObligatoria,
-      actionUrl: communicationsUrl,
+      actionUrl: `${communicationsUrl}/${comm.id}`,
       metadata: { commId: comm.id }
     })),
     ...recentEventItems,

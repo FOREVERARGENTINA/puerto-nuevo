@@ -278,11 +278,12 @@ service cloud.firestore {
 
     // Colección: /communications (comunicados)
     match /communications/{commId} {
-      // Leer: Admin, destinatarios o el autor del comunicado.
+      // Leer: Admin, destinatarios, el autor, o docente leyendo comunicados globales/ambiente.
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource.data.sentBy == request.auth.uid ||
-        request.auth.uid in resource.data.destinatarios
+        request.auth.uid in resource.data.destinatarios ||
+        (isDocente() && resource.data.type in ['global', 'ambiente'])
       );
 
       // Crear: SuperAdmin, Coordinación, Docentes (NO talleristas)
