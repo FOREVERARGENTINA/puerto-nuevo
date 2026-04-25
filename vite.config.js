@@ -46,34 +46,24 @@ export default defineConfig({
       }
     })
   ],
-  esbuild: {
-    loader: 'jsx',
-    include: /src\/.*\.jsx?$/,
-    exclude: []
-  },
   optimizeDeps: {
-    esbuildOptions: {
-      loader: {
-        '.js': 'jsx'
-      }
+    rolldownOptions: {
+      external: []
     }
   },
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Dependencias React core
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Firebase separado
-          'vendor-firebase': [
-            'firebase/app',
-            'firebase/auth',
-            'firebase/firestore',
-            'firebase/storage',
-            'firebase/functions'
-          ],
-          // Aislar convertidor HEIC para control de cache en PWA
-          'heic-converter': ['heic2any']
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/firebase/')) {
+            return 'vendor-firebase';
+          }
+          if (id.includes('node_modules/heic2any')) {
+            return 'heic-converter';
+          }
         }
       }
     },
