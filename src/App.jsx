@@ -51,6 +51,8 @@ import { DirectMessageThread } from './pages/family/DirectMessageThread';
 
 // Lazy load páginas docente
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
+const TeacherCommunications = lazy(() => import('./pages/teacher/TeacherCommunications').then(m => ({ default: m.TeacherCommunications })));
+const TeacherCommunicationDetail = lazy(() => import('./pages/teacher/TeacherCommunicationDetail').then(m => ({ default: m.TeacherCommunicationDetail })));
 
 // Lazy load páginas tallerista
 const TalleristaDashboard = lazy(() => import('./pages/tallerista/TalleristaDashboard').then(m => ({ default: m.TalleristaDashboard })));
@@ -644,7 +646,19 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
-                    <ReadReceiptsPanel />
+                    <TeacherCommunications />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal/docente/comunicados/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                    <TeacherCommunicationDetail />
                   </RoleGuard>
                 </Layout>
               </ProtectedRoute>

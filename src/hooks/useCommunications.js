@@ -38,26 +38,6 @@ export function useCommunications(limitCount = 50) {
     setLoading(true);
     setError(null);
 
-    let q;
-
-    if (ADMIN_ROLES.includes(role)) {
-      q = query(
-        collection(db, 'communications'),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-    } else {
-      q = query(
-        collection(db, 'communications'),
-        where('destinatarios', 'array-contains', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
-    }
-
-    let currentComms = [];
-
-    // Función para verificar lecturas
     const checkUnreadCommunications = async (comms) => {
       const trackableComms = comms.filter((comm) => (
         comm.requiereLecturaObligatoria || comm.type === COMMUNICATION_TYPES.INDIVIDUAL
