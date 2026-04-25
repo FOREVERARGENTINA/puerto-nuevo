@@ -49,7 +49,7 @@
     "browser-image-compression": "^2.0.2",
     "d3-force-3d": "^3.0.6",
     "dompurify": "^3.4.1",
-    "firebase": "^12.6.0",
+    "firebase": "^12.12.1",
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^7.0.6",
     "heic2any": "^0.0.4",

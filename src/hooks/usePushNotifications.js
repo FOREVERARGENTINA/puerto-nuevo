@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getMessaging, getToken, isSupported as isMessagingSupported, onMessage } from 'firebase/messaging';
 import app, { isUsingFirebaseEmulators } from '../config/firebase';
 import { usersService } from '../services/users.service';
+import { useAuth } from './useAuth';
+import { ROLE_DASHBOARDS } from '../config/constants';
 
 const PUSH_SW_PATH = '/firebase-messaging-sw.js';
 const TRANSIENT_IDB_RETRY_DELAY_MS = 500;
@@ -70,6 +72,7 @@ function detectStandalone() {
 }
 
 export function usePushNotifications(user) {
+  const { role } = useAuth();
   const [isPushSupported, setIsPushSupported] = useState(false);
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [isActivatingPush, setIsActivatingPush] = useState(false);
@@ -242,7 +245,7 @@ export function usePushNotifications(user) {
       unsub = onMessage(messaging, (payload) => {
         const title = payload?.data?.title || payload?.notification?.title || 'Puerto Nuevo';
         const body = payload?.data?.body || payload?.notification?.body || '';
-        const clickAction = payload?.data?.clickAction || payload?.data?.url || '/portal/familia';
+        const clickAction = payload?.data?.clickAction || payload?.data?.url || ROLE_DASHBOARDS[role] || '/portal';
 
         if (document.visibilityState === 'visible') {
           showInAppToast(title, body);
