@@ -55,20 +55,76 @@ export function useCommunications(limitCount = 50) {
       setUnreadRequired(unread.filter((comm) => comm.requiereLecturaObligatoria));
     };
 
+    // Docente: ve comunicados globales/ambiente + individuales dirigidos a él.
+    // Firestore no soporta OR entre campos distintos → dos listeners mergeados.
+    if (role === ROLES.DOCENTE) {
+      let broadcastComms = [];
+      let individualComms = [];
+      let currentComms = [];
+
+      const merge = () => {
+        const map = new Map();
+        [...broadcastComms, ...individualComms].forEach((c) => map.set(c.id, c));
+        currentComms = Array.from(map.values()).sort(
+          (a, b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0)
+        );
+        setCommunications(currentComms);
+        setLoading(false);
+        checkUnreadCommunications(currentComms).catch(console.error);
+      };
+
+      const unsubBroadcast = onSnapshot(
+        query(
+          collection(db, 'communications'),
+          where('type', 'in', [COMMUNICATION_TYPES.GLOBAL, COMMUNICATION_TYPES.AMBIENTE]),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        ),
+        (snap) => { broadcastComms = snap.docs.map((d) => ({ id: d.id, ...d.data() })); merge(); },
+        (err) => { console.error('Error listener comunicados globales:', err); setError(err.message); setLoading(false); }
+      );
+
+      const unsubIndividual = onSnapshot(
+        query(
+          collection(db, 'communications'),
+          where('type', '==', COMMUNICATION_TYPES.INDIVIDUAL),
+          where('destinatarios', 'array-contains', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        ),
+        (snap) => { individualComms = snap.docs.map((d) => ({ id: d.id, ...d.data() })); merge(); },
+        (err) => { console.error('Error listener comunicados individuales:', err); }
+      );
+
+      const intervalId = setInterval(() => {
+        if (currentComms.length > 0) checkUnreadCommunications(currentComms).catch(console.error);
+      }, 5000);
+
+      return () => { unsubBroadcast(); unsubIndividual(); clearInterval(intervalId); };
+    }
+
+    let q;
+    if (ADMIN_ROLES.includes(role)) {
+      q = query(collection(db, 'communications'), orderBy('createdAt', 'desc'), limit(limitCount));
+    } else {
+      q = query(
+        collection(db, 'communications'),
+        where('destinatarios', 'array-contains', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+    }
+
+    let currentComms = [];
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const comms = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
+        const comms = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         currentComms = comms;
         setCommunications(comms);
         setLoading(false);
-        checkUnreadCommunications(comms).catch((err) => {
-          console.error('Error verificando lecturas:', err);
-        });
+        checkUnreadCommunications(comms).catch((err) => { console.error('Error verificando lecturas:', err); });
       },
       (err) => {
         console.error('Error en listener de comunicados:', err);
@@ -77,18 +133,11 @@ export function useCommunications(limitCount = 50) {
       }
     );
 
-    // Listener adicional: detectar cuando se agregan lecturas del usuario
-    // Verificar cada 5 segundos si hay cambios en las lecturas
     const intervalId = setInterval(async () => {
-      if (currentComms.length > 0) {
-        await checkUnreadCommunications(currentComms);
-      }
+      if (currentComms.length > 0) await checkUnreadCommunications(currentComms);
     }, 5000);
 
-    return () => {
-      unsubscribe();
-      clearInterval(intervalId);
-    };
+    return () => { unsubscribe(); clearInterval(intervalId); };
   }, [user, role, limitCount]);
 
   const markAsRead = async (commId) => {
