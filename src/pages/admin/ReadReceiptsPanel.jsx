@@ -6,7 +6,7 @@ import { CommunicationRichContent } from '../../components/communications/Commun
 import { readReceiptsService } from '../../services/readReceipts.service';
 import { usersService } from '../../services/users.service';
 import { useAuth } from '../../hooks/useAuth';
-import { ROLES, ROUTES } from '../../config/constants';
+import { AMBIENTES, ROLES, ROUTES } from '../../config/constants';
 
 const getCommunicationDate = (comm) => {
   const value = comm?.createdAt?.toDate ? comm.createdAt.toDate() : null;
@@ -230,7 +230,6 @@ export function ReadReceiptsPanel({ view = 'history' }) {
         const percentage = stats?.porcentaje || 0;
         
         if (filterStatus === 'complete') return percentage === 100;
-        if (filterStatus === 'progress') return percentage > 0 && percentage < 100;
         if (filterStatus === 'pending') return percentage === 0;
         return true;
       });
@@ -337,17 +336,27 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     setCurrentPage(1); // Resetear a primera página
   };
 
-  const getTypeLabel = (type) => {
+  const getTypeLabel = (type, ambiente) => {
+    if (type === 'ambiente') {
+      if (ambiente === AMBIENTES.TALLER_1) return 'Taller 1';
+      if (ambiente === AMBIENTES.TALLER_2) return 'Taller 2';
+      return 'Ambiente';
+    }
+
     const labels = {
       'global': 'Global',
-      'ambiente': 'Ambiente',
       'taller': 'Taller',
       'individual': 'Individual'
     };
     return labels[type] || type;
   };
 
-  const getTypeBadgeClass = (type) => {
+  const getTypeBadgeClass = (type, ambiente) => {
+    if (type === 'ambiente') {
+      if (ambiente === AMBIENTES.TALLER_1) return 'badge badge--warning';
+      if (ambiente === AMBIENTES.TALLER_2) return 'badge badge--success';
+    }
+
     const classes = {
       'global': 'badge--info',
       'ambiente': 'badge--warning',
@@ -357,9 +366,35 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     return `badge ${classes[type] || ''}`;
   };
 
+  const getIndividualRecipientSummary = (comm) => {
+    if (comm?.type !== 'individual') {
+      return null;
+    }
+
+    const recipients = (comm.destinatarios || [])
+      .map((uid) => allFamilies.find((family) => family.id === uid))
+      .filter(Boolean);
+
+    if (recipients.length === 0) {
+      return selectedFamilyId !== 'all'
+        ? allFamilies.find((family) => family.id === selectedFamilyId)?.email || null
+        : null;
+    }
+
+    const labels = recipients.map((recipient) => recipient.email || recipient.displayName).filter(Boolean);
+    if (labels.length === 0) {
+      return null;
+    }
+
+    if (labels.length === 1) {
+      return labels[0];
+    }
+
+    return `${labels[0]} +${labels.length - 1}`;
+  };
+
   const getStatusBadge = (percentage) => {
     if (percentage === 100) return <span className="badge badge--success">Completo</span>;
-    if (percentage >= 50) return <span className="badge badge--warning">En progreso</span>;
     return <span className="badge badge--error">Pendiente</span>;
   };
 
@@ -376,7 +411,6 @@ export function ReadReceiptsPanel({ view = 'history' }) {
       acc.leidos += leidos;
       acc.pendientes += pendientes;
       if (porcentaje === 100 && total > 0) acc.completos += 1;
-      if (porcentaje > 0 && porcentaje < 100) acc.enProgreso += 1;
       if (porcentaje === 0 && total > 0) acc.sinLecturas += 1;
       if (comm.requiereLecturaObligatoria && pendientes > 0) acc.obligatoriosPendientes += 1;
       return acc;
@@ -385,7 +419,6 @@ export function ReadReceiptsPanel({ view = 'history' }) {
       leidos: 0,
       pendientes: 0,
       completos: 0,
-      enProgreso: 0,
       sinLecturas: 0,
       obligatoriosPendientes: 0,
     });
@@ -585,7 +618,7 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                           <div style={{ minWidth: 0 }}>
                             <strong style={{ display: 'block', marginBottom: 4 }}>{comm.title}</strong>
                             <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-xs)' }}>
-                              {getCommunicationDate(comm)?.toLocaleDateString('es-AR') || '-'} · {getTypeLabel(comm.type)}
+                              {getCommunicationDate(comm)?.toLocaleDateString('es-AR') || '-'} · {getTypeLabel(comm.type, comm.ambiente)}
                             </span>
                           </div>
                           <div style={{ minWidth: 150 }}>
@@ -772,7 +805,6 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                     >
                       <option value="all">Todos</option>
                       <option value="complete">Completo</option>
-                      <option value="progress">En progreso</option>
                       <option value="pending">Pendiente</option>
                     </select>
                   </div>
@@ -806,7 +838,28 @@ export function ReadReceiptsPanel({ view = 'history' }) {
 
               {/* Tabla */}
               <div style={{ overflowX: 'auto' }}>
-                <table className="table">
+                <table
+                  className="table"
+                  style={{
+                    width: '100%',
+                    tableLayout: 'fixed',
+                    minWidth: selectedFamilyId === 'all' ? '1040px' : '760px'
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: selectedFamilyId === 'all' ? '28%' : '40%' }} />
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: selectedFamilyId === 'all' ? '220px' : '240px' }} />
+                    {selectedFamilyId === 'all' && (
+                      <>
+                        <col style={{ width: '72px' }} />
+                        <col style={{ width: '72px' }} />
+                        <col style={{ width: '96px' }} />
+                      </>
+                    )}
+                    <col style={{ width: selectedFamilyId === 'all' ? '180px' : '120px' }} />
+                    {selectedFamilyId === 'all' && <col style={{ width: '120px' }} />}
+                  </colgroup>
                   <thead>
                     <tr>
                       <th
@@ -825,7 +878,7 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                         onClick={() => handleSort('type')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
-                        Tipo {renderSortArrow('type')}
+                        Tipo / destinatario {renderSortArrow('type')}
                       </th>
                       {selectedFamilyId === 'all' && (
                         <>
@@ -875,15 +928,44 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                             className="table-row-hoverable"
                           >
                             <td>
-                              <strong>{comm.title}</strong>
+                              <strong
+                                title={comm.title}
+                                style={{
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {comm.title}
+                              </strong>
                             </td>
-                            <td>
+                            <td style={{ whiteSpace: 'nowrap' }}>
                               {comm.createdAt ? new Date(comm.createdAt.toDate()).toLocaleDateString('es-AR') : '-'}
                             </td>
                             <td>
-                              <span className={getTypeBadgeClass(comm.type)}>
-                                {getTypeLabel(comm.type)}
-                              </span>
+                              {comm.type === 'individual' ? (
+                                <span
+                                  title={(comm.destinatarios || [])
+                                    .map((uid) => allFamilies.find((family) => family.id === uid)?.email)
+                                    .filter(Boolean)
+                                    .join(', ')}
+                                  style={{
+                                    display: 'inline-block',
+                                    width: '100%',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    verticalAlign: 'bottom'
+                                  }}
+                                >
+                                  {getIndividualRecipientSummary(comm) || getTypeLabel(comm.type)}
+                                </span>
+                              ) : (
+                                <span className={getTypeBadgeClass(comm.type, comm.ambiente)}>
+                                  {getTypeLabel(comm.type, comm.ambiente)}
+                                </span>
+                              )}
                             </td>
                             {selectedFamilyId === 'all' && (
                               <>
@@ -1067,8 +1149,8 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                   fontSize: 'var(--font-size-xs)',
                   color: 'var(--color-text-light)'
                 }}>
-                  <span className={getTypeBadgeClass(selectedComm.type)}>
-                    {getTypeLabel(selectedComm.type)}
+                  <span className={getTypeBadgeClass(selectedComm.type, selectedComm.ambiente)}>
+                    {getTypeLabel(selectedComm.type, selectedComm.ambiente)}
                   </span>
                   {selectedComm.createdAt && (
                     <span>

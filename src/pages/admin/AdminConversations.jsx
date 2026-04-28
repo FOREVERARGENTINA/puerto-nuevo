@@ -215,7 +215,20 @@ export function AdminConversations() {
                 >
                   <div className="conversation-item__main">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                      <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      {(isClosed || (!isClosed && pendingSchoolReply)) && (
+                        <span
+                          className={getConversationStatusBadge(
+                            isClosed ? CONVERSATION_STATUS.CERRADA : CONVERSATION_STATUS.PENDIENTE
+                          )}
+                          style={{ fontSize: 'var(--font-size-xs)', flexShrink: 0 }}
+                        >
+                          {getConversationStatusLabel(
+                            isClosed ? CONVERSATION_STATUS.CERRADA : CONVERSATION_STATUS.PENDIENTE,
+                            ROLES.SUPERADMIN
+                          )}
+                        </span>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, flex: '1 1 340px' }}>
                         {conv.esGrupal && (
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-label="Conversación grupal" style={{ color: 'var(--color-text-light)', flexShrink: 0, marginTop: '1px' }}>
                             <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
@@ -224,18 +237,24 @@ export function AdminConversations() {
                             <path d="M22 20v-.5A4.5 4.5 0 0 0 15 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                           </svg>
                         )}
-                        {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
-                      </h3>
-                      {isClosed && (
-                        <span className={getConversationStatusBadge(CONVERSATION_STATUS.CERRADA)} style={{ fontSize: 'var(--font-size-xs)' }}>
-                          {getConversationStatusLabel(CONVERSATION_STATUS.CERRADA, ROLES.SUPERADMIN)}
-                        </span>
-                      )}
-                      {!isClosed && pendingSchoolReply && (
-                        <span className={getConversationStatusBadge(CONVERSATION_STATUS.PENDIENTE)} style={{ fontSize: 'var(--font-size-xs)' }}>
-                          {getConversationStatusLabel(CONVERSATION_STATUS.PENDIENTE, ROLES.SUPERADMIN)}
-                        </span>
-                      )}
+                        <h3 style={{ margin: 0, minWidth: 0, fontSize: 'var(--font-size-md)', fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: '5px', flex: 1 }}>
+                          <span style={{ flexShrink: 0 }}>
+                            {conv.familiaDisplayName || conv.familiaEmail || 'Familia'}
+                          </span>
+                          <span aria-hidden="true" style={{ color: 'var(--color-text-light)' }}>-</span>
+                          <span
+                            title={conv.asunto || 'Sin asunto'}
+                            style={{
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {conv.asunto || 'Sin asunto'}
+                          </span>
+                        </h3>
+                      </div>
                       {hasUnread && (
                         <span className="badge badge--error" style={{ fontSize: 'var(--font-size-xs)' }}>
                           {unreadCountForSchool} {unreadCountForSchool === 1 ? 'nuevo' : 'nuevos'}
@@ -246,8 +265,7 @@ export function AdminConversations() {
                       </span>
                     </div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginBottom: 'var(--spacing-xs)' }}>
-                      <span>{conv.asunto || 'Sin asunto'}</span>
-                      <span> | {getCategoryLabel(conv.categoria)}</span>
+                      <span>{getCategoryLabel(conv.categoria)}</span>
                       <span> | {getAreaLabel(conv.destinatarioEscuela)}</span>
                     </div>
                     <p style={{
