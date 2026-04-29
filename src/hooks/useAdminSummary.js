@@ -4,6 +4,13 @@ import { db } from '../config/firebase';
 import { AMBIENTES, ROLES } from '../config/constants';
 import { useAuth } from './useAuth';
 
+const resolveConversationAreasForRole = (role) => {
+  if (role === ROLES.COORDINACION) return ['coordinacion'];
+  if (role === ROLES.FACTURACION) return ['administracion'];
+  if (role === ROLES.SUPERADMIN) return null;
+  return [];
+};
+
 /**
  * Hook optimizado para el resumen del navbar en tiempo real
  * Usa listeners de Firestore con queries limitadas para no quemar recursos
@@ -163,21 +170,35 @@ export function useAdminSummary(enabled = false) {
       // 3. LISTENER DE CONVERSACIONES SIN LEER
       // Query: conversaciones donde lastMessageIsFromFamily = true Y schoolHasRead = false
       let conversationsQuery;
-      if (role === ROLES.COORDINACION) {
-        // Reglas Firestore: coordinación solo puede leer conversaciones de su área.
-        conversationsQuery = query(
-          collection(db, 'conversations'),
-          where('destinatarioEscuela', '==', 'coordinacion'),
-          where('lastMessageIsFromFamily', '==', true),
-          where('schoolHasRead', '==', false)
-        );
-      } else {
+      const conversationAreas = resolveConversationAreasForRole(role);
+      if (conversationAreas === null) {
         // Superadmin puede consultar sin filtro por área.
         conversationsQuery = query(
           collection(db, 'conversations'),
           where('lastMessageIsFromFamily', '==', true),
           where('schoolHasRead', '==', false)
         );
+      } else if (conversationAreas.length === 1) {
+        conversationsQuery = query(
+          collection(db, 'conversations'),
+          where('destinatarioEscuela', '==', conversationAreas[0]),
+          where('lastMessageIsFromFamily', '==', true),
+          where('schoolHasRead', '==', false)
+        );
+      } else if (conversationAreas.length > 1) {
+        conversationsQuery = query(
+          collection(db, 'conversations'),
+          where('destinatarioEscuela', 'in', conversationAreas),
+          where('lastMessageIsFromFamily', '==', true),
+          where('schoolHasRead', '==', false)
+        );
+      } else {
+        setSummary(prev => ({ ...prev, unreadConversations: 0 }));
+        setLoading(false);
+        return () => {
+          if (unsubscribeEvents) unsubscribeEvents();
+          if (unsubscribeSnacks) unsubscribeSnacks();
+        };
       }
 
       unsubscribeConversations = onSnapshot(

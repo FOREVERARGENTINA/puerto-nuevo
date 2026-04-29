@@ -18,16 +18,17 @@ import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const PAGE_SIZE = 50;
 
-const resolveAreaForRole = (role) => {
-  if (role === ROLES.COORDINACION) return 'coordinacion';
-  if (role === ROLES.FACTURACION) return 'administracion';
+const resolveAreasForRole = (role) => {
+  if (role === ROLES.COORDINACION) return ['coordinacion'];
+  if (role === ROLES.FACTURACION) return ['administracion'];
   return null;
 };
 
 const buildBaseConstraints = (role) => {
   if (role === ROLES.SUPERADMIN) return [];
-  const area = resolveAreaForRole(role);
-  if (area) return [where('destinatarioEscuela', '==', area)];
+  const areas = resolveAreasForRole(role);
+  if (areas?.length === 1) return [where('destinatarioEscuela', '==', areas[0])];
+  if (areas?.length > 1) return [where('destinatarioEscuela', 'in', areas)];
   return null; // rol no soportado
 };
 

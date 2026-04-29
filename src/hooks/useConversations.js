@@ -6,9 +6,9 @@ import { conversationsService } from '../services/conversations.service';
 import { CONVERSATION_READ_EVENT, emitConversationRead } from '../utils/conversationEvents';
 import { sortConversationsByLatestMessage } from '../utils/conversationHelpers';
 
-const resolveAreaForRole = (role) => {
-  if (role === ROLES.COORDINACION) return 'coordinacion';
-  if (role === ROLES.FACTURACION) return 'administracion';
+const resolveAreasForRole = (role) => {
+  if (role === ROLES.COORDINACION) return ['coordinacion'];
+  if (role === ROLES.FACTURACION) return ['administracion'];
   if (role === ROLES.SUPERADMIN) return null;
   return null;
 };
@@ -107,13 +107,15 @@ export function useConversations({ user, role }) {
     } else if (role === ROLES.COORDINACION) {
       q = query(collectionRef, where('destinatarioEscuela', '==', 'coordinacion'));
     } else {
-      const area = resolveAreaForRole(role);
-      if (!area) {
+      const areas = resolveAreasForRole(role);
+      if (!areas) {
         setRawLegacy([]);
         setLoading(false);
         return;
       }
-      q = query(collectionRef, where('destinatarioEscuela', '==', area));
+      q = areas.length === 1
+        ? query(collectionRef, where('destinatarioEscuela', '==', areas[0]))
+        : query(collectionRef, where('destinatarioEscuela', 'in', areas));
     }
 
     const unsubscribe = onSnapshot(

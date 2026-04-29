@@ -168,7 +168,9 @@ service cloud.firestore {
     }
 
     function isConversationSchool(conv) {
-      return isSuperAdmin() || (isCoordinacion() && conv.destinatarioEscuela == 'coordinacion');
+      return isSuperAdmin() ||
+        (isCoordinacion() && conv.destinatarioEscuela == 'coordinacion') ||
+        (getUserRole() == 'facturacion' && conv.destinatarioEscuela == 'administracion');
     }
 
     function isConversationParticipant(conv) {

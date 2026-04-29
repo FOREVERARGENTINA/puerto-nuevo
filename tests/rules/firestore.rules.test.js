@@ -52,6 +52,16 @@ describe('Firestore security rules', () => {
           iniciadoPor: 'familia',
           estado: 'activa',
         }),
+        db.collection('conversations').doc('rules_conv_facturacion').set({
+          familiaUid: 'rules_family_3',
+          participantesUids: ['rules_family_3'],
+          participanteMap: { rules_family_3: true },
+          destinatarioEscuela: 'administracion',
+          asunto: 'Consulta de facturacion',
+          categoria: 'pagos',
+          iniciadoPor: 'familia',
+          estado: 'activa',
+        }),
         db.collection('appointments').doc('rules_appt_taller1').set({
           estado: 'disponible',
           origenSlot: 'agenda',
@@ -83,6 +93,22 @@ describe('Firestore security rules', () => {
 
     await assertFails(
       familyDb.collection('conversations').doc('rules_conv_family_2').get()
+    );
+  });
+
+  test('rechaza a coordinacion leer una conversacion dirigida a facturacion', async () => {
+    const coordinacionDb = testEnv.authenticatedContext('rules_coord', { role: 'coordinacion' }).firestore();
+
+    await assertFails(
+      coordinacionDb.collection('conversations').doc('rules_conv_facturacion').get()
+    );
+  });
+
+  test('permite a facturacion leer una conversacion dirigida a facturacion', async () => {
+    const facturacionDb = testEnv.authenticatedContext('rules_facturacion', { role: 'facturacion' }).firestore();
+
+    await assertSucceeds(
+      facturacionDb.collection('conversations').doc('rules_conv_facturacion').get()
     );
   });
 

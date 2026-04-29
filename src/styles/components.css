@@ -5836,10 +5836,14 @@
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
   padding: var(--spacing-md) var(--spacing-lg);
+  /* safe area para notch/Dynamic Island en iPhone con viewport-fit=cover */
+  padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: var(--shadow-sm);
+  /* expone la altura real del navbar (contenido + safe-area) como variable */
+  --navbar-content-height: 70px;
 }
 
 .navbar__left {
@@ -9642,7 +9646,7 @@
 
   .sidebar {
     position: fixed;
-    top: calc(64px + env(safe-area-inset-top, 0px));
+    top: calc(var(--navbar-content-height, 70px) + env(safe-area-inset-top, 0px));
     left: 0;
     right: 0;
     width: auto;
@@ -9661,7 +9665,7 @@
 
   .sidebar--open {
     z-index: calc(var(--z-sticky) - 1);
-    max-height: calc(100dvh - (64px + env(safe-area-inset-top, 0px)));
+    max-height: calc(100dvh - (var(--navbar-content-height, 70px) + env(safe-area-inset-top, 0px)));
     padding: var(--spacing-sm) 0;
     border-bottom: var(--border-width) solid var(--color-border);
     overflow-y: auto;
@@ -11594,7 +11598,9 @@
 @media (max-width: 768px) {
   .navbar {
     padding: var(--spacing-sm) var(--spacing-md);
+    padding-top: calc(var(--spacing-sm) + env(safe-area-inset-top, 0px));
     gap: var(--spacing-sm);
+    --navbar-content-height: 56px;
   }
 
   .navbar__logo img {
@@ -11634,7 +11640,7 @@
 
   .sidebar {
     position: fixed;
-    top: calc(64px + env(safe-area-inset-top, 0px));
+    top: calc(var(--navbar-content-height, 70px) + env(safe-area-inset-top, 0px));
     left: 0;
     right: 0;
     width: auto;
@@ -11653,7 +11659,7 @@
 
   .sidebar--open {
     z-index: calc(var(--z-sticky) - 1);
-    max-height: calc(100dvh - (64px + env(safe-area-inset-top, 0px)));
+    max-height: calc(100dvh - (var(--navbar-content-height, 70px) + env(safe-area-inset-top, 0px)));
     padding: var(--spacing-sm) 0;
     border-bottom: var(--border-width) solid var(--color-border);
     overflow-y: auto;
