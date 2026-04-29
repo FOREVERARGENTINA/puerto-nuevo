@@ -6,6 +6,7 @@ import { useAuth } from './useAuth';
 import { ROLE_DASHBOARDS } from '../config/constants';
 
 const PUSH_SW_PATH = '/firebase-messaging-sw.js';
+const PUSH_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
 const TRANSIENT_IDB_RETRY_DELAY_MS = 500;
 const MAX_REGISTER_RETRIES = 2;
 const PUSH_NOTIFICATION_OPTIONS = {
@@ -16,6 +17,8 @@ const PUSH_NOTIFICATION_OPTIONS = {
 };
 
 let registerTokenInFlightPromise = null;
+let pushServiceWorkerRegistrationPromise = null;
+let cachedPushServiceWorkerRegistration = null;
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -58,6 +61,75 @@ async function waitForActiveServiceWorker(registration) {
   return registration;
 }
 
+function normalizeUrlPath(urlValue) {
+  if (!urlValue) return '';
+
+  try {
+    return new URL(urlValue, window.location.origin).pathname.replace(/\/$/, '');
+  } catch {
+    return String(urlValue).replace(/\/$/, '');
+  }
+}
+
+function isPushWorkerScript(scriptUrl) {
+  return normalizeUrlPath(scriptUrl) === PUSH_SW_PATH;
+}
+
+function isDedicatedPushRegistration(registration) {
+  if (!registration) return false;
+
+  return (
+    normalizeUrlPath(registration.scope) === PUSH_SW_SCOPE &&
+    [registration.active, registration.waiting, registration.installing]
+      .some((worker) => isPushWorkerScript(worker?.scriptURL))
+  );
+}
+
+async function unregisterLegacyRootPushRegistration() {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  const legacyPushRegistrations = registrations.filter((registration) => (
+    normalizeUrlPath(registration.scope) === '' &&
+    [registration.active, registration.waiting, registration.installing]
+      .some((worker) => isPushWorkerScript(worker?.scriptURL))
+  ));
+
+  await Promise.all(
+    legacyPushRegistrations.map((registration) => registration.unregister().catch(() => false))
+  );
+}
+
+async function getPushServiceWorkerRegistration() {
+  if (cachedPushServiceWorkerRegistration && isDedicatedPushRegistration(cachedPushServiceWorkerRegistration)) {
+    return cachedPushServiceWorkerRegistration;
+  }
+
+  if (pushServiceWorkerRegistrationPromise) {
+    return pushServiceWorkerRegistrationPromise;
+  }
+
+  pushServiceWorkerRegistrationPromise = (async () => {
+    await unregisterLegacyRootPushRegistration();
+
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const existingPushRegistration = registrations.find(isDedicatedPushRegistration);
+    const registration = existingPushRegistration || await navigator.serviceWorker.register(PUSH_SW_PATH, {
+      scope: PUSH_SW_SCOPE,
+    });
+
+    await waitForActiveServiceWorker(registration);
+    cachedPushServiceWorkerRegistration = registration;
+    return registration;
+  })();
+
+  try {
+    return await pushServiceWorkerRegistrationPromise;
+  } finally {
+    pushServiceWorkerRegistrationPromise = null;
+  }
+}
+
 function detectIos() {
   if (typeof window === 'undefined') return false;
   const ua = window.navigator.userAgent.toLowerCase();
@@ -77,202 +149,13 @@ export function usePushNotifications(user) {
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [isActivatingPush, setIsActivatingPush] = useState(false);
   const [pushError, setPushError] = useState('');
+  const userUid = user?.uid || '';
 
   const isIos = useMemo(() => detectIos(), []);
   const isStandalone = useMemo(() => detectStandalone(), []);
   const iosNeedsInstall = isIos && !isStandalone;
 
-  const registerToken = useCallback(async () => {
-    if (!user?.uid) throw new Error('Usuario no autenticado');
-
-    if (registerTokenInFlightPromise) {
-      return registerTokenInFlightPromise;
-    }
-
-    registerTokenInFlightPromise = (async () => {
-      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-      if (!vapidKey) throw new Error('VITE_FIREBASE_VAPID_KEY no configurada');
-
-      for (let attempt = 1; attempt <= MAX_REGISTER_RETRIES; attempt += 1) {
-        try {
-          const registration = await navigator.serviceWorker.register(PUSH_SW_PATH);
-          await waitForActiveServiceWorker(registration);
-          await navigator.serviceWorker.ready;
-
-          const messaging = getMessaging(app);
-          const token = await getToken(messaging, {
-            vapidKey,
-            serviceWorkerRegistration: registration,
-          });
-
-          if (!token) {
-            throw new Error('No se pudo obtener token de notificaciones');
-          }
-
-          const saveResult = await usersService.addFcmToken(user.uid, token);
-          if (!saveResult?.success) {
-            throw new Error(saveResult?.error || 'No se pudo guardar token push en el perfil');
-          }
-
-          return token;
-        } catch (error) {
-          const shouldRetry = isTransientIndexedDbClosingError(error) && attempt < MAX_REGISTER_RETRIES;
-          if (!shouldRetry) {
-            throw error;
-          }
-
-          await sleep(TRANSIENT_IDB_RETRY_DELAY_MS * attempt);
-        }
-      }
-
-      throw new Error('No se pudo registrar notificaciones en este momento');
-    })();
-
-    try {
-      return await registerTokenInFlightPromise;
-    } finally {
-      registerTokenInFlightPromise = null;
-    }
-  }, [user?.uid]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const checkSupportAndSync = async () => {
-      if (isUsingFirebaseEmulators) {
-        if (mounted) {
-          setIsPushSupported(false);
-          setIsPushEnabled(false);
-          setPushError('');
-        }
-        return;
-      }
-
-      if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
-        if (mounted) {
-          setIsPushSupported(false);
-          setIsPushEnabled(false);
-        }
-        return;
-      }
-
-      const baseSupport = window.isSecureContext;
-      let messagingSupport = false;
-      if (baseSupport) {
-        try {
-          messagingSupport = await isMessagingSupported();
-        } catch {
-          messagingSupport = false;
-        }
-      }
-
-      const supported = baseSupport && messagingSupport;
-      if (!mounted) return;
-
-      setIsPushSupported(supported);
-      setIsPushEnabled(false);
-
-      if (supported && window.Notification.permission === 'granted' && user?.uid) {
-        try {
-          await registerToken();
-          if (!mounted) return;
-          setIsPushEnabled(true);
-          setPushError('');
-        } catch (error) {
-          console.error('[Push] Error sincronizando token:', error);
-          if (!mounted) return;
-          setPushError(getFriendlyPushError(error, 'No se pudo sincronizar notificaciones'));
-        }
-      }
-    };
-
-    void checkSupportAndSync();
-
-    return () => {
-      mounted = false;
-    };
-  }, [registerToken, user?.uid]);
-
-  const enablePush = useCallback(async () => {
-    if (isUsingFirebaseEmulators) {
-      setPushError('');
-      return false;
-    }
-
-    if (!user?.uid) {
-      setPushError('Debes iniciar sesion para activar notificaciones');
-      return false;
-    }
-    if (!isPushSupported) {
-      setPushError('Tu navegador no soporta notificaciones push');
-      return false;
-    }
-    if (iosNeedsInstall) {
-      setPushError('En iPhone primero debes instalar la app');
-      return false;
-    }
-
-    setIsActivatingPush(true);
-    setPushError('');
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setIsPushEnabled(false);
-        setPushError('Permiso de notificaciones denegado');
-        return false;
-      }
-
-      await registerToken();
-      setIsPushEnabled(true);
-      setPushError('');
-      return true;
-    } catch (error) {
-      setIsPushEnabled(false);
-      setPushError(getFriendlyPushError(error, 'No se pudo activar notificaciones'));
-      return false;
-    } finally {
-      setIsActivatingPush(false);
-    }
-  }, [iosNeedsInstall, isPushSupported, registerToken, user?.uid]);
-
-  // Escuchar mensajes en foreground para mejorar la percepción de entrega
-  useEffect(() => {
-    if (!isPushSupported || !user?.uid) return undefined;
-
-    let unsub;
-    try {
-      const messaging = getMessaging(app);
-      unsub = onMessage(messaging, (payload) => {
-        const title = payload?.data?.title || payload?.notification?.title || 'Puerto Nuevo';
-        const body = payload?.data?.body || payload?.notification?.body || '';
-        const clickAction = payload?.data?.clickAction || payload?.data?.url || ROLE_DASHBOARDS[role] || '/portal';
-
-        if (document.visibilityState === 'visible') {
-          showInAppToast(title, body);
-          return;
-        }
-
-        if (Notification.permission === 'granted') {
-          navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(title, {
-              body,
-              ...PUSH_NOTIFICATION_OPTIONS,
-              data: { clickAction },
-            });
-          });
-        }
-      });
-    } catch (err) {
-      console.error('[Push] onMessage setup error:', err);
-    }
-
-    return () => {
-      if (typeof unsub === 'function') unsub();
-    };
-  }, [isPushSupported, user?.uid]);
-
-  // helper: toast in-app mínima (sin librerías externas)
-  function showInAppToast(title, body) {
+  const showInAppToast = useCallback((title, body) => {
     try {
       const containerId = 'push-toast-container';
       let container = document.getElementById(containerId);
@@ -311,7 +194,198 @@ export function usePushNotifications(user) {
     } catch (_e) {
       console.log('[Push] foreground', title, body);
     }
-  }
+  }, []);
+
+  const registerToken = useCallback(async () => {
+    if (!userUid) throw new Error('Usuario no autenticado');
+
+    if (registerTokenInFlightPromise) {
+      return registerTokenInFlightPromise;
+    }
+
+    registerTokenInFlightPromise = (async () => {
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      if (!vapidKey) throw new Error('VITE_FIREBASE_VAPID_KEY no configurada');
+
+      for (let attempt = 1; attempt <= MAX_REGISTER_RETRIES; attempt += 1) {
+        try {
+          const registration = await getPushServiceWorkerRegistration();
+
+          const messaging = getMessaging(app);
+          const token = await getToken(messaging, {
+            vapidKey,
+            serviceWorkerRegistration: registration,
+          });
+
+          if (!token) {
+            throw new Error('No se pudo obtener token de notificaciones');
+          }
+
+          const saveResult = await usersService.addFcmToken(userUid, token);
+          if (!saveResult?.success) {
+            throw new Error(saveResult?.error || 'No se pudo guardar token push en el perfil');
+          }
+
+          return token;
+        } catch (error) {
+          const shouldRetry = isTransientIndexedDbClosingError(error) && attempt < MAX_REGISTER_RETRIES;
+          if (!shouldRetry) {
+            throw error;
+          }
+
+          await sleep(TRANSIENT_IDB_RETRY_DELAY_MS * attempt);
+        }
+      }
+
+      throw new Error('No se pudo registrar notificaciones en este momento');
+    })();
+
+    try {
+      return await registerTokenInFlightPromise;
+    } finally {
+      registerTokenInFlightPromise = null;
+    }
+  }, [userUid]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const checkSupportAndSync = async () => {
+      if (isUsingFirebaseEmulators) {
+        if (mounted) {
+          setIsPushSupported(false);
+          setIsPushEnabled(false);
+          setPushError('');
+        }
+        return;
+      }
+
+      if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
+        if (mounted) {
+          setIsPushSupported(false);
+          setIsPushEnabled(false);
+        }
+        return;
+      }
+
+      const baseSupport = window.isSecureContext;
+      let messagingSupport = false;
+      if (baseSupport) {
+        try {
+          messagingSupport = await isMessagingSupported();
+        } catch {
+          messagingSupport = false;
+        }
+      }
+
+      const supported = baseSupport && messagingSupport;
+      if (!mounted) return;
+
+      setIsPushSupported(supported);
+      setIsPushEnabled(false);
+
+      if (supported && window.Notification.permission === 'granted' && userUid) {
+        try {
+          await registerToken();
+          if (!mounted) return;
+          setIsPushEnabled(true);
+          setPushError('');
+        } catch (error) {
+          console.error('[Push] Error sincronizando token:', error);
+          if (!mounted) return;
+          setPushError(getFriendlyPushError(error, 'No se pudo sincronizar notificaciones'));
+        }
+      }
+    };
+
+    void checkSupportAndSync();
+
+    return () => {
+      mounted = false;
+    };
+  }, [registerToken, userUid]);
+
+  const enablePush = useCallback(async () => {
+    if (isUsingFirebaseEmulators) {
+      setPushError('');
+      return false;
+    }
+
+    if (!userUid) {
+      setPushError('Debes iniciar sesion para activar notificaciones');
+      return false;
+    }
+    if (!isPushSupported) {
+      setPushError('Tu navegador no soporta notificaciones push');
+      return false;
+    }
+    if (iosNeedsInstall) {
+      setPushError('En iPhone primero debes instalar la app');
+      return false;
+    }
+
+    setIsActivatingPush(true);
+    setPushError('');
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setIsPushEnabled(false);
+        setPushError('Permiso de notificaciones denegado');
+        return false;
+      }
+
+      await registerToken();
+      setIsPushEnabled(true);
+      setPushError('');
+      return true;
+    } catch (error) {
+      setIsPushEnabled(false);
+      setPushError(getFriendlyPushError(error, 'No se pudo activar notificaciones'));
+      return false;
+    } finally {
+      setIsActivatingPush(false);
+    }
+  }, [iosNeedsInstall, isPushSupported, registerToken, userUid]);
+
+  // Escuchar mensajes en foreground para mejorar la percepción de entrega
+  useEffect(() => {
+    if (!isPushSupported || !userUid) return undefined;
+
+    let unsub;
+    try {
+      const messaging = getMessaging(app);
+      unsub = onMessage(messaging, (payload) => {
+        const title = payload?.data?.title || payload?.notification?.title || 'Puerto Nuevo';
+        const body = payload?.data?.body || payload?.notification?.body || '';
+        const clickAction = payload?.data?.clickAction || payload?.data?.url || ROLE_DASHBOARDS[role] || '/portal';
+
+        if (document.visibilityState === 'visible') {
+          showInAppToast(title, body);
+          return;
+        }
+
+        if (Notification.permission === 'granted') {
+          void getPushServiceWorkerRegistration()
+            .then((registration) => {
+              registration.showNotification(title, {
+                body,
+                ...PUSH_NOTIFICATION_OPTIONS,
+                data: { clickAction },
+              });
+            })
+            .catch((error) => {
+              console.error('[Push] Error mostrando notificacion foreground:', error);
+            });
+        }
+      });
+    } catch (err) {
+      console.error('[Push] onMessage setup error:', err);
+    }
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [isPushSupported, role, showInAppToast, userUid]);
 
   return {
     isPushSupported,

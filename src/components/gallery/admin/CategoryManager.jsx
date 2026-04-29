@@ -61,6 +61,21 @@ const CategoryManager = ({ onCategoriesChanged }) => {
     }));
   };
 
+  const showAlert = (message, type = 'info') => {
+    setAlert({ open: true, message, type });
+  };
+
+  async function loadCategories() {
+    setLoading(true);
+    const result = await institutionalGalleryService.getAllCategories();
+    if (result.success) {
+      setCategories(result.categories);
+    } else {
+      showAlert('Error al cargar categorías: ' + result.error, 'error');
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
     loadCategories();
   }, []);
@@ -71,21 +86,6 @@ const CategoryManager = ({ onCategoriesChanged }) => {
     setCoverPreview(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [coverFile]);
-
-  const loadCategories = async () => {
-    setLoading(true);
-    const result = await institutionalGalleryService.getAllCategories();
-    if (result.success) {
-      setCategories(result.categories);
-    } else {
-      showAlert('Error al cargar categorías: ' + result.error, 'error');
-    }
-    setLoading(false);
-  };
-
-  const showAlert = (message, type = 'info') => {
-    setAlert({ open: true, message, type });
-  };
 
   const handleOpenForm = (category = null) => {
     if (category) {

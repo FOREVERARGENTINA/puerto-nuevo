@@ -59,7 +59,7 @@ const buildFilterConstraints = (statusFilter, categoryFilter, initiatedFilter) =
 
 const docToConv = (d) => ({ id: d.id, ...fixMojibakeDeep(d.data()) });
 
-export function useAdminConversations({ role }) {
+export function useAdminConversations({ role, searchActive = false }) {
   const [conversations, setConversations] = useState([]);
   const [counts, setCounts] = useState({ total: 0, sinResponder: 0, noLeidas: 0, cerradas: 0 });
   const [loading, setLoading] = useState(true);
@@ -74,6 +74,7 @@ export function useAdminConversations({ role }) {
 
   const lastDocRef = useRef(null);
   const unsubRef = useRef(null);
+  const hasLoadedRef = useRef(false);
   const collectionRef = collection(db, 'conversations');
 
   // Fetch counts via getCountFromServer (barato, no descarga docs)
@@ -108,18 +109,28 @@ export function useAdminConversations({ role }) {
     }
 
     lastDocRef.current = null;
-    setConversations([]);
+    setError(null);
     setHasMore(false);
-    setLoading(true);
+    if (!hasLoadedRef.current) {
+      setConversations([]);
+      setLoading(true);
+    }
 
-    const orderConstraint = orderBy('actualizadoAt', 'desc');
-    const q = query(
-      collectionRef,
-      ...baseConstraints,
-      ...filterConstraints,
-      orderConstraint,
-      limit(PAGE_SIZE)
-    );
+    const orderConstraint = orderBy('ultimoMensajeAt', 'desc');
+    const q = searchActive
+      ? query(
+          collectionRef,
+          ...baseConstraints,
+          ...filterConstraints,
+          orderConstraint
+        )
+      : query(
+          collectionRef,
+          ...baseConstraints,
+          ...filterConstraints,
+          orderConstraint,
+          limit(PAGE_SIZE)
+        );
 
     unsubRef.current = onSnapshot(
       q,
@@ -127,16 +138,18 @@ export function useAdminConversations({ role }) {
         const docs = snapshot.docs.map(docToConv);
         lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] ?? null;
         setConversations(docs);
-        setHasMore(docs.length === PAGE_SIZE);
+        setHasMore(!searchActive && docs.length === PAGE_SIZE);
+        hasLoadedRef.current = true;
         setLoading(false);
       },
       (err) => {
         console.error('useAdminConversations onSnapshot error:', err);
+        hasLoadedRef.current = true;
         setError(err.message);
         setLoading(false);
       }
     );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-suscribir cuando cambian rol o filtros
   useEffect(() => {
@@ -153,10 +166,10 @@ export function useAdminConversations({ role }) {
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [role, statusFilter, categoryFilter, initiatedFilter, subscribe, refreshCounts]);
+  }, [role, statusFilter, categoryFilter, initiatedFilter, searchActive, subscribe, refreshCounts]);
 
   const loadMore = useCallback(async () => {
-    if (!hasMore || loadingMore || !lastDocRef.current || !role) return;
+    if (searchActive || !hasMore || loadingMore || !lastDocRef.current || !role) return;
 
     const base = buildBaseConstraints(role);
     if (base === null) return;
@@ -168,7 +181,7 @@ export function useAdminConversations({ role }) {
         collectionRef,
         ...base,
         ...filters,
-        orderBy('actualizadoAt', 'desc'),
+        orderBy('ultimoMensajeAt', 'desc'),
         startAfter(lastDocRef.current),
         limit(PAGE_SIZE)
       );
@@ -182,7 +195,7 @@ export function useAdminConversations({ role }) {
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, role, statusFilter, categoryFilter, initiatedFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchActive, hasMore, loadingMore, role, statusFilter, categoryFilter, initiatedFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAsRead = useCallback(async (conversationId, esGrupal = false) => {
     setConversations((prev) =>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useMemo, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { communicationsService } from '../../services/communications.service';
@@ -16,6 +16,67 @@ const CommunicationRichTextEditor = lazy(() =>
     default: module.CommunicationRichTextEditor,
   }))
 );
+
+function UploadIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M3 12h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function FileList({ files, onRemove, formatFileSize }) {
+  return (
+    <ul className="sc-files">
+      {files.map((file, i) => (
+        <li key={i} className="sc-file">
+          <Icon name="file" size={15} className="sc-file__icon" />
+          <span className="sc-file__name">{file.name}</span>
+          <span className="sc-file__size">{formatFileSize(file.size)}</span>
+          <button
+            type="button"
+            className="sc-file__remove"
+            onClick={() => onRemove(i)}
+            aria-label={`Eliminar ${file.name}`}
+          >
+            ×
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function UploadZone({ id, onChange, hint, disabled }) {
+  return (
+    <div className="sc-upload">
+      <input
+        type="file"
+        id={id}
+        multiple
+        onChange={onChange}
+        disabled={disabled}
+        className="sc-upload__input"
+        aria-label="Seleccionar archivos"
+      />
+      <span className="sc-upload__icon"><UploadIcon /></span>
+      <p className="sc-upload__cta">Arrastrar o <strong>seleccionar archivos</strong></p>
+      {hint && <p className="sc-upload__hint">{hint}</p>}
+    </div>
+  );
+}
 
 export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const navigate = useNavigate();
@@ -185,27 +246,22 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     if (recipientScope === 'families') setFormData(prev => ({ ...prev, destinatarios: newSelected }));
   };
 
-  const sortedFamilyUsers = useMemo(() => (
-    [...familyUsers].sort((a, b) => {
-      const aLabel = (a.displayName || a.email || '').trim().toLowerCase();
-      const bLabel = (b.displayName || b.email || '').trim().toLowerCase();
-      return aLabel.localeCompare(bLabel, 'es', { sensitivity: 'base' });
-    })
-  ), [familyUsers]);
+  const sortedFamilyUsers = [...familyUsers].sort((a, b) => {
+    const aLabel = (a.displayName || a.email || '').trim().toLowerCase();
+    const bLabel = (b.displayName || b.email || '').trim().toLowerCase();
+    return aLabel.localeCompare(bLabel, 'es', { sensitivity: 'base' });
+  });
 
-  const availableFamilies = useMemo(() => (
-    sortedFamilyUsers.filter(family => !selectedFamilies.includes(family.id))
-  ), [sortedFamilyUsers, selectedFamilies]);
+  const availableFamilies = sortedFamilyUsers.filter(family => !selectedFamilies.includes(family.id));
 
-  const matchingAvailableFamilies = useMemo(() => {
-    if (searchTerm.length < 2) return [];
-    const searchLower = searchTerm.toLowerCase();
-    return availableFamilies.filter((family) => {
-      const name = (family.displayName || '').toLowerCase();
-      const email = (family.email || '').toLowerCase();
-      return name.includes(searchLower) || email.includes(searchLower);
-    });
-  }, [availableFamilies, searchTerm]);
+  const searchLower = searchTerm.toLowerCase();
+  const matchingAvailableFamilies = searchTerm.length < 2
+    ? []
+    : availableFamilies.filter((family) => {
+        const name = (family.displayName || '').toLowerCase();
+        const email = (family.email || '').toLowerCase();
+        return name.includes(searchLower) || email.includes(searchLower);
+      });
 
   const filteredFamilies = searchTerm.length >= 2
     ? matchingAvailableFamilies.slice(0, 10)
@@ -423,63 +479,6 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
     }
   };
 
-  /* ── SVG inline para ícono de carga ── */
-  const UploadIcon = () => (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-
-  /* ── SVG inline para ícono de globo ── */
-  const GlobeIcon = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M3 12h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-
-  /* ── Bloque reutilizable: lista de archivos ── */
-  const FileList = ({ files, onRemove }) => (
-    <ul className="sc-files">
-      {files.map((file, i) => (
-        <li key={i} className="sc-file">
-          <Icon name="file" size={15} className="sc-file__icon" />
-          <span className="sc-file__name">{file.name}</span>
-          <span className="sc-file__size">{formatFileSize(file.size)}</span>
-          <button
-            type="button"
-            className="sc-file__remove"
-            onClick={() => onRemove(i)}
-            aria-label={`Eliminar ${file.name}`}
-          >
-            ×
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-
-  /* ── Zona de carga de archivos ── */
-  const UploadZone = ({ id, onChange, hint }) => (
-    <div className="sc-upload">
-      <input
-        type="file"
-        id={id}
-        multiple
-        onChange={onChange}
-        disabled={loading}
-        className="sc-upload__input"
-        aria-label="Seleccionar archivos"
-      />
-      <span className="sc-upload__icon"><UploadIcon /></span>
-      <p className="sc-upload__cta">Arrastrar o <strong>seleccionar archivos</strong></p>
-      {hint && <p className="sc-upload__hint">{hint}</p>}
-    </div>
-  );
-
   /* ─────────────────────────────────────────────
      JSX del formulario (compartido entre standalone
      y embedded para evitar duplicación)
@@ -544,10 +543,11 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
           <UploadZone
             id="attachments"
             onChange={handleFilesChange}
+            disabled={loading}
             hint="PDF, imágenes, documentos · máx. 50 MB por archivo"
           />
           {selectedFiles.length > 0 && (
-            <FileList files={selectedFiles} onRemove={removeSelectedFile} />
+            <FileList files={selectedFiles} onRemove={removeSelectedFile} formatFileSize={formatFileSize} />
           )}
         </div>
       </div>
@@ -999,11 +999,16 @@ export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
               <UploadZone
                 id="eventMedia"
                 onChange={handleEventMediaFilesChange}
+                disabled={loading}
                 hint="Imágenes, videos, audio, documentos o texto · máx. 50 MB · Bloqueados: .zip, .exe, .bat"
               />
               {eventMediaError && <p className="form-error mt-sm">{eventMediaError}</p>}
               {selectedEventMediaFiles.length > 0 && (
-                <FileList files={selectedEventMediaFiles} onRemove={removeSelectedEventMediaFile} />
+                <FileList
+                  files={selectedEventMediaFiles}
+                  onRemove={removeSelectedEventMediaFile}
+                  formatFileSize={formatFileSize}
+                />
               )}
             </div>
           </div>

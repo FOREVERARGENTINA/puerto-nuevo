@@ -1,4 +1,3 @@
-const admin = require('firebase-admin');
 const { FieldPath } = require('firebase-admin/firestore');
 
 const MAX_IN_QUERY = 10;

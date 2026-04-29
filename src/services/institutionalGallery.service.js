@@ -499,7 +499,7 @@ export const institutionalGalleryService = {
       // Reparar usando los medios obtenidos
       await this.autoRepairAlbumThumbnail(albumId, media);
     } catch (error) {
-      throw new Error('No se pudo reparar: ' + error.message);
+      throw new Error('No se pudo reparar thumbnail del álbum.', { cause: error });
     }
   },
 

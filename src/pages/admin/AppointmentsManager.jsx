@@ -40,6 +40,7 @@ const NOTES_ALLOWED_MIME_TYPES = new Set([
 ]);
 const MANUAL_SLOT_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'));
 const MANUAL_SLOT_MINUTE_OPTIONS = ['00', '15', '30', '45'];
+const getCurrentTimestampMs = () => Date.now();
 
 const getAppointmentModeLabel = (value) => {
   if (value === 'virtual') return 'Virtual';
@@ -574,7 +575,7 @@ const AppointmentsManager = () => {
 
     return slots;
   };
-  const buildManualSlotPayload = () => {
+  const buildManualSlotPayload = (nowMs) => {
     const { fecha, hora, duracionMinutos } = manualSlotForm;
 
     if (!fecha || !hora || !duracionMinutos) {
@@ -591,7 +592,7 @@ const AppointmentsManager = () => {
       return { error: 'La duración del sobreturno debe ser un número válido.' };
     }
 
-    if (startDate.getTime() < Date.now()) {
+    if (startDate.getTime() < nowMs) {
       return { error: 'No se puede crear un sobreturno en una fecha u hora pasada.' };
     }
 
@@ -691,7 +692,7 @@ const AppointmentsManager = () => {
     });
   };
   const handleCreateManualSlot = () => {
-    const prepared = buildManualSlotPayload();
+    const prepared = buildManualSlotPayload(getCurrentTimestampMs());
 
     if (prepared.error) {
       alertDialog.openDialog({

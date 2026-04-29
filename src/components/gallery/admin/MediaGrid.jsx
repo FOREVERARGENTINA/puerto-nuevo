@@ -30,6 +30,22 @@ const MediaGrid = ({ album, refreshTrigger, onMediaSummaryChange }) => {
     return fallbackUrl;
   };
 
+  const showAlert = (message, type = 'info') => {
+    setAlert({ open: true, message, type });
+  };
+
+  async function loadMedia() {
+    setLoading(true);
+    const result = await institutionalGalleryService.getAlbumMedia(album.id);
+    if (result.success) {
+      setMedia(result.media);
+    } else {
+      setMedia([]);
+      showAlert('Error al cargar archivos: ' + result.error, 'error');
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
     if (album) {
       loadMedia();
@@ -51,22 +67,6 @@ const MediaGrid = ({ album, refreshTrigger, onMediaSummaryChange }) => {
       pendingCount: countPendingGalleryMedia(media, album),
     });
   }, [album, loading, media, onMediaSummaryChange]);
-
-  const loadMedia = async () => {
-    setLoading(true);
-    const result = await institutionalGalleryService.getAlbumMedia(album.id);
-    if (result.success) {
-      setMedia(result.media);
-    } else {
-      setMedia([]);
-      showAlert('Error al cargar archivos: ' + result.error, 'error');
-    }
-    setLoading(false);
-  };
-
-  const showAlert = (message, type = 'info') => {
-    setAlert({ open: true, message, type });
-  };
 
   const handleViewMedia = (mediaItem) => {
     setSelectedMedia(mediaItem);

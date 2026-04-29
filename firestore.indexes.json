@@ -273,7 +273,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "actualizadoAt",
+          "fieldPath": "ultimoMensajeAt",
           "order": "DESCENDING"
         }
       ]
@@ -291,7 +291,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "actualizadoAt",
+          "fieldPath": "ultimoMensajeAt",
           "order": "DESCENDING"
         }
       ]
@@ -305,7 +305,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "actualizadoAt",
+          "fieldPath": "ultimoMensajeAt",
           "order": "DESCENDING"
         }
       ]
@@ -323,7 +323,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "actualizadoAt",
+          "fieldPath": "ultimoMensajeAt",
           "order": "DESCENDING"
         }
       ]
@@ -348,7 +348,7 @@
       "fields": [
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -358,7 +358,7 @@
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "categoria", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -368,7 +368,7 @@
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "iniciadoPor", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -376,7 +376,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "mensajesSinLeerEscuela", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -384,7 +384,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -392,7 +392,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "categoria", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -400,7 +400,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "iniciadoPor", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -410,7 +410,7 @@
         { "fieldPath": "destinatarioEscuela", "order": "ASCENDING" },
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -421,7 +421,7 @@
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "categoria", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -432,7 +432,7 @@
         { "fieldPath": "ultimoMensajeAutor", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "iniciadoPor", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -441,7 +441,7 @@
       "fields": [
         { "fieldPath": "destinatarioEscuela", "order": "ASCENDING" },
         { "fieldPath": "mensajesSinLeerEscuela", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -450,7 +450,7 @@
       "fields": [
         { "fieldPath": "destinatarioEscuela", "order": "ASCENDING" },
         { "fieldPath": "categoria", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -459,7 +459,7 @@
       "fields": [
         { "fieldPath": "destinatarioEscuela", "order": "ASCENDING" },
         { "fieldPath": "iniciadoPor", "order": "ASCENDING" },
-        { "fieldPath": "actualizadoAt", "order": "DESCENDING" }
+        { "fieldPath": "ultimoMensajeAt", "order": "DESCENDING" }
       ]
     },
     {

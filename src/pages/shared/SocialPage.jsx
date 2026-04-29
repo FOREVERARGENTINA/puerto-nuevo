@@ -781,6 +781,7 @@ function isNodeVisibleByFilters(node, filters) {
 
 export default function SocialPage() {
   const { user, role } = useAuth();
+  const userUid = user?.uid || '';
   const canManageGraphNodes = user?.email === 'admin@puerto.com';
   const navigate = useNavigate();
   const [dmConfig, setDmConfig] = useState({ enabled: false, pilotFamilyUids: [] });
@@ -939,30 +940,30 @@ export default function SocialPage() {
   }, []);
 
   const loadMyProfile = useCallback(async () => {
-    if (!user?.uid) return;
+    if (!userUid) return;
     try {
-      const result = await socialService.getMySocialProfile(user.uid);
+      const result = await socialService.getMySocialProfile(userUid);
       if (result.success && result.profile) {
         setMyProfile(result.profile);
       }
     } catch {
       // silent fallback: the profile is optional.
     }
-  }, [user?.uid]);
+  }, [userUid]);
 
   const loadFamilyChildren = useCallback(async () => {
-    if (role !== 'family' || !user?.uid) {
+    if (role !== 'family' || !userUid) {
       setFamilyChildren([]);
       return;
     }
-    const result = await socialService.getFamilyChildren(user.uid);
+    const result = await socialService.getFamilyChildren(userUid);
     if (result.success) {
       const nextChildren = (result.children || []).sort((a, b) =>
         String(a.nombreCompleto || '').localeCompare(String(b.nombreCompleto || ''), 'es')
       );
       setFamilyChildren(nextChildren);
     }
-  }, [role, user?.uid]);
+  }, [role, userUid]);
 
   useEffect(() => {
     void Promise.all([loadGraph(), loadMyProfile(), loadFamilyChildren()]);

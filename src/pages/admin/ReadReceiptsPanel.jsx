@@ -46,13 +46,12 @@ export function ReadReceiptsPanel({ view = 'history' }) {
   const [filterAmbiente, setFilterAmbiente] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  useEffect(() => {
-    if (!user?.uid) return;
-    loadCommunications();
-    loadFamilies();
-  }, [user?.uid, isAdmin]);
+  const familyById = useMemo(
+    () => new Map(allFamilies.map((family) => [family.id, family])),
+    [allFamilies]
+  );
 
-  const loadFamilies = async () => {
+  async function loadFamilies() {
     setLoadingFamilies(true);
     try {
       const result = await usersService.getUsersByRole(ROLES.FAMILY);
@@ -64,31 +63,9 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     } finally {
       setLoadingFamilies(false);
     }
-  };
+  }
 
-  const loadCommunications = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = isAdmin
-        ? await communicationsService.getAllCommunications()
-        : await communicationsService.getCommunicationsBySender(user.uid);
-
-      if (result.success) {
-        setCommunications(result.communications);
-        loadAllStats(result.communications);
-      } else {
-        setError(result.error);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAllStats = async (comms) => {
+  async function loadAllStats(comms) {
     setLoadingStats(true);
     try {
       const statsPromises = comms.map(async (comm) => {
@@ -142,7 +119,35 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     } finally {
       setLoadingStats(false);
     }
-  };
+  }
+
+  async function loadCommunications() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = isAdmin
+        ? await communicationsService.getAllCommunications()
+        : await communicationsService.getCommunicationsBySender(user.uid);
+
+      if (result.success) {
+        setCommunications(result.communications);
+        loadAllStats(result.communications);
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    loadCommunications();
+    loadFamilies();
+  }, [user?.uid, isAdmin]);
 
   const loadDetailForCommunication = async (comm) => {
     setSelectedComm(comm);
@@ -201,9 +206,25 @@ export function ReadReceiptsPanel({ view = 'history' }) {
 
   // Filtrado por búsqueda y familia
   const filteredCommunications = useMemo(() => {
-    let filtered = communicationsWithStats.filter(comm =>
-      comm.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const searchLower = searchTerm.trim().toLowerCase();
+    let filtered = communicationsWithStats.filter((comm) => {
+      if (!searchLower) return true;
+
+      const recipientFields = (comm.destinatarios || []).flatMap((uid) => {
+        const family = familyById.get(uid);
+        return family ? [family.displayName, family.email] : [];
+      });
+
+      const searchableText = [
+        comm.title,
+        ...recipientFields,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(searchLower);
+    });
 
     // Filtrar por familia seleccionada
     if (selectedFamilyId !== 'all') {
@@ -236,7 +257,7 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     }
 
     return filtered;
-  }, [communicationsWithStats, searchTerm, selectedFamilyId, filterType, filterAmbiente, filterStatus]);
+  }, [communicationsWithStats, familyById, searchTerm, selectedFamilyId, filterType, filterAmbiente, filterStatus]);
 
   // Ordenamiento
   const sortedCommunications = useMemo(() => {
@@ -372,16 +393,16 @@ export function ReadReceiptsPanel({ view = 'history' }) {
     }
 
     const recipients = (comm.destinatarios || [])
-      .map((uid) => allFamilies.find((family) => family.id === uid))
+      .map((uid) => familyById.get(uid))
       .filter(Boolean);
 
     if (recipients.length === 0) {
       return selectedFamilyId !== 'all'
-        ? allFamilies.find((family) => family.id === selectedFamilyId)?.email || null
+        ? familyById.get(selectedFamilyId)?.displayName || familyById.get(selectedFamilyId)?.email || null
         : null;
     }
 
-    const labels = recipients.map((recipient) => recipient.email || recipient.displayName).filter(Boolean);
+    const labels = recipients.map((recipient) => recipient.displayName || recipient.email).filter(Boolean);
     if (labels.length === 0) {
       return null;
     }
@@ -747,7 +768,7 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                       id="search"
                       type="text"
                       className="form-input form-input--sm"
-                      placeholder="Buscar por título..."
+                      placeholder="Buscar por título, nombre o email..."
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
@@ -947,7 +968,14 @@ export function ReadReceiptsPanel({ view = 'history' }) {
                               {comm.type === 'individual' ? (
                                 <span
                                   title={(comm.destinatarios || [])
-                                    .map((uid) => allFamilies.find((family) => family.id === uid)?.email)
+                                    .map((uid) => {
+                                      const family = familyById.get(uid);
+                                      if (!family) return null;
+                                      if (family.displayName && family.email) {
+                                        return `${family.displayName} <${family.email}>`;
+                                      }
+                                      return family.displayName || family.email || null;
+                                    })
                                     .filter(Boolean)
                                     .join(', ')}
                                   style={{

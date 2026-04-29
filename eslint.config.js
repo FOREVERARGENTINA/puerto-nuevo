@@ -11,7 +11,15 @@ export default defineConfig([
       reportUnusedDisableDirectives: false,
     },
   },
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    'mapa/dist',
+    'mapa/dist/**',
+    'playwright-report',
+    'playwright-report/**',
+    'test-results',
+    'test-results/**',
+  ]),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -35,9 +43,17 @@ export default defineConfig([
     },
   },
   {
-    files: ['tests/**/*.{js,jsx}', 'vitest.config.js'],
+    files: [
+      'tests/**/*.{js,jsx}',
+      'e2e/**/*.{js,jsx}',
+      'vitest*.{js,cjs}',
+      'playwright*.{js,cjs}',
+    ],
     languageOptions: {
-      globals: globals.node,
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
@@ -74,12 +90,27 @@ export default defineConfig([
     },
   },
   {
+    files: ['functions/**/*.test.{js,jsx,cjs}', 'functions/**/__tests__/**/*.{js,jsx,cjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+    },
+  },
+  {
     // Scripts de migración/utilidad: usan rutas de archivo como variables por diseño (argumento de CLI)
     files: ['scripts/**/*.{js,cjs}'],
     rules: {
       'security/detect-non-literal-fs-filename': 'off',
       'security/detect-non-literal-regexp': 'off',
       'security/detect-object-injection': 'off',
+    },
+  },
+  {
+    files: ['src/hooks/**/*.{js,jsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

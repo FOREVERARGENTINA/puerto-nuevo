@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAdminConversations } from '../../hooks/useAdminConversations';
 import { CONVERSATION_CATEGORIES, CONVERSATION_STATUS, ROUTES, ROLES } from '../../config/constants';
 import { formatRelativeTime } from '../../utils/dateHelpers';
 import Icon from '../../components/ui/Icon';
+import { usersService } from '../../services/users.service';
 import {
   getAreaLabel,
   getConversationActivityDate,
@@ -25,6 +26,8 @@ const isPendingSchoolReply = (conv) => {
 export function AdminConversations() {
   const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [familyUsers, setFamilyUsers] = useState([]);
+  const searchActive = searchTerm.trim() !== '';
 
   const {
     conversations,
@@ -41,7 +44,7 @@ export function AdminConversations() {
     setInitiatedFilter,
     clearFilters,
     loadMore,
-  } = useAdminConversations({ role });
+  } = useAdminConversations({ role, searchActive });
 
   const hasFilters =
     statusFilter !== 'todas' ||
@@ -49,15 +52,66 @@ export function AdminConversations() {
     initiatedFilter !== 'todas' ||
     searchTerm.trim() !== '';
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFamilies = async () => {
+      const result = await usersService.getUsersByRole(ROLES.FAMILY);
+      if (!cancelled && result.success) {
+        setFamilyUsers(result.users);
+      }
+    };
+
+    loadFamilies().catch((err) => {
+      console.error('Error cargando familias para búsqueda de conversaciones:', err);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const familyById = useMemo(
+    () => new Map(familyUsers.map((family) => [family.id, family])),
+    [familyUsers]
+  );
+
   // Búsqueda por nombre/email en cliente (no indexable eficientemente en Firestore)
   const visible = useMemo(() => {
-    if (!searchTerm.trim()) return conversations;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return conversations;
+
     return conversations.filter((conv) => {
-      const name = (conv.familiaDisplayName || conv.familiaEmail || '').toLowerCase();
-      return name.includes(term);
+      const relatedFamilyUids = Array.from(new Set([
+        conv.familiaUid,
+        ...(Array.isArray(conv.participantesUids) ? conv.participantesUids : []),
+      ].filter(Boolean)));
+
+      const participantFields = Object.values(conv.participantes || {}).flatMap((participant) => [
+        participant?.displayName,
+        participant?.email,
+      ]);
+
+      const profileFields = relatedFamilyUids.flatMap((uid) => {
+        const family = familyById.get(uid);
+        return family ? [family.displayName, family.email] : [];
+      });
+
+      const searchableText = [
+        conv.familiaDisplayName,
+        conv.familiaEmail,
+        conv.asunto,
+        conv.ultimoMensajeTexto,
+        ...participantFields,
+        ...profileFields,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(term);
     });
-  }, [conversations, searchTerm]);
+  }, [conversations, familyById, searchTerm]);
 
   const handleClearFilters = () => {
     clearFilters();

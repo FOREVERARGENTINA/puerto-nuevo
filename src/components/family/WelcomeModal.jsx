@@ -36,6 +36,7 @@ const FEATURES = [
 export function WelcomeModal({ user }) {
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const userUid = user?.uid || '';
 
   // Broadcast visibility so lower-priority prompts (PWA/push) can pause.
   useEffect(() => {
@@ -57,13 +58,13 @@ export function WelcomeModal({ user }) {
     setTimeout(async () => {
       setVisible(false);
 
-      if (!user?.uid) return;
+      if (!userUid) return;
 
       // 1. Guardar en localStorage (sincrónico, respuesta inmediata)
-      localStorage.setItem(STORAGE_KEY(user.uid), '1');
+      localStorage.setItem(STORAGE_KEY(userUid), '1');
 
       // 2. Guardar en Firestore (asíncrono, backup cross-device)
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(db, 'users', userUid);
       try {
         await updateDoc(userDocRef, {
           portalWelcomeSeen: serverTimestamp()
@@ -84,11 +85,11 @@ export function WelcomeModal({ user }) {
         }
       }
     }, 280);
-  }, [user?.uid]);
+  }, [userUid]);
 
   // Verificar si debe mostrarse el modal
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!userUid) return;
 
     let timer;
 
@@ -98,17 +99,17 @@ export function WelcomeModal({ user }) {
 
       if (!isPreview) {
         // 1. Verificar localStorage primero (instantáneo)
-        const seenLocal = localStorage.getItem(STORAGE_KEY(user.uid));
+        const seenLocal = localStorage.getItem(STORAGE_KEY(userUid));
         if (seenLocal) return;
 
         // 2. Verificar Firestore como backup cross-device
         try {
-          const userDocRef = doc(db, 'users', user.uid);
+          const userDocRef = doc(db, 'users', userUid);
           const userDocSnap = await getDoc(userDocRef);
 
           if (userDocSnap.exists() && userDocSnap.data().portalWelcomeSeen) {
             // Existe en Firestore pero no en localStorage → sincronizar
-            localStorage.setItem(STORAGE_KEY(user.uid), '1');
+            localStorage.setItem(STORAGE_KEY(userUid), '1');
             return;
           }
         } catch (error) {
@@ -129,7 +130,7 @@ export function WelcomeModal({ user }) {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [user?.uid]);
+  }, [userUid]);
 
   // Listener para tecla Escape
   useEffect(() => {

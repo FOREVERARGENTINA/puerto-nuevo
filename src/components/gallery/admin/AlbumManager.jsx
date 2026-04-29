@@ -22,13 +22,11 @@ const AlbumManager = ({ category, onSelectAlbum, refreshTrigger }) => {
     description: ''
   });
 
-  useEffect(() => {
-    if (category) {
-      loadAlbums();
-    }
-  }, [category, refreshTrigger]);
+  const showAlert = (message, type = 'info') => {
+    setAlert({ open: true, message, type });
+  };
 
-  const loadAlbums = async () => {
+  async function loadAlbums() {
     setLoading(true);
     const result = await institutionalGalleryService.getAlbumsByCategory(category.id);
     if (result.success) {
@@ -37,11 +35,13 @@ const AlbumManager = ({ category, onSelectAlbum, refreshTrigger }) => {
       showAlert('Error al cargar álbumes: ' + result.error, 'error');
     }
     setLoading(false);
-  };
+  }
 
-  const showAlert = (message, type = 'info') => {
-    setAlert({ open: true, message, type });
-  };
+  useEffect(() => {
+    if (category) {
+      loadAlbums();
+    }
+  }, [category, refreshTrigger]);
 
   const handleOpenForm = (album = null) => {
     if (album) {

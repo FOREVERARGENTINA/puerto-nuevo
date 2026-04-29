@@ -48,13 +48,25 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
     if (!appointment?.ambiente) return userChildren || [];
     return (userChildren || []).filter(child => child.ambiente === appointment.ambiente);
   })();
+  const eligibleChildIdsKey = eligibleChildren.map(child => child.id).join('|');
+  const singleEligibleChildId = eligibleChildren.length === 1 ? eligibleChildren[0].id : '';
 
   useEffect(() => {
-    if (eligibleChildren.length === 1) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData(prev => ({ ...prev, hijoId: eligibleChildren[0].id }));
-    }
-  }, [eligibleChildren]);
+    // Keep the selected child in sync with the compatible options without
+    // re-writing state on every render.
+    setFormData((prev) => {
+      if (singleEligibleChildId) {
+        if (prev.hijoId === singleEligibleChildId) return prev;
+        return { ...prev, hijoId: singleEligibleChildId };
+      }
+
+      if (prev.hijoId && !eligibleChildren.some((child) => child.id === prev.hijoId)) {
+        return { ...prev, hijoId: '' };
+      }
+
+      return prev;
+    });
+  }, [eligibleChildIdsKey, singleEligibleChildId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
