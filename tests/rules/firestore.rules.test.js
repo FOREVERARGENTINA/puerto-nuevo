@@ -72,6 +72,48 @@ describe('Firestore security rules', () => {
           origenSlot: 'agenda',
           ambiente: 'taller2',
         }),
+        // Setup para Clases Abiertas
+        db.collection('children').doc('rules_child_taller1_family3').set({
+          nombreCompleto: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          responsables: ['rules_family_3_ca'],
+        }),
+        db.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1').set({
+          tipo: 'ambiente_abierto',
+          ambiente: 'taller1',
+          activo: true,
+          dias: [{ id: 'dia001', fecha: new Date('2026-08-01'), horario: '10:00 - 11:00' }],
+          diaIds: { dia001: true },
+          cupos: {},
+          familiasDia: {},
+        }),
+        db.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1_lleno').set({
+          tipo: 'ambiente_abierto',
+          ambiente: 'taller1',
+          activo: true,
+          dias: [{ id: 'dia_lleno', fecha: new Date('2026-08-02'), horario: '10:00 - 11:00' }],
+          diaIds: { dia_lleno: true },
+          cupos: { dia_lleno: 2 },
+          familiasDia: { other_family_a: 'dia_lleno', other_family_b: 'dia_lleno' },
+        }),
+        db.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1').set({
+          tipo: 'taller_abierto',
+          ambiente: 'taller1',
+          activo: true,
+          dias: [{ id: 'tallerdia001', fecha: new Date('2026-08-03'), horario: '14:00 - 15:00', nombreTaller: 'Teatro' }],
+          diaIds: { tallerdia001: true },
+          cupos: {},
+          familiasDia: {},
+        }),
+        db.collection('clasesAbiertas').doc('rules_ca_conv_inactiva').set({
+          tipo: 'taller_abierto',
+          ambiente: 'taller1',
+          activo: false,
+          dias: [{ id: 'diainact001', fecha: new Date('2026-08-04'), horario: '14:00 - 15:00', nombreTaller: 'Huerta' }],
+          diaIds: { diainact001: true },
+          cupos: {},
+          familiasDia: {},
+        }),
       ]);
     });
   });
@@ -188,5 +230,139 @@ describe('Firestore security rules', () => {
     );
 
     expect(true).toBe(true);
+  });
+
+  // ── Clases Abiertas ──────────────────────────────────────────────────────────
+
+  test('CA: familia puede leer el doc de convocatoria activa (incluye cupos)', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertSucceeds(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1').get()
+    );
+  });
+
+  test('CA: usuario no autenticado no puede leer convocatoria', async () => {
+    const unauthedDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      unauthedDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1').get()
+    );
+  });
+
+  test('CA: familia no puede leer inscripciones ajenas', async () => {
+    // Primero crear una inscripción de otra familia (con rules-disabled)
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore()
+        .collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('otra_familia_uid').set({
+          diaId: 'dia001',
+          familiaUid: 'otra_familia_uid',
+          familiaNombre: 'Otra Familia',
+          hijoId: 'otro_hijo',
+          hijoNombre: 'Otro Hijo',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        });
+    });
+
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertFails(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('otra_familia_uid').get()
+    );
+  });
+
+  test('CA: familia puede leer sus propias inscripciones', async () => {
+    // Crear inscripción propia con rules-disabled
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore()
+        .collection('clasesAbiertas').doc('rules_ca_conv_ta_t1')
+        .collection('inscripciones').doc('rules_family_3_ca_tallerdia001').set({
+          diaId: 'tallerdia001',
+          familiaUid: 'rules_family_3_ca',
+          familiaNombre: 'Familia 3 CA',
+          hijoId: 'rules_child_taller1_family3',
+          hijoNombre: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        });
+    });
+
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertSucceeds(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1')
+        .collection('inscripciones').doc('rules_family_3_ca_tallerdia001').get()
+    );
+  });
+
+  test('CA: familia no puede crear inscripción en convocatoria inactiva', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    // Intentar inscribirse en taller_abierto inactivo (sin el atomic update del doc padre, que no aplica a taller)
+    await assertFails(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_inactiva')
+        .collection('inscripciones').doc('rules_family_3_ca_diainact001').set({
+          diaId: 'diainact001',
+          familiaUid: 'rules_family_3_ca',
+          familiaNombre: 'Familia 3 CA',
+          hijoId: 'rules_child_taller1_family3',
+          hijoNombre: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        })
+    );
+  });
+
+  test('CA: familia no puede crear inscripción con diaId inexistente', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertFails(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1')
+        .collection('inscripciones').doc('rules_family_3_ca_NOPE').set({
+          diaId: 'id_que_no_existe',
+          familiaUid: 'rules_family_3_ca',
+          familiaNombre: 'Familia 3 CA',
+          hijoId: 'rules_child_taller1_family3',
+          hijoNombre: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        })
+    );
+  });
+
+  test('CA: familia no puede desanotarse de ambiente_abierto', async () => {
+    // Crear inscripción de ambiente_abierto con rules-disabled
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore()
+        .collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('rules_family_3_ca').set({
+          diaId: 'dia001',
+          familiaUid: 'rules_family_3_ca',
+          familiaNombre: 'Familia 3 CA',
+          hijoId: 'rules_child_taller1_family3',
+          hijoNombre: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        });
+    });
+
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertFails(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('rules_family_3_ca').delete()
+    );
+  });
+
+  test('CA: familia puede desanotarse de taller_abierto', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertSucceeds(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1')
+        .collection('inscripciones').doc('rules_family_3_ca_tallerdia001').delete()
+    );
+  });
+
+  test('CA: admin puede borrar una inscripción de ambiente_abierto', async () => {
+    const adminDb = testEnv.authenticatedContext('rules_admin_ca', { role: 'superadmin' }).firestore();
+    await assertSucceeds(
+      adminDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('rules_family_3_ca').delete()
+    );
   });
 });

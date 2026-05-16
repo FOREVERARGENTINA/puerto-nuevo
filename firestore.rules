@@ -150,7 +150,6 @@ service cloud.firestore {
         data.categoryLabel.size() <= 80 &&
         isValidAmbienteActivityCustomCategory(data) &&
         data.items is list &&
-        data.items.size() > 0 &&
         data.itemCount is int &&
         data.itemCount == data.items.size() &&
         data.createdBy is string &&
@@ -839,6 +838,128 @@ service cloud.firestore {
           dmMessageWriteAllowed(convId);
 
         allow update, delete: if false;
+      }
+    }
+
+    // Índice determinístico de convocatoria activa por tipo+ambiente.
+    match /clasesAbiertasActivas/{activeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Colección: /clasesAbiertas
+    match /clasesAbiertas/{convocatoriaId} {
+      function convocatoriaData() {
+        return get(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data;
+      }
+
+      function convocatoriaDataAfter() {
+        return getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data;
+      }
+
+      function currentCupo(convData, diaId) {
+        return convData.cupos is map && convData.cupos.keys().hasAny([diaId])
+          ? convData.cupos[diaId]
+          : 0;
+      }
+
+      function familyAlreadyInscribed(convData, uid) {
+        return convData.familiasDia is map && convData.familiasDia.keys().hasAny([uid]);
+      }
+
+      function validInscripcionBase() {
+        let convData = convocatoriaData();
+        let childData = get(/databases/$(database)/documents/children/$(request.resource.data.hijoId)).data;
+        return request.resource.data.keys().hasOnly([
+            'diaId',
+            'familiaUid',
+            'familiaNombre',
+            'hijoId',
+            'hijoNombre',
+            'ambiente',
+            'createdAt'
+          ]) &&
+          request.resource.data.familiaUid == request.auth.uid &&
+          isResponsibleFamilyForChild(request.resource.data.hijoId, request.auth.uid) &&
+          convData.activo == true &&
+          convData.ambiente == request.resource.data.ambiente &&
+          childData.ambiente == convData.ambiente &&
+          convData.diaIds is map &&
+          convData.diaIds[request.resource.data.diaId] == true;
+      }
+
+      function validAmbienteAbiertoCreate(inscripcionId) {
+        let before = convocatoriaData();
+        let after = convocatoriaDataAfter();
+        let diaId = request.resource.data.diaId;
+        return before.tipo == 'ambiente_abierto' &&
+          inscripcionId == request.auth.uid &&
+          currentCupo(before, diaId) < 2 &&
+          !familyAlreadyInscribed(before, request.auth.uid) &&
+          after.cupos[diaId] == currentCupo(before, diaId) + 1 &&
+          after.familiasDia[request.auth.uid] == diaId;
+      }
+
+      function validTallerAbiertoCreate(inscripcionId) {
+        let convData = convocatoriaData();
+        return convData.tipo == 'taller_abierto' &&
+          inscripcionId == request.auth.uid + '_' + request.resource.data.diaId;
+      }
+
+      function validAmbienteCupoUpdate() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let diaId = after.familiasDia[request.auth.uid];
+        return isFamily() &&
+          before.tipo == 'ambiente_abierto' &&
+          before.activo == true &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cupos', 'familiasDia', 'updatedAt']) &&
+          !familyAlreadyInscribed(before, request.auth.uid) &&
+          after.familiasDia.keys().hasAny([request.auth.uid]) &&
+          before.diaIds[diaId] == true &&
+          currentCupo(before, diaId) < 2 &&
+          after.familiasDia.diff(before.familiasDia).affectedKeys().hasOnly([request.auth.uid]) &&
+          after.cupos.diff(before.cupos).affectedKeys().hasOnly([diaId]) &&
+          after.familiasDia[request.auth.uid] == diaId &&
+          after.cupos[diaId] == currentCupo(before, diaId) + 1 &&
+          existsAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)) &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.familiaUid == request.auth.uid &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.diaId == diaId &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.ambiente == before.ambiente;
+      }
+
+      // Familia puede leer el doc de convocatoria para ver días, horarios y cupos.
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || validAmbienteCupoUpdate();
+
+      match /inscripciones/{inscripcionId} {
+        // Admin lee todas; familia solo las suyas.
+        allow read: if isAdmin() ||
+                       (isFamily() && resource.data.familiaUid == request.auth.uid);
+
+        // Familia puede crear inscripción si:
+        //   1. familiaUid es el propio uid
+        //   2. hijoId le pertenece (isResponsibleFamilyForChild verifica esto en /children)
+        //   3. la convocatoria está activa
+        //   4. diaId existe en diaIds del doc padre
+        //   5. ambiente coincide entre convocatoria, hijo y payload
+        //   6. Ambiente Abierto actualiza cupos/familiasDia en el mismo commit
+        allow create: if isFamily() &&
+                         validInscripcionBase() &&
+                         (
+                           validAmbienteAbiertoCreate(inscripcionId) ||
+                           validTallerAbiertoCreate(inscripcionId)
+                         );
+
+        // Admin puede borrar cualquier inscripción (para correcciones manuales).
+        // Familia solo puede desanotarse en taller_abierto.
+        allow delete: if isAdmin() ||
+                         (isFamily() &&
+                          resource.data.familiaUid == request.auth.uid &&
+                          get(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data.tipo == 'taller_abierto');
+
+        allow update: if false;
       }
     }
 
