@@ -35,6 +35,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/admin/talleres', icon: 'book', label: 'Talleres' },
       { path: '/portal/admin/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/portal/admin/actividades', icon: 'edit', label: 'Actividades' },
+      { path: '/portal/admin/clases-abiertas', icon: 'calendar', label: 'Clases Abiertas' },
       { path: '/portal/admin/eventos', icon: 'event', label: 'Eventos' },
       { path: '/portal/admin/documentos', icon: 'file', label: 'Documentos' },
       { path: '/portal/admin/galeria-institucional', icon: 'image', label: 'Galería' }
@@ -49,6 +50,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/admin/talleres', icon: 'book', label: 'Talleres' },
       { path: '/portal/admin/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/portal/admin/actividades', icon: 'edit', label: 'Actividades' },
+      { path: '/portal/admin/clases-abiertas', icon: 'calendar', label: 'Clases Abiertas' },
       { path: '/portal/admin/eventos', icon: 'event', label: 'Eventos' },
       { path: '/portal/admin/documentos', icon: 'file', label: 'Documentos' },
       { path: '/portal/admin/galeria-institucional', icon: 'image', label: 'Galería' }
@@ -79,6 +81,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/familia/turnos', icon: 'calendar', label: 'Reuniones' },
       { path: '/portal/familia/talleres', icon: 'book', label: 'Talleres' },
       { path: '/portal/familia/actividades', icon: 'edit', label: 'Actividades' },
+      { path: '/portal/familia/clases-abiertas', icon: 'calendar', label: 'Clases Abiertas' },
       { path: '/portal/familia/eventos', icon: 'event', label: 'Eventos' },
       { path: '/portal/familia/snacks', icon: 'snack', label: 'Snacks' },
       { path: '/portal/familia/documentos', icon: 'file', label: 'Documentos' },
