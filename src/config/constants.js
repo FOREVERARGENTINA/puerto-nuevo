@@ -226,6 +226,7 @@ export const ROUTES = {
   ADMIN_CONVERSATION_NEW: '/portal/admin/conversaciones/nuevo',
   ADMIN_SNACKS_LISTS: '/portal/admin/snacks/listas',
   ADMIN_ACTIVITIES: '/portal/admin/actividades',
+  ADMIN_CLASES_ABIERTAS: '/portal/admin/clases-abiertas',
   ADMIN_SOCIAL: '/portal/admin/social',
   INSTITUTIONAL_GALLERY_ADMIN: '/portal/admin/galeria-institucional',
 
@@ -239,6 +240,7 @@ export const ROUTES = {
   FAMILY_CONVERSATION_NEW: '/portal/familia/conversaciones/nueva',
   INSTITUTIONAL_GALLERY_FAMILY: '/portal/familia/galeria',
   FAMILY_ACTIVITIES: '/portal/familia/actividades',
+  FAMILY_CLASES_ABIERTAS: '/portal/familia/clases-abiertas',
   FAMILY_SOCIAL: '/portal/familia/social',
   FAMILY_MESSAGES: '/portal/familia/mensajes',
   FAMILY_MESSAGES_THREAD: '/portal/familia/mensajes/:convId',
