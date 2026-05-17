@@ -1,0 +1,15 @@
+/* ClasesAbiertasManager.css — layout lado a lado para admin */
+
+.page-container .clases-abiertas-manager-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+  align-items: start;
+}
+
+@media (min-width: 769px) {
+  .page-container .clases-abiertas-manager-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: var(--spacing-lg);
+  }
+}

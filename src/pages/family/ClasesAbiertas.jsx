@@ -4,6 +4,7 @@ import { useClasesAbiertas } from '../../hooks/useClasesAbiertas';
 import { clasesAbiertasService } from '../../services/clasesAbiertas.service';
 import { childrenService } from '../../services/children.service';
 import CalendarioConvocatoria from '../../components/ui/CalendarioConvocatoria';
+import './ClasesAbiertas.css';
 
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
 
@@ -89,53 +90,78 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     else setSeleccionandoHijo(true);
   };
 
-  if (!convocatoria) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
-  const dias = convocatoria.dias || [];
-  if (!dias.length) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
+  const dias = convocatoria?.dias || [];
+
+  if (!convocatoria || !dias.length) {
+    return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
+  }
 
   return (
     <div>
       {message && <div className="alert alert--success" style={{ marginBottom: 'var(--spacing-md)' }}>{message}</div>}
       {error && <div className="alert alert--error" style={{ marginBottom: 'var(--spacing-md)' }}>{error}</div>}
 
-      <CalendarioConvocatoria
-        dias={dias}
-        selectedDiaId={selectedDiaId}
-        onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
-        marcadores={marcadores}
-      />
-
-      {selectedDia && (
-        <div style={{ marginTop: 'var(--spacing-md)', padding: 'var(--spacing-md)', border: `1px solid ${esMiDia ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: esMiDia ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-            <div>
-              <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(selectedDia.fecha)}</span>
-              {selectedDia.horario && <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{selectedDia.horario}</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
-              {esMiDia ? (
-                <>
-                  <span className="badge badge--success">Anotada</span>
-                  <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
-                    Desanotarme
-                  </button>
-                </>
-              ) : estaCompleto ? (
-                <span className="badge badge--error">Completo</span>
-              ) : miInscripcion ? (
-                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
-              ) : (
-                <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
-                  Anotarme
-                </button>
-              )}
-            </div>
+      <div className="clases-abiertas-layout">
+        {/* Izquierda: calendario */}
+        <div className="card">
+          <div className="card__header"><h3 className="card__title">Calendario</h3></div>
+          <div className="card__body">
+            <CalendarioConvocatoria
+              dias={dias}
+              selectedDiaId={selectedDiaId}
+              onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
+              marcadores={marcadores}
+            />
           </div>
-          {seleccionandoHijo && (
-            <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
-          )}
         </div>
-      )}
+
+        {/* Derecha: detalle del día seleccionado */}
+        <div className="card">
+          <div className="card__header">
+            <h3 className="card__title">Fecha seleccionada</h3>
+            {!selectedDia && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Seleccioná un día</span>}
+          </div>
+          <div className="card__body">
+            {!selectedDia ? (
+              <div style={{ textAlign: 'center', padding: 'var(--spacing-xl) var(--spacing-md)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', border: '1.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                Seleccioná un día en el calendario para ver las opciones.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                <div>
+                  <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
+                    {formatFechaDisplay(selectedDia.fecha)}
+                  </p>
+                  {selectedDia.horario && (
+                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {esMiDia ? (
+                    <>
+                      <span className="badge badge--success">Anotada</span>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
+                        Desanotarme
+                      </button>
+                    </>
+                  ) : estaCompleto ? (
+                    <span className="badge badge--error">Completo</span>
+                  ) : miInscripcion ? (
+                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
+                  ) : (
+                    <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
+                      Anotarme
+                    </button>
+                  )}
+                </div>
+                {seleccionandoHijo && (
+                  <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -195,50 +221,77 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
     else setSeleccionandoHijo(true);
   };
 
-  if (!convocatoria) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
-  const dias = convocatoria.dias || [];
-  if (!dias.length) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
+  const dias = convocatoria?.dias || [];
+
+  if (!convocatoria || !dias.length) {
+    return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
+  }
 
   return (
     <div>
       {message && <div className="alert alert--success" style={{ marginBottom: 'var(--spacing-md)' }}>{message}</div>}
       {error && <div className="alert alert--error" style={{ marginBottom: 'var(--spacing-md)' }}>{error}</div>}
 
-      <CalendarioConvocatoria
-        dias={dias}
-        selectedDiaId={selectedDiaId}
-        onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
-        marcadores={marcadores}
-      />
-
-      {selectedDia && (
-        <div style={{ marginTop: 'var(--spacing-md)', padding: 'var(--spacing-md)', border: `1px solid ${miInscripcionSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: miInscripcionSelected ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-            <div>
-              <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(selectedDia.fecha)}</span>
-              {selectedDia.horario && <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{selectedDia.horario}</span>}
-              {selectedDia.nombreTaller && <span className="badge badge--info" style={{ marginLeft: 'var(--spacing-sm)' }}>{selectedDia.nombreTaller}</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
-              {miInscripcionSelected ? (
-                <>
-                  <span className="badge badge--success">Anotada</span>
-                  <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
-                    Desanotarme
-                  </button>
-                </>
-              ) : (
-                <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
-                  Anotarme
-                </button>
-              )}
-            </div>
+      <div className="clases-abiertas-layout">
+        {/* Izquierda: calendario */}
+        <div className="card">
+          <div className="card__header"><h3 className="card__title">Calendario</h3></div>
+          <div className="card__body">
+            <CalendarioConvocatoria
+              dias={dias}
+              selectedDiaId={selectedDiaId}
+              onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
+              marcadores={marcadores}
+            />
           </div>
-          {seleccionandoHijo && (
-            <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
-          )}
         </div>
-      )}
+
+        {/* Derecha: detalle del día seleccionado */}
+        <div className="card">
+          <div className="card__header">
+            <h3 className="card__title">Fecha seleccionada</h3>
+            {!selectedDia && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Seleccioná un día</span>}
+          </div>
+          <div className="card__body">
+            {!selectedDia ? (
+              <div style={{ textAlign: 'center', padding: 'var(--spacing-xl) var(--spacing-md)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', border: '1.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                Seleccioná un día en el calendario para ver las opciones.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                <div>
+                  <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
+                    {formatFechaDisplay(selectedDia.fecha)}
+                  </p>
+                  {selectedDia.horario && (
+                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                  )}
+                  {selectedDia.nombreTaller && (
+                    <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {miInscripcionSelected ? (
+                    <>
+                      <span className="badge badge--success">Anotada</span>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
+                        Desanotarme
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
+                      Anotarme
+                    </button>
+                  )}
+                </div>
+                {seleccionandoHijo && (
+                  <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -251,17 +304,13 @@ function PanelAmbiente({ ambiente, convocatorias, inscripcionesPropia, hijos, on
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
-      <div className="card">
-        <div className="card__header"><h3 className="card__title">Ambiente Abierto</h3></div>
-        <div className="card__body">
-          <SeccionAmbienteAbierto convocatoria={convAA} inscripcionesPropia={inscAA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
-        </div>
+      <div>
+        <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>Ambiente Abierto</h2>
+        <SeccionAmbienteAbierto convocatoria={convAA} inscripcionesPropia={inscAA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
       </div>
-      <div className="card">
-        <div className="card__header"><h3 className="card__title">Taller Abierto</h3></div>
-        <div className="card__body">
-          <SeccionTallerAbierto convocatoria={convTA} inscripcionesPropia={inscTA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
-        </div>
+      <div>
+        <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>Taller Abierto</h2>
+        <SeccionTallerAbierto convocatoria={convTA} inscripcionesPropia={inscTA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
       </div>
     </div>
   );
@@ -289,19 +338,19 @@ export default function ClasesAbiertas() {
   }, [ambientes.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loadingHijos || loading) {
-    return <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}><p style={{ color: 'var(--color-text-light)' }}>Cargando...</p></div>;
+    return <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}><p style={{ color: 'var(--color-text-light)' }}>Cargando...</p></div>;
   }
 
   if (!ambientes.length) {
     return (
-      <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+      <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
         <div className="card"><div className="card__body"><p style={{ color: 'var(--color-text-light)' }}>No se encontraron alumnos asociados a tu cuenta.</p></div></div>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
       <div style={{ marginBottom: 'var(--spacing-lg)' }}>
         <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>Clases Abiertas</h1>
         <p style={{ color: 'var(--color-text-light)', marginTop: 'var(--spacing-xs)' }}>Anotate a las fechas disponibles.</p>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { clasesAbiertasService } from '../../services/clasesAbiertas.service';
 import CalendarioConvocatoria from '../../components/ui/CalendarioConvocatoria';
+import './ClasesAbiertasManager.css';
 
 const TIPO_LABELS = { ambiente_abierto: 'Ambiente Abierto', taller_abierto: 'Taller Abierto' };
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
@@ -154,8 +155,8 @@ function PanelConvocatoria({ tipo, ambiente }) {
   }, [convocatoria, inscripciones]);
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
-  const isEditing = editingDiaId === selectedDiaId;
-  const isDeleting = deletingDiaId === selectedDiaId;
+  const isEditing = editingDiaId === selectedDiaId && Boolean(selectedDiaId);
+  const isDeleting = deletingDiaId === selectedDiaId && Boolean(selectedDiaId);
   const insc = selectedDia ? inscriptosPorDia(selectedDia.id) : [];
   const cupo = selectedDia ? cupoPorDia(selectedDia.id) : 0;
 
@@ -185,13 +186,13 @@ function PanelConvocatoria({ tipo, ambiente }) {
           </div>
         </div>
       ) : (
-        <div className="card">
-          <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="card__title">{TIPO_LABELS[tipo]} — {AMBIENTE_LABELS[ambiente]}</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', color: convocatoria.activo ? 'var(--color-success)' : 'var(--color-text-light)' }}>
-                {convocatoria.activo ? 'Activa' : 'Inactiva'}
-              </span>
+        <>
+          {/* Header de la convocatoria con toggle */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', color: convocatoria.activo ? 'var(--color-success)' : 'var(--color-text-light)' }}>
+              {convocatoria.activo ? 'Convocatoria activa' : 'Convocatoria inactiva'}
+            </span>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
               <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleToggle} disabled={submitting}>
                 {convocatoria.activo ? 'Desactivar' : 'Activar'}
               </button>
@@ -201,95 +202,118 @@ function PanelConvocatoria({ tipo, ambiente }) {
             </div>
           </div>
 
-          <div className="card__body">
-            {(convocatoria.dias || []).length > 0 ? (
-              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                <h4 style={{ fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--spacing-sm)', color: 'var(--color-text)' }}>
-                  Días programados
-                </h4>
-                <CalendarioConvocatoria
-                  dias={convocatoria.dias}
-                  selectedDiaId={selectedDiaId}
-                  onSelectDia={(dia) => {
-                    setSelectedDiaId(dia?.id || '');
-                    setEditingDiaId('');
-                    setDeletingDiaId('');
-                  }}
-                  marcadores={marcadores}
-                />
+          {/* Layout lado a lado: calendario + detalle */}
+          <div className="clases-abiertas-manager-layout">
+            {/* Izquierda: calendario */}
+            <div className="card">
+              <div className="card__header">
+                <h3 className="card__title">Días programados</h3>
+                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>
+                  {(convocatoria.dias || []).length} día{(convocatoria.dias || []).length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="card__body">
+                {(convocatoria.dias || []).length === 0 ? (
+                  <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>No hay días cargados todavía.</p>
+                ) : (
+                  <CalendarioConvocatoria
+                    dias={convocatoria.dias}
+                    selectedDiaId={selectedDiaId}
+                    onSelectDia={(dia) => {
+                      setSelectedDiaId(dia?.id || '');
+                      setEditingDiaId('');
+                      setDeletingDiaId('');
+                    }}
+                    marcadores={marcadores}
+                  />
+                )}
+              </div>
+            </div>
 
-                {selectedDia && (
-                  <div style={{ marginTop: 'var(--spacing-md)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-md)', background: 'var(--color-background-alt)' }}>
-                    {isEditing ? (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)', alignItems: 'flex-end' }}>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label">Fecha</label>
-                          <input type="date" className="form-input" value={editDia.fecha} onChange={(e) => setEditDia((p) => ({ ...p, fecha: e.target.value }))} />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label">Horario</label>
-                          <input type="text" className="form-input" placeholder="ej: 10:00 - 11:00" value={editDia.horario} onChange={(e) => setEditDia((p) => ({ ...p, horario: e.target.value }))} />
-                        </div>
-                        {tipo === 'taller_abierto' && (
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">Taller</label>
-                            <input type="text" className="form-input" placeholder="ej: Teatro" value={editDia.nombreTaller} onChange={(e) => setEditDia((p) => ({ ...p, nombreTaller: e.target.value }))} />
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                          <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleSaveEdit(selectedDia.id)} disabled={submitting}>Guardar</button>
-                          <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => setEditingDiaId('')} disabled={submitting}>Cancelar</button>
-                        </div>
-                      </div>
-                    ) : isDeleting ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                          ¿Eliminar {formatFechaDisplay(selectedDia.fecha)}?
-                          {insc.length > 0 && <strong style={{ color: 'var(--color-error)' }}> Se borrarán {insc.length} inscripción{insc.length !== 1 ? 'es' : ''}.</strong>}
-                        </span>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                          <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleConfirmDelete(selectedDia.id)} disabled={submitting}>Eliminar</button>
-                          <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => setDeletingDiaId('')} disabled={submitting}>Cancelar</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-                          <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(selectedDia.fecha)}</span>
-                            <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</span>
-                            {tipo === 'taller_abierto' && selectedDia.nombreTaller && (
-                              <span className="badge badge--info">{selectedDia.nombreTaller}</span>
-                            )}
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && cupo >= 2 ? 'var(--color-error)' : 'var(--color-success)' }}>
-                              {tipo === 'ambiente_abierto' ? `${cupo}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                            <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleStartEdit(selectedDia)}>Editar</button>
-                            <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} onClick={() => { setDeletingDiaId(selectedDia.id); setEditingDiaId(''); }}>Eliminar</button>
-                          </div>
-                        </div>
-                        {insc.length > 0 && (
-                          <div style={{ marginTop: 'var(--spacing-sm)', paddingTop: 'var(--spacing-sm)', borderTop: '1px solid var(--color-border)' }}>
-                            {insc.map((i) => (
-                              <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0' }}>
-                                <strong>{i.familiaNombre}</strong> — {i.hijoNombre}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+            {/* Derecha: detalle/edición del día seleccionado */}
+            <div className="card">
+              <div className="card__header">
+                <h3 className="card__title">{selectedDia ? 'Día seleccionado' : 'Detalle'}</h3>
+                {!selectedDia && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Seleccioná un día</span>}
+              </div>
+              <div className="card__body">
+                {!selectedDia ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--spacing-xl) var(--spacing-md)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', border: '1.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                    Seleccioná un día en el calendario para ver los inscriptos o editarlo.
+                  </div>
+                ) : isEditing ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Fecha</label>
+                      <input type="date" className="form-input" value={editDia.fecha} onChange={(e) => setEditDia((p) => ({ ...p, fecha: e.target.value }))} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Horario</label>
+                      <input type="text" className="form-input" placeholder="ej: 10:00 - 11:00" value={editDia.horario} onChange={(e) => setEditDia((p) => ({ ...p, horario: e.target.value }))} />
+                    </div>
+                    {tipo === 'taller_abierto' && (
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Taller</label>
+                        <input type="text" className="form-input" placeholder="ej: Teatro" value={editDia.nombreTaller} onChange={(e) => setEditDia((p) => ({ ...p, nombreTaller: e.target.value }))} />
                       </div>
                     )}
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-xs)' }}>
+                      <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleSaveEdit(selectedDia.id)} disabled={submitting}>Guardar</button>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => setEditingDiaId('')} disabled={submitting}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : isDeleting ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                      ¿Eliminar <strong>{formatFechaDisplay(selectedDia.fecha)}</strong>?
+                    </p>
+                    {insc.length > 0 && (
+                      <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)', fontWeight: 'var(--font-weight-medium)' }}>
+                        Se borrarán {insc.length} inscripción{insc.length !== 1 ? 'es' : ''}.
+                      </p>
+                    )}
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                      <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleConfirmDelete(selectedDia.id)} disabled={submitting}>Eliminar</button>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => setDeletingDiaId('')} disabled={submitting}>Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <div>
+                      <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
+                        {formatFechaDisplay(selectedDia.fecha)}
+                      </p>
+                      <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                      {tipo === 'taller_abierto' && selectedDia.nombreTaller && (
+                        <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && cupo >= 2 ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)' }}>
+                      {tipo === 'ambiente_abierto' ? `${cupo}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
+                    </p>
+                    {insc.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                        {insc.map((i) => (
+                          <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0' }}>
+                            <strong>{i.familiaNombre}</strong> — {i.hijoNombre}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', paddingTop: 'var(--spacing-xs)' }}>
+                      <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleStartEdit(selectedDia)}>Editar</button>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} onClick={() => { setDeletingDiaId(selectedDia.id); setEditingDiaId(''); }}>Eliminar</button>
+                    </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <p style={{ color: 'var(--color-text-light)', marginBottom: 'var(--spacing-lg)', fontSize: 'var(--font-size-sm)' }}>No hay días cargados todavía.</p>
-            )}
+            </div>
+          </div>
 
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-lg)' }}>
-              <h4 style={{ fontSize: 'var(--font-size-md)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--spacing-sm)', color: 'var(--color-text)' }}>Agregar día</h4>
+          {/* Formulario para agregar días — siempre visible abajo */}
+          <div className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
+            <div className="card__header"><h3 className="card__title">Agregar día</h3></div>
+            <div className="card__body">
               <form onSubmit={handleAddDia} style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)', alignItems: 'flex-end' }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Fecha</label>
@@ -309,7 +333,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
               </form>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -320,7 +344,7 @@ export default function ClasesAbiertasManager() {
   const [ambienteActivo, setAmbienteActivo] = useState('taller1');
 
   return (
-    <div className="container" style={{ paddingTop: 'var(--spacing-xl)' }}>
+    <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
       <div style={{ marginBottom: 'var(--spacing-lg)' }}>
         <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>Clases Abiertas</h1>
         <p style={{ color: 'var(--color-text-light)', marginTop: 'var(--spacing-xs)' }}>Gestioná las convocatorias de Ambiente Abierto y Taller Abierto.</p>
