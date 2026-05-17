@@ -59,6 +59,15 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     setSubmitting(false);
   };
 
+  const handleDesanotarme = async () => {
+    if (!miInscripcion) return;
+    setSubmitting(true);
+    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, miInscripcion.id);
+    if (res.success) { showMsg('Inscripción cancelada.'); onRecargar(); }
+    else showErr(res.error);
+    setSubmitting(false);
+  };
+
   if (!convocatoria) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
   const dias = convocatoria.dias || [];
   if (!dias.length) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
@@ -82,7 +91,12 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                 </div>
                 <div>
                   {esMiDia ? (
-                    <span className="badge badge--success">Anotada</span>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+                      <span className="badge badge--success">Anotada</span>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
+                        Desanotarme
+                      </button>
+                    </div>
                   ) : completo ? (
                     <span className="badge badge--error">Completo</span>
                   ) : yaInscripta ? (
