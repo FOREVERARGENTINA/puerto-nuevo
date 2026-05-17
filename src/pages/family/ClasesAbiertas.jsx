@@ -297,21 +297,28 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
 }
 
 function PanelAmbiente({ ambiente, convocatorias, inscripcionesPropia, hijos, onRecargar }) {
+  const [tipoActivo, setTipoActivo] = useState('ambiente_abierto');
+
   const convAA = convocatorias[`${ambiente}_ambiente_abierto`] || null;
   const convTA = convocatorias[`${ambiente}_taller_abierto`] || null;
   const inscAA = convAA ? (inscripcionesPropia[convAA.id] || []) : [];
   const inscTA = convTA ? (inscripcionesPropia[convTA.id] || []) : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
-      <div>
-        <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>Ambiente Abierto</h2>
+    <div>
+      <div className="tabs__header" style={{ marginBottom: 'var(--spacing-lg)' }}>
+        <button className={`tabs__tab${tipoActivo === 'ambiente_abierto' ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo('ambiente_abierto')}>
+          Ambiente Abierto
+        </button>
+        <button className={`tabs__tab${tipoActivo === 'taller_abierto' ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo('taller_abierto')}>
+          Taller Abierto
+        </button>
+      </div>
+      {tipoActivo === 'ambiente_abierto' ? (
         <SeccionAmbienteAbierto convocatoria={convAA} inscripcionesPropia={inscAA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
-      </div>
-      <div>
-        <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>Taller Abierto</h2>
+      ) : (
         <SeccionTallerAbierto convocatoria={convTA} inscripcionesPropia={inscTA} hijos={hijos} ambiente={ambiente} onRecargar={onRecargar} />
-      </div>
+      )}
     </div>
   );
 }
