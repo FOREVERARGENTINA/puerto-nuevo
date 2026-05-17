@@ -859,7 +859,7 @@ service cloud.firestore {
         isFamily() &&
         resource.data.tipo == 'ambiente_abierto' &&
         resource.data.activo == true &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cupos', 'familiasDia', 'updatedAt'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cupos', 'familiasDia', 'hijosDia', 'updatedAt'])
       );
 
       match /inscripciones/{inscripcionId} {
