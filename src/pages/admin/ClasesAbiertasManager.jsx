@@ -52,6 +52,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
       if (activaRes.convocatoria) {
         const ir = await clasesAbiertasService.getInscripcionesByConvocatoria(activaRes.convocatoria.id);
         if (ir.success) setInscripciones(ir.inscripciones);
+        else showErr(`Error cargando inscriptos: ${ir.error}`);
       }
     }
     if (recienteRes.success && recienteRes.convocatoria && !activaRes.convocatoria) {
@@ -145,7 +146,9 @@ function PanelConvocatoria({ tipo, ambiente }) {
       const cupo = cupoPorDia(dia.id);
       const insc = inscriptosPorDia(dia.id);
       if (tipo === 'ambiente_abierto') {
-        m.set(dia.id, cupo >= 2 ? 'completo' : insc.length > 0 ? 'inscripto' : 'disponible');
+        // Usa cupos (desnormalizado en convocatoria) como fuente de verdad del marcador
+        // porque las inscripciones reales se muestran al seleccionar el día
+        m.set(dia.id, cupo >= 2 ? 'completo' : cupo > 0 ? 'inscripto' : 'disponible');
       } else {
         m.set(dia.id, insc.length > 0 ? 'inscripto' : 'disponible');
       }
@@ -289,7 +292,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
                       )}
                     </div>
                     <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && cupo >= 2 ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)' }}>
-                      {tipo === 'ambiente_abierto' ? `${cupo}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
+                      {tipo === 'ambiente_abierto' ? `${insc.length}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
                     </p>
                     {insc.length > 0 && (
                       <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
