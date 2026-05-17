@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { clasesAbiertasService } from '../../services/clasesAbiertas.service';
+import { childrenService } from '../../services/children.service';
+import { usersService } from '../../services/users.service';
 import CalendarioConvocatoria from '../../components/ui/CalendarioConvocatoria';
 import './ClasesAbiertasManager.css';
 
@@ -38,6 +40,9 @@ function PanelConvocatoria({ tipo, ambiente }) {
   const [editDia, setEditDia] = useState({ fecha: '', horario: '', nombreTaller: '' });
   const [deletingDiaId, setDeletingDiaId] = useState('');
   const [deletingInscripcionId, setDeletingInscripcionId] = useState('');
+  const [agregandoFamilia, setAgregandoFamilia] = useState(false);
+  const [hijosAmbiente, setHijosAmbiente] = useState([]);
+  const [hijoSeleccionado, setHijoSeleccionado] = useState('');
 
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
@@ -145,6 +150,54 @@ function PanelConvocatoria({ tipo, ambiente }) {
     setSubmitting(false);
   };
 
+  const handleAbrirAgregarFamilia = async () => {
+    if (!hijosAmbiente.length) {
+      const res = await childrenService.getChildrenByAmbiente(ambiente);
+      if (res.success) setHijosAmbiente(res.children);
+    }
+    setHijoSeleccionado('');
+    setAgregandoFamilia(true);
+  };
+
+  const handleAgregarFamilia = async () => {
+    if (!hijoSeleccionado || !selectedDia) return;
+    const hijo = hijosAmbiente.find((h) => h.id === hijoSeleccionado);
+    if (!hijo) return;
+
+    const familiaUid = hijo.responsables?.[0];
+    if (!familiaUid) { showErr('Este alumno no tiene responsable registrado.'); return; }
+
+    setSubmitting(true);
+    let familiaNombre = hijo.nombreCompleto;
+    const userRes = await usersService.getUserById(familiaUid);
+    if (userRes.success) familiaNombre = userRes.user.displayName || userRes.user.email || hijo.nombreCompleto;
+
+    const payload = {
+      diaId: selectedDia.id,
+      familiaUid,
+      familiaNombre,
+      hijoId: hijo.id,
+      hijoNombre: hijo.nombreCompleto,
+      ambiente,
+      inscriptoPorAdmin: true
+    };
+
+    const fn = tipo === 'ambiente_abierto'
+      ? clasesAbiertasService.inscribirAmbienteAbierto
+      : clasesAbiertasService.inscribirTallerAbierto;
+
+    const res = await fn(convocatoria.id, payload);
+    if (res.success) {
+      showMsg('Familia agregada.');
+      setAgregandoFamilia(false);
+      setHijoSeleccionado('');
+      cargar();
+    } else {
+      showErr(res.error);
+    }
+    setSubmitting(false);
+  };
+
   const handleSyncCupos = async () => {
     if (!convocatoria || tipo !== 'ambiente_abierto') return;
     setSubmitting(true);
@@ -245,6 +298,8 @@ function PanelConvocatoria({ tipo, ambiente }) {
                       setSelectedDiaId(dia?.id || '');
                       setEditingDiaId('');
                       setDeletingDiaId('');
+                      setAgregandoFamilia(false);
+                      setHijoSeleccionado('');
                     }}
                     marcadores={marcadores}
                   />
@@ -325,29 +380,56 @@ function PanelConvocatoria({ tipo, ambiente }) {
                         </div>
                       )}
                     </div>
-                    {insc.length > 0 && (
-                      <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                        {insc.map((i) => (
-                          <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                            <span><strong>{i.familiaNombre}</strong> — {i.hijoNombre}</span>
-                            {deletingInscripcionId === i.id ? (
-                              <span style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
-                                <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => handleDeleteInscripcion(i.id)} disabled={submitting}>
-                                  Confirmar
-                                </button>
-                                <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => setDeletingInscripcionId('')} disabled={submitting}>
-                                  Cancelar
-                                </button>
-                              </span>
-                            ) : (
-                              <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', color: 'var(--color-error)' }} onClick={() => setDeletingInscripcionId(i.id)} disabled={submitting}>
-                                Quitar
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                      {insc.map((i) => (
+                        <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                          <span><strong>{i.familiaNombre}</strong> — {i.hijoNombre}</span>
+                          {deletingInscripcionId === i.id ? (
+                            <span style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+                              <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => handleDeleteInscripcion(i.id)} disabled={submitting}>
+                                Confirmar
                               </button>
-                            )}
+                              <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => setDeletingInscripcionId('')} disabled={submitting}>
+                                Cancelar
+                              </button>
+                            </span>
+                          ) : (
+                            <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', color: 'var(--color-error)' }} onClick={() => setDeletingInscripcionId(i.id)} disabled={submitting}>
+                              Quitar
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {agregandoFamilia ? (
+                        <div style={{ marginTop: 'var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                          <select
+                            className="form-input"
+                            style={{ fontSize: 'var(--font-size-sm)' }}
+                            value={hijoSeleccionado}
+                            onChange={(e) => setHijoSeleccionado(e.target.value)}
+                          >
+                            <option value="">Seleccioná un alumno...</option>
+                            {hijosAmbiente
+                              .filter((h) => !insc.some((i) => i.hijoId === h.id))
+                              .map((h) => (
+                                <option key={h.id} value={h.id}>{h.nombreCompleto}</option>
+                              ))}
+                          </select>
+                          <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                            <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleAgregarFamilia} disabled={submitting || !hijoSeleccionado}>
+                              Agregar
+                            </button>
+                            <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => setAgregandoFamilia(false)} disabled={submitting}>
+                              Cancelar
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      ) : (
+                        <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }} onClick={handleAbrirAgregarFamilia} disabled={submitting}>
+                          + Agregar familia
+                        </button>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: 'var(--spacing-xs)', paddingTop: 'var(--spacing-xs)' }}>
                       <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)' }} onClick={() => handleStartEdit(selectedDia)}>Editar</button>
                       <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} onClick={() => { setDeletingDiaId(selectedDia.id); setEditingDiaId(''); }}>Eliminar</button>
