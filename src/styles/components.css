@@ -7312,8 +7312,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
-  padding: 0 var(--spacing-xs);
+  margin-bottom: 0;
+  padding: var(--spacing-xs) var(--spacing-xs);
+  background: rgba(45, 32, 23, 0.04);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .event-calendar__month {
@@ -7377,6 +7380,9 @@
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
   margin-bottom: var(--spacing-xs);
+  background: rgba(45, 32, 23, 0.03);
+  border-bottom: 1px solid var(--color-border);
+  padding: 2px 0;
 }
 
 .event-calendar__weekday {
