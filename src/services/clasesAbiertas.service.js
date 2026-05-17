@@ -245,6 +245,11 @@ export const clasesAbiertasService = {
         .filter(([, did]) => did === diaId)
         .map(([uid]) => uid);
 
+      const hijosDia = convData.hijosDia || {};
+      const hijosDelDia = Object.entries(hijosDia)
+        .filter(([, did]) => did === diaId)
+        .map(([hijoId]) => hijoId);
+
       const batch = writeBatch(db);
 
       inscSnap.docs.forEach((d) => batch.delete(d.ref));
@@ -257,6 +262,9 @@ export const clasesAbiertasService = {
       };
       familiasDelDia.forEach((uid) => {
         updatePayload[`familiasDia.${uid}`] = deleteField();
+      });
+      hijosDelDia.forEach((hijoId) => {
+        updatePayload[`hijosDia.${hijoId}`] = deleteField();
       });
 
       batch.update(convRef, updatePayload);
@@ -314,11 +322,17 @@ export const clasesAbiertasService = {
           return { success: false, error: 'Ya estás anotada en esta convocatoria.', code: 'YA_INSCRIPTA' };
         }
 
+        const hijosDia = convData.hijosDia || {};
+        if (hijosDia[payload.hijoId]) {
+          return { success: false, error: 'Este alumno ya tiene una fecha elegida en esta convocatoria.', code: 'HIJO_YA_INSCRIPTO' };
+        }
+
         const newDocRef = doc(colRef, payload.familiaUid);
         transaction.set(newDocRef, { ...payload, createdAt: serverTimestamp() });
         transaction.update(convRef, {
           [`cupos.${payload.diaId}`]: cupoUsado + 1,
           [`familiasDia.${payload.familiaUid}`]: payload.diaId,
+          [`hijosDia.${payload.hijoId}`]: payload.diaId,
           updatedAt: serverTimestamp()
         });
 
@@ -388,6 +402,7 @@ export const clasesAbiertasService = {
           transaction.update(convRef, {
             [`cupos.${inscripcion.diaId}`]: cupoActual > 1 ? cupoActual - 1 : deleteField(),
             [`familiasDia.${inscripcion.familiaUid}`]: deleteField(),
+            ...(inscripcion.hijoId ? { [`hijosDia.${inscripcion.hijoId}`]: deleteField() } : {}),
             updatedAt: serverTimestamp()
           });
         }
