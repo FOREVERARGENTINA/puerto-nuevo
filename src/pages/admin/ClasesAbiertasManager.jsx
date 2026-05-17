@@ -347,7 +347,6 @@ export default function ClasesAbiertasManager() {
     <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
       <div style={{ marginBottom: 'var(--spacing-lg)' }}>
         <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>Clases Abiertas</h1>
-        <p style={{ color: 'var(--color-text-light)', marginTop: 'var(--spacing-xs)' }}>Gestioná las convocatorias de Ambiente Abierto y Taller Abierto.</p>
       </div>
       <div className="tabs__header" style={{ marginBottom: 'var(--spacing-md)' }}>
         {TIPOS.map((tipo) => (
