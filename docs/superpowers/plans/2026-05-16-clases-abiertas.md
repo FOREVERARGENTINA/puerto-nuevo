@@ -4,7 +4,7 @@
 
 **Goal:** Agregar la sección "Clases Abiertas" al portal de Puerto Nuevo, permitiendo que Admin/Coordinación configure convocatorias de Ambiente Abierto y Taller Abierto por taller, y que las familias se inscriban según el ambiente de sus hijos.
 
-**Architecture:** Colección Firestore `/clasesAbiertas` independiente con subcolección `/inscripciones`. Los días se guardan como array embebido en el documento de convocatoria. El cupo se controla con `transaction.get` sobre el doc padre (campos `cupos` y `familiasDia`). La UI familia deriva "Completo" leyendo `convocatoria.cupos[diaId]` del doc padre — sin necesidad de leer inscripciones de terceros, evitando el conflicto con las reglas de seguridad. Toda la UI es inline (sin modales).
+**Architecture:** Colección Firestore `/clasesAbiertas` independiente con subcolección `/inscripciones`. Los días se guardan como array embebido y también como mapa `diaIds` para validación de reglas. El cupo se controla con `transaction.get` sobre el doc padre (campos `cupos` y `familiasDia`). La convocatoria activa se resuelve mediante `/clasesAbiertasActivas/{tipo}_{ambiente}` para evitar lecturas ambiguas cuando hay convocatorias históricas. La UI familia deriva "Completo" leyendo `convocatoria.cupos[diaId]` del doc padre — sin necesidad de leer inscripciones de terceros, evitando el conflicto con las reglas de seguridad. Toda la UI es inline (sin modales).
 
 **Tech Stack:** React 19, Firebase 12 (Firestore, Auth), React Router v7, CSS custom properties (design-system.css)
 
@@ -14,6 +14,12 @@
 
 ### Cupo sin leer inscripciones de terceros
 El campo `cupos: { [diaId]: number }` en el doc de convocatoria actúa como contador desnormalizado. La familia puede leer el doc de convocatoria (regla de padre) y derivar el estado "Completo" de ahí. No necesita acceso a inscripciones de otras familias.
+
+### Convocatoria activa determinística
+La colección `/clasesAbiertasActivas/{tipo}_{ambiente}` guarda el `convocatoriaId` activo para cada combinación tipo+ambiente. `createNuevaConvocatoria` y `reactivateConvocatoria` actualizan ese índice en transacción, desactivando la convocatoria activa previa antes de marcar la nueva. Esto evita que `getConvocatoriaActiva` dependa de "el primer documento activo que devuelva la query".
+
+### Días validados por reglas
+Además del array `dias`, cada convocatoria guarda `diaIds: { [diaId]: true }`. El array sigue siendo la fuente cómoda para renderizar fecha/horario, y el mapa permite que Firestore Rules valide que una inscripción apunte a un día real de esa convocatoria.
 
 ### Reinicio anual
 Dos flujos distintos para admin cuando hay una convocatoria inactiva:
@@ -34,7 +40,8 @@ El batch que borra inscripciones también elimina `cupos[diaId]` y `familiasDia[
 | `src/config/constants.js` | Modificar | Agregar rutas ADMIN_CLASES_ABIERTAS y FAMILY_CLASES_ABIERTAS |
 | `src/services/clasesAbiertas.service.js` | Crear | CRUD de convocatorias, días e inscripciones |
 | `src/hooks/useClasesAbiertas.js` | Crear | Carga de convocatorias activas e inscripciones propias |
-| `firestore.rules` | Modificar | Reglas para /clasesAbiertas y /inscripciones |
+| `firestore.rules` | Modificar | Reglas para /clasesAbiertas, /clasesAbiertasActivas y /inscripciones |
+| `tests/rules/firestore.rules.test.js` | Modificar | Casos de permisos/consistencia para Clases Abiertas |
 | `src/pages/admin/ClasesAbiertasManager.jsx` | Crear | Panel admin: gestión de convocatorias, días e inscriptos |
 | `src/pages/family/ClasesAbiertas.jsx` | Crear | Vista familia: inscripción/desanotación |
 | `src/components/layout/Sidebar.jsx` | Modificar | Agregar ítem "Clases Abiertas" en admin y familia |
@@ -90,11 +97,9 @@ git commit -m "feat: add ADMIN_CLASES_ABIERTAS and FAMILY_CLASES_ABIERTAS routes
 import {
   collection,
   doc,
-  addDoc,
   getDoc,
   getDocs,
   updateDoc,
-  deleteDoc,
   writeBatch,
   query,
   where,
@@ -107,25 +112,43 @@ import { db } from '../config/firebase';
 const clasesAbiertasCol = collection(db, 'clasesAbiertas');
 const inscripcionesCol = (convocatoriaId) =>
   collection(db, 'clasesAbiertas', convocatoriaId, 'inscripciones');
+const activeConvocatoriaRef = (tipo, ambiente) =>
+  doc(db, 'clasesAbiertasActivas', `${tipo}_${ambiente}`);
 
 const generateDiaId = () =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+const hasDia = (convData, diaId) =>
+  convData?.diaIds?.[diaId] === true ||
+  (convData?.dias || []).some((dia) => dia.id === diaId);
+
+const validateConvocatoriaForInscripcion = (convData, tipoEsperado, payload) => {
+  if (!convData?.activo) {
+    return { valid: false, error: 'La convocatoria no está activa.', code: 'CONVOCATORIA_INACTIVA' };
+  }
+  if (convData.tipo !== tipoEsperado || convData.ambiente !== payload.ambiente) {
+    return { valid: false, error: 'La convocatoria no corresponde al ambiente solicitado.', code: 'CONVOCATORIA_INVALIDA' };
+  }
+  if (!hasDia(convData, payload.diaId)) {
+    return { valid: false, error: 'La fecha seleccionada ya no está disponible.', code: 'DIA_INVALIDO' };
+  }
+  return { valid: true };
+};
 
 export const clasesAbiertasService = {
   // ── Convocatorias ──────────────────────────────────────────────
 
   async getConvocatoriaActiva(tipo, ambiente) {
     try {
-      const q = query(
-        clasesAbiertasCol,
-        where('tipo', '==', tipo),
-        where('ambiente', '==', ambiente),
-        where('activo', '==', true)
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) return { success: true, convocatoria: null };
-      const d = snap.docs[0];
-      return { success: true, convocatoria: { id: d.id, ...d.data() } };
+      const activeSnap = await getDoc(activeConvocatoriaRef(tipo, ambiente));
+      const activeId = activeSnap.exists() ? activeSnap.data().convocatoriaId : null;
+      if (!activeId) return { success: true, convocatoria: null };
+
+      const convSnap = await getDoc(doc(clasesAbiertasCol, activeId));
+      if (!convSnap.exists() || convSnap.data().activo !== true) {
+        return { success: true, convocatoria: null };
+      }
+      return { success: true, convocatoria: { id: convSnap.id, ...convSnap.data() } };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -158,9 +181,31 @@ export const clasesAbiertasService = {
   // Reactiva el doc existente con sus días e inscripciones intactos.
   async reactivateConvocatoria(convocatoriaId) {
     try {
-      await updateDoc(doc(clasesAbiertasCol, convocatoriaId), {
-        activo: true,
-        updatedAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const targetRef = doc(clasesAbiertasCol, convocatoriaId);
+        const targetSnap = await transaction.get(targetRef);
+        if (!targetSnap.exists()) throw new Error('Convocatoria no encontrada');
+
+        const { tipo, ambiente } = targetSnap.data();
+        const activeRef = activeConvocatoriaRef(tipo, ambiente);
+        const activeSnap = await transaction.get(activeRef);
+        const currentId = activeSnap.exists() ? activeSnap.data().convocatoriaId : null;
+
+        if (currentId && currentId !== convocatoriaId) {
+          const currentRef = doc(clasesAbiertasCol, currentId);
+          const currentSnap = await transaction.get(currentRef);
+          if (currentSnap.exists()) {
+            transaction.update(currentRef, { activo: false, updatedAt: serverTimestamp() });
+          }
+        }
+
+        transaction.update(targetRef, { activo: true, updatedAt: serverTimestamp() });
+        transaction.set(activeRef, {
+          tipo,
+          ambiente,
+          convocatoriaId,
+          updatedAt: serverTimestamp()
+        });
       });
       return { success: true };
     } catch (error) {
@@ -171,30 +216,44 @@ export const clasesAbiertasService = {
   // Crea un doc nuevo limpio y desactiva la convocatoria anterior si existe.
   async createNuevaConvocatoria(tipo, ambiente, uid, convocatoriaAnteriorId = null) {
     try {
-      const batch = writeBatch(db);
+      let newId = null;
+      await runTransaction(db, async (transaction) => {
+        const activeRef = activeConvocatoriaRef(tipo, ambiente);
+        const activeSnap = await transaction.get(activeRef);
+        const currentId = activeSnap.exists() ? activeSnap.data().convocatoriaId : convocatoriaAnteriorId;
 
-      if (convocatoriaAnteriorId) {
-        batch.update(doc(clasesAbiertasCol, convocatoriaAnteriorId), {
-          activo: false,
+        if (currentId) {
+          const currentRef = doc(clasesAbiertasCol, currentId);
+          const currentSnap = await transaction.get(currentRef);
+          if (currentSnap.exists()) {
+            transaction.update(currentRef, { activo: false, updatedAt: serverTimestamp() });
+          }
+        }
+
+        const newRef = doc(clasesAbiertasCol);
+        newId = newRef.id;
+        transaction.set(newRef, {
+          tipo,
+          ambiente,
+          activo: true,
+          dias: [],
+          diaIds: {},
+          cupos: {},       // { [diaId]: number } — contador desnormalizado para control de cupo
+          familiasDia: {}, // { [familiaUid]: diaId } — qué día eligió cada familia
+          creadoPor: uid,
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
-      }
 
-      const newRef = doc(clasesAbiertasCol);
-      batch.set(newRef, {
-        tipo,
-        ambiente,
-        activo: true,
-        dias: [],
-        cupos: {},       // { [diaId]: number } — contador desnormalizado para control de cupo
-        familiasDia: {}, // { [familiaUid]: diaId } — qué día eligió cada familia
-        creadoPor: uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        transaction.set(activeRef, {
+          tipo,
+          ambiente,
+          convocatoriaId: newRef.id,
+          updatedAt: serverTimestamp()
+        });
       });
 
-      await batch.commit();
-      return { success: true, id: newRef.id };
+      return { success: true, id: newId };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -202,9 +261,24 @@ export const clasesAbiertasService = {
 
   async toggleConvocatoria(convocatoriaId, activo) {
     try {
-      await updateDoc(doc(clasesAbiertasCol, convocatoriaId), {
-        activo,
-        updatedAt: serverTimestamp()
+      if (activo) {
+        return clasesAbiertasService.reactivateConvocatoria(convocatoriaId);
+      }
+
+      await runTransaction(db, async (transaction) => {
+        const convRef = doc(clasesAbiertasCol, convocatoriaId);
+        const convSnap = await transaction.get(convRef);
+        if (!convSnap.exists()) throw new Error('Convocatoria no encontrada');
+
+        const { tipo, ambiente } = convSnap.data();
+        const activeRef = activeConvocatoriaRef(tipo, ambiente);
+        const activeSnap = await transaction.get(activeRef);
+        const currentId = activeSnap.exists() ? activeSnap.data().convocatoriaId : null;
+
+        transaction.update(convRef, { activo: false, updatedAt: serverTimestamp() });
+        if (currentId === convocatoriaId) {
+          transaction.delete(activeRef);
+        }
       });
       return { success: true };
     } catch (error) {
@@ -224,6 +298,7 @@ export const clasesAbiertasService = {
       const dias = convSnap.data().dias || [];
       await updateDoc(convRef, {
         dias: [...dias, nuevoDia],
+        [`diaIds.${nuevoDia.id}`]: true,
         updatedAt: serverTimestamp()
       });
       return { success: true, dia: nuevoDia };
@@ -277,6 +352,7 @@ export const clasesAbiertasService = {
       // Limpiar el estado del doc padre
       const updatePayload = {
         dias: diasFiltrados,
+        [`diaIds.${diaId}`]: deleteField(),
         [`cupos.${diaId}`]: deleteField(),
         updatedAt: serverTimestamp()
       };
@@ -329,18 +405,22 @@ export const clasesAbiertasService = {
           return { success: false, error: 'Convocatoria no encontrada.' };
         }
 
-        const cupos = convSnap.data().cupos || {};
+        const convData = convSnap.data();
+        const validation = validateConvocatoriaForInscripcion(convData, 'ambiente_abierto', payload);
+        if (!validation.valid) return validation;
+
+        const cupos = convData.cupos || {};
         const cupoUsado = cupos[payload.diaId] || 0;
         if (cupoUsado >= 2) {
           return { success: false, error: 'Este día ya tiene el cupo completo.', code: 'CUPO_COMPLETO' };
         }
 
-        const familiasDia = convSnap.data().familiasDia || {};
+        const familiasDia = convData.familiasDia || {};
         if (familiasDia[payload.familiaUid]) {
           return { success: false, error: 'Ya estás anotada en esta convocatoria.', code: 'YA_INSCRIPTA' };
         }
 
-        const newDocRef = doc(colRef);
+        const newDocRef = doc(colRef, payload.familiaUid);
         transaction.set(newDocRef, { ...payload, createdAt: serverTimestamp() });
         transaction.update(convRef, {
           [`cupos.${payload.diaId}`]: cupoUsado + 1,
@@ -360,20 +440,32 @@ export const clasesAbiertasService = {
   async inscribirTallerAbierto(convocatoriaId, payload) {
     // payload: { diaId, familiaUid, familiaNombre, hijoId, hijoNombre, ambiente }
     try {
-      const q = query(
-        inscripcionesCol(convocatoriaId),
-        where('diaId', '==', payload.diaId),
-        where('familiaUid', '==', payload.familiaUid)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        return { success: false, error: 'Ya estás anotada en este día.', code: 'YA_INSCRIPTA' };
-      }
-      const docRef = await addDoc(inscripcionesCol(convocatoriaId), {
-        ...payload,
-        createdAt: serverTimestamp()
+      const convRef = doc(clasesAbiertasCol, convocatoriaId);
+      const inscripcionId = `${payload.familiaUid}_${payload.diaId}`;
+      const inscRef = doc(inscripcionesCol(convocatoriaId), inscripcionId);
+
+      const result = await runTransaction(db, async (transaction) => {
+        const [convSnap, inscSnap] = await Promise.all([
+          transaction.get(convRef),
+          transaction.get(inscRef)
+        ]);
+
+        if (!convSnap.exists()) {
+          return { success: false, error: 'Convocatoria no encontrada.' };
+        }
+
+        const validation = validateConvocatoriaForInscripcion(convSnap.data(), 'taller_abierto', payload);
+        if (!validation.valid) return validation;
+
+        if (inscSnap.exists()) {
+          return { success: false, error: 'Ya estás anotada en este día.', code: 'YA_INSCRIPTA' };
+        }
+
+        transaction.set(inscRef, { ...payload, createdAt: serverTimestamp() });
+        return { success: true, id: inscRef.id };
       });
-      return { success: true, id: docRef.id };
+
+      return result;
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -381,8 +473,36 @@ export const clasesAbiertasService = {
 
   async cancelarInscripcion(convocatoriaId, inscripcionId) {
     try {
-      await deleteDoc(doc(db, 'clasesAbiertas', convocatoriaId, 'inscripciones', inscripcionId));
-      return { success: true };
+      const convRef = doc(clasesAbiertasCol, convocatoriaId);
+      const inscRef = doc(db, 'clasesAbiertas', convocatoriaId, 'inscripciones', inscripcionId);
+
+      const result = await runTransaction(db, async (transaction) => {
+        const [convSnap, inscSnap] = await Promise.all([
+          transaction.get(convRef),
+          transaction.get(inscRef)
+        ]);
+
+        if (!inscSnap.exists()) {
+          return { success: false, error: 'Inscripción no encontrada.' };
+        }
+
+        const inscripcion = inscSnap.data();
+        transaction.delete(inscRef);
+
+        if (convSnap.exists() && convSnap.data().tipo === 'ambiente_abierto') {
+          const convData = convSnap.data();
+          const cupoActual = convData.cupos?.[inscripcion.diaId] || 0;
+          transaction.update(convRef, {
+            [`cupos.${inscripcion.diaId}`]: cupoActual > 1 ? cupoActual - 1 : deleteField(),
+            [`familiasDia.${inscripcion.familiaUid}`]: deleteField(),
+            updatedAt: serverTimestamp()
+          });
+        }
+
+        return { success: true };
+      });
+
+      return result;
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -394,7 +514,7 @@ export const clasesAbiertasService = {
 
 ```powershell
 git add src/services/clasesAbiertas.service.js
-git commit -m "feat: add clasesAbiertas service with split reactivate/nueva-convocatoria and consistent cupo state"
+git commit -m "feat: add clasesAbiertas service with active index and consistent cupo state"
 ```
 
 ---
@@ -497,11 +617,97 @@ git commit -m "feat: add useClasesAbiertas hook — cupo from doc field, only ow
 - [ ] **Step 1: Agregar las reglas antes del último `}` de cierre del bloque principal**
 
 ```
-    // Colección: /clasesAbiertas
-    match /clasesAbiertas/{convocatoriaId} {
-      // Familia puede leer el doc de convocatoria para ver días, horarios y cupos.
+    // Índice determinístico de convocatoria activa por tipo+ambiente.
+    match /clasesAbiertasActivas/{activeId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isAdmin();
+    }
+
+    // Colección: /clasesAbiertas
+    match /clasesAbiertas/{convocatoriaId} {
+      function convocatoriaData() {
+        return get(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data;
+      }
+
+      function convocatoriaDataAfter() {
+        return getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data;
+      }
+
+      function currentCupo(convData, diaId) {
+        return convData.cupos is map && convData.cupos.keys().hasAny([diaId])
+          ? convData.cupos[diaId]
+          : 0;
+      }
+
+      function familyAlreadyInscribed(convData, uid) {
+        return convData.familiasDia is map && convData.familiasDia.keys().hasAny([uid]);
+      }
+
+      function validInscripcionBase() {
+        let convData = convocatoriaData();
+        let childData = get(/databases/$(database)/documents/children/$(request.resource.data.hijoId)).data;
+        return request.resource.data.keys().hasOnly([
+            'diaId',
+            'familiaUid',
+            'familiaNombre',
+            'hijoId',
+            'hijoNombre',
+            'ambiente',
+            'createdAt'
+          ]) &&
+          request.resource.data.familiaUid == request.auth.uid &&
+          isResponsibleFamilyForChild(request.resource.data.hijoId, request.auth.uid) &&
+          convData.activo == true &&
+          convData.ambiente == request.resource.data.ambiente &&
+          childData.ambiente == convData.ambiente &&
+          convData.diaIds is map &&
+          convData.diaIds[request.resource.data.diaId] == true;
+      }
+
+      function validAmbienteAbiertoCreate(inscripcionId) {
+        let before = convocatoriaData();
+        let after = convocatoriaDataAfter();
+        let diaId = request.resource.data.diaId;
+        return before.tipo == 'ambiente_abierto' &&
+          inscripcionId == request.auth.uid &&
+          currentCupo(before, diaId) < 2 &&
+          !familyAlreadyInscribed(before, request.auth.uid) &&
+          after.cupos[diaId] == currentCupo(before, diaId) + 1 &&
+          after.familiasDia[request.auth.uid] == diaId;
+      }
+
+      function validTallerAbiertoCreate(inscripcionId) {
+        let convData = convocatoriaData();
+        return convData.tipo == 'taller_abierto' &&
+          inscripcionId == request.auth.uid + '_' + request.resource.data.diaId;
+      }
+
+      function validAmbienteCupoUpdate() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let diaId = after.familiasDia[request.auth.uid];
+        return isFamily() &&
+          before.tipo == 'ambiente_abierto' &&
+          before.activo == true &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cupos', 'familiasDia', 'updatedAt']) &&
+          !familyAlreadyInscribed(before, request.auth.uid) &&
+          after.familiasDia.keys().hasAny([request.auth.uid]) &&
+          before.diaIds[diaId] == true &&
+          currentCupo(before, diaId) < 2 &&
+          after.familiasDia.diff(before.familiasDia).affectedKeys().hasOnly([request.auth.uid]) &&
+          after.cupos.diff(before.cupos).affectedKeys().hasOnly([diaId]) &&
+          after.familiasDia[request.auth.uid] == diaId &&
+          after.cupos[diaId] == currentCupo(before, diaId) + 1 &&
+          existsAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)) &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.familiaUid == request.auth.uid &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.diaId == diaId &&
+          getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data.ambiente == before.ambiente;
+      }
+
+      // Familia puede leer el doc de convocatoria para ver días, horarios y cupos.
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || validAmbienteCupoUpdate();
 
       match /inscripciones/{inscripcionId} {
         // Admin lee todas; familia solo las suyas.
@@ -511,15 +717,16 @@ git commit -m "feat: add useClasesAbiertas hook — cupo from doc field, only ow
         // Familia puede crear inscripción si:
         //   1. familiaUid es el propio uid
         //   2. hijoId le pertenece (isResponsibleFamilyForChild verifica esto en /children)
-        //   3. el ambiente del payload coincide con el del hijo en /children
+        //   3. la convocatoria está activa
+        //   4. diaId existe en diaIds del doc padre
+        //   5. ambiente coincide entre convocatoria, hijo y payload
+        //   6. Ambiente Abierto actualiza cupos/familiasDia en el mismo commit
         allow create: if isFamily() &&
-                         request.resource.data.familiaUid == request.auth.uid &&
-                         isResponsibleFamilyForChild(
-                           request.resource.data.hijoId,
-                           request.auth.uid
-                         ) &&
-                         get(/databases/$(database)/documents/children/$(request.resource.data.hijoId)).data.ambiente
-                           == request.resource.data.ambiente;
+                         validInscripcionBase() &&
+                         (
+                           validAmbienteAbiertoCreate(inscripcionId) ||
+                           validTallerAbiertoCreate(inscripcionId)
+                         );
 
         // Admin puede borrar cualquier inscripción (para correcciones manuales).
         // Familia solo puede desanotarse en taller_abierto.
@@ -542,11 +749,31 @@ npm run test:rules 2>&1 | Select-Object -First 30
 
 Resultado esperado: tests existentes siguen pasando, sin errores de parse.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Agregar tests de reglas para Clases Abiertas**
+
+En `tests/rules/firestore.rules.test.js`, agregar casos específicos que cubran:
+
+- familia puede leer el doc padre de convocatoria activa y sus cupos
+- familia no puede leer inscripciones ajenas
+- familia puede crear inscripción de `taller_abierto` solo con `diaId` real, convocatoria activa, ambiente correcto y doc id `${uid}_${diaId}`
+- familia no puede crear inscripción en convocatoria inactiva
+- familia no puede crear inscripción con `diaId` inexistente
+- familia no puede crear inscripción si el ambiente del hijo no coincide con el ambiente de la convocatoria
+- familia no puede crear inscripción de `ambiente_abierto` sin actualizar `cupos/familiasDia` del doc padre en el mismo commit
+- familia sí puede crear inscripción de `ambiente_abierto` cuando el batch/transaction crea el subdoc y deja `cupos[diaId]` + `familiasDia[uid]` consistentes
+- familia no puede desanotarse de `ambiente_abierto`
+- familia sí puede desanotarse de `taller_abierto`
+- admin puede borrar una inscripción individual
 
 ```powershell
-git add firestore.rules
-git commit -m "feat: add Firestore rules for clasesAbiertas — admin delete, ambiente validation, taller_abierto delete for family"
+npm run test:rules
+```
+
+- [ ] **Step 4: Commit**
+
+```powershell
+git add firestore.rules tests/rules/firestore.rules.test.js
+git commit -m "feat: add Firestore rules for clasesAbiertas with cupo-state validation"
 ```
 
 ---
@@ -1340,6 +1567,9 @@ npm run dev
 3. Familia C intenta el mismo día → ve badge "Completo" (derivado de `convocatoria.cupos[diaId] >= 2`)
 4. Desde admin el día muestra "2/2 inscriptos"
 5. Admin elimina ese día → verificar que las inscripciones desaparecen y el campo `cupos` del doc queda limpio (no hay entradas viejas)
+6. Intentar anotar desde una pestaña vieja a ese día eliminado → debe fallar con `DIA_INVALIDO` o mensaje equivalente
+7. Desactivar una convocatoria y probar inscripción desde una pestaña vieja → debe fallar con `CONVOCATORIA_INACTIVA` o mensaje equivalente
+8. Admin borra manualmente una inscripción de Ambiente Abierto → verificar que baja el cupo y se limpia `familiasDia` para esa familia
 
 ---
 
@@ -1347,7 +1577,8 @@ npm run dev
 
 | Requisito | Task |
 |---|---|
-| Colección `/clasesAbiertas` con tipo, ambiente, activo, dias[], cupos, familiasDia | Task 2 |
+| Colección `/clasesAbiertas` con tipo, ambiente, activo, dias[], diaIds, cupos, familiasDia | Task 2 |
+| Colección `/clasesAbiertasActivas` como índice determinístico de activa por tipo+ambiente | Task 2 |
 | Subcolección `/inscripciones` | Task 2 |
 | `getConvocatoriaActiva` | Task 2 |
 | `getConvocatoriaReciente` (para ofrecer reactivar) | Task 2 |
@@ -1356,15 +1587,17 @@ npm run dev
 | `toggleConvocatoria` | Task 2 |
 | `addDia`, `updateDia` | Task 2 |
 | `deleteDia` con batch: inscripciones + cupos + familiasDia | Task 2 |
-| `inscribirAmbienteAbierto` con `transaction.get` (sin carrera) | Task 2 |
-| `inscribirTallerAbierto` | Task 2 |
-| `cancelarInscripcion` | Task 2 |
+| `inscribirAmbienteAbierto` con `transaction.get`, convocatoria activa, día real y cupo consistente | Task 2 |
+| `inscribirTallerAbierto` con doc id determinístico y validación de convocatoria/día | Task 2 |
+| `cancelarInscripcion` con limpieza de cupos/familiasDia cuando corresponde | Task 2 |
 | Hook: solo inscripciones propias; cupo via doc padre | Task 3 |
 | Regla: familia lee doc padre (cupos visibles) | Task 4 |
 | Regla: familia lee solo sus inscripciones | Task 4 |
-| Regla: create valida hijoId + ambiente del hijo | Task 4 |
+| Regla: create valida hijoId, ambiente del hijo, ambiente de convocatoria, convocatoria activa y diaId real | Task 4 |
+| Regla: Ambiente Abierto exige cupos/familiasDia consistentes en el mismo commit | Task 4 |
 | Regla: admin puede borrar inscripciones individuales | Task 4 |
 | Regla: delete familia solo en taller_abierto | Task 4 |
+| Tests de reglas para inscripción válida, bypass sin cupo, día inválido e inscripción ajena | Task 4 |
 | Admin: botones "Nueva convocatoria" y "Reactivar anterior" | Task 5 |
 | Admin: CRUD días inline, confirmar borrado con advertencia | Task 5 |
 | Admin: toggle activo/inactivo | Task 5 |

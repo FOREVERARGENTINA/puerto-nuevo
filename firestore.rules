@@ -923,6 +923,10 @@ service cloud.firestore {
         return getAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data;
       }
 
+      function ownAmbienteInscripcionBefore() {
+        return get(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)).data;
+      }
+
       function validAmbienteCupoCreateUpdate() {
         let before = resource.data;
         let after = request.resource.data;
@@ -941,10 +945,30 @@ service cloud.firestore {
           after.cupos[ownAmbienteInscripcionAfter().diaId] == currentCupo(before, ownAmbienteInscripcionAfter().diaId) + 1;
       }
 
+      // Permite a la familia actualizar cupos/familiasDia/hijosDia al cancelar su inscripción de ambiente_abierto.
+      // La inscripción existía antes (!existsAfter) y era suya; los cupos deben decrementarse correctamente.
+      function validAmbienteCupoDeleteUpdate() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let inscBefore = ownAmbienteInscripcionBefore();
+        let diaId = inscBefore.diaId;
+        let hijoId = inscBefore.hijoId;
+        return isFamily() &&
+          before.tipo == 'ambiente_abierto' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cupos', 'familiasDia', 'hijosDia', 'updatedAt']) &&
+          exists(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)) &&
+          !existsAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)) &&
+          inscBefore.familiaUid == request.auth.uid &&
+          !after.familiasDia.keys().hasAny([request.auth.uid]) &&
+          (currentCupo(before, diaId) <= 1
+            ? !after.cupos.keys().hasAny([diaId])
+            : after.cupos[diaId] == currentCupo(before, diaId) - 1);
+      }
+
       // Familia puede leer el doc de convocatoria para ver días, horarios y cupos.
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || validAmbienteCupoCreateUpdate();
+      allow update: if isAdmin() || validAmbienteCupoCreateUpdate() || validAmbienteCupoDeleteUpdate();
 
       match /inscripciones/{inscripcionId} {
         // Admin lee todas; familia solo lee las propias o su doc determinístico aún no creado.

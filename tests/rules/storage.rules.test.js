@@ -1,21 +1,30 @@
 import { afterAll, beforeAll, describe, test } from 'vitest';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { getRulesTestEnvironment, cleanupRulesTestEnvironment } from '../helpers/rules-test-environment.js';
 
 const require = createRequire(import.meta.url);
-const { STORAGE_BUCKET } = require('../../scripts/emulator-config.cjs');
+const admin = require('firebase-admin');
+const { PROJECT_ID, STORAGE_BUCKET } = require('../../scripts/emulator-config.cjs');
+const firebaseRc = JSON.parse(readFileSync(new URL('../../.firebaserc', import.meta.url), 'utf8'));
+const ACTIVE_FIREBASE_PROJECT_ID = firebaseRc?.projects?.default;
+const FIRESTORE_FIXTURE_PROJECT_IDS = [...new Set([PROJECT_ID, ACTIVE_FIREBASE_PROJECT_ID].filter(Boolean))];
 
-describe('Storage security rules', () => {
-  let testEnv;
+const adminApps = [];
 
-  beforeAll(async () => {
-    testEnv = await getRulesTestEnvironment();
+function getAdminDbForProject(projectId) {
+  const appName = `storage-rules-fixtures-${projectId}`;
+  const existingApp = admin.apps.find((app) => app.name === appName);
+  const app = existingApp || admin.initializeApp({ projectId }, appName);
+  if (!existingApp) adminApps.push(app);
+  return app.firestore();
+}
 
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
-      const storage = context.storage(`gs://${STORAGE_BUCKET}`);
-
+async function seedFirestoreFixturesForStorageRules() {
+  await Promise.all(
+    FIRESTORE_FIXTURE_PROJECT_IDS.map(async (projectId) => {
+      const db = getAdminDbForProject(projectId);
       await Promise.all([
         db.collection('children').doc('rules_child_storage').set({
           responsables: ['rules_family_1'],
@@ -26,6 +35,22 @@ describe('Storage security rules', () => {
         db.collection('talleres').doc('rules_taller_assigned').set({
           talleristaId: 'rules_tallerista',
         }),
+      ]);
+    })
+  );
+}
+
+describe('Storage security rules', () => {
+  let testEnv;
+
+  beforeAll(async () => {
+    testEnv = await getRulesTestEnvironment();
+    await seedFirestoreFixturesForStorageRules();
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const storage = context.storage(`gs://${STORAGE_BUCKET}`);
+
+      await Promise.all([
         storage.ref('private/children/rules_child_storage/report.txt').putString(
           'archivo privado',
           'raw',
@@ -37,6 +62,7 @@ describe('Storage security rules', () => {
 
   afterAll(async () => {
     await cleanupRulesTestEnvironment();
+    await Promise.all(adminApps.map((app) => app.delete()));
   });
 
   test('permite a una familia subir su propia foto de perfil', async () => {

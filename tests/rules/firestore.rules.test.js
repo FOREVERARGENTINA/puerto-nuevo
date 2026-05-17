@@ -86,6 +86,7 @@ describe('Firestore security rules', () => {
           diaIds: { dia001: true },
           cupos: {},
           familiasDia: {},
+          hijosDia: {},
         }),
         db.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1_lleno').set({
           tipo: 'ambiente_abierto',
@@ -95,6 +96,7 @@ describe('Firestore security rules', () => {
           diaIds: { dia_lleno: true },
           cupos: { dia_lleno: 2 },
           familiasDia: { other_family_a: 'dia_lleno', other_family_b: 'dia_lleno' },
+          hijosDia: { other_child_a: 'dia_lleno', other_child_b: 'dia_lleno' },
         }),
         db.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1').set({
           tipo: 'taller_abierto',
@@ -104,6 +106,7 @@ describe('Firestore security rules', () => {
           diaIds: { tallerdia001: true },
           cupos: {},
           familiasDia: {},
+          hijosDia: {},
         }),
         db.collection('clasesAbiertas').doc('rules_ca_conv_inactiva').set({
           tipo: 'taller_abierto',
@@ -113,6 +116,7 @@ describe('Firestore security rules', () => {
           diaIds: { diainact001: true },
           cupos: {},
           familiasDia: {},
+          hijosDia: {},
         }),
       ]);
     });

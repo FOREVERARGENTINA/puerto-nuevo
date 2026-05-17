@@ -20,19 +20,25 @@ service firebase.storage {
     }
 
     function isTalleristaAssignedToTaller(tallerId) {
-      let talleristaIdValue = firestore.get(/databases/(default)/documents/talleres/$(tallerId)).data.talleristaId;
+      let tallerRef = /databases/(default)/documents/talleres/$(tallerId);
+      let talleristaIdValue = firestore.exists(tallerRef)
+        ? firestore.get(tallerRef).data.talleristaId
+        : null;
       return isAuthenticated() &&
              request.auth.token.role == 'tallerista' &&
              uidMatchesLegacyAssignee(talleristaIdValue);
     }
 
     function isResponsibleFamilyForChild(childId, familyUid) {
-      let childData = firestore.get(/databases/(default)/documents/children/$(childId)).data;
+      let childRef = /databases/(default)/documents/children/$(childId);
+      let responsables = firestore.exists(childRef)
+        ? firestore.get(childRef).data.get('responsables', [])
+        : [];
       return isAuthenticated() &&
              request.auth.token.role == 'family' &&
              request.auth.uid == familyUid &&
-             childData.responsables is list &&
-             request.auth.uid in childData.responsables;
+             responsables is list &&
+             request.auth.uid in responsables;
     }
 
     match /public/{allPaths=**} {
@@ -57,7 +63,7 @@ service firebase.storage {
     }
 
     match /private/children/{childId}/{fileName} {
-      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid in firestore.get(/databases/(default)/documents/children/$(childId)).data.responsables);
+      allow read: if isAuthenticated() && (isAdmin() || isResponsibleFamilyForChild(childId, request.auth.uid));
       allow write: if isAdmin();
     }
 

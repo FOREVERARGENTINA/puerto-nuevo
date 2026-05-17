@@ -20,9 +20,9 @@ export function useClasesAbiertas(ambientes = [], hijos = []) {
 
   const hijoIds = hijos.map((h) => h.id).filter(Boolean);
 
-  const cargar = useCallback(async () => {
+  const cargar = useCallback(async (silent = false) => {
     if (!ambientes.length) { setLoading(false); return; }
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError('');
     try {
       const pairs = ambientes.flatMap((ambiente) =>
@@ -81,5 +81,6 @@ export function useClasesAbiertas(ambientes = [], hijos = []) {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  return { convocatorias, inscripcionesPropia, loading, error, recargar: cargar };
+  const recargar = useCallback(() => cargar(true), [cargar]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { convocatorias, inscripcionesPropia, loading, error, recargar };
 }

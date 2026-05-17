@@ -437,6 +437,50 @@ export const clasesAbiertasService = {
     }
   },
 
+  // Auto-cancelación por la familia: no hace queries sobre otras inscripciones
+  // (la familia no tiene permisos para listar inscripciones ajenas).
+  async cancelarPropiaInscripcion(convocatoriaId, inscripcionId) {
+    try {
+      const convRef = doc(clasesAbiertasCol, convocatoriaId);
+      const inscRef = doc(db, 'clasesAbiertas', convocatoriaId, 'inscripciones', inscripcionId);
+
+      const result = await runTransaction(db, async (transaction) => {
+        const [convSnap, inscSnap] = await Promise.all([
+          transaction.get(convRef),
+          transaction.get(inscRef)
+        ]);
+
+        if (!inscSnap.exists()) {
+          return { success: false, error: 'Inscripción no encontrada.' };
+        }
+
+        const inscripcion = inscSnap.data();
+        transaction.delete(inscRef);
+
+        if (convSnap.exists() && convSnap.data().tipo === 'ambiente_abierto') {
+          const convData = convSnap.data();
+          const cupoActual = convData.cupos?.[inscripcion.diaId] || 0;
+          const updatePayload = {
+            [`cupos.${inscripcion.diaId}`]: cupoActual > 1 ? cupoActual - 1 : deleteField(),
+            [`familiasDia.${inscripcion.familiaUid}`]: deleteField(),
+            updatedAt: serverTimestamp()
+          };
+          if (inscripcion.hijoId) {
+            updatePayload[`hijosDia.${inscripcion.hijoId}`] = deleteField();
+          }
+          transaction.update(convRef, updatePayload);
+        }
+
+        return { success: true };
+      });
+
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Cancelación por admin: puede listar todas las inscripciones para recalcular hijosDia.
   async cancelarInscripcion(convocatoriaId, inscripcionId) {
     try {
       const convRef = doc(clasesAbiertasCol, convocatoriaId);
@@ -485,9 +529,7 @@ export const clasesAbiertasService = {
               : deleteField();
           }
 
-          transaction.update(convRef, {
-            ...updatePayload
-          });
+          transaction.update(convRef, updatePayload);
         }
 
         return { success: true };

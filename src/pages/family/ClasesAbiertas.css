@@ -51,3 +51,12 @@
     gap: var(--spacing-lg);
   }
 }
+
+.btn--eliminar {
+  color: var(--color-error) !important;
+}
+
+.btn--eliminar:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-background)) !important;
+  color: var(--color-error) !important;
+}

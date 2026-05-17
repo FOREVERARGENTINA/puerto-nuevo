@@ -64,8 +64,8 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
+  const cargar = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const [activaRes, recienteRes] = await Promise.all([
       clasesAbiertasService.getConvocatoriaActiva(tipo, ambiente),
       clasesAbiertasService.getConvocatoriaReciente(tipo, ambiente)
@@ -126,7 +126,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
     setSubmitting(true);
     const anteriorId = convocatoria?.id || convocatoriaPasada?.id || null;
     const res = await clasesAbiertasService.createNuevaConvocatoria(tipo, ambiente, user.uid, anteriorId);
-    if (res.success) { showMsg('Nueva convocatoria creada.'); cargar(); }
+    if (res.success) { showMsg('Nueva convocatoria creada.'); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -135,7 +135,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
     if (!convocatoriaPasada) return;
     setSubmitting(true);
     const res = await clasesAbiertasService.reactivateConvocatoria(convocatoriaPasada.id);
-    if (res.success) { showMsg('Convocatoria reactivada.'); cargar(); }
+    if (res.success) { showMsg('Convocatoria reactivada.'); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -144,7 +144,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
     if (!convocatoria) return;
     setSubmitting(true);
     const res = await clasesAbiertasService.toggleConvocatoria(convocatoria.id, !convocatoria.activo);
-    if (res.success) { showMsg(`Convocatoria ${!convocatoria.activo ? 'activada' : 'desactivada'}.`); cargar(); }
+    if (res.success) { showMsg(`Convocatoria ${!convocatoria.activo ? 'activada' : 'desactivada'}.`); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -160,7 +160,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
       ...(tipo === 'taller_abierto' ? { nombreTaller: newDia.nombreTaller.trim() } : {})
     };
     const res = await clasesAbiertasService.addDia(convocatoria.id, diaData);
-    if (res.success) { showMsg('Día agregado.'); setNewDia({ fecha: '', horario: '', nombreTaller: '' }); cargar(); }
+    if (res.success) { showMsg('Día agregado.'); setNewDia({ fecha: '', horario: '', nombreTaller: '' }); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -180,7 +180,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
       ...(tipo === 'taller_abierto' ? { nombreTaller: editDia.nombreTaller.trim() } : {})
     };
     const res = await clasesAbiertasService.updateDia(convocatoria.id, diaId, cambios);
-    if (res.success) { showMsg('Día actualizado.'); setEditingDiaId(''); cargar(); }
+    if (res.success) { showMsg('Día actualizado.'); setEditingDiaId(''); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -188,7 +188,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const handleConfirmDelete = async (diaId) => {
     setSubmitting(true);
     const res = await clasesAbiertasService.deleteDia(convocatoria.id, diaId);
-    if (res.success) { showMsg('Día eliminado.'); setDeletingDiaId(''); setSelectedDiaId(''); cargar(); }
+    if (res.success) { showMsg('Día eliminado.'); setDeletingDiaId(''); setSelectedDiaId(''); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -196,7 +196,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const handleDeleteInscripcion = async (inscripcionId) => {
     setSubmitting(true);
     const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, inscripcionId);
-    if (res.success) { showMsg('Inscripción eliminada.'); setDeletingInscripcionId(''); cargar(); }
+    if (res.success) { showMsg('Inscripción eliminada.'); setDeletingInscripcionId(''); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -242,7 +242,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
       showMsg('Familia agregada.');
       setAgregandoFamilia(false);
       setHijoSeleccionado('');
-      cargar();
+      cargar(true);
     } else {
       showErr(res.error);
     }
@@ -253,7 +253,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
     if (!convocatoria || tipo !== 'ambiente_abierto') return;
     setSubmitting(true);
     const res = await clasesAbiertasService.recalcularEstadoConvocatoria(convocatoria.id);
-    if (res.success) { showMsg('Cupos resincronizados.'); cargar(); }
+    if (res.success) { showMsg('Cupos resincronizados.'); cargar(true); }
     else showErr(res.error);
     setSubmitting(false);
   };
@@ -310,12 +310,6 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
           <div className="clases-abiertas-manager-layout">
             {/* Izquierda: calendario */}
             <div className="card">
-              <div className="card__header">
-                <h3 className="card__title">Días programados</h3>
-                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>
-                  {(convocatoria.dias || []).length} día{(convocatoria.dias || []).length !== 1 ? 's' : ''}
-                </span>
-              </div>
               <div className="card__body">
                 {(convocatoria.dias || []).length === 0 ? (
                   <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>No hay días cargados todavía.</p>

@@ -98,7 +98,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const handleDesanotarme = async () => {
     if (!inscripcionFamilia) return;
     setSubmitting(true);
-    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, inscripcionFamilia.id);
+    const res = await clasesAbiertasService.cancelarPropiaInscripcion(convocatoria.id, inscripcionFamilia.id);
     if (res.success) { showMsg('Inscripción cancelada.'); onRecargar(); }
     else showErr(res.error);
     setSubmitting(false);
@@ -123,7 +123,6 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
       <div className="clases-abiertas-layout">
         {/* Izquierda: calendario */}
         <div className="card">
-          <div className="card__header"></div>
           <div className="card__body">
             <CalendarioConvocatoria
               dias={dias}
@@ -155,9 +154,9 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
                   {esDiaDeFamilia ? (
                     <>
-                      <span className="badge badge--success">Anotada</span>
-                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
-                        Desanotarme
+                      <span className="badge badge--success">Fecha reservada</span>
+                      <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
+                        Eliminar
                       </button>
                     </>
                   ) : estaCompleto ? (
@@ -166,7 +165,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                     <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
                   ) : (
                     <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
-                      Anotarme
+                      Reservar fecha
                     </button>
                   )}
                 </div>
@@ -262,7 +261,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
 
   const handleDesanotarme = async (inscripcionId) => {
     setSubmitting(true);
-    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, inscripcionId);
+    const res = await clasesAbiertasService.cancelarPropiaInscripcion(convocatoria.id, inscripcionId);
     if (res.success) { showMsg('Inscripción cancelada.'); onRecargar(); }
     else showErr(res.error);
     setSubmitting(false);
@@ -287,7 +286,6 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
       <div className="clases-abiertas-layout">
         {/* Izquierda: calendario */}
         <div className="card">
-          <div className="card__header"></div>
           <div className="card__body">
             <CalendarioConvocatoria
               dias={dias}
@@ -341,14 +339,14 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
                   {miInscripcionSelected ? (
                     <>
-                      <span className="badge badge--success">Anotada</span>
-                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
-                        Desanotarme
+                      <span className="badge badge--success">Fecha reservada</span>
+                      <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
+                        Eliminar
                       </button>
                     </>
                   ) : (
                     <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
-                      Anotarme
+                      Reservar fecha
                     </button>
                   )}
                 </div>
