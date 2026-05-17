@@ -953,19 +953,19 @@ service cloud.firestore {
                         (isOwnInscripcionId(inscripcionId) ||
                          resource.data.familiaUid == request.auth.uid));
 
-        allow create: if isFamily() &&
+        allow create: if isAdmin() ||
+                         (isFamily() &&
                          validInscripcionBase(inscripcionId) &&
                          (
                            validAmbienteAbiertoCreate(inscripcionId) ||
                            validTallerAbiertoCreate(inscripcionId)
-                         );
+                         ));
 
         // Admin puede borrar cualquier inscripción.
-        // Familia solo puede desanotarse de taller_abierto si es su inscripción.
+        // Familia puede desanotarse de cualquier tipo si es su inscripción.
         allow delete: if isAdmin() ||
                          (isFamily() &&
-                          resource.data.familiaUid == request.auth.uid &&
-                          get(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)).data.tipo == 'taller_abierto');
+                          resource.data.familiaUid == request.auth.uid);
 
         allow update: if false;
       }
