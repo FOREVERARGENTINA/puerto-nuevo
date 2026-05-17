@@ -34,7 +34,7 @@ const formatFechaInput = (v) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-function PanelConvocatoria({ tipo, ambiente }) {
+function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const { user } = useAuth();
   const [convocatoria, setConvocatoria] = useState(null);
   const [convocatoriaPasada, setConvocatoriaPasada] = useState(null);
@@ -79,6 +79,40 @@ function PanelConvocatoria({ tipo, ambiente }) {
   }, [tipo, ambiente]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    if (!onActionsChange) return;
+    if (loading) { onActionsChange(null); return; }
+    if (!convocatoria) {
+      onActionsChange(
+        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+          <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleNuevaConvocatoria} disabled={submitting}>
+            Nueva convocatoria
+          </button>
+          {convocatoriaPasada && (
+            <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleReactivar} disabled={submitting}>
+              Reactivar anterior
+            </button>
+          )}
+        </div>
+      );
+    } else {
+      onActionsChange(
+        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', color: convocatoria.activo ? 'var(--color-success)' : 'var(--color-text-light)', marginRight: 'var(--spacing-xs)' }}>
+            {convocatoria.activo ? 'Convocatoria activa' : 'Convocatoria inactiva'}
+          </span>
+          <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleToggle} disabled={submitting}>
+            {convocatoria.activo ? 'Desactivar' : 'Activar'}
+          </button>
+          <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleNuevaConvocatoria} disabled={submitting}>
+            Nueva convocatoria
+          </button>
+        </div>
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convocatoria, convocatoriaPasada, submitting, loading]);
 
   const handleNuevaConvocatoria = async () => {
     setSubmitting(true);
@@ -254,38 +288,13 @@ function PanelConvocatoria({ tipo, ambiente }) {
       {!convocatoria ? (
         <div className="card">
           <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
-            <p style={{ color: 'var(--color-text-light)', marginBottom: 'var(--spacing-md)' }}>
+            <p style={{ color: 'var(--color-text-light)' }}>
               No hay convocatoria activa para {TIPO_LABELS[tipo]} — {AMBIENTE_LABELS[ambiente]}.
             </p>
-            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn btn--primary" onClick={handleNuevaConvocatoria} disabled={submitting}>
-                Nueva convocatoria
-              </button>
-              {convocatoriaPasada && (
-                <button className="btn btn--secondary" onClick={handleReactivar} disabled={submitting}>
-                  Reactivar convocatoria anterior
-                </button>
-              )}
-            </div>
           </div>
         </div>
       ) : (
         <>
-          {/* Header de la convocatoria con toggle */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', color: convocatoria.activo ? 'var(--color-success)' : 'var(--color-text-light)' }}>
-              {convocatoria.activo ? 'Convocatoria activa' : 'Convocatoria inactiva'}
-            </span>
-            <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-              <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleToggle} disabled={submitting}>
-                {convocatoria.activo ? 'Desactivar' : 'Activar'}
-              </button>
-              <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleNuevaConvocatoria} disabled={submitting}>
-                Nueva convocatoria
-              </button>
-            </div>
-          </div>
-
           {/* Layout lado a lado: calendario + detalle */}
           <div className="clases-abiertas-manager-layout">
             {/* Izquierda: calendario */}
@@ -481,16 +490,20 @@ function PanelConvocatoria({ tipo, ambiente }) {
 export default function ClasesAbiertasManager() {
   const [tipoActivo, setTipoActivo] = useState('ambiente_abierto');
   const [ambienteActivo, setAmbienteActivo] = useState('taller1');
+  const [panelActions, setPanelActions] = useState(null);
 
   return (
     <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
 
-      <div className="tabs__header" style={{ marginBottom: 'var(--spacing-md)' }}>
-        {TIPOS.map((tipo) => (
-          <button key={tipo} className={`tabs__tab${tipoActivo === tipo ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo(tipo)}>
-            {TIPO_LABELS[tipo]}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
+        <div className="tabs__header" style={{ margin: 0 }}>
+          {TIPOS.map((tipo) => (
+            <button key={tipo} className={`tabs__tab${tipoActivo === tipo ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo(tipo)}>
+              {TIPO_LABELS[tipo]}
+            </button>
+          ))}
+        </div>
+        {panelActions && <div>{panelActions}</div>}
       </div>
       <div className="tabs__header" style={{ marginBottom: 'var(--spacing-lg)' }}>
         {AMBIENTES.map((amb) => (
@@ -499,7 +512,7 @@ export default function ClasesAbiertasManager() {
           </button>
         ))}
       </div>
-      <PanelConvocatoria key={`${tipoActivo}_${ambienteActivo}`} tipo={tipoActivo} ambiente={ambienteActivo} />
+      <PanelConvocatoria key={`${tipoActivo}_${ambienteActivo}`} tipo={tipoActivo} ambiente={ambienteActivo} onActionsChange={setPanelActions} />
     </div>
   );
 }
