@@ -123,7 +123,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
       <div className="clases-abiertas-layout">
         {/* Izquierda: calendario */}
         <div className="card">
-          <div className="card__header"><h3 className="card__title">Calendario</h3></div>
+          <div className="card__header"></div>
           <div className="card__body">
             <CalendarioConvocatoria
               dias={dias}
@@ -287,7 +287,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
       <div className="clases-abiertas-layout">
         {/* Izquierda: calendario */}
         <div className="card">
-          <div className="card__header"><h3 className="card__title">Calendario</h3></div>
+          <div className="card__header"></div>
           <div className="card__body">
             <CalendarioConvocatoria
               dias={dias}
