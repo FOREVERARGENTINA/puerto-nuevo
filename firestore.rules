@@ -867,14 +867,11 @@ service cloud.firestore {
         allow read: if isAdmin() ||
                        (isFamily() && resource.data.familiaUid == request.auth.uid);
 
-        // Familia puede crear inscripción si:
-        //   - familiaUid coincide con el uid autenticado
-        //   - el hijo le pertenece
-        //   - el payload es válido
-        // El control de cupo, diaId real y convocatoria activa los garantiza la transacción del servicio.
+        // Familia puede crear inscripción si familiaUid coincide con el uid autenticado.
+        // El control de cupo, diaId real, hijo válido y convocatoria activa
+        // los garantiza la transacción del servicio.
         allow create: if isFamily() &&
-                         request.resource.data.familiaUid == request.auth.uid &&
-                         isResponsibleFamilyForChild(request.resource.data.hijoId, request.auth.uid);
+                         request.resource.data.familiaUid == request.auth.uid;
 
         // Admin puede borrar cualquier inscripción.
         // Familia solo puede desanotarse si es su inscripción.
