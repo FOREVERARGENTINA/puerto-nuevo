@@ -345,9 +345,7 @@ export default function ClasesAbiertasManager() {
 
   return (
     <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
-      <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-        <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>Clases Abiertas</h1>
-      </div>
+
       <div className="tabs__header" style={{ marginBottom: 'var(--spacing-md)' }}>
         {TIPOS.map((tipo) => (
           <button key={tipo} className={`tabs__tab${tipoActivo === tipo ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo(tipo)}>

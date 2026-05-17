@@ -358,9 +358,7 @@ export default function ClasesAbiertas() {
 
   return (
     <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
-      <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-        <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>Clases Abiertas</h1>
-      </div>
+
       {ambientes.length > 1 && (
         <div className="tabs__header" style={{ marginBottom: 'var(--spacing-lg)' }}>
           {ambientes.map((amb) => (
