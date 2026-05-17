@@ -149,11 +149,8 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                 <div>
                   <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
-                    {formatFechaDisplay(selectedDia.fecha)}
+                    {formatFechaDisplay(selectedDia.fecha)}{selectedDia.horario && ` — ${formatHorario(selectedDia.horario)}`}
                   </p>
-                  {selectedDia.horario && (
-                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
-                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
                   {esDiaDeFamilia ? (
@@ -335,8 +332,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                 <div>
                   <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
-                    {formatFechaDisplay(selectedDia.fecha)}
-                    {selectedDia.horario && <span style={{ fontWeight: 'normal', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{formatHorario(selectedDia.horario)}</span>}
+                    {formatFechaDisplay(selectedDia.fecha)}{selectedDia.horario && ` — ${formatHorario(selectedDia.horario)}`}
                   </p>
                   {diasFechaSeleccionada.length <= 1 && selectedDia.nombreTaller && (
                     <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
