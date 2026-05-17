@@ -36,17 +36,35 @@ const getDaysInMonth = (year, month) => {
  * CalendarioConvocatoria — grid mensual reutilizable para Clases Abiertas.
  *
  * Props:
- *   dias         — array de días de la convocatoria (cada uno con .id y .fecha Timestamp)
- *   selectedDiaId — id del día seleccionado actualmente
- *   onSelectDia  — fn(dia | null) llamada al clickear un día con evento; null al deseleccionar
- *   marcadores   — Map<diaId, 'inscripto' | 'completo' | 'disponible'> (opcional)
+ *   dias            — array de días de la convocatoria (cada uno con .id y .fecha Timestamp)
+ *   selectedFechaKey — clave de fecha seleccionada ("año-mes-día") o '' para ninguna
+ *   onSelectFecha   — fn(dias[] | null) — recibe todos los días de esa fecha al clickear
+ *   marcadores      — Map<diaId, 'inscripto' | 'completo' | 'disponible'> (opcional)
+ *
+ * Compatibilidad legacy (un solo día por fecha):
+ *   selectedDiaId   — si se pasa, se deriva selectedFechaKey automáticamente
+ *   onSelectDia     — si se pasa, se llama con el primer día de la fecha
  */
-export default function CalendarioConvocatoria({ dias = [], selectedDiaId, onSelectDia, marcadores }) {
+export default function CalendarioConvocatoria({
+  dias = [],
+  selectedFechaKey,
+  onSelectFecha,
+  // legacy
+  selectedDiaId,
+  onSelectDia,
+  marcadores,
+}) {
   const [currentDate, setCurrentDate] = useState(() => getInitialMonth(dias));
+
+  // soporte legacy: derivar selectedFechaKey desde selectedDiaId
+  const activeFechaKey = selectedFechaKey !== undefined
+    ? selectedFechaKey
+    : (selectedDiaId ? toDayKey(dias.find((d) => d.id === selectedDiaId)?.fecha) : '');
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
+  // Map<dayOfMonth, dia[]> — puede haber varios talleres por fecha
   const diasDelMes = useMemo(() => {
     const map = new Map();
     dias.forEach((dia) => {
@@ -54,7 +72,8 @@ export default function CalendarioConvocatoria({ dias = [], selectedDiaId, onSel
       if (!key) return;
       const d = dia.fecha?.toDate ? dia.fecha.toDate() : new Date(dia.fecha);
       if (d.getFullYear() === year && d.getMonth() === month) {
-        map.set(d.getDate(), dia);
+        const existing = map.get(d.getDate()) || [];
+        map.set(d.getDate(), [...existing, dia]);
       }
     });
     return map;
@@ -65,20 +84,41 @@ export default function CalendarioConvocatoria({ dias = [], selectedDiaId, onSel
   const isToday = (day) =>
     day && today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
 
-  const getMarker = (dia) => {
-    if (!dia || !marcadores) return null;
-    return marcadores.get(dia.id) || null;
+  // Marcador agregado para un grupo de días en la misma fecha:
+  // inscripto > completo > disponible
+  const getMarkerForGroup = (diasGroup) => {
+    if (!diasGroup?.length || !marcadores) return null;
+    if (diasGroup.some((d) => marcadores.get(d.id) === 'inscripto')) return 'inscripto';
+    if (diasGroup.every((d) => marcadores.get(d.id) === 'completo')) return 'completo';
+    if (diasGroup.some((d) => marcadores.get(d.id) === 'disponible')) return 'disponible';
+    return null;
   };
-
-  const selectedDia = dias.find((d) => d.id === selectedDiaId) || null;
 
   const handleClick = (day) => {
     if (!day) return;
-    const dia = diasDelMes.get(day);
-    if (!dia) return;
-    if (dia.id === selectedDiaId) { onSelectDia(null); return; }
-    onSelectDia(dia);
+    const diasGroup = diasDelMes.get(day);
+    if (!diasGroup?.length) return;
+    const fechaKey = toDayKey(diasGroup[0].fecha);
+
+    if (fechaKey === activeFechaKey) {
+      // deseleccionar
+      if (onSelectFecha) onSelectFecha(null);
+      else if (onSelectDia) onSelectDia(null);
+      return;
+    }
+
+    if (onSelectFecha) {
+      onSelectFecha(diasGroup);
+    } else if (onSelectDia) {
+      // legacy: pasar el primer día del grupo
+      onSelectDia(diasGroup[0]);
+    }
   };
+
+  // Para el label inferior: primer día de la fecha activa
+  const primerDiaActivo = activeFechaKey
+    ? dias.find((d) => toDayKey(d.fecha) === activeFechaKey)
+    : null;
 
   return (
     <div className="event-calendar">
@@ -117,10 +157,11 @@ export default function CalendarioConvocatoria({ dias = [], selectedDiaId, onSel
 
       <div className="event-calendar__days">
         {cells.map((day, idx) => {
-          const dia = day ? diasDelMes.get(day) : null;
-          const marker = getMarker(dia);
-          const isSelected = dia && dia.id === selectedDiaId;
-          const hasDia = Boolean(dia);
+          const diasGroup = day ? diasDelMes.get(day) : null;
+          const marker = getMarkerForGroup(diasGroup);
+          const fechaKey = diasGroup?.length ? toDayKey(diasGroup[0].fecha) : null;
+          const isSelected = Boolean(fechaKey && fechaKey === activeFechaKey);
+          const hasDia = Boolean(diasGroup?.length);
 
           const classes = [
             'event-calendar__day',
@@ -146,13 +187,12 @@ export default function CalendarioConvocatoria({ dias = [], selectedDiaId, onSel
         })}
       </div>
 
-      {selectedDia && (
+      {primerDiaActivo && (
         <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', textAlign: 'center' }}>
           {(() => {
-            const d = selectedDia.fecha?.toDate ? selectedDia.fecha.toDate() : new Date(selectedDia.fecha);
+            const d = primerDiaActivo.fecha?.toDate ? primerDiaActivo.fecha.toDate() : new Date(primerDiaActivo.fecha);
             return d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
           })()}
-          {selectedDia.horario && ` · ${selectedDia.horario}`}
         </div>
       )}
     </div>

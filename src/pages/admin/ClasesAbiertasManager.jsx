@@ -11,6 +11,12 @@ const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
 const TIPOS = ['ambiente_abierto', 'taller_abierto'];
 const AMBIENTES = ['taller1', 'taller2'];
 
+const toDayKey = (date) => {
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+};
+
 const formatFechaDisplay = (v) => {
   if (!v) return '';
   const d = v?.toDate ? v.toDate() : new Date(v);
@@ -45,6 +51,8 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const [error, setError] = useState('');
   const [newDia, setNewDia] = useState({ fecha: '', horario: '', nombreTaller: '' });
   const [selectedDiaId, setSelectedDiaId] = useState('');
+  // Para Taller Abierto: días de la fecha seleccionada (puede ser > 1)
+  const [diasFechaSeleccionada, setDiasFechaSeleccionada] = useState([]);
   const [editingDiaId, setEditingDiaId] = useState('');
   const [editDia, setEditDia] = useState({ fecha: '', horario: '', nombreTaller: '' });
   const [deletingDiaId, setDeletingDiaId] = useState('');
@@ -260,8 +268,6 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
       const cupo = cupoPorDia(dia.id);
       const insc = inscriptosPorDia(dia.id);
       if (tipo === 'ambiente_abierto') {
-        // Usa cupos (desnormalizado en convocatoria) como fuente de verdad del marcador
-        // porque las inscripciones reales se muestran al seleccionar el día
         m.set(dia.id, cupo >= 2 ? 'completo' : cupo > 0 ? 'inscripto' : 'disponible');
       } else {
         m.set(dia.id, insc.length > 0 ? 'inscripto' : 'disponible');
@@ -277,6 +283,11 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const insc = selectedDia ? inscriptosPorDia(selectedDia.id) : [];
   const cupo = selectedDia ? cupoPorDia(selectedDia.id) : 0;
   const cupoDesincronizado = tipo === 'ambiente_abierto' && selectedDia && cupo !== insc.length;
+
+  // selectedFechaKey: para Taller Abierto, la fecha seleccionada en el calendario
+  const selectedFechaKey = tipo === 'taller_abierto'
+    ? (diasFechaSeleccionada.length ? toDayKey(diasFechaSeleccionada[0].fecha) : '')
+    : null;
 
   if (loading) return <p style={{ color: 'var(--color-text-light)', padding: 'var(--spacing-md)' }}>Cargando...</p>;
 
@@ -308,20 +319,34 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
               <div className="card__body">
                 {(convocatoria.dias || []).length === 0 ? (
                   <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>No hay días cargados todavía.</p>
-                ) : (
-                  <CalendarioConvocatoria
-                    dias={convocatoria.dias}
-                    selectedDiaId={selectedDiaId}
-                    onSelectDia={(dia) => {
-                      setSelectedDiaId(dia?.id || '');
-                      setEditingDiaId('');
-                      setDeletingDiaId('');
-                      setAgregandoFamilia(false);
-                      setHijoSeleccionado('');
-                    }}
-                    marcadores={marcadores}
-                  />
-                )}
+                ) : tipo === 'taller_abierto' ? (
+                    <CalendarioConvocatoria
+                      dias={convocatoria.dias}
+                      selectedFechaKey={selectedFechaKey}
+                      onSelectFecha={(grupo) => {
+                        setDiasFechaSeleccionada(grupo || []);
+                        setSelectedDiaId(grupo?.[0]?.id || '');
+                        setEditingDiaId('');
+                        setDeletingDiaId('');
+                        setAgregandoFamilia(false);
+                        setHijoSeleccionado('');
+                      }}
+                      marcadores={marcadores}
+                    />
+                  ) : (
+                    <CalendarioConvocatoria
+                      dias={convocatoria.dias}
+                      selectedDiaId={selectedDiaId}
+                      onSelectDia={(dia) => {
+                        setSelectedDiaId(dia?.id || '');
+                        setEditingDiaId('');
+                        setDeletingDiaId('');
+                        setAgregandoFamilia(false);
+                        setHijoSeleccionado('');
+                      }}
+                      marcadores={marcadores}
+                    />
+                  )}
               </div>
             </div>
 
@@ -331,6 +356,21 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
                 <h3 className="card__title">{selectedDia ? 'Día seleccionado' : 'Detalle'}</h3>
                 {!selectedDia && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Seleccioná un día</span>}
               </div>
+              {/* Tabs de talleres para Taller Abierto con múltiples talleres por fecha */}
+              {tipo === 'taller_abierto' && diasFechaSeleccionada.length > 1 && (
+                <div className="tabs__header" style={{ padding: '0 var(--spacing-md)', borderBottom: '1px solid var(--color-border)' }}>
+                  {diasFechaSeleccionada.map((dia) => (
+                    <button
+                      key={dia.id}
+                      className={`tabs__tab${selectedDiaId === dia.id ? ' tabs__tab--active' : ''}`}
+                      style={{ fontSize: 'var(--font-size-sm)' }}
+                      onClick={() => { setSelectedDiaId(dia.id); setEditingDiaId(''); setDeletingDiaId(''); setAgregandoFamilia(false); }}
+                    >
+                      {dia.nombreTaller || dia.horario || dia.id}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="card__body">
                 {!selectedDia ? (
                   <div style={{ textAlign: 'center', padding: 'var(--spacing-xl) var(--spacing-md)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', border: '1.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>

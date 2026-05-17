@@ -190,12 +190,19 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   );
 }
 
+const toDayKey = (date) => {
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+};
+
 function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambiente, onRecargar }) {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [selectedDiaId, setSelectedDiaId] = useState('');
+  const [diasFechaSeleccionada, setDiasFechaSeleccionada] = useState([]);
   const [seleccionandoHijo, setSeleccionandoHijo] = useState(false);
 
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
@@ -226,7 +233,15 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
   }, [convocatoria, inscripcionesPropia]);
 
   useEffect(() => {
-    if (primerDiaInscriptoId && !selectedDiaId) setSelectedDiaId(primerDiaInscriptoId);
+    if (primerDiaInscriptoId && !selectedDiaId) {
+      setSelectedDiaId(primerDiaInscriptoId);
+      const dia = convocatoria?.dias?.find((d) => d.id === primerDiaInscriptoId);
+      if (dia) {
+        const key = toDayKey(dia.fecha);
+        const grupo = (convocatoria?.dias || []).filter((d) => toDayKey(d.fecha) === key);
+        setDiasFechaSeleccionada(grupo);
+      }
+    }
   }, [primerDiaInscriptoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
@@ -279,8 +294,12 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
           <div className="card__body">
             <CalendarioConvocatoria
               dias={dias}
-              selectedDiaId={selectedDiaId}
-              onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
+              selectedFechaKey={diasFechaSeleccionada.length ? toDayKey(diasFechaSeleccionada[0].fecha) : ''}
+              onSelectFecha={(grupo) => {
+                setDiasFechaSeleccionada(grupo || []);
+                setSelectedDiaId(grupo?.[0]?.id || '');
+                setSeleccionandoHijo(false);
+              }}
               marcadores={marcadores}
             />
           </div>
@@ -292,6 +311,21 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
             <h3 className="card__title">Fecha seleccionada</h3>
             {!selectedDia && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Seleccioná un día</span>}
           </div>
+          {/* Tabs de talleres cuando hay varios en la misma fecha */}
+          {diasFechaSeleccionada.length > 1 && (
+            <div className="tabs__header" style={{ padding: '0 var(--spacing-md)', borderBottom: '1px solid var(--color-border)' }}>
+              {diasFechaSeleccionada.map((dia) => (
+                <button
+                  key={dia.id}
+                  className={`tabs__tab${selectedDiaId === dia.id ? ' tabs__tab--active' : ''}`}
+                  style={{ fontSize: 'var(--font-size-sm)' }}
+                  onClick={() => { setSelectedDiaId(dia.id); setSeleccionandoHijo(false); }}
+                >
+                  {dia.nombreTaller || formatHorario(dia.horario) || dia.id}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="card__body">
             {!selectedDia ? (
               <div style={{ textAlign: 'center', padding: 'var(--spacing-xl) var(--spacing-md)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', border: '1.5px dashed var(--color-border)', borderRadius: 'var(--radius-md)' }}>
@@ -302,11 +336,9 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
                 <div>
                   <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
                     {formatFechaDisplay(selectedDia.fecha)}
+                    {selectedDia.horario && <span style={{ fontWeight: 'normal', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{formatHorario(selectedDia.horario)}</span>}
                   </p>
-                  {selectedDia.horario && (
-                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
-                  )}
-                  {selectedDia.nombreTaller && (
+                  {diasFechaSeleccionada.length <= 1 && selectedDia.nombreTaller && (
                     <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
                   )}
                 </div>
