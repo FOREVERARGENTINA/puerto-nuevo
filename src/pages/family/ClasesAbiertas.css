@@ -6,8 +6,8 @@
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   padding: 4px;
-  background: linear-gradient(180deg, var(--color-background-alt) 0%, #f7f5f2 100%);
-  border: 1px solid var(--color-border);
+  background: #e8e2db;
+  border: 1px solid #cfc8bf;
   border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-lg);
 }
@@ -15,7 +15,7 @@
 .ca-tipo-tab {
   border: none;
   border-radius: calc(var(--radius-md) - 2px);
-  padding: 10px 16px;
+  padding: 11px 16px;
   background: transparent;
   color: var(--color-text-light);
   font-size: var(--font-size-sm);
@@ -27,13 +27,13 @@
 }
 
 .ca-tipo-tab:hover {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.5);
   color: var(--color-text);
 }
 
 .ca-tipo-tab--active {
   background: var(--color-background);
-  box-shadow: 0 2px 8px rgba(45, 32, 23, 0.10);
+  box-shadow: 0 1px 4px rgba(45, 32, 23, 0.18), 0 0 0 1px rgba(45, 32, 23, 0.06);
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
 }
