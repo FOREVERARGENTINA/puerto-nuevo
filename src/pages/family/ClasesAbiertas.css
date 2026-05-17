@@ -1,5 +1,43 @@
 /* ClasesAbiertas.css — layout lado a lado igual que BookAppointment */
 
+/* Segmented control para pestañas Ambiente / Taller */
+.ca-tipo-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: linear-gradient(180deg, var(--color-background-alt) 0%, #f7f5f2 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.ca-tipo-tab {
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), color var(--transition-fast);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ca-tipo-tab:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--color-text);
+}
+
+.ca-tipo-tab--active {
+  background: var(--color-background);
+  box-shadow: 0 2px 8px rgba(45, 32, 23, 0.10);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .page-container .clases-abiertas-layout {
   display: grid;
   grid-template-columns: 1fr;

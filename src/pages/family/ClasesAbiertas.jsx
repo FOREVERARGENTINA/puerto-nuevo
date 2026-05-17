@@ -374,11 +374,11 @@ function PanelAmbiente({ ambiente, convocatorias, inscripcionesPropia, hijos, on
 
   return (
     <div>
-      <div className="tabs__header" style={{ marginBottom: 'var(--spacing-lg)' }}>
-        <button className={`tabs__tab${tipoActivo === 'ambiente_abierto' ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo('ambiente_abierto')}>
+      <div className="ca-tipo-tabs">
+        <button className={`ca-tipo-tab${tipoActivo === 'ambiente_abierto' ? ' ca-tipo-tab--active' : ''}`} onClick={() => setTipoActivo('ambiente_abierto')}>
           Ambiente Abierto
         </button>
-        <button className={`tabs__tab${tipoActivo === 'taller_abierto' ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo('taller_abierto')}>
+        <button className={`ca-tipo-tab${tipoActivo === 'taller_abierto' ? ' ca-tipo-tab--active' : ''}`} onClick={() => setTipoActivo('taller_abierto')}>
           Taller Abierto
         </button>
       </div>
