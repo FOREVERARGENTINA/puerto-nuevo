@@ -863,9 +863,9 @@ service cloud.firestore {
       );
 
       match /inscripciones/{inscripcionId} {
-        // Admin lee todas; familia solo las suyas.
-        allow read: if isAdmin() ||
-                       (isFamily() && resource.data.familiaUid == request.auth.uid);
+        // Admin lee todas; familia puede leer cualquier inscripción de esta convocatoria
+        // (necesario para que la transacción pueda leer docs que aún no existen).
+        allow read: if isAdmin() || isFamily();
 
         // Familia puede crear inscripción si familiaUid coincide con el uid autenticado.
         // El control de cupo, diaId real, hijo válido y convocatoria activa
