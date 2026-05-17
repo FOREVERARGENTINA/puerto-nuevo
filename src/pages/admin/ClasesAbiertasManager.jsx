@@ -536,19 +536,19 @@ export default function ClasesAbiertasManager() {
   return (
     <div className="container page-container" style={{ paddingTop: 'var(--spacing-xl)' }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
-        <div className="tabs__header" style={{ margin: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+        <div className="cam-tabs">
           {TIPOS.map((tipo) => (
-            <button key={tipo} className={`tabs__tab${tipoActivo === tipo ? ' tabs__tab--active' : ''}`} onClick={() => setTipoActivo(tipo)}>
+            <button key={tipo} className={`cam-tab${tipoActivo === tipo ? ' cam-tab--active' : ''}`} onClick={() => setTipoActivo(tipo)}>
               {TIPO_LABELS[tipo]}
             </button>
           ))}
         </div>
         {panelActions && <div>{panelActions}</div>}
       </div>
-      <div className="tabs__header" style={{ marginBottom: 'var(--spacing-lg)' }}>
+      <div className="cam-tabs" style={{ marginBottom: 'var(--spacing-lg)' }}>
         {AMBIENTES.map((amb) => (
-          <button key={amb} className={`tabs__tab${ambienteActivo === amb ? ' tabs__tab--active' : ''}`} onClick={() => setAmbienteActivo(amb)}>
+          <button key={amb} className={`cam-tab${ambienteActivo === amb ? ' cam-tab--active' : ''}`} onClick={() => setAmbienteActivo(amb)}>
             {AMBIENTE_LABELS[amb]}
           </button>
         ))}
