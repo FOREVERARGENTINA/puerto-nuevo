@@ -377,8 +377,8 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
                     <div>
                       <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
                         {formatFechaDisplay(selectedDia.fecha)}
+                        {selectedDia.horario && <span style={{ fontWeight: 'normal', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{formatHorario(selectedDia.horario)}</span>}
                       </p>
-                      <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
                       {tipo === 'taller_abierto' && selectedDia.nombreTaller && (
                         <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
                       )}
