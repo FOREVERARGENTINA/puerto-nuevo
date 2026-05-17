@@ -5,18 +5,20 @@ import { clasesAbiertasService } from '../services/clasesAbiertas.service';
 const TIPOS = ['ambiente_abierto', 'taller_abierto'];
 
 /**
- * Carga convocatorias activas e inscripciones propias de la familia autenticada.
- * El cupo se deriva de convocatoria.cupos[diaId] — no requiere leer inscripciones de terceros.
- * @param {string[]} ambientes — ['taller1'] | ['taller2'] | ['taller1', 'taller2']
+ * Carga convocatorias activas e inscripciones del grupo familiar.
+ * Busca por familiaUid Y por hijoIds para que ambos responsables vean
+ * las inscripciones realizadas por cualquiera de ellos.
+ * @param {string[]} ambientes
+ * @param {Array<{id:string}>} hijos — array de hijos para buscar por hijoId
  */
-export function useClasesAbiertas(ambientes = []) {
+export function useClasesAbiertas(ambientes = [], hijos = []) {
   const { user } = useAuth();
-  // convocatorias: { 'taller1_ambiente_abierto': {id, tipo, ambiente, activo, dias[], cupos, familiasDia}, ... }
   const [convocatorias, setConvocatorias] = useState({});
-  // inscripcionesPropia: { [convocatoriaId]: [{id, diaId, familiaUid, ...}] }
   const [inscripcionesPropia, setInscripcionesPropia] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const hijoIds = hijos.map((h) => h.id).filter(Boolean);
 
   const cargar = useCallback(async () => {
     if (!ambientes.length) { setLoading(false); return; }
@@ -42,18 +44,32 @@ export function useClasesAbiertas(ambientes = []) {
       });
       setConvocatorias(nuevasConvocatorias);
 
-      // Solo inscripciones propias — familia tiene permiso de leer las suyas
       if (user?.uid) {
         const convIds = Object.values(nuevasConvocatorias).map((c) => c.id);
+
+        // Para cada convocatoria: buscar por familiaUid Y por hijoIds, mergear sin duplicados
         const inscResults = await Promise.all(
-          convIds.map((id) =>
-            clasesAbiertasService.getInscripcionesByFamilia(id, user.uid)
-          )
+          convIds.map(async (id) => {
+            const [porFamilia, porHijos] = await Promise.all([
+              clasesAbiertasService.getInscripcionesByFamilia(id, user.uid),
+              hijoIds.length
+                ? clasesAbiertasService.getInscripcionesByHijoIds(id, hijoIds)
+                : { success: true, inscripciones: [] }
+            ]);
+            const vistas = new Set();
+            const merged = [];
+            for (const insc of [
+              ...(porFamilia.success ? porFamilia.inscripciones : []),
+              ...(porHijos.success ? porHijos.inscripciones : [])
+            ]) {
+              if (!vistas.has(insc.id)) { vistas.add(insc.id); merged.push(insc); }
+            }
+            return merged;
+          })
         );
+
         const nuevasInscripciones = {};
-        convIds.forEach((id, i) => {
-          if (inscResults[i].success) nuevasInscripciones[id] = inscResults[i].inscripciones;
-        });
+        convIds.forEach((id, i) => { nuevasInscripciones[id] = inscResults[i]; });
         setInscripcionesPropia(nuevasInscripciones);
       }
     } catch (err) {
@@ -61,7 +77,7 @@ export function useClasesAbiertas(ambientes = []) {
     } finally {
       setLoading(false);
     }
-  }, [ambientes.join(','), user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ambientes.join(','), user?.uid, hijoIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { cargar(); }, [cargar]);
 

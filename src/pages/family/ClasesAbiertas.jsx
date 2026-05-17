@@ -41,31 +41,35 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
 
-  const miInscripcion = inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
+  // Inscripción del grupo familiar (cualquier responsable pudo haberla creado)
+  const inscripcionFamilia = inscripcionesPropia?.find((i) =>
+    hijos.some((h) => h.id === i.hijoId)
+  ) || inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
+  const esMiInscripcion = inscripcionFamilia?.familiaUid === user?.uid;
 
-  const [selectedDiaId, setSelectedDiaId] = useState(() => miInscripcion?.diaId || '');
+  const [selectedDiaId, setSelectedDiaId] = useState(() => inscripcionFamilia?.diaId || '');
 
   // Si se recarga y ahora hay inscripción, mostrarla automáticamente
   useEffect(() => {
-    if (miInscripcion?.diaId && !selectedDiaId) {
-      setSelectedDiaId(miInscripcion.diaId);
+    if (inscripcionFamilia?.diaId && !selectedDiaId) {
+      setSelectedDiaId(inscripcionFamilia.diaId);
     }
-  }, [miInscripcion?.diaId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inscripcionFamilia?.diaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const marcadores = useMemo(() => {
     if (!convocatoria) return new Map();
     const m = new Map();
     (convocatoria.dias || []).forEach((dia) => {
       const cupo = convocatoria.cupos?.[dia.id] || 0;
-      if (miInscripcion?.diaId === dia.id) m.set(dia.id, 'inscripto');
+      if (inscripcionFamilia?.diaId === dia.id) m.set(dia.id, 'inscripto');
       else if (cupo >= 2) m.set(dia.id, 'completo');
       else m.set(dia.id, 'disponible');
     });
     return m;
-  }, [convocatoria, miInscripcion]);
+  }, [convocatoria, inscripcionFamilia]);
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
-  const esMiDia = miInscripcion?.diaId === selectedDiaId;
+  const esDiaDeFamilia = inscripcionFamilia?.diaId === selectedDiaId;
   const estaCompleto = selectedDia ? (convocatoria?.cupos?.[selectedDia.id] || 0) >= 2 : false;
 
   const handleAnotarme = async (dia, hijo) => {
@@ -85,9 +89,9 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   };
 
   const handleDesanotarme = async () => {
-    if (!miInscripcion) return;
+    if (!inscripcionFamilia) return;
     setSubmitting(true);
-    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, miInscripcion.id);
+    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, inscripcionFamilia.id);
     if (res.success) { showMsg('Inscripción cancelada.'); onRecargar(); }
     else showErr(res.error);
     setSubmitting(false);
@@ -145,16 +149,16 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {esMiDia ? (
+                  {esDiaDeFamilia ? (
                     <>
                       <span className="badge badge--success">Anotada</span>
-                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
+                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
                         Desanotarme
                       </button>
                     </>
                   ) : estaCompleto ? (
                     <span className="badge badge--error">Completo</span>
-                  ) : miInscripcion ? (
+                  ) : inscripcionFamilia ? (
                     <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
                   ) : (
                     <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
@@ -162,6 +166,11 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                     </button>
                   )}
                 </div>
+                {esDiaDeFamilia && !esMiInscripcion && inscripcionFamilia?.familiaNombre && (
+                  <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginTop: 'calc(var(--spacing-xs) * -1)' }}>
+                    Anotado por {inscripcionFamilia.familiaNombre.split(' ')[0]}
+                  </p>
+                )}
                 {seleccionandoHijo && (
                   <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
                 )}
@@ -345,7 +354,7 @@ export default function ClasesAbiertas() {
   }, [user?.uid]);
 
   const ambientes = [...new Set(hijos.map((h) => h.ambiente).filter(Boolean))];
-  const { convocatorias, inscripcionesPropia, loading, recargar } = useClasesAbiertas(ambientes);
+  const { convocatorias, inscripcionesPropia, loading, recargar } = useClasesAbiertas(ambientes, hijos);
 
   const [ambienteActivo, setAmbienteActivo] = useState('');
   useEffect(() => {

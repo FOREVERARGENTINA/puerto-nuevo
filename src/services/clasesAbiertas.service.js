@@ -39,6 +39,25 @@ const validateConvocatoriaForInscripcion = (convData, tipoEsperado, payload) => 
   return { valid: true };
 };
 
+const buildAmbienteAbiertoState = (inscripciones) => {
+  const cupos = {};
+  const familiasDia = {};
+  const hijosDia = {};
+
+  inscripciones.forEach((inscripcion) => {
+    if (!inscripcion?.diaId || !inscripcion?.familiaUid) return;
+
+    cupos[inscripcion.diaId] = (cupos[inscripcion.diaId] || 0) + 1;
+    familiasDia[inscripcion.familiaUid] = inscripcion.diaId;
+
+    if (inscripcion.hijoId && !hijosDia[inscripcion.hijoId]) {
+      hijosDia[inscripcion.hijoId] = inscripcion.diaId;
+    }
+  });
+
+  return { cupos, familiasDia, hijosDia };
+};
+
 export const clasesAbiertasService = {
   // ── Convocatorias ──────────────────────────────────────────────
 
@@ -144,6 +163,7 @@ export const clasesAbiertasService = {
           diaIds: {},
           cupos: {},
           familiasDia: {},
+          hijosDia: {},
           creadoPor: uid,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -286,11 +306,50 @@ export const clasesAbiertasService = {
     }
   },
 
+  async getInscripcionesByHijoIds(convocatoriaId, hijoIds) {
+    try {
+      if (!hijoIds?.length) return { success: true, inscripciones: [] };
+      const q = query(inscripcionesCol(convocatoriaId), where('hijoId', 'in', hijoIds));
+      const snap = await getDocs(q);
+      return { success: true, inscripciones: snap.docs.map((d) => ({ id: d.id, ...d.data() })) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   async getInscripcionesByFamilia(convocatoriaId, familiaUid) {
     try {
       const q = query(inscripcionesCol(convocatoriaId), where('familiaUid', '==', familiaUid));
       const snap = await getDocs(q);
       return { success: true, inscripciones: snap.docs.map((d) => ({ id: d.id, ...d.data() })) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async recalcularEstadoConvocatoria(convocatoriaId) {
+    try {
+      const convRef = doc(clasesAbiertasCol, convocatoriaId);
+      const [convSnap, inscSnap] = await Promise.all([
+        getDoc(convRef),
+        getDocs(inscripcionesCol(convocatoriaId))
+      ]);
+
+      if (!convSnap.exists()) {
+        return { success: false, error: 'Convocatoria no encontrada.' };
+      }
+
+      if (convSnap.data().tipo !== 'ambiente_abierto') {
+        return { success: false, error: 'La resincronización de cupos aplica solo a Ambiente Abierto.' };
+      }
+
+      const state = buildAmbienteAbiertoState(inscSnap.docs.map((d) => d.data()));
+      await updateDoc(convRef, {
+        ...state,
+        updatedAt: serverTimestamp()
+      });
+
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -382,11 +441,24 @@ export const clasesAbiertasService = {
     try {
       const convRef = doc(clasesAbiertasCol, convocatoriaId);
       const inscRef = doc(db, 'clasesAbiertas', convocatoriaId, 'inscripciones', inscripcionId);
+      const currentSnap = await getDoc(inscRef);
+      if (!currentSnap.exists()) {
+        return { success: false, error: 'Inscripción no encontrada.' };
+      }
+
+      const currentInscripcion = currentSnap.data();
+      const sameChildRefs = currentInscripcion.hijoId
+        ? (await getDocs(query(inscripcionesCol(convocatoriaId), where('hijoId', '==', currentInscripcion.hijoId))))
+          .docs
+          .filter((d) => d.id !== inscripcionId)
+          .map((d) => d.ref)
+        : [];
 
       const result = await runTransaction(db, async (transaction) => {
-        const [convSnap, inscSnap] = await Promise.all([
+        const [convSnap, inscSnap, ...sameChildSnaps] = await Promise.all([
           transaction.get(convRef),
-          transaction.get(inscRef)
+          transaction.get(inscRef),
+          ...sameChildRefs.map((ref) => transaction.get(ref))
         ]);
 
         if (!inscSnap.exists()) {
@@ -399,11 +471,22 @@ export const clasesAbiertasService = {
         if (convSnap.exists() && convSnap.data().tipo === 'ambiente_abierto') {
           const convData = convSnap.data();
           const cupoActual = convData.cupos?.[inscripcion.diaId] || 0;
-          transaction.update(convRef, {
+          const remainingChildInscription = sameChildSnaps
+            .find((snap) => snap.exists() && snap.data().hijoId === inscripcion.hijoId);
+          const updatePayload = {
             [`cupos.${inscripcion.diaId}`]: cupoActual > 1 ? cupoActual - 1 : deleteField(),
             [`familiasDia.${inscripcion.familiaUid}`]: deleteField(),
-            ...(inscripcion.hijoId ? { [`hijosDia.${inscripcion.hijoId}`]: deleteField() } : {}),
             updatedAt: serverTimestamp()
+          };
+
+          if (inscripcion.hijoId) {
+            updatePayload[`hijosDia.${inscripcion.hijoId}`] = remainingChildInscription
+              ? remainingChildInscription.data().diaId
+              : deleteField();
+          }
+
+          transaction.update(convRef, {
+            ...updatePayload
           });
         }
 
