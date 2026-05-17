@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getAdminConversationCounts,
   sortConversationsByLatestMessage,
   getConversationStatusLabel,
   getConversationStatusBadge,
@@ -85,5 +86,34 @@ describe('getAreaLabel', () => {
 
   it('desconocido → Escuela (default)', () => {
     expect(getAreaLabel('otro')).toBe('Escuela');
+  });
+});
+
+describe('getAdminConversationCounts', () => {
+  it('resume total, sin responder, no leidas y cerradas', () => {
+    const counts = getAdminConversationCounts([
+      {
+        estado: 'activa',
+        ultimoMensajeAutor: 'family',
+        mensajesSinLeerEscuela: 2,
+      },
+      {
+        estado: 'respondida',
+        ultimoMensajeAutor: 'coordinacion',
+        mensajesSinLeerEscuela: 0,
+      },
+      {
+        estado: 'cerrada',
+        ultimoMensajeAutor: 'family',
+        mensajesSinLeerEscuela: 0,
+      },
+    ]);
+
+    expect(counts).toEqual({
+      total: 3,
+      sinResponder: 1,
+      noLeidas: 1,
+      cerradas: 1,
+    });
   });
 });

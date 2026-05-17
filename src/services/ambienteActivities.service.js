@@ -336,10 +336,6 @@ export const ambienteActivitiesService = {
       return { success: false, error: error.message };
     }
 
-    if (files.length === 0 && linkItems.length === 0) {
-      return { success: false, error: 'Debes agregar al menos un archivo o link' };
-    }
-
     let dueDate = null;
     if (payload.dueDate) {
       const rawDate = payload.dueDate?.toDate ? payload.dueDate.toDate() : new Date(payload.dueDate);

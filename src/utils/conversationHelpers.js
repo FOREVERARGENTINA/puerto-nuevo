@@ -61,6 +61,29 @@ export const getConversationActivityDate = (conversation) => {
   return millis > 0 ? new Date(millis) : null;
 };
 
+export const getAdminConversationCounts = (conversations = []) => (
+  conversations.reduce((acc, conv) => {
+    acc.total += 1;
+
+    if (
+      conv?.ultimoMensajeAutor === 'family'
+      && [CONVERSATION_STATUS.PENDIENTE, CONVERSATION_STATUS.ACTIVA].includes(conv?.estado)
+    ) {
+      acc.sinResponder += 1;
+    }
+
+    if ((Number(conv?.mensajesSinLeerEscuela) || 0) > 0) {
+      acc.noLeidas += 1;
+    }
+
+    if (conv?.estado === CONVERSATION_STATUS.CERRADA) {
+      acc.cerradas += 1;
+    }
+
+    return acc;
+  }, { total: 0, sinResponder: 0, noLeidas: 0, cerradas: 0 })
+);
+
 export const sortConversationsByLatestMessage = (conversations = []) => (
   [...conversations].sort((a, b) => getConversationActivityTime(b) - getConversationActivityTime(a))
 );

@@ -206,6 +206,22 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convocatoria, inscripcionesPropia]);
 
+  // Inicializar con el primer día inscripto (cronológicamente)
+  const primerDiaInscriptoId = useMemo(() => {
+    if (!convocatoria?.dias?.length || !inscripcionesPropia?.length) return '';
+    const diasOrdenados = [...convocatoria.dias].sort((a, b) => {
+      const da = a.fecha?.toDate ? a.fecha.toDate() : new Date(a.fecha);
+      const db = b.fecha?.toDate ? b.fecha.toDate() : new Date(b.fecha);
+      return da - db;
+    });
+    return diasOrdenados.find((d) => getMiInscripcion(d.id))?.id || '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convocatoria, inscripcionesPropia]);
+
+  useEffect(() => {
+    if (primerDiaInscriptoId && !selectedDiaId) setSelectedDiaId(primerDiaInscriptoId);
+  }, [primerDiaInscriptoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
   const miInscripcionSelected = selectedDia ? getMiInscripcion(selectedDia.id) : null;
 

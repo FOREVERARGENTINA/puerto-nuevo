@@ -37,6 +37,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
   const [editingDiaId, setEditingDiaId] = useState('');
   const [editDia, setEditDia] = useState({ fecha: '', horario: '', nombreTaller: '' });
   const [deletingDiaId, setDeletingDiaId] = useState('');
+  const [deletingInscripcionId, setDeletingInscripcionId] = useState('');
 
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
@@ -136,6 +137,23 @@ function PanelConvocatoria({ tipo, ambiente }) {
     setSubmitting(false);
   };
 
+  const handleDeleteInscripcion = async (inscripcionId) => {
+    setSubmitting(true);
+    const res = await clasesAbiertasService.cancelarInscripcion(convocatoria.id, inscripcionId);
+    if (res.success) { showMsg('Inscripción eliminada.'); setDeletingInscripcionId(''); cargar(); }
+    else showErr(res.error);
+    setSubmitting(false);
+  };
+
+  const handleSyncCupos = async () => {
+    if (!convocatoria || tipo !== 'ambiente_abierto') return;
+    setSubmitting(true);
+    const res = await clasesAbiertasService.recalcularEstadoConvocatoria(convocatoria.id);
+    if (res.success) { showMsg('Cupos resincronizados.'); cargar(); }
+    else showErr(res.error);
+    setSubmitting(false);
+  };
+
   const inscriptosPorDia = (diaId) => inscripciones.filter((i) => i.diaId === diaId);
   const cupoPorDia = (diaId) => convocatoria?.cupos?.[diaId] || 0;
 
@@ -162,6 +180,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
   const isDeleting = deletingDiaId === selectedDiaId && Boolean(selectedDiaId);
   const insc = selectedDia ? inscriptosPorDia(selectedDia.id) : [];
   const cupo = selectedDia ? cupoPorDia(selectedDia.id) : 0;
+  const cupoDesincronizado = tipo === 'ambiente_abierto' && selectedDia && cupo !== insc.length;
 
   if (loading) return <p style={{ color: 'var(--color-text-light)', padding: 'var(--spacing-md)' }}>Cargando...</p>;
 
@@ -291,14 +310,40 @@ function PanelConvocatoria({ tipo, ambiente }) {
                         <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
                       )}
                     </div>
-                    <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && cupo >= 2 ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)' }}>
-                      {tipo === 'ambiente_abierto' ? `${insc.length}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
-                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                      <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && insc.length >= 2 ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
+                        {tipo === 'ambiente_abierto' ? `${insc.length}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
+                      </p>
+                      {cupoDesincronizado && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
+                            Cupo interno desincronizado: {cupo}/2
+                          </span>
+                          <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleSyncCupos} disabled={submitting}>
+                            Sincronizar cupos
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {insc.length > 0 && (
                       <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
                         {insc.map((i) => (
-                          <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0' }}>
-                            <strong>{i.familiaNombre}</strong> — {i.hijoNombre}
+                          <div key={i.id} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', padding: 'var(--spacing-xs) 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                            <span><strong>{i.familiaNombre}</strong> — {i.hijoNombre}</span>
+                            {deletingInscripcionId === i.id ? (
+                              <span style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+                                <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => handleDeleteInscripcion(i.id)} disabled={submitting}>
+                                  Confirmar
+                                </button>
+                                <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={() => setDeletingInscripcionId('')} disabled={submitting}>
+                                  Cancelar
+                                </button>
+                              </span>
+                            ) : (
+                              <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', color: 'var(--color-error)' }} onClick={() => setDeletingInscripcionId(i.id)} disabled={submitting}>
+                                Quitar
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

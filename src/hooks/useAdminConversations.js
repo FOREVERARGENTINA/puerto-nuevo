@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   collection,
-  getCountFromServer,
   getDocs,
   limit,
   onSnapshot,
@@ -14,6 +13,7 @@ import { db } from '../config/firebase';
 import { CONVERSATION_STATUS, ROLES } from '../config/constants';
 import { emitConversationRead } from '../utils/conversationEvents';
 import { conversationsService } from '../services/conversations.service';
+import { getAdminConversationCounts } from '../utils/conversationHelpers';
 import { fixMojibakeDeep } from '../utils/textEncoding';
 
 const PAGE_SIZE = 50;
@@ -78,28 +78,15 @@ export function useAdminConversations({ role, searchActive = false }) {
   const hasLoadedRef = useRef(false);
   const collectionRef = collection(db, 'conversations');
 
-  // Fetch counts via getCountFromServer (barato, no descarga docs)
   const refreshCounts = useCallback(async (baseConstraints) => {
-    const run = async (extra) => {
-      const q = query(collectionRef, ...baseConstraints, ...extra);
-      const snap = await getCountFromServer(q);
-      return snap.data().count;
-    };
-
-    const [total, sinResponder, noLeidas, cerradas] = await Promise.all([
-      run([]),
-      run([
-        where('ultimoMensajeAutor', '==', 'family'),
-        where('estado', 'in', [
-          CONVERSATION_STATUS.PENDIENTE,
-          CONVERSATION_STATUS.ACTIVA,
-        ]),
-      ]),
-      run([where('mensajesSinLeerEscuela', '>', 0)]),
-      run([where('estado', '==', CONVERSATION_STATUS.CERRADA)]),
-    ]);
-
-    setCounts({ total, sinResponder, noLeidas, cerradas });
+    try {
+      const q = query(collectionRef, ...baseConstraints);
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(docToConv);
+      setCounts(getAdminConversationCounts(docs));
+    } catch (err) {
+      console.error('useAdminConversations refreshCounts error:', err);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Suscribir a la primera página con onSnapshot

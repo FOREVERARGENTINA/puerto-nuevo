@@ -65,7 +65,6 @@ export default function AmbienteActivitiesManager() {
 
   const canSubmit = useMemo(() => (
     form.title.trim().length > 0 &&
-    (form.files.length > 0 || form.links.length > 0) &&
     (form.category !== 'otra' || sanitizeCustomCategory(form.customCategory).length > 0)
   ), [form]);
 
