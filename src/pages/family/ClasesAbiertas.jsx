@@ -36,13 +36,21 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [selectedDiaId, setSelectedDiaId] = useState('');
   const [seleccionandoHijo, setSeleccionandoHijo] = useState(false);
 
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
 
   const miInscripcion = inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
+
+  const [selectedDiaId, setSelectedDiaId] = useState(() => miInscripcion?.diaId || '');
+
+  // Si se recarga y ahora hay inscripción, mostrarla automáticamente
+  useEffect(() => {
+    if (miInscripcion?.diaId && !selectedDiaId) {
+      setSelectedDiaId(miInscripcion.diaId);
+    }
+  }, [miInscripcion?.diaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const marcadores = useMemo(() => {
     if (!convocatoria) return new Map();
