@@ -18,6 +18,15 @@ const formatFechaDisplay = (v) => {
   return d.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+const formatHorario = (v) => {
+  if (!v) return '';
+  const s = String(v).trim();
+  // Si ya contiene "hs" o letras que no sean dígitos/separadores, dejarlo tal cual
+  if (/hs/i.test(s)) return s;
+  // Si es solo dígitos o "H:MM" o "H:MM - H:MM", agregar " hs" al final
+  return s + ' hs';
+};
+
 const formatFechaInput = (v) => {
   if (!v) return '';
   const d = v?.toDate ? v.toDate() : new Date(v);
@@ -360,7 +369,7 @@ function PanelConvocatoria({ tipo, ambiente }) {
                       <p style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize', marginBottom: 'var(--spacing-xs)' }}>
                         {formatFechaDisplay(selectedDia.fecha)}
                       </p>
-                      <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                      <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
                       {tipo === 'taller_abierto' && selectedDia.nombreTaller && (
                         <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
                       )}

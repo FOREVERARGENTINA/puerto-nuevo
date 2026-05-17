@@ -8,6 +8,13 @@ import './ClasesAbiertas.css';
 
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
 
+const formatHorario = (v) => {
+  if (!v) return '';
+  const s = String(v).trim();
+  if (/hs/i.test(s)) return s;
+  return s + ' hs';
+};
+
 const formatFechaDisplay = (v) => {
   if (!v) return '';
   const d = v?.toDate ? v.toDate() : new Date(v);
@@ -145,7 +152,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                     {formatFechaDisplay(selectedDia.fecha)}
                   </p>
                   {selectedDia.horario && (
-                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -297,7 +304,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
                     {formatFechaDisplay(selectedDia.fecha)}
                   </p>
                   {selectedDia.horario && (
-                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{selectedDia.horario}</p>
+                    <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>{formatHorario(selectedDia.horario)}</p>
                   )}
                   {selectedDia.nombreTaller && (
                     <span className="badge badge--info" style={{ marginTop: 'var(--spacing-xs)', display: 'inline-block' }}>{selectedDia.nombreTaller}</span>
