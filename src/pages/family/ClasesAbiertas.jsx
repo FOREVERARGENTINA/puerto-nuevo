@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useClasesAbiertas } from '../../hooks/useClasesAbiertas';
 import { clasesAbiertasService } from '../../services/clasesAbiertas.service';
 import { childrenService } from '../../services/children.service';
+import CalendarioConvocatoria from '../../components/ui/CalendarioConvocatoria';
 
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
 
@@ -34,18 +35,33 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [seleccionandoDiaId, setSeleccionandoDiaId] = useState('');
+  const [selectedDiaId, setSelectedDiaId] = useState('');
+  const [seleccionandoHijo, setSeleccionandoHijo] = useState(false);
 
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
 
   const miInscripcion = inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
 
-  const estaCompleto = (diaId) => (convocatoria?.cupos?.[diaId] || 0) >= 2;
+  const marcadores = useMemo(() => {
+    if (!convocatoria) return new Map();
+    const m = new Map();
+    (convocatoria.dias || []).forEach((dia) => {
+      const cupo = convocatoria.cupos?.[dia.id] || 0;
+      if (miInscripcion?.diaId === dia.id) m.set(dia.id, 'inscripto');
+      else if (cupo >= 2) m.set(dia.id, 'completo');
+      else m.set(dia.id, 'disponible');
+    });
+    return m;
+  }, [convocatoria, miInscripcion]);
+
+  const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
+  const esMiDia = miInscripcion?.diaId === selectedDiaId;
+  const estaCompleto = selectedDia ? (convocatoria?.cupos?.[selectedDia.id] || 0) >= 2 : false;
 
   const handleAnotarme = async (dia, hijo) => {
     setSubmitting(true);
-    setSeleccionandoDiaId('');
+    setSeleccionandoHijo(false);
     const res = await clasesAbiertasService.inscribirAmbienteAbierto(convocatoria.id, {
       diaId: dia.id,
       familiaUid: user.uid,
@@ -68,6 +84,11 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     setSubmitting(false);
   };
 
+  const handleClickAnotarme = () => {
+    if (hijos.length === 1) handleAnotarme(selectedDia, hijos[0]);
+    else setSeleccionandoHijo(true);
+  };
+
   if (!convocatoria) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
   const dias = convocatoria.dias || [];
   if (!dias.length) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
@@ -76,45 +97,45 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     <div>
       {message && <div className="alert alert--success" style={{ marginBottom: 'var(--spacing-md)' }}>{message}</div>}
       {error && <div className="alert alert--error" style={{ marginBottom: 'var(--spacing-md)' }}>{error}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-        {dias.map((dia) => {
-          const esMiDia = miInscripcion?.diaId === dia.id;
-          const completo = estaCompleto(dia.id);
-          const yaInscripta = !!miInscripcion;
 
-          return (
-            <div key={dia.id} style={{ border: `1px solid ${esMiDia ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', padding: 'var(--spacing-md)', background: esMiDia ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-                <div>
-                  <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(dia.fecha)}</span>
-                  <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{dia.horario}</span>
-                </div>
-                <div>
-                  {esMiDia ? (
-                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
-                      <span className="badge badge--success">Anotada</span>
-                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
-                        Desanotarme
-                      </button>
-                    </div>
-                  ) : completo ? (
-                    <span className="badge badge--error">Completo</span>
-                  ) : yaInscripta ? (
-                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
-                  ) : (
-                    <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={() => { if (hijos.length === 1) handleAnotarme(dia, hijos[0]); else setSeleccionandoDiaId(dia.id); }}>
-                      Anotarme
-                    </button>
-                  )}
-                </div>
-              </div>
-              {seleccionandoDiaId === dia.id && (
-                <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(dia, h)} onCancelar={() => setSeleccionandoDiaId('')} />
+      <CalendarioConvocatoria
+        dias={dias}
+        selectedDiaId={selectedDiaId}
+        onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
+        marcadores={marcadores}
+      />
+
+      {selectedDia && (
+        <div style={{ marginTop: 'var(--spacing-md)', padding: 'var(--spacing-md)', border: `1px solid ${esMiDia ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: esMiDia ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+            <div>
+              <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(selectedDia.fecha)}</span>
+              {selectedDia.horario && <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{selectedDia.horario}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+              {esMiDia ? (
+                <>
+                  <span className="badge badge--success">Anotada</span>
+                  <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={handleDesanotarme}>
+                    Desanotarme
+                  </button>
+                </>
+              ) : estaCompleto ? (
+                <span className="badge badge--error">Completo</span>
+              ) : miInscripcion ? (
+                <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-light)' }}>Ya tenés una fecha elegida</span>
+              ) : (
+                <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
+                  Anotarme
+                </button>
               )}
             </div>
-          );
-        })}
-      </div>
+          </div>
+          {seleccionandoHijo && (
+            <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -124,16 +145,30 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [seleccionandoDiaId, setSeleccionandoDiaId] = useState('');
+  const [selectedDiaId, setSelectedDiaId] = useState('');
+  const [seleccionandoHijo, setSeleccionandoHijo] = useState(false);
 
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
 
   const getMiInscripcion = (diaId) => (inscripcionesPropia || []).find((i) => i.diaId === diaId);
 
+  const marcadores = useMemo(() => {
+    if (!convocatoria) return new Map();
+    const m = new Map();
+    (convocatoria.dias || []).forEach((dia) => {
+      m.set(dia.id, getMiInscripcion(dia.id) ? 'inscripto' : 'disponible');
+    });
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convocatoria, inscripcionesPropia]);
+
+  const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
+  const miInscripcionSelected = selectedDia ? getMiInscripcion(selectedDia.id) : null;
+
   const handleAnotarme = async (dia, hijo) => {
     setSubmitting(true);
-    setSeleccionandoDiaId('');
+    setSeleccionandoHijo(false);
     const res = await clasesAbiertasService.inscribirTallerAbierto(convocatoria.id, {
       diaId: dia.id,
       familiaUid: user.uid,
@@ -155,6 +190,11 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
     setSubmitting(false);
   };
 
+  const handleClickAnotarme = () => {
+    if (hijos.length === 1) handleAnotarme(selectedDia, hijos[0]);
+    else setSeleccionandoHijo(true);
+  };
+
   if (!convocatoria) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
   const dias = convocatoria.dias || [];
   if (!dias.length) return <p style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>Sin fechas disponibles por el momento.</p>;
@@ -163,39 +203,42 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
     <div>
       {message && <div className="alert alert--success" style={{ marginBottom: 'var(--spacing-md)' }}>{message}</div>}
       {error && <div className="alert alert--error" style={{ marginBottom: 'var(--spacing-md)' }}>{error}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-        {dias.map((dia) => {
-          const miInscripcion = getMiInscripcion(dia.id);
-          return (
-            <div key={dia.id} style={{ border: `1px solid ${miInscripcion ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', padding: 'var(--spacing-md)', background: miInscripcion ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-                <div>
-                  <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(dia.fecha)}</span>
-                  <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{dia.horario}</span>
-                  {dia.nombreTaller && <span className="badge badge--info" style={{ marginLeft: 'var(--spacing-sm)' }}>{dia.nombreTaller}</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
-                  {miInscripcion ? (
-                    <>
-                      <span className="badge badge--success">Anotada</span>
-                      <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcion.id)}>
-                        Desanotarme
-                      </button>
-                    </>
-                  ) : (
-                    <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={() => { if (hijos.length === 1) handleAnotarme(dia, hijos[0]); else setSeleccionandoDiaId(dia.id); }}>
-                      Anotarme
-                    </button>
-                  )}
-                </div>
-              </div>
-              {seleccionandoDiaId === dia.id && (
-                <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(dia, h)} onCancelar={() => setSeleccionandoDiaId('')} />
+
+      <CalendarioConvocatoria
+        dias={dias}
+        selectedDiaId={selectedDiaId}
+        onSelectDia={(dia) => { setSelectedDiaId(dia?.id || ''); setSeleccionandoHijo(false); }}
+        marcadores={marcadores}
+      />
+
+      {selectedDia && (
+        <div style={{ marginTop: 'var(--spacing-md)', padding: 'var(--spacing-md)', border: `1px solid ${miInscripcionSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-md)', background: miInscripcionSelected ? 'var(--color-primary-soft)' : 'var(--color-background-alt)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+            <div>
+              <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)', textTransform: 'capitalize' }}>{formatFechaDisplay(selectedDia.fecha)}</span>
+              {selectedDia.horario && <span style={{ color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)', marginLeft: 'var(--spacing-sm)' }}>{selectedDia.horario}</span>}
+              {selectedDia.nombreTaller && <span className="badge badge--info" style={{ marginLeft: 'var(--spacing-sm)' }}>{selectedDia.nombreTaller}</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', alignItems: 'center' }}>
+              {miInscripcionSelected ? (
+                <>
+                  <span className="badge badge--success">Anotada</span>
+                  <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-error)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
+                    Desanotarme
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
+                  Anotarme
+                </button>
               )}
             </div>
-          );
-        })}
-      </div>
+          </div>
+          {seleccionandoHijo && (
+            <SelectorHijo hijos={hijos} onSeleccionar={(h) => handleAnotarme(selectedDia, h)} onCancelar={() => setSeleccionandoHijo(false)} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
