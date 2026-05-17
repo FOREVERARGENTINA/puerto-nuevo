@@ -443,9 +443,11 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
                           </div>
                         </div>
                       ) : (
-                        <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }} onClick={handleAbrirAgregarFamilia} disabled={submitting}>
-                          + Agregar familia
-                        </button>
+                        !(tipo === 'ambiente_abierto' && insc.length >= 2) && (
+                          <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }} onClick={handleAbrirAgregarFamilia} disabled={submitting}>
+                            + Agregar familia
+                          </button>
+                        )
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--spacing-xs)', paddingTop: 'var(--spacing-xs)' }}>
