@@ -1,5 +1,24 @@
 import { CONVERSATION_CATEGORIES, CONVERSATION_STATUS, ESCUELA_AREAS, ROLES } from '../config/constants';
 
+const URL_REGEX = /https?:\/\/[^\s<>"]+/g;
+
+export const renderTextWithLinks = (text) => {
+  if (!text) return null;
+  const parts = text.split(URL_REGEX);
+  const matches = text.match(URL_REGEX) || [];
+  return parts.reduce((acc, part, i) => {
+    acc.push(part);
+    if (matches[i]) {
+      acc.push(
+        <a key={i} href={matches[i]} target="_blank" rel="noreferrer noopener" className="msg-link">
+          {matches[i]}
+        </a>
+      );
+    }
+    return acc;
+  }, []);
+};
+
 const toMillis = (value) => {
   if (!value) return 0;
   if (value instanceof Date) return value.getTime();

@@ -11,7 +11,8 @@ import { FileSelectionList, FileUploadSelector } from '../../components/common/F
 import {
   getAreaLabel,
   getCategoryLabel,
-  getConversationStatusLabel
+  getConversationStatusLabel,
+  renderTextWithLinks
 } from '../../utils/conversationHelpers';
 import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 
@@ -188,7 +189,7 @@ export function FamilyConversationDetail() {
                       {createdLabel}
                     </span>
                   </div>
-                  {msg.texto && <p className="chat-message__text">{msg.texto}</p>}
+                  {msg.texto && <p className="chat-message__text">{renderTextWithLinks(msg.texto)}</p>}
                   {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (
                     <div className="chat-message__attachments">
                       {msg.adjuntos.map((a, idx) => (

@@ -11241,6 +11241,19 @@
   word-wrap: break-word;
 }
 
+.msg-link {
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.msg-link:hover,
+.msg-link:visited {
+  color: inherit;
+  background: none;
+  text-decoration: underline;
+}
+
 .chat-message__attachments {
   margin-top: var(--spacing-sm);
   display: flex;

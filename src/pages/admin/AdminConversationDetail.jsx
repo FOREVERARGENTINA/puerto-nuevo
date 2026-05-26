@@ -11,7 +11,8 @@ import {
   getAreaLabel,
   getCategoryLabel,
   getConversationStatusBadge,
-  getConversationStatusLabel
+  getConversationStatusLabel,
+  renderTextWithLinks
 } from '../../utils/conversationHelpers';
 import { formatDateTimeBuenosAires } from '../../utils/dateHelpers';
 import { FileSelectionList, FileUploadSelector } from '../../components/common/FileUploadSelector';
@@ -360,7 +361,7 @@ export function AdminConversationDetail() {
                     )}
                   </span>
                 </div>
-                {msg.texto && <p>{msg.texto}</p>}
+                {msg.texto && <p>{renderTextWithLinks(msg.texto)}</p>}
                 {Array.isArray(msg.adjuntos) && msg.adjuntos.length > 0 && (
                   <div className="message-bubble__attachments">
                     {msg.adjuntos.map((a, idx) => (
