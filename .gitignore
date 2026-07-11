@@ -60,3 +60,8 @@ assign-admin.js
 
 service-account.json
 datos
+
+# Graphify
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_*
