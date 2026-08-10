@@ -4,6 +4,7 @@ import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { appointmentsService } from '../../services/appointments.service';
 import ChildCard from '../../components/children/ChildCard';
+import { StudentReports } from '../../components/studentReports/StudentReports';
 import './ChildProfile.css';
 
 const ChildProfile = () => {
@@ -155,6 +156,12 @@ const ChildProfile = () => {
               meetingNotes={meetingNotesByChildId[child.id] || []}
               meetingNotesLoading={meetingNotesLoading}
               meetingNotesLoaded={Object.prototype.hasOwnProperty.call(meetingNotesByChildId, child.id)}
+              reportsSection={(
+                <StudentReports
+                  childId={child.id}
+                  hideWhenEmpty={true}
+                />
+              )}
             />
           ))}
         </div>

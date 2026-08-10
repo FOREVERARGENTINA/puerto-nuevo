@@ -50,6 +50,8 @@
 - `src/components/children/ChildCard.jsx`
 - `src/pages/family/ChildProfile.jsx`
 - `src/services/children.service.js`
+- `src/components/studentReports/StudentReports.jsx`
+- `src/services/studentReports.service.js`
 
 **Funcionalidades:**
 - ✅ Crear fichas de alumnos
@@ -57,6 +59,7 @@
 - ✅ Asignar ambiente (Taller 1 o Taller 2)
 - ✅ Familias ven solo sus alumnos
 - ✅ Admin ve todos los alumnos
+- ✅ Informes por alumno: coordinacion/superadmin suben y borran; familias responsables leen y descargan
 
 **Estado:** FUNCIONANDO ✅
 
@@ -222,6 +225,45 @@
 ---
 
 ## 🔄 ACTUALIZACIÓN DE IMPLEMENTACIÓN
+
+### ✅ Cambios registrados el 10 de agosto de 2026
+
+1. **Informes por alumno** — **Implementado y validado**
+   - UI admin:
+     - `src/pages/admin/ChildrenManager.jsx`
+     - `src/components/children/ChildForm.jsx`
+     - `src/components/children/ChildCard.jsx`
+     - `src/components/studentReports/StudentReports.jsx`
+   - UI familia:
+     - `src/pages/family/ChildProfile.jsx`
+     - familias ven informes en `/portal/familia/hijos` solo si son responsables del alumno.
+   - Servicio:
+     - `src/services/studentReports.service.js`
+     - sube archivos, crea metadata, descarga desde `storagePath` y borra primero Storage, luego Firestore.
+   - Seguridad:
+     - `firestore.rules` agrega `children/{childId}/reports/{reportId}`.
+     - `storage.rules` agrega `private/children/{childId}/reports/{reportId}/{fileName}`.
+     - No se guarda `downloadURL` ni `archivoURL` en Firestore.
+     - Lectura familiar validada con `isResponsibleFamilyForChild(childId, request.auth.uid)`.
+   - CORS:
+     - `storage.cors.json` documenta origenes permitidos.
+     - CORS aplicado al bucket real `puerto-nuevo-montessori.firebasestorage.app`.
+     - Descarga familiar probada correctamente desde `https://montessoripuertonuevo.com.ar`.
+
+2. **Ajustes de UX de informes**
+   - En `Editar alumno`, la seccion `Informes` aparece despues de los datos personales iniciales.
+   - `Periodo` es editable y tambien ofrece botones rapidos para periodos frecuentes.
+   - El campo visible dice `Año`.
+   - El boton `Subir informe` no dispara `Actualizar alumno`.
+
+3. **Reglas y pruebas**
+   - Tests agregados para lectura, listado, creacion, borrado y metadata invalida en Firestore.
+   - Tests agregados para descarga permitida, descarga ajena bloqueada, archivos huerfanos y tipos no permitidos en Storage.
+   - Suite completa de reglas Firestore/Storage: OK.
+
+4. **Correcciones fuera del modulo de informes**
+   - `src/hooks/useClasesAbiertas.js`: se corrigio `react-hooks/use-memo` sacando expresiones `.join(',')` del array de dependencias.
+   - Tests de Clases Abiertas: se actualizo el caso de desanotarse de `ambiente_abierto`, porque la UI y las reglas permiten que una familia cancele su propia inscripcion. Se agrego cobertura para impedir que una familia desanote a otra.
 
 ### ✅ Items recientemente implementados y documentados
 

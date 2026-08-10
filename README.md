@@ -114,6 +114,7 @@ firebase deploy --only hosting
 - Asignación de responsables
 - Filtros por ambiente (Taller 1/Taller 2)
 - Vista de familias con sus hijos
+- Informes por alumno: coordinacion/superadmin suben y borran; familias responsables descargan
 
 ### Sistema de Turnos
 - Reserva de turnos por familias
@@ -160,6 +161,19 @@ Archivos que **NUNCA** deben subirse a Git:
 - `.env*`
 
 Ya están en `.gitignore` ✅
+
+### Storage CORS
+
+La descarga privada de informes desde el navegador requiere CORS en el bucket de Firebase Storage. La configuracion vigente esta versionada en:
+
+- `storage.cors.json`
+
+El bucket real `puerto-nuevo-montessori.firebasestorage.app` fue configurado para permitir descargas `GET/HEAD` desde:
+
+- `https://montessoripuertonuevo.com.ar`
+- `https://www.montessoripuertonuevo.com.ar`
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
 
 ## Próximos Pasos
 

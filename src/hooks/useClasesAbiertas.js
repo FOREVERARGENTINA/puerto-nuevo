@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { clasesAbiertasService } from '../services/clasesAbiertas.service';
 
@@ -18,7 +18,12 @@ export function useClasesAbiertas(ambientes = [], hijos = []) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const hijoIds = hijos.map((h) => h.id).filter(Boolean);
+  const hijoIds = useMemo(() => hijos.map((h) => h.id).filter(Boolean), [hijos]);
+
+  // Claves estables: las props llegan como arrays nuevos en cada render, asi que
+  // dependemos del contenido serializado y no de la identidad del array.
+  const ambientesKey = ambientes.join(',');
+  const hijoIdsKey = hijoIds.join(',');
 
   const cargar = useCallback(async (silent = false) => {
     if (!ambientes.length) { setLoading(false); return; }
@@ -77,7 +82,7 @@ export function useClasesAbiertas(ambientes = [], hijos = []) {
     } finally {
       setLoading(false);
     }
-  }, [ambientes.join(','), user?.uid, hijoIds.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ambientesKey, user?.uid, hijoIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { cargar(); }, [cargar]);
 

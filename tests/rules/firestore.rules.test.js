@@ -22,6 +22,42 @@ describe('Firestore security rules', () => {
           ambiente: 'taller2',
           responsables: ['rules_family_2'],
         }),
+        db.collection('children').doc('rules_child_reports').set({
+          nombreCompleto: 'Alumno Rules Informes',
+          ambiente: 'taller1',
+          responsables: ['rules_family_1'],
+        }),
+        db.collection('children').doc('rules_child_reports_other').set({
+          nombreCompleto: 'Alumno Rules Informes Ajeno',
+          ambiente: 'taller2',
+          responsables: ['rules_family_2'],
+        }),
+        db.collection('children').doc('rules_child_reports')
+          .collection('reports').doc('rules_report_family').set({
+            childId: 'rules_child_reports',
+            periodo: '1er semestre',
+            anio: 2026,
+            archivoNombre: 'informe.pdf',
+            archivoTamanoBytes: 1200,
+            archivoTipo: 'application/pdf',
+            storagePath: 'private/children/rules_child_reports/reports/rules_report_family/informe.pdf',
+            uploadedBy: 'rules_coord',
+            uploadedByEmail: 'coord@test.local',
+            createdAt: new Date(),
+          }),
+        db.collection('children').doc('rules_child_reports_other')
+          .collection('reports').doc('rules_report_other').set({
+            childId: 'rules_child_reports_other',
+            periodo: '1er semestre',
+            anio: 2026,
+            archivoNombre: 'informe-ajeno.pdf',
+            archivoTamanoBytes: 1200,
+            archivoTipo: 'application/pdf',
+            storagePath: 'private/children/rules_child_reports_other/reports/rules_report_other/informe-ajeno.pdf',
+            uploadedBy: 'rules_coord',
+            uploadedByEmail: 'coord@test.local',
+            createdAt: new Date(),
+          }),
         db.collection('documents').doc('rules_doc_family').set({
           titulo: 'Documento para familias',
           roles: ['family'],
@@ -217,6 +253,138 @@ describe('Firestore security rules', () => {
     );
   });
 
+  test('informes: coordinacion puede crear y borrar informes de alumnos', async () => {
+    const adminDb = testEnv.authenticatedContext('rules_coord', { role: 'coordinacion' }).firestore();
+
+    const reportRef = adminDb.collection('children').doc('rules_child_reports')
+      .collection('reports').doc('rules_report_created_by_coord');
+
+    await assertSucceeds(
+      reportRef.set({
+        childId: 'rules_child_reports',
+        periodo: '2do semestre',
+        anio: 2026,
+        archivoNombre: 'informe-2.pdf',
+        archivoTamanoBytes: 1500,
+        archivoTipo: 'application/pdf',
+        storagePath: 'private/children/rules_child_reports/reports/rules_report_created_by_coord/informe-2.pdf',
+        uploadedBy: 'rules_coord',
+        uploadedByEmail: 'coord@test.local',
+        createdAt: new Date(),
+      })
+    );
+
+    await assertSucceeds(reportRef.delete());
+  });
+
+  test('informes: familia responsable lee sus informes y no lee ajenos', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_1', { role: 'family' }).firestore();
+
+    await assertSucceeds(
+      familyDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_family').get()
+    );
+
+    await assertFails(
+      familyDb.collection('children').doc('rules_child_reports_other')
+        .collection('reports').doc('rules_report_other').get()
+    );
+  });
+
+  test('informes: coordinacion puede listar informes de un alumno', async () => {
+    const adminDb = testEnv.authenticatedContext('rules_coord', { role: 'coordinacion' }).firestore();
+
+    await assertSucceeds(
+      adminDb.collection('children').doc('rules_child_reports')
+        .collection('reports').get()
+    );
+  });
+
+  test('informes: familia responsable puede listar sus informes y no listar ajenos', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_1', { role: 'family' }).firestore();
+
+    await assertSucceeds(
+      familyDb.collection('children').doc('rules_child_reports')
+        .collection('reports').get()
+    );
+
+    await assertFails(
+      familyDb.collection('children').doc('rules_child_reports_other')
+        .collection('reports').get()
+    );
+  });
+
+  test('informes: familia no puede crear ni borrar informes', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_1', { role: 'family' }).firestore();
+
+    await assertFails(
+      familyDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_created_by_family').set({
+          childId: 'rules_child_reports',
+          periodo: 'Anual',
+          anio: 2026,
+          archivoNombre: 'familia.pdf',
+          archivoTamanoBytes: 1200,
+          archivoTipo: 'application/pdf',
+          storagePath: 'private/children/rules_child_reports/reports/rules_report_created_by_family/familia.pdf',
+          uploadedBy: 'rules_family_1',
+          uploadedByEmail: 'family@test.local',
+          createdAt: new Date(),
+        })
+    );
+
+    await assertFails(
+      familyDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_family').delete()
+    );
+  });
+
+  test('informes: docente no puede crear ni borrar informes', async () => {
+    const teacherDb = testEnv.authenticatedContext('rules_docente', { role: 'docente' }).firestore();
+
+    await assertFails(
+      teacherDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_created_by_teacher').set({
+          childId: 'rules_child_reports',
+          periodo: 'Anual',
+          anio: 2026,
+          archivoNombre: 'docente.pdf',
+          archivoTamanoBytes: 1200,
+          archivoTipo: 'application/pdf',
+          storagePath: 'private/children/rules_child_reports/reports/rules_report_created_by_teacher/docente.pdf',
+          uploadedBy: 'rules_docente',
+          uploadedByEmail: 'docente@test.local',
+          createdAt: new Date(),
+        })
+    );
+
+    await assertFails(
+      teacherDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_family').delete()
+    );
+  });
+
+  test('informes: rechaza metadata con downloadURL persistida', async () => {
+    const adminDb = testEnv.authenticatedContext('rules_coord', { role: 'coordinacion' }).firestore();
+
+    await assertFails(
+      adminDb.collection('children').doc('rules_child_reports')
+        .collection('reports').doc('rules_report_with_url').set({
+          childId: 'rules_child_reports',
+          periodo: 'Anual',
+          anio: 2026,
+          archivoNombre: 'con-url.pdf',
+          archivoTamanoBytes: 1200,
+          archivoTipo: 'application/pdf',
+          storagePath: 'private/children/rules_child_reports/reports/rules_report_with_url/con-url.pdf',
+          archivoURL: 'https://example.test/token',
+          uploadedBy: 'rules_coord',
+          uploadedByEmail: 'coord@test.local',
+          createdAt: new Date(),
+        })
+    );
+  });
+
   test('solo admin puede crear perfiles de usuarios', async () => {
     const familyDb = testEnv.authenticatedContext('rules_family_1', { role: 'family' }).firestore();
     const adminDb = testEnv.authenticatedContext('rules_admin', { role: 'superadmin' }).firestore();
@@ -331,7 +499,7 @@ describe('Firestore security rules', () => {
     );
   });
 
-  test('CA: familia no puede desanotarse de ambiente_abierto', async () => {
+  test('CA: familia puede desanotarse de ambiente_abierto', async () => {
     // Crear inscripción de ambiente_abierto con rules-disabled
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await ctx.firestore()
@@ -348,9 +516,31 @@ describe('Firestore security rules', () => {
     });
 
     const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
-    await assertFails(
+    await assertSucceeds(
       familyDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
         .collection('inscripciones').doc('rules_family_3_ca').delete()
+    );
+  });
+
+  test('CA: familia no puede desanotar a otra familia de ambiente_abierto', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore()
+        .collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('otra_familia_uid').set({
+          diaId: 'dia001',
+          familiaUid: 'otra_familia_uid',
+          familiaNombre: 'Otra Familia',
+          hijoId: 'otro_hijo',
+          hijoNombre: 'Otro Hijo',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        });
+    });
+
+    const familyDb = testEnv.authenticatedContext('rules_family_3_ca', { role: 'family' }).firestore();
+    await assertFails(
+      familyDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('otra_familia_uid').delete()
     );
   });
 
@@ -363,6 +553,20 @@ describe('Firestore security rules', () => {
   });
 
   test('CA: admin puede borrar una inscripción de ambiente_abierto', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore()
+        .collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')
+        .collection('inscripciones').doc('rules_family_3_ca').set({
+          diaId: 'dia001',
+          familiaUid: 'rules_family_3_ca',
+          familiaNombre: 'Familia 3 CA',
+          hijoId: 'rules_child_taller1_family3',
+          hijoNombre: 'Alumno Rules Taller 1 Family 3',
+          ambiente: 'taller1',
+          createdAt: new Date(),
+        });
+    });
+
     const adminDb = testEnv.authenticatedContext('rules_admin_ca', { role: 'superadmin' }).firestore();
     await assertSucceeds(
       adminDb.collection('clasesAbiertas').doc('rules_ca_conv_aa_t1')

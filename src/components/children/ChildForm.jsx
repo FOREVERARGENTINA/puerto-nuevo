@@ -30,7 +30,7 @@ const getRetiroAutorizados = (personas = []) => (
   }))
 );
 
-const ChildForm = ({ child = null, onSubmit, onCancel }) => {
+const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) => {
   const { isSuperAdmin, isCoordinacion } = useAuth();
   const canEditMedical = isSuperAdmin || isCoordinacion;
 
@@ -83,6 +83,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
       });
     }
   }, [child]);
+
+  const selectedFamilies = familyUsers.filter(user => formData.responsables.includes(user.id));
 
   const filteredFamilyUsers = familyUsers.filter(user => {
     const term = responsablesSearch.trim().toLowerCase();
@@ -239,7 +241,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
         <div className="form-section child-form__medical-section">
           <h3>Datos Personales</h3>
 
-          <div className="form-group child-form__medical-compact-field">
+          <div className="form-group child-form__medical-wide-field">
             <label htmlFor="nombreCompleto" className="form-label required">Nombre Completo</label>
             <input
               type="text"
@@ -280,12 +282,28 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             </select>
           </div>
 
-          <div className="form-group child-form__medical-compact-field">
+          <div className="form-group child-form__medical-wide-field">
             <label id="responsables-label" className="form-label required">Responsables</label>
             {familyUsers.length === 0 ? (
               <p className="form-helper-text">No hay familias disponibles para asignar.</p>
             ) : (
               <>
+                {selectedFamilies.length > 0 && (
+                  <div className="child-form__chips">
+                    {selectedFamilies.map(user => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className="child-form__chip"
+                        onClick={() => handleResponsableToggle(user.id)}
+                        aria-label={`Quitar ${user.displayName || user.email}`}
+                      >
+                        {user.displayName || user.email}
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="search"
                   className="form-input form-input--sm"
@@ -327,9 +345,6 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
                 </div>
               </>
             )}
-            <small className="form-helper-text">
-              Seleccionadas: {formData.responsables.length}
-            </small>
             {responsablesError && (
               <div className="form-error" role="alert">
                 {responsablesError}
@@ -345,6 +360,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               Solo coordinación y superadmin pueden editar estos datos.
             </p>
           )}
+
+          <h4 className="child-form__subtitle">Salud</h4>
 
           <div className="form-group child-form__medical-compact-field">
             <label htmlFor="alergias" className="form-label">Alergias</label>
@@ -401,6 +418,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
             />
           </div>
 
+          <h4 className="child-form__subtitle">Cobertura médica</h4>
+
           <div className="form-group">
             <label htmlFor="obraSocial" className="form-label required">Obra social / prepaga</label>
             <input
@@ -429,6 +448,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
               disabled={!canEditMedical}
             />
           </div>
+
+          <h4 className="child-form__subtitle">Emergencias</h4>
 
           <div className="form-group">
             <label htmlFor="clinicaCercana" className="form-label required">
@@ -476,6 +497,12 @@ const ChildForm = ({ child = null, onSubmit, onCancel }) => {
           </div>
         </div>
       </div>
+
+      {reportsSection && (
+        <div className="child-form__reports-section">
+          {reportsSection}
+        </div>
+      )}
 
       {/* Sección de documentos adjuntos */}
       <div className="form-section child-form__pickup-section" style={{ gridColumn: '1 / -1' }}>

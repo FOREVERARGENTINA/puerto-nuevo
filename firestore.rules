@@ -263,6 +263,43 @@ service cloud.firestore {
 
     // Colección: /children (fichas de alumnos)
     match /children/{childId} {
+      function hasValidStudentReportData(data, reportId) {
+        return data.keys().hasOnly([
+          'childId',
+          'periodo',
+          'anio',
+          'archivoNombre',
+          'archivoTamanoBytes',
+          'archivoTipo',
+          'storagePath',
+          'uploadedBy',
+          'uploadedByEmail',
+          'createdAt'
+        ]) &&
+        data.childId == childId &&
+        data.periodo is string &&
+        data.periodo.size() > 0 &&
+        data.periodo.size() <= 80 &&
+        data.anio is int &&
+        data.anio >= 2000 &&
+        data.anio <= 2100 &&
+        data.archivoNombre is string &&
+        data.archivoNombre.size() > 0 &&
+        data.archivoNombre.size() <= 180 &&
+        data.archivoTamanoBytes is int &&
+        data.archivoTamanoBytes > 0 &&
+        data.archivoTamanoBytes <= 10 * 1024 * 1024 &&
+        data.archivoTipo is string &&
+        data.archivoTipo.size() <= 120 &&
+        data.storagePath is string &&
+        data.storagePath.matches('private/children/' + childId + '/reports/' + reportId + '/[^/]+') &&
+        data.uploadedBy is string &&
+        data.uploadedBy == request.auth.uid &&
+        data.uploadedByEmail is string &&
+        data.uploadedByEmail.size() <= 180 &&
+        data.createdAt is timestamp;
+      }
+
       // Leer: Admin ve todos, familias pueden leer sus hijos, docentes y talleristas pueden ver alumnos (grafo social)
       // NOTA: No podemos validar array-contains en security rules, el filtrado lo hace la query
       allow read: if isAuthenticated() && (
@@ -275,6 +312,21 @@ service cloud.firestore {
 
       // Crear/Actualizar/Eliminar: Solo admin
       allow create, update, delete: if isAdmin();
+
+      // Subcolección: /children/{childId}/reports (informes por alumno)
+      match /reports/{reportId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          isResponsibleFamilyForChild(childId, request.auth.uid)
+        );
+
+        allow create: if isAdmin() &&
+          hasValidStudentReportData(request.resource.data, reportId);
+
+        allow update: if false;
+
+        allow delete: if isAdmin();
+      }
     }
 
     // Colección: /communications (comunicados)

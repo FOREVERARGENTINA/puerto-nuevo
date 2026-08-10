@@ -3566,6 +3566,144 @@
   color: var(--color-primary);
 }
 
+/* Informes por alumno */
+.student-reports {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.student-reports__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.student-reports__empty {
+  margin-top: 0;
+}
+
+.student-reports__list {
+  display: grid;
+  gap: var(--spacing-xs);
+}
+
+.student-reports__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-background-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.student-reports__file-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  background: rgba(44, 107, 111, 0.09);
+  flex-shrink: 0;
+}
+
+.student-reports__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-reports__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.student-reports__meta {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  overflow-wrap: anywhere;
+}
+
+.student-reports__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.student-reports__form {
+  display: grid;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.student-reports__form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(96px, 0.6fr);
+  gap: var(--spacing-sm);
+}
+
+.student-reports__form .form-group {
+  margin-bottom: 0;
+}
+
+.student-reports__period-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.student-reports__period-option {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.student-reports__period-option:hover:not(:disabled) {
+  border-color: rgba(44, 107, 111, 0.34);
+  background: rgba(44, 107, 111, 0.08);
+  color: var(--color-primary);
+}
+
+.student-reports__period-option--active {
+  border-color: rgba(44, 107, 111, 0.45);
+  background: rgba(44, 107, 111, 0.12);
+  color: var(--color-primary);
+}
+
+.student-reports__form .pn-upload-selector {
+  min-height: 116px;
+}
+
+@media (max-width: 520px) {
+  .student-reports__item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .student-reports__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .student-reports__form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Footer con acciones */
 .child-card__footer {
   display: flex;
@@ -10062,18 +10200,40 @@
   box-shadow: var(--shadow-sm);
 }
 
-.child-form .form-section h3 {
-  margin-bottom: var(--spacing-md);
+/* Títulos de sección unificados: h3 en las secciones + el span de informes */
+.child-form .form-section h3,
+.child-form__reports-section .child-card__section-title {
+  margin: 0;
   font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--color-primary-dark);
+}
+
+.child-form .form-section h3,
+.child-form__reports-section .student-reports__header {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-secondary-light);
 }
 
 .child-form .select-multiple {
   min-height: 140px;
 }
 
+.child-form__reports-section .student-reports {
+  background: linear-gradient(135deg, var(--color-background) 0%, var(--color-background-warm) 100%);
+  border: var(--border-width) solid var(--color-secondary-light);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-lg);
+}
+
 .child-form .family-selector {
-  max-height: 220px;
+  max-height: 168px;
+  margin-top: var(--spacing-xs);
   background-color: var(--color-background-alt);
 }
 
@@ -10081,6 +10241,38 @@
   padding: 6px var(--spacing-sm);
   align-items: center;
   flex-direction: row;
+}
+
+.child-form .family-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.child-form__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.child-form__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.child-form__chip:hover {
+  background: var(--color-background-warm);
 }
 
 .child-form .family-name {
@@ -10128,16 +10320,59 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-md);
+  align-content: start;
+}
+
+/* ponytail: los form-group traen margin-bottom global; en grid sobra */
+.child-form__medical-section .form-group {
+  margin-bottom: 0;
 }
 
 .child-form__medical-section h3,
-.child-form__medical-section > p {
+.child-form__medical-section > p,
+.child-form__subtitle {
   grid-column: 1 / -1;
   margin-bottom: 0;
 }
 
+.child-form__subtitle {
+  margin: var(--spacing-xs) 0 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-light);
+}
+
+.child-form__subtitle:first-of-type {
+  margin-top: 0;
+}
+
 .child-form__medical-compact-field {
   min-width: 0;
+}
+
+/* Labels: menos peso visual que el valor que etiquetan */
+.child-form .form-label {
+  margin-bottom: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-light);
+  letter-spacing: 0.01em;
+}
+
+.child-form .form-input,
+.child-form .form-select,
+.child-form .form-textarea {
+  border-width: 1px;
+  border-color: var(--color-border);
+  font-size: var(--font-size-sm);
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.child-form .form-textarea {
+  min-height: 72px;
 }
 
 .child-form__medical-compact-textarea {
@@ -10179,6 +10414,7 @@
 .child-form__pickup-card .form-label {
   font-size: var(--font-size-xs);
   margin-bottom: 4px;
+  color: var(--color-text-light);
 }
 
 .child-form__pickup-card .form-input {
@@ -10282,6 +10518,11 @@
 
 [data-theme="dark"] .child-card__section-title {
   color: var(--color-text);
+}
+
+/* El título de informes sigue a los h3 de la ficha, no al de la tarjeta */
+[data-theme="dark"] .child-form__reports-section .child-card__section-title {
+  color: var(--color-primary-dark);
 }
 
 /* Dark mode: Family Conversations */

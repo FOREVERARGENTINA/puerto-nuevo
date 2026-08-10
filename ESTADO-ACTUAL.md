@@ -7,6 +7,18 @@
 
 ## ✅ LO QUE YA ESTÁ FUNCIONANDO
 
+### Actualizacion 2026-08-10: Informes por alumno ✅
+
+- ✅ Coordinacion y superadmin pueden cargar informes por alumno.
+- ✅ Los informes se guardan en `children/{childId}/reports/{reportId}`.
+- ✅ Los archivos se guardan en Storage bajo `private/children/{childId}/reports/{reportId}/{fileName}`.
+- ✅ La UI de administracion muestra `Informes` en la ficha/detalle y en la edicion del alumno.
+- ✅ Familias responsables pueden descargar informes desde `/portal/familia/hijos`.
+- ✅ Familias no responsables, docentes y talleristas no tienen acceso.
+- ✅ No se persisten URLs publicas de descarga; solo se guarda `storagePath`.
+- ✅ CORS del bucket real configurado mediante `storage.cors.json`.
+- ✅ Verificaciones realizadas: lint, build y reglas Firestore/Storage completas.
+
 ### 1. Configuración Firebase (DESPLEGADO)
 - ✅ Proyecto: `puerto-nuevo-montessori`
 - ✅ Firestore Security Rules desplegadas

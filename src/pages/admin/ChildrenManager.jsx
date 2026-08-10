@@ -10,6 +10,7 @@ import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
 import ChildForm from '../../components/children/ChildForm';
 import ChildCard from '../../components/children/ChildCard';
+import { StudentReports } from '../../components/studentReports/StudentReports';
 import Icon from '../../components/ui/Icon';
 
 const CHILDREN_PAGE_SIZE = 12;
@@ -313,6 +314,14 @@ const ChildrenManager = () => {
             child={editingChild}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
+            reportsSection={editingChild?.id ? (
+              <StudentReports
+                childId={editingChild.id}
+                canUpload={true}
+                canDelete={true}
+                embeddedInForm={true}
+              />
+            ) : null}
           />
         </div>
       </div>
@@ -492,6 +501,13 @@ const ChildrenManager = () => {
                 meetingNotes={selectedChildNotes}
                 meetingNotesLoading={selectedChildNotesLoading}
                 meetingNotesLoaded={selectedChildNotesLoaded}
+                reportsSection={(
+                  <StudentReports
+                    childId={selectedChild.id}
+                    canUpload={true}
+                    canDelete={true}
+                  />
+                )}
               />
             ) : (
               <div className="empty-state empty-state--card card">

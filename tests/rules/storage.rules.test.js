@@ -32,6 +32,25 @@ async function seedFirestoreFixturesForStorageRules() {
         db.collection('children').doc('rules_child_storage_other').set({
           responsables: ['rules_family_2'],
         }),
+        db.collection('children').doc('rules_child_report_storage').set({
+          responsables: ['rules_family_1'],
+        }),
+        db.collection('children').doc('rules_child_report_storage_other').set({
+          responsables: ['rules_family_2'],
+        }),
+        db.collection('children').doc('rules_child_report_orphan').set({
+          responsables: ['rules_family_1'],
+        }),
+        db.collection('children').doc('rules_child_report_storage')
+          .collection('reports').doc('rules_report_storage').set({
+            childId: 'rules_child_report_storage',
+            storagePath: 'private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf',
+          }),
+        db.collection('children').doc('rules_child_report_storage_other')
+          .collection('reports').doc('rules_report_storage_other').set({
+            childId: 'rules_child_report_storage_other',
+            storagePath: 'private/children/rules_child_report_storage_other/reports/rules_report_storage_other/informe.pdf',
+          }),
         db.collection('talleres').doc('rules_taller_assigned').set({
           talleristaId: 'rules_tallerista',
         }),
@@ -55,6 +74,21 @@ describe('Storage security rules', () => {
           'archivo privado',
           'raw',
           { contentType: 'text/plain' }
+        ),
+        storage.ref('private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf').putString(
+          'informe privado',
+          'raw',
+          { contentType: 'application/pdf' }
+        ),
+        storage.ref('private/children/rules_child_report_storage_other/reports/rules_report_storage_other/informe.pdf').putString(
+          'informe privado ajeno',
+          'raw',
+          { contentType: 'application/pdf' }
+        ),
+        storage.ref('private/children/rules_child_report_orphan/reports/missing_report/informe.pdf').putString(
+          'informe huerfano',
+          'raw',
+          { contentType: 'application/pdf' }
         ),
       ]);
     });
@@ -133,6 +167,86 @@ describe('Storage security rules', () => {
         'pdf-demo',
         'raw',
         { contentType: 'application/pdf' }
+      )
+    );
+  });
+
+  test('informes: familia responsable puede descargar y familia ajena no', async () => {
+    const familyStorage = testEnv
+      .authenticatedContext('rules_family_1', { role: 'family' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    const otherFamilyStorage = testEnv
+      .authenticatedContext('rules_family_2', { role: 'family' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    await assertSucceeds(
+      familyStorage.ref('private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf').getDownloadURL()
+    );
+
+    await assertFails(
+      otherFamilyStorage.ref('private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf').getDownloadURL()
+    );
+  });
+
+  test('informes: no permite descargar archivos sin metadata vigente', async () => {
+    const familyStorage = testEnv
+      .authenticatedContext('rules_family_1', { role: 'family' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    await assertFails(
+      familyStorage.ref('private/children/rules_child_report_orphan/reports/missing_report/informe.pdf').getDownloadURL()
+    );
+  });
+
+  test('informes: coordinacion puede subir y docentes/familias no pueden', async () => {
+    const adminStorage = testEnv
+      .authenticatedContext('rules_coord', { role: 'coordinacion' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    const teacherStorage = testEnv
+      .authenticatedContext('rules_teacher', { role: 'docente' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    const familyStorage = testEnv
+      .authenticatedContext('rules_family_1', { role: 'family' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    await assertSucceeds(
+      adminStorage.ref('private/children/rules_child_report_storage/reports/new_report/informe.pdf').putString(
+        'pdf-demo',
+        'raw',
+        { contentType: 'application/pdf' }
+      )
+    );
+
+    await assertFails(
+      teacherStorage.ref('private/children/rules_child_report_storage/reports/new_report_docente/informe.pdf').putString(
+        'pdf-demo',
+        'raw',
+        { contentType: 'application/pdf' }
+      )
+    );
+
+    await assertFails(
+      familyStorage.ref('private/children/rules_child_report_storage/reports/new_report_family/informe.pdf').putString(
+        'pdf-demo',
+        'raw',
+        { contentType: 'application/pdf' }
+      )
+    );
+  });
+
+  test('informes: rechaza tipos de archivo no permitidos', async () => {
+    const adminStorage = testEnv
+      .authenticatedContext('rules_coord', { role: 'coordinacion' })
+      .storage(`gs://${STORAGE_BUCKET}`);
+
+    await assertFails(
+      adminStorage.ref('private/children/rules_child_report_storage/reports/new_report_zip/informe.zip').putString(
+        'zip-demo',
+        'raw',
+        { contentType: 'application/zip' }
       )
     );
   });

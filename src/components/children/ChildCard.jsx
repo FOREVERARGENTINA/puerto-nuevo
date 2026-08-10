@@ -6,7 +6,8 @@
   isAdmin = false,
   meetingNotes = [],
   meetingNotesLoading = false,
-  meetingNotesLoaded = false
+  meetingNotesLoaded = false,
+  reportsSection = null
 }) => {
   const parseLocalDate = (value) => {
     if (!value) return null;
@@ -238,6 +239,8 @@
             )}
           </div>
         )}
+
+        {reportsSection}
 
         {isAdmin && retiroAutorizados.length > 0 && (
           <div className="child-card__section child-card__section--medical">

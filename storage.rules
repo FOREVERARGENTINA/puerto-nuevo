@@ -67,6 +67,31 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    match /private/children/{childId}/reports/{reportId}/{fileName} {
+      function reportExists() {
+        return firestore.exists(/databases/(default)/documents/children/$(childId)/reports/$(reportId));
+      }
+
+      function isAllowedReportType() {
+        return request.resource.contentType.matches('application/pdf') ||
+               request.resource.contentType.matches('application/msword') ||
+               request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+               request.resource.contentType.matches('image/jpeg') ||
+               request.resource.contentType.matches('image/png');
+      }
+
+      allow read: if isAuthenticated() && reportExists() && (
+        isAdmin() ||
+        isResponsibleFamilyForChild(childId, request.auth.uid)
+      );
+
+      allow create, update: if isAdmin() &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        isAllowedReportType();
+
+      allow delete: if isAdmin();
+    }
+
     match /private/appointments/{appointmentId}/notes/{fileName} {
       allow read: if isAuthenticated() && (isAdmin() || ((request.auth.uid == firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.familiaUid || request.auth.uid in firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data.get('familiasUids', [])) && firestore.get(/databases/(default)/documents/appointments/$(appointmentId)/notes/summary).data.visibilidad == 'familia'));
       allow write: if isAdmin();
