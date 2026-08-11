@@ -17,6 +17,8 @@ const DEFAULT_PERIOD_OPTIONS = [
   'Anual'
 ];
 
+const DEFAULT_PERIOD = DEFAULT_PERIOD_OPTIONS[0];
+
 const formatDateTime = (value) => {
   if (!value) return 'Fecha no disponible';
   const date = value?.toDate ? value.toDate() : new Date(value);
@@ -45,7 +47,7 @@ export function StudentReports({
   const [downloadingId, setDownloadingId] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [formData, setFormData] = useState({
-    periodo: DEFAULT_PERIOD_OPTIONS[0],
+    periodo: DEFAULT_PERIOD,
     anio: CURRENT_YEAR
   });
 
@@ -153,7 +155,7 @@ export function StudentReports({
 
     setSelectedFile(null);
     setFormData({
-      periodo: DEFAULT_PERIOD_OPTIONS[0],
+      periodo: DEFAULT_PERIOD,
       anio: CURRENT_YEAR
     });
     await loadReports();
@@ -290,19 +292,21 @@ export function StudentReports({
                 placeholder="Ej. 1er semestre, Marzo-Junio, Informe final"
                 required={!embeddedInForm}
               />
-              <div className="student-reports__period-options" aria-label="Periodos frecuentes">
-                {DEFAULT_PERIOD_OPTIONS.map((period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    className={`student-reports__period-option ${formData.periodo === period ? 'student-reports__period-option--active' : ''}`}
-                    onClick={() => setFormData((prev) => ({ ...prev, periodo: period }))}
-                    disabled={uploading}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
+              {embeddedInForm && (
+                <div className="student-reports__period-options" aria-label="Periodos frecuentes">
+                  {DEFAULT_PERIOD_OPTIONS.map((period) => (
+                    <button
+                      key={period}
+                      type="button"
+                      className={`student-reports__period-option ${formData.periodo === period ? 'student-reports__period-option--active' : ''}`}
+                      onClick={() => setFormData((prev) => ({ ...prev, periodo: period }))}
+                      disabled={uploading}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
