@@ -7,6 +7,7 @@ import CalendarioConvocatoria from '../../components/ui/CalendarioConvocatoria';
 import './ClasesAbiertas.css';
 
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
+const cupoMaximoAmbienteAbierto = (ambiente) => (ambiente === 'taller1' ? 3 : 2);
 
 const formatHorario = (v) => {
   if (!v) return '';
@@ -44,6 +45,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [seleccionandoHijo, setSeleccionandoHijo] = useState(false);
+  const cupoMaximo = cupoMaximoAmbienteAbierto(ambiente);
 
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
@@ -69,15 +71,17 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     (convocatoria.dias || []).forEach((dia) => {
       const cupo = convocatoria.cupos?.[dia.id] || 0;
       if (inscripcionFamilia?.diaId === dia.id) m.set(dia.id, 'inscripto');
-      else if (cupo >= 2) m.set(dia.id, 'completo');
+      else if (cupo >= cupoMaximo) m.set(dia.id, 'completo');
       else m.set(dia.id, 'disponible');
     });
     return m;
-  }, [convocatoria, inscripcionFamilia]);
+  }, [convocatoria, inscripcionFamilia, cupoMaximo]);
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
   const esDiaDeFamilia = inscripcionFamilia?.diaId === selectedDiaId;
-  const estaCompleto = selectedDia ? (convocatoria?.cupos?.[selectedDia.id] || 0) >= 2 : false;
+  const estaCompleto = selectedDia
+    ? (convocatoria?.cupos?.[selectedDia.id] || 0) >= cupoMaximo
+    : false;
 
   const handleAnotarme = async (dia, hijo) => {
     setSubmitting(true);

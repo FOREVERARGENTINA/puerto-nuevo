@@ -24,10 +24,28 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
         globIgnores: [
           '**/assets/heic2any-*.js',
-          '**/assets/heic-converter-*.js'
+          '**/assets/heic-converter-*.js',
+          // El lector PDF se importa de forma diferida. No hay motivo para que
+          // toda la PWA lo descargue al instalarse si el usuario no abre un PDF.
+          '**/assets/ProtectedPdfViewer-*.js',
+          '**/assets/pdf.worker.min-*.mjs'
         ],
         maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(?:ProtectedPdfViewer|pdf\.worker\.min)-.*\.(?:js|mjs)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'protected-pdf-reader',
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
           {
             urlPattern: /\/assets\/(heic2any|heic-converter)-.*\.js$/,
             handler: 'CacheFirst',

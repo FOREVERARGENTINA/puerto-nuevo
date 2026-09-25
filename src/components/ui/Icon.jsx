@@ -187,6 +187,13 @@ export default function Icon({ name, size = 20, className = '', ariaHidden = tru
         </svg>
       );
 
+    case 'maximize':
+      return (
+        <svg {...common}>
+          <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
     default:
       return null;
   }

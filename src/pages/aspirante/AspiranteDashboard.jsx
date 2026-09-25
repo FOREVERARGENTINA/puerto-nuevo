@@ -33,9 +33,6 @@ export function AspiranteDashboard() {
               <p>Agendar entrevistas y reuniones (próximamente)</p>
             </div>
           </div>
-          <div className="alert alert--info">
-            <strong>En desarrollo:</strong> Sistema completo de admisión en próximas fases.
-          </div>
         </section>
       </div>
     </div>

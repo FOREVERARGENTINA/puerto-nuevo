@@ -19,6 +19,9 @@ const inscripcionesCol = (convocatoriaId) =>
 const activeConvocatoriaRef = (tipo, ambiente) =>
   doc(db, 'clasesAbiertasActivas', `${tipo}_${ambiente}`);
 
+// Taller 1 puede recibir una tercera familia por jornada de Ambiente Abierto.
+const cupoMaximoAmbienteAbierto = (ambiente) => (ambiente === 'taller1' ? 3 : 2);
+
 const generateDiaId = () =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -372,7 +375,7 @@ export const clasesAbiertasService = {
 
         const cupos = convData.cupos || {};
         const cupoUsado = cupos[payload.diaId] || 0;
-        if (cupoUsado >= 2) {
+        if (cupoUsado >= cupoMaximoAmbienteAbierto(convData.ambiente)) {
           return { success: false, error: 'Este día ya tiene el cupo completo.', code: 'CUPO_COMPLETO' };
         }
 

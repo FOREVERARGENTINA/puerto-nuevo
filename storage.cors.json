@@ -2,21 +2,15 @@
   {
     "origin": [
       "https://montessoripuertonuevo.com.ar",
-      "https://www.montessoripuertonuevo.com.ar",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173"
+      "https://www.montessoripuertonuevo.com.ar"
     ],
     "method": ["GET", "HEAD"],
     "responseHeader": [
-      "Content-Type",
-      "Content-Disposition",
+      "Accept-Ranges",
       "Content-Length",
-      "ETag",
-      "x-goog-generation",
-      "x-goog-metageneration",
-      "x-goog-stored-content-length",
-      "x-goog-stored-content-encoding",
-      "x-goog-hash"
+      "Content-Range",
+      "Content-Type",
+      "ETag"
     ],
     "maxAgeSeconds": 3600
   }

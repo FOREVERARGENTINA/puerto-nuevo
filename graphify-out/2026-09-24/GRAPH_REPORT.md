@@ -1,11 +1,11 @@
 # Graph Report - PUERTO NUEVO  (2026-09-24)
 
 ## Corpus Check
-- 306 files · ~335,092 words
+- 306 files · ~334,955 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2068 nodes · 3938 edges · 160 communities (129 shown, 31 thin omitted)
+- 2069 nodes · 3940 edges · 152 communities (121 shown, 31 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 79 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
@@ -48,46 +48,46 @@
 - public/code.txt (Icon Snippets)
 - Mojibake Prevention Guide
 - SocialPage.jsx
-- Breadcrumbs.jsx
+- useAuth
 - Plan de Implementación: Plataforma Montessori Puerto Nuevo
 - onCommunicationCreated.js
 - social.service.js
-- MediaGrid.jsx
+- TallerGallery.jsx
 - getDocumentAccessUrl.js
-- EventsManager.jsx
-- Sidebar.jsx
+- Icon.jsx
+- TalleresManager.jsx
 - functions/package.json
 - Fase 4: Sistema de Gestión de Usuarios
-- textEncoding.js
+- appointments.service.js
 - Fase 2: Comunicación Segmentada + Confirmación de Lectura
 - Fase 4.5: Dashboards por Rol
 - devDependencies
 - compilerOptions
 - ChildrenManager.jsx
-- useAuth
-- users.service.js
+- useCommunications.js
+- src/config/firebase.js
 - CommunicationRichTextEditor.jsx
 - emulator-config.cjs
 - appointmentSameDayReminder.js
 - toPlainText
 - fixMojibake.js
 - DocumentViewer.jsx
-- TalleresManager.jsx
+- useDialog
 - Requerimientos para la Plataforma Montessori Puerto Nuevo
-- WelcomeModal.jsx
+- FamilyDashboard.jsx
 - Plan e implementacion: Informes por alumno
-- InstitutionalGallery.jsx
+- EventCalendar.jsx
 - AppointmentsManager.jsx
 - Navbar.jsx
-- src/config/firebase.js
+- dateHelpers.js
 - dependencies
 - seed-emulators.cjs
 - ClasesAbiertasManager.jsx
 - fixSourceEncoding.js
 - onAmbienteActivityCreated.js
-- useAuth.jsx
+- AdminConversationDetail.jsx
 - onSnackAssignmentCancelled.js
-- usePushNotifications.js
+- useAuth.jsx
 - devDependencies
 - eventSameDayReminder.js
 - fix-encoding.js
@@ -96,7 +96,7 @@
 - run-emulated-suite.cjs
 - wait-for-emulators.cjs
 - talleres.service.js
-- TeacherDashboard.jsx
+- useNotifications.js
 - assign-roles.cjs
 - crear-familia.cjs
 - check-encoding.js
@@ -108,18 +108,18 @@
 - smoke.spec.js
 - corregir-responsables.cjs
 - onDocumentCreated.js
-- EventCalendar.jsx
+- snacks.service.js
 - playwright.config.cjs
 - restaurar-dm-uids.cjs
 - App.jsx
 - create-e2e-accounts.cjs
-- useNotifications.js
+- ambienteActivities.service.js
 - migrateTalleristaId.js
 - Registro de Implementación
 - limpiar-turnos-disponibles.cjs
 - scripts
 - package.json
-- Icon.jsx
+- TalleresEspeciales.jsx
 - migrateParticipantesUids.js
 - update-admin-role.cjs
 - Q: Plan para informes docentes en ficha del alumno
@@ -131,10 +131,10 @@
 - verificar-datos-alumno.cjs
 - AGENTS.md
 - Cambios
-- avatarHelpers.js
+- vite
 - firebase
 - playwright.emulator.config.cjs
-- ReadReceiptsPanel.jsx
+- eslint-plugin-react-hooks
 - firebase-tools
 - globals
 - src/App.tsx
@@ -144,17 +144,9 @@
 - react-force-graph-2d
 - @tailwindcss/vite
 - @playwright/test
-- MediaUploader.jsx
+- @vitejs/plugin-react
 - firebase-messaging-sw.js
-- DirectMessageThread.jsx
-- appointments.service.js
-- institutionalGallery.service.js
-- TallerGallery.jsx
 - snacksReminder.js
-- InstitutionalLightbox.jsx
-- ChildForm.jsx
-- @eslint/js
-- @firebase/rules-unit-testing
 - storage.rules.test.js
 
 ## God Nodes (most connected - your core abstractions)
@@ -176,29 +168,29 @@
   tests/fixtures/tiny-upload.txt → public/logo-login.png
 - `Estado Real de Implementacion` --references--> `Guia para Agentes de IA`  [INFERRED]
   ESTADO-IMPLEMENTACION-REAL.md → docs/agents.md
-- `Communications System` --implements--> `Communications Service`  [EXTRACTED]
-  ESTADO-ACTUAL.md → ESTADO-IMPLEMENTACION-REAL.md
-- `User Management System` --implements--> `Users Service`  [INFERRED]
-  ESTADO-ACTUAL.md → docs/plans/PLAN3.md
+- `CSS Nesting Native` --conceptually_related_to--> `Claude Code Project Configuration`  [EXTRACTED]
+  docs/guia.md → .claude.md
+- `INP Optimization` --conceptually_related_to--> `Claude Code Project Configuration`  [EXTRACTED]
+  docs/guia.md → .claude.md
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
-- **Clases Abiertas Feature (plan + spec + service)** — docs_superpowers_plans_2026_05_16_clases_abiertas, docs_superpowers_specs_2026_05_16_clases_abiertas_design, docs_superpowers_plans_2026_05_16_clases_abiertas_clasesabiertasservice [EXTRACTED 1.00]
-- **Communication Read Receipt Flow** — system_communications, fcollection_read_receipts, service_communications, trigger_on_communication_created, comunicaciones_destinatarios_md [EXTRACTED 1.00]
-- **Gallery Album Views Feature (plan + spec)** — docs_superpowers_plans_2026_03_11_gallery_album_views, docs_superpowers_specs_2026_03_11_gallery_album_views_design, docs_superpowers_plans_2026_03_11_gallery_album_views_albummosaic [EXTRACTED 1.00]
-- **Role-Permission Matrix Implementation** — system_roles_permissions, role_superadmin, role_coordinacion, role_docente, permission_send_communications, config_constants [EXTRACTED 1.00]
-- **Turnos por Taller Feature (plan + checklist + implementation)** — docs_plans_plan_turnospertaller_prompt, docs_plans_checklist_turnospertaller_prompt, docs_superpowers_plans_2026_03_21_turnos_por_taller [EXTRACTED 1.00]
-- **Vite and React Build Toolchain Branding Logos** — public_vite_svg, src_assets_react_svg [INFERRED 0.85]
 - **Push Notifications Full-Stack Implementation** — system_push_notifications, hook_use_push_notifications, util_push_notifications, sw_firebase_messaging, component_notification_prompt, fcollection_fcm_tokens [INFERRED 0.85]
-- **PWA Icon Family - multi-platform app icons derived from master source** — public_pwa_icon_master_png, public_pwa_icon_512_png, public_pwa_icon_512_maskable_png, public_pwa_icon_192_png, public_pwa_apple_touch_icon_png, public_mstile_70x70_png [INFERRED 0.90]
-- **Open Graph Social Meta Images - same image in two formats** — public_og_image_jpg, public_og_image_png [INFERRED 0.90]
+- **Role-Permission Matrix Implementation** — system_roles_permissions, role_superadmin, role_coordinacion, role_docente, permission_send_communications, config_constants [EXTRACTED 1.00]
+- **Communication Read Receipt Flow** — system_communications, fcollection_read_receipts, service_communications, trigger_on_communication_created, comunicaciones_destinatarios_md [EXTRACTED 1.00]
+- **Turnos por Taller Feature (plan + checklist + implementation)** — docs_plans_plan_turnospertaller_prompt, docs_plans_checklist_turnospertaller_prompt, docs_superpowers_plans_2026_03_21_turnos_por_taller [EXTRACTED 1.00]
+- **Gallery Album Views Feature (plan + spec)** — docs_superpowers_plans_2026_03_11_gallery_album_views, docs_superpowers_specs_2026_03_11_gallery_album_views_design, docs_superpowers_plans_2026_03_11_gallery_album_views_albummosaic [EXTRACTED 1.00]
+- **Clases Abiertas Feature (plan + spec + service)** — docs_superpowers_plans_2026_05_16_clases_abiertas, docs_superpowers_specs_2026_05_16_clases_abiertas_design, docs_superpowers_plans_2026_05_16_clases_abiertas_clasesabiertasservice [EXTRACTED 1.00]
 - **Apple Touch Icon Multi-Resolution Set** — public_apple_touch_icon_png, public_apple_touch_icon_57x57_png, public_apple_touch_icon_60x60_png, public_apple_touch_icon_72x72_png, public_apple_touch_icon_76x76_png, public_apple_touch_icon_114x114_png, public_apple_touch_icon_120x120_png, public_apple_touch_icon_144x144_png, public_apple_touch_icon_152x152_png [INFERRED 0.95]
 - **Favicon Multi-Resolution Set** — public_favicon_128_png, public_favicon_16x16_png, public_favicon_32x32_png, public_favicon_96x96_png, public_favicon_196x196_png [INFERRED 0.95]
 - **Microsoft Tile Multi-Resolution Set** — public_mstile_310x310_png, public_mstile_144x144_png, public_mstile_150x150_png, public_mstile_310x150_png [INFERRED 0.95]
+- **PWA Icon Family - multi-platform app icons derived from master source** — public_pwa_icon_master_png, public_pwa_icon_512_png, public_pwa_icon_512_maskable_png, public_pwa_icon_192_png, public_pwa_apple_touch_icon_png, public_mstile_70x70_png [INFERRED 0.90]
+- **Open Graph Social Meta Images - same image in two formats** — public_og_image_jpg, public_og_image_png [INFERRED 0.90]
+- **Vite and React Build Toolchain Branding Logos** — public_vite_svg, src_assets_react_svg [INFERRED 0.85]
 
-## Communities (160 total, 31 thin omitted)
+## Communities (152 total, 31 thin omitted)
 
 ### Community 0 - "Push Notifications System"
 Cohesion: 0.09
@@ -209,8 +201,8 @@ Cohesion: 0.05
 Nodes (48): Claude Code Project Configuration, GitHub Copilot Instructions, Social Pilot Access Rollback Checkpoint, Web Accessibility (a11y), Cost-Conscious Optimization, CSS Nesting Native, Granular Role-Based Permissions System, INP Optimization (+40 more)
 
 ### Community 2 - "galleryHelpers.js"
-Cohesion: 0.16
-Nodes (18): ALLOWED_EXTENSIONS, ALLOWED_MIME_PREFIXES, BLOCKED_EXTENSIONS, checkImageExists(), compressCategoryCover(), compressImage(), convertHeicToJpeg(), getBestYouTubeThumbnailUrl() (+10 more)
+Cohesion: 0.05
+Nodes (41): InstitutionalGallery, MediaUploader(), GalleryBreadcrumbs(), InstitutionalLightbox(), resolveExternalEmbedUrl(), resolveMediaType(), AlbumGrid(), AlbumMosaic() (+33 more)
 
 ### Community 3 - "Apple Touch Icon Default"
 Cohesion: 0.12
@@ -290,12 +282,12 @@ Cohesion: 0.11
 Nodes (25): admin, { FieldValue }, { onDocumentCreated }, { sendPushNotificationToUsers }, { isEmulatorRuntime }, { mailLimiter }, sendEmailMessage(), { writeEmulatorOutboxEntry } (+17 more)
 
 ### Community 33 - "SocialPage.jsx"
-Cohesion: 0.10
-Nodes (38): AMBIENTE_CENTERS, buildChildZoneTargets(), buildFamilySeedTargets(), buildStaffAnchorTargets(), CHILD_ZONE, clamp01(), CONTACT_FIELDS, createAmbienteBalanceForce() (+30 more)
+Cohesion: 0.05
+Nodes (65): DMsFeatureGuard(), Avatar(), EmojiPicker(), EMOJIS, useDirectMessages(), useDirectMessagesUnreadCount(), useDirectMessageThread(), DirectMessagesList() (+57 more)
 
-### Community 34 - "Breadcrumbs.jsx"
-Cohesion: 0.36
-Nodes (6): Breadcrumbs(), isDocumentId(), resolveRoleRootPath(), ROOT_ROLE_SEGMENTS, ROUTE_NAMES, Layout()
+### Community 34 - "useAuth"
+Cohesion: 0.13
+Nodes (17): LoginForm(), ProtectedRoute(), RoleGuard(), LoadingScreen(), PwaInstallPrompt(), CategoryGrid(), Breadcrumbs(), isDocumentId() (+9 more)
 
 ### Community 35 - "Plan de Implementación: Plataforma Montessori Puerto Nuevo"
 Cohesion: 0.07
@@ -312,24 +304,24 @@ Nodes (21): admin, brevoApiKey, { defineSecret }, {
 }, { FieldPath }, { filterVisibleUserDocs, filterVisibleUserIds, isVisibleUserData }, getSafeCommunicationBodyHtml(), { isEmulatorRuntime } (+13 more)
 
 ### Community 37 - "social.service.js"
-Cohesion: 0.11
-Nodes (23): buildChildNode(), buildFamilyNode(), buildPublicContact(), buildStaffNode(), childrenCollection, childSocialProfilesCollection, getPhotoUrl(), getRoleListForStaff() (+15 more)
+Cohesion: 0.08
+Nodes (32): TeacherDashboard, SOCIAL_ALLOWED_ROLES, SocialFeatureGuard(), TeacherDashboard(), buildChildNode(), buildFamilyNode(), buildPublicContact(), buildStaffNode() (+24 more)
 
-### Community 38 - "MediaGrid.jsx"
-Cohesion: 0.27
-Nodes (7): LoadingModal(), AlbumManager(), CategoryManager(), loadCategories(), MediaGrid(), InstitutionalGalleryManager(), institutionalGalleryService
+### Community 38 - "TallerGallery.jsx"
+Cohesion: 0.13
+Nodes (23): TallerGallery, AlertDialog(), ConfirmDialog(), LoadingModal(), AlbumManager(), CategoryManager(), loadCategories(), MediaGrid() (+15 more)
 
 ### Community 39 - "getDocumentAccessUrl.js"
 Cohesion: 0.14
 Nodes (25): admin, ADMIN_ROLES, ALLOWED_ORIGINS, applyCorsHeaders(), buildLegacyAccessUrl(), buildProtectedPreviewUrl(), buildResponseDisposition(), canUserAccessDocument() (+17 more)
 
-### Community 40 - "EventsManager.jsx"
-Cohesion: 0.28
-Nodes (12): ConfirmDialog(), EventDetailModal(), Modal(), ModalBody(), ModalFooter(), ModalHeader(), AMBIENTES, buildEventVisibilityPayload() (+4 more)
+### Community 40 - "Icon.jsx"
+Cohesion: 0.25
+Nodes (11): AdminDashboard, EventDetailModal(), Modal(), ModalBody(), ModalFooter(), ModalHeader(), Icon(), AMBIENTES (+3 more)
 
-### Community 41 - "Sidebar.jsx"
-Cohesion: 0.17
-Nodes (13): DMsFeatureGuard(), Sidebar(), useDirectMessages(), useDirectMessagesUnreadCount(), useDocumentUnreadCount(), DirectMessagesList(), threadTimestamp(), directMessagesCollection (+5 more)
+### Community 41 - "TalleresManager.jsx"
+Cohesion: 0.11
+Nodes (18): TalleresManager, FileSelectionList(), FileUploadSelector(), formatFileSize(), buildEventVisibilityPayload(), EventsManager(), getEventVisibilityValue(), EVENT_ALLOWED_EXTENSIONS (+10 more)
 
 ### Community 42 - "functions/package.json"
 Cohesion: 0.08
@@ -339,9 +331,9 @@ Nodes (25): firebase-functions-test, dependencies, firebase-admin, firebase-func
 Cohesion: 0.08
 Nodes (24): 1. Panel de Gestión de Usuarios (`UserManagement.jsx`), 1. Verificar que todo funciona, 2. Login como admin, 2. Servicios Backend (`usersService`), 3. Integración en AdminDashboard, 3. Probar panel de usuarios, 4. Rutas Configuradas, 4. Si todo OK → Fase 5 (+16 more)
 
-### Community 44 - "textEncoding.js"
-Cohesion: 0.20
-Nodes (10): ALLOWED_REPORT_EXTENSIONS, ALLOWED_REPORT_TYPES, getFileExtension(), studentReportsService, validateReportFile(), mapUserDoc(), decodeUtf8FromLatin1(), fixMojibake() (+2 more)
+### Community 44 - "appointments.service.js"
+Cohesion: 0.11
+Nodes (13): ACTIVE_CONFLICT_STATUSES, appointmentsCollection, buildSlotGroupKey(), toDate(), ALLOWED_REPORT_EXTENSIONS, ALLOWED_REPORT_TYPES, getFileExtension(), studentReportsService (+5 more)
 
 ### Community 45 - "Fase 2: Comunicación Segmentada + Confirmación de Lectura"
 Cohesion: 0.08
@@ -353,23 +345,23 @@ Nodes (23): 1. TeacherDashboard (`/docente`), 2. TalleristaDashboard (`/talleris
 
 ### Community 47 - "devDependencies"
 Cohesion: 0.09
-Nodes (23): eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, eslint-plugin-security, devDependencies, dotenv, eslint, eslint-plugin-react-hooks (+15 more)
+Nodes (23): eslint, @eslint/js, eslint-plugin-react-refresh, eslint-plugin-security, @firebase/rules-unit-testing, devDependencies, dotenv, eslint (+15 more)
 
 ### Community 48 - "compilerOptions"
 Cohesion: 0.11
 Nodes (18): compilerOptions, allowImportingTsExtensions, allowJs, experimentalDecorators, isolatedModules, jsx, lib, module (+10 more)
 
 ### Community 49 - "ChildrenManager.jsx"
-Cohesion: 0.23
-Nodes (10): ChildProfile, ChildrenManager, ChildCard(), CURRENT_YEAR, DEFAULT_PERIOD_OPTIONS, formatDateTime(), formatFileSize(), StudentReports() (+2 more)
+Cohesion: 0.17
+Nodes (14): ChildProfile, ChildrenManager, ChildCard(), ChildForm(), CURRENT_YEAR, DEFAULT_PERIOD_OPTIONS, formatDateTime(), formatFileSize() (+6 more)
 
-### Community 50 - "useAuth"
-Cohesion: 0.19
-Nodes (14): ProtectedRoute(), RoleGuard(), CommunicationCard(), db, resolveConversationAreasForRole(), useAdminSummary(), useAuth(), useCommunications() (+6 more)
+### Community 50 - "useCommunications.js"
+Cohesion: 0.31
+Nodes (7): TeacherCommunications, CommunicationCard(), ADMIN_ROLES, COMMUNICATION_TYPES, useCommunications(), Communications(), TeacherCommunications()
 
-### Community 51 - "users.service.js"
-Cohesion: 0.24
-Nodes (5): CommunicationRichContent(), ReadReceiptsSection(), CommunicationDetail(), usersCollection, usersService
+### Community 51 - "src/config/firebase.js"
+Cohesion: 0.08
+Nodes (25): SendCommunication, createEmptyRetiroAutorizado(), DEFAULT_DATOS_MEDICOS, getRetiroAutorizados(), CommunicationRichContent(), ReadReceiptsSection(), auth, db (+17 more)
 
 ### Community 52 - "CommunicationRichTextEditor.jsx"
 Cohesion: 0.21
@@ -397,40 +389,40 @@ Cohesion: 0.18
 Nodes (16): APPLY, argv, collectionsArg, db, decodeLatin1ToUtf8(), fixString(), hasMojibake(), isInstance() (+8 more)
 
 ### Community 57 - "DocumentViewer.jsx"
-Cohesion: 0.06
-Nodes (40): DocumentDetail, DocumentsAdmin, DocumentReadReceiptsPanel(), DocumentUploader(), RECIPIENT_ROLE_OPTIONS, CATEGORY_SECTIONS, DocumentViewer(), getFileTypeInfo() (+32 more)
+Cohesion: 0.05
+Nodes (45): DocumentDetail, DocumentManager, Documents, DocumentsAdmin, DocumentReadReceiptsPanel(), CATEGORY_SECTIONS, DocumentViewer(), getFileTypeInfo() (+37 more)
 
-### Community 58 - "TalleresManager.jsx"
-Cohesion: 0.08
-Nodes (31): BookAppointment, MyTallerEspecial, TalleresList, TalleresManager, UserManagement, AppointmentForm(), getAmbienteLabel(), AlertDialog() (+23 more)
+### Community 58 - "useDialog"
+Cohesion: 0.12
+Nodes (20): BookAppointment, MyTallerEspecial, TalleresList, UserManagement, AppointmentForm(), getAmbienteLabel(), DocumentUploader(), RECIPIENT_ROLE_OPTIONS (+12 more)
 
 ### Community 59 - "Requerimientos para la Plataforma Montessori Puerto Nuevo"
 Cohesion: 0.12
 Nodes (15): 1. Identidad Institucional, 2. Estructura Organizacional, 3. Documentación Institucional, 4. Sistema de Turnos, 5. Proceso de Aspirantes, 6. Información Médica y Emergencias, 7. Aspectos Legales y Privacidad, 8. Hosting y Dominio (+7 more)
 
-### Community 60 - "WelcomeModal.jsx"
-Cohesion: 0.50
-Nodes (3): FEATURES, STORAGE_KEY(), WelcomeModal()
+### Community 60 - "FamilyDashboard.jsx"
+Cohesion: 0.32
+Nodes (5): FamilyDashboard, FEATURES, STORAGE_KEY(), WelcomeModal(), FamilyDashboard()
 
 ### Community 61 - "Plan e implementacion: Informes por alumno"
 Cohesion: 0.12
 Nodes (15): Alcance funcional, Cambios en permisos, Componentes sugeridos, Criterios de aceptacion, Decision de arquitectura, Estado de implementacion, Estimacion original, Modelo de datos (+7 more)
 
-### Community 62 - "InstitutionalGallery.jsx"
-Cohesion: 0.15
-Nodes (7): GalleryBreadcrumbs(), AlbumGrid(), AlbumMosaic(), MosaicTile(), resolveThumb(), CategoryGrid(), InstitutionalGallery()
+### Community 62 - "EventCalendar.jsx"
+Cohesion: 0.28
+Nodes (12): APPOINTMENT_VISIBLE_STATES, EventCalendar(), formatSnackWeek(), getAmbienteLabel(), getAppointmentModeLabel(), getFamilyFirstName(), isSnackConfirmedByFamily(), mapAppointmentsToCalendarEvents() (+4 more)
 
 ### Community 63 - "AppointmentsManager.jsx"
 Cohesion: 0.19
 Nodes (15): AppointmentsManager, AppointmentsManager(), buildLocalDateTime(), formatDateInputValueLocal(), formatTimeInputValueLocal(), getAmbienteLabel(), getAppointmentModeLabel(), getCurrentTimestampMs() (+7 more)
 
 ### Community 64 - "Navbar.jsx"
-Cohesion: 0.19
-Nodes (11): PwaInstallPrompt(), Navbar(), NotificationDropdown(), ThemeToggle(), usePwaInstall(), getStoredTheme(), ThemeContext, ThemeProvider() (+3 more)
+Cohesion: 0.11
+Nodes (25): Navbar(), ThemeToggle(), isUsingFirebaseEmulators, resolveConversationAreasForRole(), useAdminSummary(), detectIos(), detectStandalone(), getFriendlyPushError() (+17 more)
 
-### Community 65 - "src/config/firebase.js"
-Cohesion: 0.17
-Nodes (8): app, auth, firebaseEmulatorConfig, functions, isUsingFirebaseEmulators, PROD_FIREBASE_CONFIG, AuthAction(), documentAccessService
+### Community 65 - "dateHelpers.js"
+Cohesion: 0.27
+Nodes (5): NotificationDropdown(), formatRelativeTime(), isNext24Hours(), isNext48Hours(), NOW
 
 ### Community 66 - "dependencies"
 Cohesion: 0.13
@@ -452,21 +444,21 @@ Nodes (14): APPLY, argv, CP1252_MAP, decodeCP1252(), extArg, extensions, isUtf8(
 Cohesion: 0.18
 Nodes (11): admin, ALREADY_EXISTS_CODES, CATEGORY_LABELS, getFamilyRecipientsByAmbiente(), normalizeCategory(), normalizeCustomCategory(), { onDocumentCreated }, sanitizeText() (+3 more)
 
-### Community 71 - "useAuth.jsx"
-Cohesion: 0.05
-Nodes (70): AdminNewConversation, Documents, FamilyNewConversation, LoginForm(), FileSelectionList(), FileUploadSelector(), formatFileSize(), ADMIN_ROLES (+62 more)
+### Community 71 - "AdminConversationDetail.jsx"
+Cohesion: 0.13
+Nodes (36): AdminConversationDetail, FamilyConversationDetail, FamilyConversations, CONVERSATION_STATUS, ROLES, buildBaseConstraints(), buildFilterConstraints(), docToConv() (+28 more)
 
 ### Community 72 - "onSnackAssignmentCancelled.js"
 Cohesion: 0.19
 Nodes (12): admin, ALREADY_EXISTS_CODES, { filterVisibleUserDocs }, formatAmbiente(), formatDateLabel(), formatDateTimeLabel(), formatWeekRange(), normalizeText() (+4 more)
 
-### Community 73 - "usePushNotifications.js"
-Cohesion: 0.31
-Nodes (13): detectIos(), detectStandalone(), getFriendlyPushError(), getPushServiceWorkerRegistration(), isDedicatedPushRegistration(), isPushWorkerScript(), isTransientIndexedDbClosingError(), normalizeUrlPath() (+5 more)
+### Community 73 - "useAuth.jsx"
+Cohesion: 0.10
+Nodes (25): AdminNewConversation, FamilyNewConversation, APPOINTMENT_STATUS, ASPIRANTE_STAGES, CAN_APPROVE_COMMUNICATIONS, CAN_MANAGE_APPOINTMENTS, CAN_SEND_COMMUNICATIONS, CAN_VIEW_MEDICAL_INFO (+17 more)
 
 ### Community 74 - "devDependencies"
-Cohesion: 0.12
-Nodes (16): autoprefixer, vite, devDependencies, autoprefixer, tailwindcss, tsx, @types/express, @types/node (+8 more)
+Cohesion: 0.15
+Nodes (13): autoprefixer, devDependencies, autoprefixer, tailwindcss, tsx, @types/express, @types/node, typescript (+5 more)
 
 ### Community 75 - "eventSameDayReminder.js"
 Cohesion: 0.26
@@ -497,12 +489,12 @@ Nodes (7): {
 }, { waitForEmulators }, { HOST, PORTS }, net, waitForEmulators(), waitForPort(), { waitForEmulators }
 
 ### Community 81 - "talleres.service.js"
-Cohesion: 0.14
-Nodes (13): HorarioSemanal, BLOQUES_HORARIOS, buildFileName(), DIAS_SEMANA, hexToRgb(), HorarioSemanal(), toSoftBackground(), getFileExtension() (+5 more)
+Cohesion: 0.22
+Nodes (6): getFileExtension(), isValidResourceFile(), RESOURCE_ALLOWED_EXTENSIONS, RESOURCE_ALLOWED_MIME_TYPES, RESOURCE_BLOCKED_EXTENSIONS, talleresCollection
 
-### Community 82 - "TeacherDashboard.jsx"
-Cohesion: 0.24
-Nodes (9): TeacherDashboard, SOCIAL_ALLOWED_ROLES, SocialFeatureGuard(), TeacherDashboard(), socialService, canAccessSocial(), normalizeUidList(), SOCIAL_ADMIN_ROLES (+1 more)
+### Community 82 - "useNotifications.js"
+Cohesion: 0.20
+Nodes (20): buildAppointmentActionUrl(), buildAppointmentNotificationMessage(), formatSnackDate(), getAppointmentModeLabel(), getSnackAssignedDate(), getSnackWeekStartDate(), isPermissionDenied(), isSnackActiveForNotification() (+12 more)
 
 ### Community 83 - "assign-roles.cjs"
 Cohesion: 0.25
@@ -554,9 +546,9 @@ Nodes (6): admin, corregirResponsables(), db, pregunta(), readline, rl
 Cohesion: 0.33
 Nodes (6): admin, loadFamilyPendingReceipts(), { onDocumentCreated }, { sendPushNotificationToUsers }, sleep(), { toPlainText }
 
-### Community 94 - "EventCalendar.jsx"
-Cohesion: 0.12
-Nodes (20): APPOINTMENT_VISIBLE_STATES, EventCalendar(), formatSnackWeek(), getAmbienteLabel(), getAppointmentModeLabel(), getFamilyFirstName(), isSnackConfirmedByFamily(), mapAppointmentsToCalendarEvents() (+12 more)
+### Community 94 - "snacks.service.js"
+Cohesion: 0.22
+Nodes (8): SnacksCalendar(), MySnacks(), getSnackStatusMeta(), isSnackAssignmentActiveForFamily(), isSnackAssignmentConfirmedLike(), normalizeSnackAssignmentState(), SNACK_ASSIGNMENT_STATE, STATUS_META
 
 ### Community 95 - "playwright.config.cjs"
 Cohesion: 0.29
@@ -567,16 +559,16 @@ Cohesion: 0.29
 Nodes (5): admin, auth, db, EMAILS_TO_ADD, serviceAccount
 
 ### Community 97 - "App.jsx"
-Cohesion: 0.06
-Nodes (29): AdminConversationDetail, AdminConversations, AdminDashboard, AspiranteDashboard, CommunicationDetail, Communications, DocumentManager, EventsCalendar (+21 more)
+Cohesion: 0.08
+Nodes (22): AdminConversations, AspiranteDashboard, CommunicationDetail, Communications, EventsManager, HorarioSemanal, InstitutionalGalleryManager, MySnacks (+14 more)
 
 ### Community 98 - "create-e2e-accounts.cjs"
 Cohesion: 0.33
 Nodes (6): admin, createOrUpdateUser(), main(), path, serviceAccount, TEST_USERS
 
-### Community 99 - "useNotifications.js"
-Cohesion: 0.06
-Nodes (52): AmbienteActivities, AmbienteActivitiesManager, FamilyHorariosPlaceholder, AMBIENTE_ACTIVITY_CATEGORIES, AMBIENTE_ACTIVITY_CATEGORY_LABELS, AMBIENTE_ACTIVITY_CATEGORY_OPTIONS, resolveCategoryLabel(), sanitizeCustomCategory() (+44 more)
+### Community 99 - "ambienteActivities.service.js"
+Cohesion: 0.08
+Nodes (32): AmbienteActivities, AmbienteActivitiesManager, FamilyHorariosPlaceholder, AMBIENTE_ACTIVITY_CATEGORIES, AMBIENTE_ACTIVITY_CATEGORY_LABELS, AMBIENTE_ACTIVITY_CATEGORY_OPTIONS, resolveCategoryLabel(), sanitizeCustomCategory() (+24 more)
 
 ### Community 100 - "migrateTalleristaId.js"
 Cohesion: 0.29
@@ -598,9 +590,9 @@ Nodes (6): scripts, build, clean, dev, lint, preview
 Cohesion: 0.33
 Nodes (5): description, name, private, type, version
 
-### Community 105 - "Icon.jsx"
-Cohesion: 0.12
-Nodes (14): Icon(), COMMUNICATION_TYPES, SendCommunication(), EventsCalendar(), isEventVisibleForFamily(), normalizeEventDate(), formatMinutesToTime(), getMergedHorariosByDay() (+6 more)
+### Community 105 - "TalleresEspeciales.jsx"
+Cohesion: 0.18
+Nodes (11): EventsCalendar, TalleresEspeciales, EventsCalendar(), isEventVisibleForFamily(), normalizeEventDate(), formatMinutesToTime(), getMergedHorariosByDay(), parseTimeToMinutes() (+3 more)
 
 ### Community 106 - "migrateParticipantesUids.js"
 Cohesion: 0.33
@@ -626,49 +618,17 @@ Nodes (3): APPLY, argv, keyArg
 Cohesion: 0.40
 Nodes (4): cacheDirs, fs, path, rootDir
 
-### Community 117 - "avatarHelpers.js"
-Cohesion: 0.33
-Nodes (9): Avatar(), getNodeFillColor(), buildAvatarColorMap(), COLOR_TOKENS, getAvatarColorToken(), getInitials(), getSafeHashSeed(), normalizeName() (+1 more)
-
-### Community 123 - "ReadReceiptsPanel.jsx"
-Cohesion: 0.21
-Nodes (7): storage, getCommunicationDate(), ReadReceiptsPanel(), loadAllStats(), loadCommunications(), communicationsCollection, communicationsService
+### Community 117 - "vite"
+Cohesion: 0.67
+Nodes (3): vite, vite, vite
 
 ### Community 126 - "src/App.tsx"
 Cohesion: 0.24
 Nodes (9): CLASSROOM_CENTERS, ROLE_COLORS, ROLE_LABELS, mockData, Classroom, GraphData, Person, Relationship (+1 more)
 
-### Community 133 - "MediaUploader.jsx"
-Cohesion: 0.38
-Nodes (9): MediaUploader(), getFileExtension(), isHeicFile(), validateGalleryFiles(), countPendingGalleryMedia(), GALLERY_NOTIFICATION_LOCK_TTL_MS, isGalleryNotificationSending(), normalizeFamilyNotificationState() (+1 more)
-
-### Community 150 - "DirectMessageThread.jsx"
-Cohesion: 0.27
-Nodes (7): EmojiPicker(), EMOJIS, useDirectMessageThread(), DirectMessageThread(), formatTime(), isMessageReadByOther(), toDate()
-
-### Community 151 - "appointments.service.js"
-Cohesion: 0.20
-Nodes (4): ACTIVE_CONFLICT_STATUSES, appointmentsCollection, buildSlotGroupKey(), toDate()
-
-### Community 152 - "institutionalGallery.service.js"
-Cohesion: 0.20
-Nodes (8): albumsCollection, categoriesByRoleCache, categoriesCollection, getCategoryCreatedAtMs(), mediaCollection, preloadedCategoryCovers, sortCategoriesByNewest(), createImageThumbnail()
-
-### Community 153 - "TallerGallery.jsx"
-Cohesion: 0.22
-Nodes (9): TallerGallery, ALLOWED_EXTENSIONS, ALLOWED_MIME_PREFIXES, BLOCKED_EXTENSIONS, RESOURCE_ALLOWED_EXTENSIONS, RESOURCE_ALLOWED_MIME_TYPES, TallerGallery(), getVideoDuration() (+1 more)
-
 ### Community 154 - "snacksReminder.js"
 Cohesion: 0.10
 Nodes (29): admin, buildReminderCommunication(), formatAmbiente(), formatDate(), getFirstName(), getNextMondayString(), { onSchedule }, parseIsoDateAsNoonUtc() (+21 more)
-
-### Community 155 - "InstitutionalLightbox.jsx"
-Cohesion: 0.32
-Nodes (3): InstitutionalLightbox(), resolveExternalEmbedUrl(), resolveMediaType()
-
-### Community 156 - "ChildForm.jsx"
-Cohesion: 0.60
-Nodes (4): ChildForm(), createEmptyRetiroAutorizado(), DEFAULT_DATOS_MEDICOS, getRetiroAutorizados()
 
 ### Community 159 - "storage.rules.test.js"
 Cohesion: 0.15
@@ -686,11 +646,11 @@ Nodes (14): cleanupRulesTestEnvironment(), __dirname, getRulesTestEnvironment(),
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useAuth()` connect `useAuth` to `MediaUploader.jsx`, `DirectMessageThread.jsx`, `TallerGallery.jsx`, `ChildForm.jsx`, `SocialPage.jsx`, `Breadcrumbs.jsx`, `MediaGrid.jsx`, `EventsManager.jsx`, `Sidebar.jsx`, `ChildrenManager.jsx`, `users.service.js`, `DocumentViewer.jsx`, `TalleresManager.jsx`, `InstitutionalGallery.jsx`, `AppointmentsManager.jsx`, `Navbar.jsx`, `ClasesAbiertasManager.jsx`, `useAuth.jsx`, `usePushNotifications.js`, `TeacherDashboard.jsx`, `EventCalendar.jsx`, `App.jsx`, `useNotifications.js`, `Icon.jsx`, `ReadReceiptsPanel.jsx`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
-- **Why does `db` connect `useAuth` to `src/config/firebase.js`, `useNotifications.js`, `ClasesAbiertasManager.jsx`, `social.service.js`, `useAuth.jsx`, `Sidebar.jsx`, `Icon.jsx`, `textEncoding.js`, `talleres.service.js`, `users.service.js`, `DirectMessageThread.jsx`, `appointments.service.js`, `institutionalGallery.service.js`, `DocumentViewer.jsx`, `ReadReceiptsPanel.jsx`, `WelcomeModal.jsx`, `EventCalendar.jsx`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **Why does `Icon()` connect `Icon.jsx` to `Breadcrumbs.jsx`, `EventsManager.jsx`, `Sidebar.jsx`, `ChildrenManager.jsx`, `useAuth`, `users.service.js`, `DocumentViewer.jsx`, `TalleresManager.jsx`, `WelcomeModal.jsx`, `InstitutionalGallery.jsx`, `AppointmentsManager.jsx`, `Navbar.jsx`, `useAuth.jsx`, `talleres.service.js`, `TeacherDashboard.jsx`, `EventCalendar.jsx`, `App.jsx`, `useNotifications.js`, `ReadReceiptsPanel.jsx`?**
+- **Why does `useAuth()` connect `useAuth` to `galleryHelpers.js`, `SocialPage.jsx`, `social.service.js`, `TallerGallery.jsx`, `Icon.jsx`, `TalleresManager.jsx`, `ChildrenManager.jsx`, `useCommunications.js`, `src/config/firebase.js`, `DocumentViewer.jsx`, `useDialog`, `FamilyDashboard.jsx`, `EventCalendar.jsx`, `AppointmentsManager.jsx`, `Navbar.jsx`, `ClasesAbiertasManager.jsx`, `AdminConversationDetail.jsx`, `useAuth.jsx`, `useNotifications.js`, `snacks.service.js`, `ambienteActivities.service.js`, `TalleresEspeciales.jsx`?**
+  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+- **Why does `db` connect `src/config/firebase.js` to `SocialPage.jsx`, `galleryHelpers.js`, `ambienteActivities.service.js`, `ClasesAbiertasManager.jsx`, `social.service.js`, `AdminConversationDetail.jsx`, `TalleresEspeciales.jsx`, `appointments.service.js`, `ChildrenManager.jsx`, `useCommunications.js`, `useNotifications.js`, `talleres.service.js`, `DocumentViewer.jsx`, `FamilyDashboard.jsx`, `snacks.service.js`?**
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+- **Why does `Icon()` connect `Icon.jsx` to `galleryHelpers.js`, `useAuth`, `social.service.js`, `TalleresManager.jsx`, `ChildrenManager.jsx`, `useCommunications.js`, `src/config/firebase.js`, `DocumentViewer.jsx`, `useDialog`, `FamilyDashboard.jsx`, `EventCalendar.jsx`, `AppointmentsManager.jsx`, `Navbar.jsx`, `dateHelpers.js`, `AdminConversationDetail.jsx`, `useAuth.jsx`, `App.jsx`, `ambienteActivities.service.js`, `TalleresEspeciales.jsx`?**
   _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **What connects `firebase`, `admin`, `serviceAccount` to the rest of the system?**
   _782 weakly-connected nodes found - possible documentation gaps or missing edges._
@@ -698,5 +658,5 @@ _Questions this graph is uniquely positioned to answer:_
   _Cohesion score 0.08735632183908046 - nodes in this community are weakly interconnected._
 - **Should `Roles and Permissions System` be split into smaller, more focused modules?**
   _Cohesion score 0.051418439716312055 - nodes in this community are weakly interconnected._
-- **Should `Apple Touch Icon Default` be split into smaller, more focused modules?**
-  _Cohesion score 0.125 - nodes in this community are weakly interconnected._
+- **Should `galleryHelpers.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.05245901639344262 - nodes in this community are weakly interconnected._

@@ -26,7 +26,6 @@ export function Documents() {
       <div className="dashboard-header dashboard-header--compact">
         <div>
           <h1 className="dashboard-title">{getTitle()}</h1>
-          <p className="dashboard-subtitle">Accede a la documentacion disponible.</p>
         </div>
         <button onClick={() => navigate(-1)} className="btn btn--outline btn--back">
           <Icon name="chevron-left" size={16} />
@@ -34,10 +33,8 @@ export function Documents() {
         </button>
       </div>
 
-      <div className="card">
-        <div className="card__body">
-          <DocumentViewer isAdmin={false} />
-        </div>
+      <div className="documents-page__content">
+        <DocumentViewer isAdmin={false} />
       </div>
     </div>
   );

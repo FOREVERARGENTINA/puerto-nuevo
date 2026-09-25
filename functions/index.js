@@ -29,7 +29,7 @@ const { sendInstitutionalGalleryAlbumNotification } = require('./src/callables/s
 const { sendSnacksReminder } = require('./src/scheduled/snacksReminder');
 const { sendAppointmentSameDayReminder } = require('./src/scheduled/appointmentSameDayReminder');
 const { sendEventSameDayReminder } = require('./src/scheduled/eventSameDayReminder');
-const { getDocumentAccessUrl } = require('./src/http/getDocumentAccessUrl');
+const { getDocumentAccessUrl, getProtectedDocumentPreview } = require('./src/http/getDocumentAccessUrl');
 const { maskEmail } = require('./src/utils/logging');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
@@ -512,6 +512,7 @@ exports.onDirectMessageThreadWritten = onDirectMessageThreadWritten;
 exports.onInstitutionalGalleryMediaCreated = onInstitutionalGalleryMediaCreated;
 exports.sendInstitutionalGalleryAlbumNotification = sendInstitutionalGalleryAlbumNotification;
 exports.getDocumentAccessUrl = getDocumentAccessUrl;
+exports.getProtectedDocumentPreview = getProtectedDocumentPreview;
 
 // Exportar scheduled functions
 exports.sendSnacksReminder = sendSnacksReminder;

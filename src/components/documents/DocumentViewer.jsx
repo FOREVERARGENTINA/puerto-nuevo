@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { documentsService } from '../../services/documents.service';
 import { documentReadReceiptsService } from '../../services/documentReadReceipts.service';
@@ -44,6 +44,8 @@ const isRecentDocument = (createdAt) => {
   return ageMs >= 0 && ageMs <= DOCUMENT_NEW_DAYS * 24 * 60 * 60 * 1000;
 };
 
+const getNewDocumentsBannerStorageKey = (userId) => `documents-new-banner-dismissed-at:${userId}`;
+
 export function DocumentViewer({ isAdmin = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -58,20 +60,11 @@ export function DocumentViewer({ isAdmin = false }) {
   const [sortBy, setSortBy] = useState('recent');
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyNew, setShowOnlyNew] = useState(false);
-  const [showNewBanner, setShowNewBanner] = useState(true);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  const [expandedSections, setExpandedSections] = useState(() => (
-    CATEGORY_SECTIONS.reduce((acc, category) => {
-      acc[category.value] = false;
-      return acc;
-    }, {})
-  ));
+  const [showNewBanner, setShowNewBanner] = useState(false);
 
   const [receipts, setReceipts] = useState({});
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
-  const hasAutoExpandedSections = useRef(false);
 
   const confirmDialog = useDialog();
   const alertDialog = useDialog();
@@ -292,6 +285,13 @@ export function DocumentViewer({ isAdmin = false }) {
     return grouped;
   }, [documentsToRender]);
 
+  const categoryCounts = useMemo(() => (
+    CATEGORY_SECTIONS.reduce((counts, category) => {
+      counts[category.value] = documents.filter((doc) => doc.categoria === category.value).length;
+      return counts;
+    }, {})
+  ), [documents]);
+
   const requiredDocuments = useMemo(
     () => documents.filter((doc) => doc.requiereLectura),
     [documents]
@@ -306,9 +306,19 @@ export function DocumentViewer({ isAdmin = false }) {
     ? Math.round((requiredReadCount / requiredDocuments.length) * 100)
     : 0;
 
-  const newDocumentsCount = useMemo(
-    () => documents.filter((doc) => isRecentDocument(doc.createdAt)).length,
+  const newDocuments = useMemo(
+    () => documents.filter((doc) => isRecentDocument(doc.createdAt)),
     [documents]
+  );
+
+  const newDocumentsCount = newDocuments.length;
+
+  const newestNewDocumentTimestamp = useMemo(
+    () => newDocuments.reduce((latestTimestamp, doc) => {
+      const timestamp = toLocalDate(doc.createdAt)?.getTime?.() || 0;
+      return Math.max(latestTimestamp, timestamp);
+    }, 0),
+    [newDocuments]
   );
 
   useEffect(() => {
@@ -318,15 +328,21 @@ export function DocumentViewer({ isAdmin = false }) {
   }, [newDocumentsCount]);
 
   useEffect(() => {
-    setShowNewBanner(true);
-  }, [documents]);
+    if (!user?.uid || !newestNewDocumentTimestamp) {
+      setShowNewBanner(false);
+      return;
+    }
 
-  const toggleCategorySection = (categoryValue) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [categoryValue]: !prev[categoryValue]
-    }));
-  };
+    try {
+      const dismissedAt = Number(
+        window.localStorage.getItem(getNewDocumentsBannerStorageKey(user.uid)) || 0
+      );
+      setShowNewBanner(newestNewDocumentTimestamp > dismissedAt);
+    } catch {
+      // Si el navegador bloquea el almacenamiento local, se mantiene el aviso.
+      setShowNewBanner(true);
+    }
+  }, [newestNewDocumentTimestamp, user?.uid]);
 
   const toggleOnlyNewFilter = () => {
     setShowOnlyNew((prev) => !prev);
@@ -335,34 +351,18 @@ export function DocumentViewer({ isAdmin = false }) {
   const handleCloseNewBanner = () => {
     setShowNewBanner(false);
     setShowOnlyNew(false);
+
+    if (!user?.uid) return;
+
+    try {
+      window.localStorage.setItem(
+        getNewDocumentsBannerStorageKey(user.uid),
+        String(Date.now())
+      );
+    } catch {
+      // El cierre inmediato sigue funcionando aunque no se pueda persistir.
+    }
   };
-
-  useEffect(() => {
-    if (hasAutoExpandedSections.current) return;
-    if (!Array.isArray(documents) || documents.length === 0) return;
-
-    const nextExpanded = CATEGORY_SECTIONS.reduce((acc, category) => {
-      const categoryDocs = documents.filter((doc) => doc.categoria === category.value);
-      const hasPriorityDoc = categoryDocs.some((doc) => {
-        const receipt = receipts[doc.id];
-        const docRead = receipt?.status === 'read';
-        const docNewUnread = isRecentDocument(doc.createdAt) && !docRead;
-        const docMandatoryUnread = !!doc.requiereLectura && !docRead;
-
-        if (user?.role === 'family') {
-          return docMandatoryUnread || docNewUnread;
-        }
-
-        return isRecentDocument(doc.createdAt);
-      });
-
-      acc[category.value] = hasPriorityDoc;
-      return acc;
-    }, {});
-
-    setExpandedSections(nextExpanded);
-    hasAutoExpandedSections.current = true;
-  }, [documents, receipts, user?.role]);
 
   const changeCalendarMonth = (offset) => {
     setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
@@ -391,15 +391,11 @@ export function DocumentViewer({ isAdmin = false }) {
 
   if (loading) {
     return (
-      <div className="documents-loading-state" role="status" aria-live="polite">
-        <span className="documents-loading-state__icon" aria-hidden="true">
-          <Icon name="file" size={16} />
-        </span>
+      <div className="documents-loading-state documents-loading-state--library" role="status" aria-live="polite">
+        <span className="documents-loading-state__spinner" aria-hidden="true" />
         <div className="documents-loading-state__body">
-          <p className="documents-loading-state__title">Cargando documentos</p>
-          <p className="documents-loading-state__hint">Preparando la biblioteca para esta cuenta.</p>
+          <p className="documents-loading-state__title">Cargando documentos…</p>
         </div>
-        <span className="documents-loading-state__bar" aria-hidden="true" />
       </div>
     );
   }
@@ -414,21 +410,9 @@ export function DocumentViewer({ isAdmin = false }) {
             </div>
           )}
 
-          <div className="documents-toolbar-toggle">
-            <button
-              type="button"
-              className="btn btn--sm btn--outline documents-toolbar-toggle__button"
-              onClick={() => setMobileFiltersOpen((prev) => !prev)}
-              aria-expanded={mobileFiltersOpen}
-              aria-controls="documents-toolbar-filters"
-            >
-              {mobileFiltersOpen ? 'Ocultar filtros' : 'Filtros'}
-            </button>
-          </div>
-
           <div
             id="documents-toolbar-filters"
-            className={`documents-toolbar documents-toolbar--rich ${mobileFiltersOpen ? 'is-open' : ''}`}
+            className="documents-toolbar documents-toolbar--rich"
           >
             <div className="documents-search-group">
               <label htmlFor="documents-search">Buscar</label>
@@ -436,26 +420,10 @@ export function DocumentViewer({ isAdmin = false }) {
                 id="documents-search"
                 type="search"
                 className="form-control"
-                placeholder="Titulo o descripcion"
+                placeholder="Título o descripción"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
-            </div>
-
-            <div className="documents-filter-group">
-              <label htmlFor="documents-category">Categoria</label>
-              <select
-                id="documents-category"
-                className="form-control"
-                value={filterCategory}
-                onChange={(event) => setFilterCategory(event.target.value)}
-              >
-                {DOCUMENT_CATEGORY_OPTIONS.map((category) => (
-                  <option key={category.value} value={category.value}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="documents-filter-group">
@@ -497,7 +465,7 @@ export function DocumentViewer({ isAdmin = false }) {
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value)}
               >
-                <option value="recent">Mas reciente</option>
+                <option value="recent">Más reciente</option>
                 <option value="az">Nombre A-Z</option>
               </select>
             </div>
@@ -571,29 +539,45 @@ export function DocumentViewer({ isAdmin = false }) {
               </p>
             </div>
           ) : (
-            <div className="documents-sections">
-              {CATEGORY_SECTIONS.map((category) => {
-                const sectionDocuments = documentsByCategory[category.value] || [];
-                if (sectionDocuments.length === 0) return null;
+            <div className="documents-library">
+              <nav className="documents-category-nav" aria-label="Categorías de documentos">
+                <button
+                  type="button"
+                  className={`documents-category-nav__item${filterCategory === 'all' ? ' is-active' : ''}`}
+                  onClick={() => setFilterCategory('all')}
+                  aria-pressed={filterCategory === 'all'}
+                >
+                  <span>Todos los documentos</span>
+                  <span className="documents-category-nav__count">{documents.length}</span>
+                </button>
+                {CATEGORY_SECTIONS.filter((category) => categoryCounts[category.value] > 0).map((category) => (
+                  <button
+                    key={category.value}
+                    type="button"
+                    className={`documents-category-nav__item${filterCategory === category.value ? ' is-active' : ''}`}
+                    onClick={() => setFilterCategory(category.value)}
+                    aria-pressed={filterCategory === category.value}
+                  >
+                    <span>{category.label}</span>
+                    <span className="documents-category-nav__count">{categoryCounts[category.value] || 0}</span>
+                  </button>
+                ))}
+              </nav>
 
-                const isExpanded = expandedSections[category.value] !== false;
+              <div className="documents-sections">
+                {CATEGORY_SECTIONS.map((category) => {
+                  const sectionDocuments = documentsByCategory[category.value] || [];
+                  if (sectionDocuments.length === 0) return null;
 
-                return (
-                  <section key={category.value} className="documents-section" data-category={category.value}>
-                    <button
-                      type="button"
-                      className="documents-section__header"
-                      onClick={() => toggleCategorySection(category.value)}
-                      aria-expanded={isExpanded}
-                    >
-                      <span className="documents-section__title">
-                        {category.label}
-                        <span className="documents-section__count">({sectionDocuments.length})</span>
-                      </span>
-                      <Icon name={isExpanded ? 'chevron-left' : 'chevron-right'} size={14} className="documents-section__icon" />
-                    </button>
+                  return (
+                    <section key={category.value} className="documents-section" data-category={category.value}>
+                      <div className="documents-section__header">
+                        <h2 className="documents-section__title">
+                          {category.label}
+                          <span className="documents-section__count">{sectionDocuments.length}</span>
+                        </h2>
+                      </div>
 
-                    {isExpanded && (
                       <div className="documents-list">
                         {sectionDocuments.map((doc) => {
                           const receipt = receipts[doc.id];
@@ -614,83 +598,83 @@ export function DocumentViewer({ isAdmin = false }) {
                           const hasStatusBadges = Boolean(scopeLabel || showRequiredBadge || showReadBadge || showNewBadge);
 
                           return (
-                            <div
+                            <article
                               key={doc.id}
-                              className={`card documents-item documents-item--clickable ${isPending ? 'documents-item--pending' : ''} ${isRead ? 'documents-item--read' : ''} ${isFeatured ? 'documents-item--featured' : ''}`}
+                              className={`documents-item documents-item--clickable ${isPending ? 'documents-item--pending' : ''} ${isRead ? 'documents-item--read' : ''} ${isFeatured ? 'documents-item--featured' : ''}`}
                               data-categoria={doc.categoria}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => handleOpenDetail(doc)}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  handleOpenDetail(doc);
-                                }
-                              }}
                             >
                               <div className="documents-item__layout">
-                                <div className="documents-item__top">
-                                  <span className={`documents-item__file-icon documents-item__file-icon--${fileInfo.tone}`} aria-hidden="true">
-                                    <Icon name={fileInfo.icon} size={18} />
-                                    <span className="documents-item__file-ext">{fileInfo.tag}</span>
+                                <button
+                                  type="button"
+                                  className="documents-item__primary"
+                                  onClick={() => handleOpenDetail(doc)}
+                                  aria-label={`Ver documento: ${doc.titulo}`}
+                                >
+                                  <span className="documents-item__top">
+                                    <span className={`documents-item__file-icon documents-item__file-icon--${fileInfo.tone}`} aria-hidden="true">
+                                      <Icon name={fileInfo.icon} size={18} />
+                                      <span className="documents-item__file-ext">{fileInfo.tag}</span>
+                                    </span>
+
+                                    <span className="documents-item__content">
+                                      <span className="documents-item__title">{doc.titulo}</span>
+                                      {doc.descripcion && (
+                                        <span className="documents-item__description">{doc.descripcion}</span>
+                                      )}
+
+                                    </span>
                                   </span>
 
-                                  <div className="documents-item__content">
-                                    <h3 className="documents-item__title">{doc.titulo}</h3>
-                                    {doc.descripcion && (
-                                      <p className="documents-item__description">{doc.descripcion}</p>
-                                    )}
-
-                                    {isAdmin && doc.requiereLectura && (
-                                      <DocumentReadReceiptsPanel documentId={doc.id} documentTitle={doc.titulo} />
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="documents-item__footer">
                                   {hasStatusBadges && (
-                                    <div className="documents-item__roles">
-                                      {scopeLabel && (
-                                        <span className="badge badge--secondary documents-item__role">
-                                          {scopeLabel}
-                                        </span>
-                                      )}
-                                      {showNewBadge && (
-                                        <span className="badge documents-item__status-badge documents-item__status-badge--new">Nuevo</span>
-                                      )}
-                                      {showRequiredBadge && (
-                                        <span className="badge documents-item__status-badge documents-item__status-badge--required">Obligatorio</span>
-                                      )}
-                                      {showReadBadge && (
-                                        <span className="badge documents-item__status-badge documents-item__status-badge--read">Leido</span>
-                                      )}
-                                    </div>
+                                    <span className="documents-item__footer">
+                                      <span className="documents-item__roles">
+                                        {scopeLabel && (
+                                          <span className="badge badge--secondary documents-item__role">
+                                            {scopeLabel}
+                                          </span>
+                                        )}
+                                        {showNewBadge && (
+                                          <span className="badge documents-item__status-badge documents-item__status-badge--new">Nuevo</span>
+                                        )}
+                                        {showRequiredBadge && (
+                                          <span className="badge documents-item__status-badge documents-item__status-badge--required">Obligatorio</span>
+                                        )}
+                                        {showReadBadge && (
+                                          <span className="badge documents-item__status-badge documents-item__status-badge--read">Leido</span>
+                                        )}
+                                      </span>
+                                    </span>
                                   )}
 
-                                  {isAdmin && (
-                                    <div className="documents-item__actions">
-                                      <button
-                                        type="button"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          handleDelete(doc);
-                                        }}
-                                        className="btn btn--sm btn--danger documents-item__action-btn documents-item__action-btn--danger"
-                                      >
-                                        Eliminar
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                  <span className="documents-item__open" aria-hidden="true">
+                                    <Icon name="chevron-right" size={16} />
+                                  </span>
+                                </button>
+
+                                {isAdmin && doc.requiereLectura && (
+                                  <DocumentReadReceiptsPanel documentId={doc.id} documentTitle={doc.titulo} />
+                                )}
+
+                                {isAdmin && (
+                                  <div className="documents-item__actions">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDelete(doc)}
+                                      className="btn btn--sm btn--danger documents-item__action-btn documents-item__action-btn--danger"
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            </div>
+                            </article>
                           );
                         })}
                       </div>
-                    )}
-                  </section>
-                );
-              })}
+                    </section>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

@@ -130,9 +130,9 @@ describe('Firestore security rules', () => {
           activo: true,
           dias: [{ id: 'dia_lleno', fecha: new Date('2026-08-02'), horario: '10:00 - 11:00' }],
           diaIds: { dia_lleno: true },
-          cupos: { dia_lleno: 2 },
-          familiasDia: { other_family_a: 'dia_lleno', other_family_b: 'dia_lleno' },
-          hijosDia: { other_child_a: 'dia_lleno', other_child_b: 'dia_lleno' },
+          cupos: { dia_lleno: 3 },
+          familiasDia: { other_family_a: 'dia_lleno', other_family_b: 'dia_lleno', other_family_c: 'dia_lleno' },
+          hijosDia: { other_child_a: 'dia_lleno', other_child_b: 'dia_lleno', other_child_c: 'dia_lleno' },
         }),
         db.collection('clasesAbiertas').doc('rules_ca_conv_ta_t1').set({
           tipo: 'taller_abierto',

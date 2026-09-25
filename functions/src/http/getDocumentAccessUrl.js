@@ -1,5 +1,6 @@
 ﻿const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const crypto = require('node:crypto');
 
 const ADMIN_ROLES = new Set(['superadmin', 'coordinacion']);
 const ALLOWED_ORIGINS = new Set([
@@ -36,7 +37,7 @@ function isAllowedOrigin(origin) {
   return LOCALHOST_ORIGIN_REGEX.test(origin);
 }
 
-function applyCorsHeaders(req, res) {
+function applyCorsHeaders(req, res, allowedMethods = 'POST, OPTIONS') {
   const origin = normalizeString(req.get('origin'));
 
   if (origin && isAllowedOrigin(origin)) {
@@ -44,8 +45,9 @@ function applyCorsHeaders(req, res) {
     res.set('Vary', 'Origin');
   }
 
-  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, Range');
+  res.set('Access-Control-Allow-Methods', allowedMethods);
+  res.set('Access-Control-Expose-Headers', 'Accept-Ranges, Content-Length, Content-Range, Content-Type');
 
   if (!isAllowedOrigin(origin)) {
     res.status(403).json({ success: false, error: 'Origen no permitido' });
@@ -185,6 +187,50 @@ function buildLegacyAccessUrl(rawUrl, mode, fileName) {
   }
 }
 
+function buildProtectedPreviewUrl(req, previewToken) {
+  const forwardedProtocol = normalizeString(req.get('x-forwarded-proto'));
+  const protocol = forwardedProtocol === 'http' ? 'http' : 'https';
+  const host = normalizeString(req.get('host'));
+  const originalPath = normalizeString(req.originalUrl || req.path).split('?')[0];
+  // En Functions v2, req.originalUrl puede llegar como `/` aunque la función
+  // se haya invocado por su nombre. Conservamos el prefijo del emulador si lo
+  // hubiera y siempre fijamos explícitamente el endpoint de streaming.
+  const pathPrefix = originalPath.replace(/\/[^/]*$/, '');
+  const previewPath = `${pathPrefix}/getProtectedDocumentPreview`;
+
+  return `${protocol}://${host}${previewPath}?token=${encodeURIComponent(previewToken)}`;
+}
+
+function parseByteRange(rangeHeader, totalSize) {
+  const rawRange = normalizeString(rangeHeader);
+  if (!rawRange) return null;
+
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rawRange);
+  if (!match) return { invalid: true };
+
+  const [, rawStart, rawEnd] = match;
+  if (!rawStart && !rawEnd) return { invalid: true };
+
+  let start;
+  let end;
+
+  if (!rawStart) {
+    const suffixLength = Number(rawEnd);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return { invalid: true };
+    start = Math.max(totalSize - suffixLength, 0);
+    end = totalSize - 1;
+  } else {
+    start = Number(rawStart);
+    end = rawEnd ? Number(rawEnd) : totalSize - 1;
+  }
+
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= totalSize || end < start) {
+    return { invalid: true };
+  }
+
+  return { start, end: Math.min(end, totalSize - 1) };
+}
+
 function matchesResponsable(entry, uid) {
   if (typeof entry === 'string') {
     return entry.trim() === uid;
@@ -301,7 +347,12 @@ exports.getDocumentAccessUrl = onRequest(async (req, res) => {
 
   const payload = parseRequestBody(req);
   const documentId = normalizeString(payload?.documentId);
-  const mode = normalizeString(payload?.mode).toLowerCase() === 'download' ? 'download' : 'view';
+  const requestedMode = normalizeString(payload?.mode).toLowerCase();
+  const mode = requestedMode === 'download'
+    ? 'download'
+    : requestedMode === 'preview'
+      ? 'preview'
+      : 'view';
 
   if (!documentId) {
     res.status(400).json({ success: false, error: 'documentId es obligatorio' });
@@ -366,6 +417,41 @@ exports.getDocumentAccessUrl = onRequest(async (req, res) => {
       return;
     }
 
+    try {
+      const [metadata] = await fileRef.getMetadata();
+      const metadataSize = Number(metadata?.size);
+      if (Number.isFinite(metadataSize) && metadataSize > 0) {
+        sizeBytes = metadataSize;
+      }
+    } catch (metadataError) {
+      console.warn('[getDocumentAccessUrl] No se pudo leer metadata de tamano:', metadataError?.message || metadataError);
+    }
+
+    if (mode === 'preview') {
+      if (!isPdfDocument(documentData)) {
+        res.status(422).json({ success: false, error: 'La vista previa protegida solo admite PDF' });
+        return;
+      }
+
+      const previewToken = crypto.randomBytes(32).toString('base64url');
+      const expiresAt = Date.now() + SIGNED_URL_TTL_MS;
+      await db.collection('protectedDocumentPreviewTokens').doc(previewToken).set({
+        documentId,
+        storagePath,
+        storageBucket: storageBucket || null,
+        expiresAt,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      res.status(200).json({
+        success: true,
+        url: buildProtectedPreviewUrl(req, previewToken),
+        expiresAt,
+        sizeBytes,
+      });
+      return;
+    }
+
     const expiresAt = Date.now() + SIGNED_URL_TTL_MS;
     let url = '';
     const shouldForcePdfResponseType = mode === 'view' && isPdfDocument(documentData);
@@ -394,16 +480,6 @@ exports.getDocumentAccessUrl = onRequest(async (req, res) => {
       throw signError;
     }
 
-    try {
-      const [metadata] = await fileRef.getMetadata();
-      const metadataSize = Number(metadata?.size);
-      if (Number.isFinite(metadataSize) && metadataSize > 0) {
-        sizeBytes = metadataSize;
-      }
-    } catch (metadataError) {
-      console.warn('[getDocumentAccessUrl] No se pudo leer metadata de tamano:', metadataError?.message || metadataError);
-    }
-
     res.status(200).json({
       success: true,
       url,
@@ -413,5 +489,99 @@ exports.getDocumentAccessUrl = onRequest(async (req, res) => {
   } catch (error) {
     console.error('[getDocumentAccessUrl] Error generando URL firmada:', error);
     res.status(500).json({ success: false, error: 'No se pudo generar acceso temporal al documento' });
+  }
+});
+
+// El token temporal es la credencial de esta URL. El endpoint debe admitir
+// invocaciones públicas para que PDF.js pueda pedir los rangos del archivo;
+// la autorización de Firebase ya se verificó al crear el token.
+exports.getProtectedDocumentPreview = onRequest({ invoker: 'public' }, async (req, res) => {
+  if (applyCorsHeaders(req, res, 'GET, HEAD, OPTIONS')) return;
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.status(405).json({ success: false, error: 'Metodo no permitido' });
+    return;
+  }
+
+  const previewToken = normalizeString(req.query?.token);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(previewToken)) {
+    res.status(400).json({ success: false, error: 'Token de vista previa invalido' });
+    return;
+  }
+
+  try {
+    const tokenRef = admin.firestore().collection('protectedDocumentPreviewTokens').doc(previewToken);
+    const tokenSnapshot = await tokenRef.get();
+    const preview = tokenSnapshot.data();
+    const expiresAt = Number(preview?.expiresAt);
+
+    if (!tokenSnapshot.exists || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      if (tokenSnapshot.exists) await tokenRef.delete();
+      res.status(403).json({ success: false, error: 'La vista previa expiro' });
+      return;
+    }
+
+    const storagePath = normalizeString(preview?.storagePath).replace(/^\/+/, '');
+    if (!storagePath) {
+      res.status(404).json({ success: false, error: 'Archivo no disponible' });
+      return;
+    }
+
+    const storageBucket = normalizeString(preview?.storageBucket);
+    const bucket = storageBucket ? admin.storage().bucket(storageBucket) : admin.storage().bucket();
+    const fileRef = bucket.file(storagePath);
+    const [metadata] = await fileRef.getMetadata();
+    const totalSize = Number(metadata?.size);
+
+    if (!Number.isSafeInteger(totalSize) || totalSize <= 0) {
+      res.status(404).json({ success: false, error: 'Archivo no disponible' });
+      return;
+    }
+
+    const byteRange = parseByteRange(req.get('range'), totalSize);
+    if (byteRange?.invalid) {
+      res.set('Content-Range', `bytes */${totalSize}`);
+      res.status(416).end();
+      return;
+    }
+
+    const start = byteRange?.start ?? 0;
+    const end = byteRange?.end ?? (totalSize - 1);
+    const contentLength = end - start + 1;
+    const partial = Boolean(byteRange);
+
+    res.status(partial ? 206 : 200);
+    res.set({
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'Content-Disposition': 'inline',
+      'Content-Length': String(contentLength),
+      'Content-Type': 'application/pdf',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    if (partial) {
+      res.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+    }
+
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    const stream = fileRef.createReadStream({ start, end });
+    stream.on('error', (error) => {
+      console.error('[getProtectedDocumentPreview] Error transmitiendo PDF:', error);
+      res.destroy(error);
+    });
+    stream.pipe(res);
+  } catch (error) {
+    console.error('[getProtectedDocumentPreview] Error preparando PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'No se pudo cargar la vista previa protegida' });
+    } else {
+      res.destroy(error);
+    }
   }
 });

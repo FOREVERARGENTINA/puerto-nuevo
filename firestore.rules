@@ -957,7 +957,7 @@ service cloud.firestore {
         let hijoId = request.resource.data.hijoId;
         return before.tipo == 'ambiente_abierto' &&
           inscripcionId == request.auth.uid &&
-          currentCupo(before, diaId) < 2 &&
+          currentCupo(before, diaId) < (before.ambiente == 'taller1' ? 3 : 2) &&
           !familyAlreadyInscribed(before, request.auth.uid) &&
           !childAlreadyInscribed(before, hijoId) &&
           after.cupos[diaId] == currentCupo(before, diaId) + 1 &&
@@ -989,7 +989,7 @@ service cloud.firestore {
           existsAfter(/databases/$(database)/documents/clasesAbiertas/$(convocatoriaId)/inscripciones/$(request.auth.uid)) &&
           ownAmbienteInscripcionAfter().familiaUid == request.auth.uid &&
           before.diaIds[ownAmbienteInscripcionAfter().diaId] == true &&
-          currentCupo(before, ownAmbienteInscripcionAfter().diaId) < 2 &&
+          currentCupo(before, ownAmbienteInscripcionAfter().diaId) < (before.ambiente == 'taller1' ? 3 : 2) &&
           !familyAlreadyInscribed(before, request.auth.uid) &&
           !childAlreadyInscribed(before, ownAmbienteInscripcionAfter().hijoId) &&
           after.familiasDia[request.auth.uid] == ownAmbienteInscripcionAfter().diaId &&

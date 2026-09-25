@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { documentsService } from '../../services/documents.service';
@@ -10,6 +10,10 @@ import {
 import Icon from '../../components/ui/Icon';
 import { AlertDialog } from '../../components/common/AlertDialog';
 import { useDialog } from '../../hooks/useDialog';
+
+// PDF.js se carga solo al abrir un PDF protegido.
+const ProtectedPdfViewer = lazy(() => import('../../components/documents/ProtectedPdfViewer')
+  .then((module) => ({ default: module.ProtectedPdfViewer })));
 
 const toLocalDate = (value) => {
   if (!value) return null;
@@ -89,6 +93,7 @@ export function DocumentDetail() {
   const [resolvedFileSizeBytes, setResolvedFileSizeBytes] = useState(null);
 
   const sharePath = getSharedDocumentDetailRoute(documentId || '');
+  const viewerContainerRef = useRef(null);
 
   const isPdf = useMemo(() => {
     const fileName = documentItem?.archivoNombre || '';
@@ -99,6 +104,20 @@ export function DocumentDetail() {
     const fileName = (documentItem?.archivoNombre || '').toLowerCase();
     return /\.(png|jpe?g|gif|webp)$/i.test(fileName);
   }, [documentItem?.archivoNombre]);
+
+  const documentRoles = documentItem?.roles;
+  const isAspiranteProtected = useMemo(
+    () => Array.isArray(documentRoles) && documentRoles.includes('aspirante'),
+    [documentRoles]
+  );
+
+  const handleToggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    viewerContainerRef.current?.requestFullscreen?.();
+  };
 
   const isRead = receipt?.status === 'read';
   const isPending = !isRead;
@@ -185,7 +204,7 @@ export function DocumentDetail() {
   useEffect(() => {
     const canEmbedPreview = isPdf || isImage;
     const shouldLoadEmbeddedViewer = Boolean(documentItem?.id && canEmbedPreview && user?.uid)
-      && (!(isPdf && isLikelyMobileDevice) || allowMobileEmbeddedPreview);
+      && (!(isPdf && isLikelyMobileDevice) || allowMobileEmbeddedPreview || isAspiranteProtected);
 
     if (!shouldLoadEmbeddedViewer) return;
 
@@ -195,6 +214,8 @@ export function DocumentDetail() {
       setViewerLoading(true);
       setViewerFrameLoaded(false);
       setViewerEmbedFallbackError('');
+      // El lector protegido obtiene la URL firmada una vez; PDF.js descarga el
+      // archivo desde Storage (no mediante un proxy de Cloud Functions).
       const result = await resolveDocumentAccessUrl(documentItem.id, 'view');
 
       if (cancelled) return;
@@ -219,9 +240,12 @@ export function DocumentDetail() {
     return () => {
       cancelled = true;
     };
-  }, [allowMobileEmbeddedPreview, documentItem?.id, isLikelyMobileDevice, isPdf, isImage, user?.uid]);
+  }, [allowMobileEmbeddedPreview, documentItem?.id, isAspiranteProtected, isLikelyMobileDevice, isPdf, isImage, user?.uid]);
 
   useEffect(() => {
+    // El visor protegido (canvas propio) no dispara onLoad como el iframe, así que
+    // este fallback de timeout no aplica cuando se usa ProtectedPdfViewer.
+    if (isAspiranteProtected) return undefined;
     if (!isPdf || !viewerUrl || viewerLoading || viewerFrameLoaded || viewerEmbedFallbackError) {
       return undefined;
     }
@@ -233,7 +257,7 @@ export function DocumentDetail() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isPdf, viewerUrl, viewerLoading, viewerFrameLoaded, viewerEmbedFallbackError]);
+  }, [isAspiranteProtected, isPdf, viewerUrl, viewerLoading, viewerFrameLoaded, viewerEmbedFallbackError]);
 
   useEffect(() => {
     if (!documentItem?.id || !user?.uid) return;
@@ -320,6 +344,13 @@ export function DocumentDetail() {
   };
 
   const handleOpenExternal = async () => {
+    if (isAspiranteProtected) {
+      // ponytail: documentos de aspirantes no abren en pestaña nueva (evita la toolbar
+      // nativa completa con descarga/impresión); el visor embebido ya está en la página.
+      document.querySelector('.document-detail-viewer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
     const url = await requestAccessUrl('view');
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -467,26 +498,34 @@ export function DocumentDetail() {
             </div>
           )}
 
-          {documentItem.descripcion && (
+          {documentItem.descripcion && !isAspiranteProtected && (
             <p className="document-detail-description">{documentItem.descripcion}</p>
           )}
 
-          <p className="document-detail-info">
-            Publicado: {createdAtDate?.toLocaleDateString('es-AR') || 'Fecha desconocida'} ·
-            Tamaño: {formatFileSize(resolvedFileSizeBytes)} ·
-            Subido por: {documentItem.uploadedByEmail || 'Institución'}
-          </p>
+          {!isAspiranteProtected && (
+            <p className="document-detail-info">
+              Publicado: {createdAtDate?.toLocaleDateString('es-AR') || 'Fecha desconocida'} ·
+              Tamaño: {formatFileSize(resolvedFileSizeBytes)} ·
+              Subido por: {documentItem.uploadedByEmail || 'Institución'}
+            </p>
+          )}
 
           <div className="document-detail-actions">
-            <button type="button" className="btn btn--primary" onClick={handleOpenExternal} disabled={requestingAccess}>
-              Ver
-            </button>
-            <button type="button" className="btn btn--outline" onClick={handleDownload} disabled={requestingAccess}>
-              Descargar
-            </button>
-            <button type="button" className="btn btn--outline" onClick={handleCopyLink}>
-              Copiar enlace
-            </button>
+            {!isAspiranteProtected && (
+              <button type="button" className="btn btn--primary" onClick={handleOpenExternal} disabled={requestingAccess}>
+                Ver
+              </button>
+            )}
+            {!isAspiranteProtected && (
+              <button type="button" className="btn btn--outline" onClick={handleDownload} disabled={requestingAccess}>
+                Descargar
+              </button>
+            )}
+            {!isAspiranteProtected && (
+              <button type="button" className="btn btn--outline" onClick={handleCopyLink}>
+                Copiar enlace
+              </button>
+            )}
             {documentItem.requiereLectura && isPending && canTrackRead && (
               <button type="button" className="btn btn--success" onClick={handleConfirmMandatoryRead} disabled={markingAsRead}>
                 Marcar leído
@@ -495,8 +534,21 @@ export function DocumentDetail() {
           </div>
 
           {isPdf || isImage ? (
-            <div className="document-detail-viewer">
-              {isPdf && isLikelyMobileDevice && !allowMobileEmbeddedPreview ? (
+            <div
+              ref={viewerContainerRef}
+              className="document-detail-viewer"
+              onContextMenu={isAspiranteProtected ? (e) => e.preventDefault() : undefined}
+            >
+              <button
+                type="button"
+                className="document-detail-viewer__fullscreen-btn"
+                onClick={handleToggleFullscreen}
+                title="Pantalla completa"
+                aria-label="Pantalla completa"
+              >
+                <Icon name="maximize" size={16} />
+              </button>
+              {isPdf && isLikelyMobileDevice && !allowMobileEmbeddedPreview && !isAspiranteProtected ? (
                 <div className="alert alert--info">
                   <p style={{ margin: 0 }}>
                     En celular, este PDF funciona mejor con "Abrir PDF".
@@ -527,13 +579,28 @@ export function DocumentDetail() {
                 </div>
               ) : viewerUrl && (!isPdf || !viewerEmbedFallbackError) ? (
                 isPdf ? (
-                  <iframe
-                    src={viewerUrl}
-                    title={documentItem.titulo || 'Documento PDF'}
-                    className="document-detail-viewer__frame"
-                    onLoad={handleViewerLoad}
-                    onError={handleViewerError}
-                  />
+                  isAspiranteProtected ? (
+                    <Suspense fallback={(
+                      <div className="documents-loading-state documents-loading-state--inline" role="status" aria-live="polite">
+                        <span className="documents-loading-state__icon" aria-hidden="true">
+                          <Icon name="file" size={16} />
+                        </span>
+                        <div className="documents-loading-state__body">
+                          <p className="documents-loading-state__title">Preparando vista previa</p>
+                        </div>
+                      </div>
+                    )}>
+                      <ProtectedPdfViewer url={viewerUrl} title={documentItem.titulo} />
+                    </Suspense>
+                  ) : (
+                    <iframe
+                      src={viewerUrl}
+                      title={documentItem.titulo || 'Documento PDF'}
+                      className="document-detail-viewer__frame"
+                      onLoad={handleViewerLoad}
+                      onError={handleViewerError}
+                    />
+                  )
                 ) : (
                   <img
                     src={viewerUrl}
@@ -578,4 +645,3 @@ export function DocumentDetail() {
     </div>
   );
 }
-

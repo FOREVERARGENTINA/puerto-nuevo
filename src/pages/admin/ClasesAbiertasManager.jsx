@@ -10,6 +10,7 @@ const TIPO_LABELS = { ambiente_abierto: 'Ambiente Abierto', taller_abierto: 'Tal
 const AMBIENTE_LABELS = { taller1: 'Taller 1', taller2: 'Taller 2' };
 const TIPOS = ['ambiente_abierto', 'taller_abierto'];
 const AMBIENTES = ['taller1', 'taller2'];
+const cupoMaximoAmbienteAbierto = (ambiente) => (ambiente === 'taller1' ? 3 : 2);
 
 const toDayKey = (date) => {
   const d = date?.toDate ? date.toDate() : new Date(date);
@@ -44,6 +45,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
   const { user } = useAuth();
   const [convocatoria, setConvocatoria] = useState(null);
   const [convocatoriaPasada, setConvocatoriaPasada] = useState(null);
+  const cupoMaximo = cupoMaximoAmbienteAbierto(ambiente);
   const [inscripciones, setInscripciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -268,14 +270,14 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
       const cupo = cupoPorDia(dia.id);
       const insc = inscriptosPorDia(dia.id);
       if (tipo === 'ambiente_abierto') {
-        m.set(dia.id, cupo >= 2 ? 'completo' : cupo > 0 ? 'inscripto' : 'disponible');
+        m.set(dia.id, cupo >= cupoMaximo ? 'completo' : cupo > 0 ? 'inscripto' : 'disponible');
       } else {
         m.set(dia.id, insc.length > 0 ? 'inscripto' : 'disponible');
       }
     });
     return m;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convocatoria, inscripciones]);
+  }, [convocatoria, inscripciones, cupoMaximo]);
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
   const isEditing = editingDiaId === selectedDiaId && Boolean(selectedDiaId);
@@ -417,13 +419,13 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
                       )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                      <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && insc.length >= 2 ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
-                        {tipo === 'ambiente_abierto' ? `${insc.length}/2 inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
+                      <p style={{ fontSize: 'var(--font-size-sm)', color: tipo === 'ambiente_abierto' && insc.length >= cupoMaximo ? 'var(--color-error)' : 'var(--color-success)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
+                        {tipo === 'ambiente_abierto' ? `${insc.length}/${cupoMaximo} inscriptos` : `${insc.length} inscripto${insc.length !== 1 ? 's' : ''}`}
                       </p>
                       {cupoDesincronizado && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
-                            Cupo interno desincronizado: {cupo}/2
+                            Cupo interno desincronizado: {cupo}/{cupoMaximo}
                           </span>
                           <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)' }} onClick={handleSyncCupos} disabled={submitting}>
                             Sincronizar cupos
@@ -476,7 +478,7 @@ function PanelConvocatoria({ tipo, ambiente, onActionsChange }) {
                           </div>
                         </div>
                       ) : (
-                        !(tipo === 'ambiente_abierto' && insc.length >= 2) && (
+                        !(tipo === 'ambiente_abierto' && insc.length >= cupoMaximo) && (
                           <button className="btn btn--ghost" style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--spacing-xs) var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }} onClick={handleAbrirAgregarFamilia} disabled={submitting}>
                             + Agregar familia
                           </button>

@@ -15,7 +15,11 @@ export const documentAccessService = {
   async getDocumentAccessUrl(documentId, mode = 'view') {
     try {
       const normalizedDocumentId = typeof documentId === 'string' ? documentId.trim() : '';
-      const normalizedMode = mode === 'download' ? 'download' : 'view';
+      const normalizedMode = mode === 'download'
+        ? 'download'
+        : mode === 'preview'
+          ? 'preview'
+          : 'view';
 
       if (!normalizedDocumentId) {
         return { success: false, error: 'documentId es obligatorio' };
