@@ -12,7 +12,7 @@ Prioriza usabilidad, seguridad y comunicacion clara entre familias y equipo peda
 
 - Estudio creador: FrandoWeb
 - Responsable: Hernan Frandolich
-- Especialidad: Diseno web, desarrollo full-stack, SEO y estrategia digital
+- Especialidad: Diseño web, desarrollo full-stack, SEO y estrategia digital
 - Web: https://www.frandoweb.com.ar
 - Email: info@frandoweb.com.ar
 - WhatsApp: +54 9 11 2807-4000

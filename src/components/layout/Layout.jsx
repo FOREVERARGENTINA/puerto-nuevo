@@ -41,7 +41,7 @@ export function Layout({ children }) {
               <span className="layout-footer__text">
                 Diseño y desarrollo:{' '}
                 <a 
-                  href="https://www.frandoweb.com" 
+                  href="https://www.frandoweb.com.ar"
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="layout-footer__link"
@@ -51,7 +51,7 @@ export function Layout({ children }) {
                   <span className="layout-footer__link-initial">F</span>
                   rando
                   <span className="layout-footer__link-initial">W</span>
-                  eb.com
+                  eb.com.ar
                 </a>
               </span>
             </div>
