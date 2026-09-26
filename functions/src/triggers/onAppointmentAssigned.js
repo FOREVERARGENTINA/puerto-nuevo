@@ -23,16 +23,18 @@ exports.onAppointmentAssigned = onDocumentUpdated(
 
     if (after.estado !== 'reservado') return;
 
-    const beforeFamilies = new Set([
+    const beforeRecipients = new Set([
       ...(Array.isArray(before.familiasUids) ? before.familiasUids : []),
-      ...(before.familiaUid ? [before.familiaUid] : [])
+      ...(before.familiaUid ? [before.familiaUid] : []),
+      ...(before.aspiranteUid ? [before.aspiranteUid] : [])
     ]);
-    const afterFamilies = new Set([
+    const afterRecipients = new Set([
       ...(Array.isArray(after.familiasUids) ? after.familiasUids : []),
-      ...(after.familiaUid ? [after.familiaUid] : [])
+      ...(after.familiaUid ? [after.familiaUid] : []),
+      ...(after.aspiranteUid ? [after.aspiranteUid] : [])
     ]);
 
-    const newRecipients = Array.from(afterFamilies).filter(uid => !beforeFamilies.has(uid));
+    const newRecipients = Array.from(afterRecipients).filter(uid => !beforeRecipients.has(uid));
     if (newRecipients.length === 0) return;
 
     let childName = '';
@@ -57,7 +59,9 @@ exports.onAppointmentAssigned = onDocumentUpdated(
     const modalidadTexto = formatAppointmentMode(after.modalidad);
 
     const subject = 'Turno reservado - Montessori Puerto Nuevo';
-    const appointmentUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
+    const appointmentUrl = after.targetRole === 'aspirante'
+      ? 'https://montessoripuertonuevo.com.ar/portal/aspirante/turnos'
+      : 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
     const safeAppointmentUrl = escapeHtml(appointmentUrl);
 
     const batchSize = 10;

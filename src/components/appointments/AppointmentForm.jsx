@@ -27,11 +27,12 @@ const getAmbienteLabel = (ambiente) => {
   return null;
 };
 
-const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
+const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel, audience = 'family' }) => {
+  const isAspirante = audience === 'aspirante';
   const [formData, setFormData] = useState({
     hijoId: '',
     nota: '',
-    modalidad: ''
+    modalidad: isAspirante ? 'presencial' : ''
   });
   const [loading, setLoading] = useState(false);
   const alertDialog = useDialog();
@@ -39,9 +40,9 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      modalidad: ''
+      modalidad: isAspirante ? 'presencial' : ''
     }));
-  }, [appointment?.id, appointment?.modalidad]);
+  }, [appointment?.id, appointment?.modalidad, isAspirante]);
 
   // Hijos compatibles con el ambiente del slot. Si el slot no tiene ambiente, se muestran todos.
   const eligibleChildren = (() => {
@@ -75,7 +76,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.modalidad) {
+    if (!isAspirante && !formData.modalidad) {
       alertDialog.openDialog({
         title: 'Campo Requerido',
         message: 'Por favor seleccioná la modalidad',
@@ -83,7 +84,7 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
       });
       return;
     }
-    if (!formData.hijoId) {
+    if (!isAspirante && !formData.hijoId) {
       alertDialog.openDialog({
         title: 'Campo Requerido',
         message: 'Por favor seleccioná un alumno',
@@ -157,35 +158,45 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
           <form onSubmit={handleSubmit} className="appointment-form">
 
             {/* ── SECCIÓN 1: Modalidad ── */}
-            <div className="sc-section">
-              <div className="sc-section__header">
-                <span className="sc-section__num">1</span>
-                <h3 className="sc-section__title">Modalidad</h3>
+            {isAspirante ? (
+              <div className="sc-section">
+                <div className="sc-section__header">
+                  <span className="sc-section__num">1</span>
+                  <h3 className="sc-section__title">Modalidad presencial</h3>
+                </div>
+                <p className="form-help">La reunión se realizará presencialmente en la escuela.</p>
               </div>
+            ) : (
+              <div className="sc-section">
+                <div className="sc-section__header">
+                  <span className="sc-section__num">1</span>
+                  <h3 className="sc-section__title">Modalidad</h3>
+                </div>
 
-              <div className="sc-mode-grid">
-                <button
-                  type="button"
-                  className={`sc-mode-card${formData.modalidad === 'presencial' ? ' sc-mode-card--active' : ''}`}
-                  onClick={() => setFormData(prev => ({ ...prev, modalidad: 'presencial' }))}
-                  disabled={loading}
-                >
-                  <PresencialIcon />
-                  <span className="sc-mode-card__label">Presencial</span>
-                  <span className="sc-mode-card__desc">En la escuela</span>
-                </button>
-                <button
-                  type="button"
-                  className={`sc-mode-card${formData.modalidad === 'virtual' ? ' sc-mode-card--active' : ''}`}
-                  onClick={() => setFormData(prev => ({ ...prev, modalidad: 'virtual' }))}
-                  disabled={loading}
-                >
-                  <VirtualIcon />
-                  <span className="sc-mode-card__label">Virtual</span>
-                  <span className="sc-mode-card__desc">Por videollamada</span>
-                </button>
+                <div className="sc-mode-grid">
+                  <button
+                    type="button"
+                    className={`sc-mode-card${formData.modalidad === 'presencial' ? ' sc-mode-card--active' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, modalidad: 'presencial' }))}
+                    disabled={loading}
+                  >
+                    <PresencialIcon />
+                    <span className="sc-mode-card__label">Presencial</span>
+                    <span className="sc-mode-card__desc">En la escuela</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sc-mode-card${formData.modalidad === 'virtual' ? ' sc-mode-card--active' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, modalidad: 'virtual' }))}
+                    disabled={loading}
+                  >
+                    <VirtualIcon />
+                    <span className="sc-mode-card__label">Virtual</span>
+                    <span className="sc-mode-card__desc">Por videollamada</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ── SECCIÓN 2: Alumno y nota ── */}
             <div className="sc-section">
@@ -194,25 +205,27 @@ const AppointmentForm = ({ appointment, userChildren, onSubmit, onCancel }) => {
                 <h3 className="sc-section__title">Detalles</h3>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="hijoId" className="required">Alumno</label>
-                <select
-                  id="hijoId"
-                  name="hijoId"
-                  value={formData.hijoId}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  className="form-select"
-                >
-                  <option value="">Seleccionar alumno...</option>
-                  {eligibleChildren.map(child => (
-                    <option key={child.id} value={child.id}>
-                      {child.nombreCompleto}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!isAspirante && (
+                <div className="form-group">
+                  <label htmlFor="hijoId" className="required">Alumno</label>
+                  <select
+                    id="hijoId"
+                    name="hijoId"
+                    value={formData.hijoId}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    className="form-select"
+                  >
+                    <option value="">Seleccionar alumno...</option>
+                    {eligibleChildren.map(child => (
+                      <option key={child.id} value={child.id}>
+                        {child.nombreCompleto}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="form-group">
                 <label htmlFor="nota">

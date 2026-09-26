@@ -210,6 +210,42 @@ export const appointmentsService = {
     }
   },
 
+  async getAvailableAspiranteAppointments() {
+    try {
+      const q = query(
+        appointmentsCollection,
+        where('targetRole', '==', 'aspirante'),
+        where('estado', '==', 'disponible')
+      );
+      const snapshot = await getDocs(q);
+      const appointments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...fixMojibakeDeep(doc.data())
+      })).sort((a, b) => toDate(a.fechaHora) - toDate(b.fechaHora));
+      return { success: true, appointments };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async getAppointmentsByAspirante(aspiranteUid) {
+    try {
+      const q = query(
+        appointmentsCollection,
+        where('aspiranteUid', '==', aspiranteUid),
+        where('targetRole', '==', 'aspirante')
+      );
+      const snapshot = await getDocs(q);
+      const appointments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...fixMojibakeDeep(doc.data())
+      })).sort((a, b) => toDate(b.fechaHora) - toDate(a.fechaHora));
+      return { success: true, appointments };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   async getAppointmentsByChild(childId) {
     try {
       const q = query(
@@ -548,6 +584,41 @@ export const appointmentsService = {
 
         transaction.update(slotRef, {
           ...data.payload,
+          updatedAt: serverTimestamp()
+        });
+
+        return { success: true };
+      });
+
+      if (result.success) {
+        emitAppointmentsUpdated();
+      }
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  async bookAspiranteSlot(appointmentId, data) {
+    try {
+      const slotRef = doc(appointmentsCollection, appointmentId);
+      const result = await runTransaction(db, async (transaction) => {
+        const slotDoc = await transaction.get(slotRef);
+
+        if (!slotDoc.exists()) {
+          return { success: false, error: 'El turno no existe.' };
+        }
+
+        const slot = slotDoc.data();
+        if (slot.estado !== 'disponible' || slot.targetRole !== 'aspirante') {
+          return { success: false, error: 'El turno ya no está disponible.' };
+        }
+
+        transaction.update(slotRef, {
+          ...data.payload,
+          targetRole: 'aspirante',
+          modalidad: 'presencial',
+          estado: 'reservado',
           updatedAt: serverTimestamp()
         });
 

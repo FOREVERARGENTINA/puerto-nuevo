@@ -121,4 +121,35 @@ describe('Scheduled reminder functions', () => {
     expect(outboxDoc.data().recipientEmails).toContain('family-appointment@demo.pn');
     expect(outboxDoc.data().source).toBe('sendAppointmentSameDayReminder');
   });
+
+  test('runAppointmentSameDayReminder dirige al aspirante a su seccion de reuniones', async () => {
+    const db = getAdminDb();
+    const appointmentId = `fn_appt_aspirante_${randomUUID()}`;
+    const now = new Date('2026-10-02T12:00:00.000Z');
+
+    await Promise.all([
+      db.collection('users').doc('fn_aspirante_appointment').set({
+        role: 'aspirante',
+        email: 'aspirante-appointment@demo.pn',
+        displayName: 'Aspirante Appointment',
+      }, { merge: true }),
+      db.collection('appointments').doc(appointmentId).set({
+        estado: 'reservado',
+        targetRole: 'aspirante',
+        aspiranteUid: 'fn_aspirante_appointment',
+        modalidad: 'presencial',
+        fechaHora: new Date('2026-10-02T19:00:00.000Z'),
+      }),
+    ]);
+
+    const result = await runAppointmentSameDayReminder({ db, now, apiKey: null });
+
+    expect(result).toEqual({ success: true, reminders: 1 });
+    const outboxDoc = await waitForCollectionMatch(
+      'emulatorOutbox',
+      (docSnap) => docSnap.data().metadata?.appointmentId === appointmentId
+    );
+    expect(outboxDoc.data().recipientEmails).toContain('aspirante-appointment@demo.pn');
+    expect(outboxDoc.data().payload.htmlContent).toContain('/portal/aspirante/turnos');
+  });
 });

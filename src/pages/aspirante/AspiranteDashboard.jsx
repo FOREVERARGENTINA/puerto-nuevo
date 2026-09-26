@@ -24,13 +24,13 @@ export function AspiranteDashboard() {
               <h3 className="card__title">Galería</h3>
               <p>Recorridos virtuales e información visual de la escuela</p>
             </Link>
+            <Link to={ROUTES.ASPIRANTE_APPOINTMENTS} className="card card--clickable link-unstyled">
+              <h3 className="card__title">Entrevistas</h3>
+              <p>Reservar un turno presencial con la escuela</p>
+            </Link>
             <div className="card" style={{ opacity: 0.6 }}>
               <h3 className="card__title">Mi Estado</h3>
               <p>Ver etapa actual del proceso (próximamente)</p>
-            </div>
-            <div className="card" style={{ opacity: 0.6 }}>
-              <h3 className="card__title">Entrevistas</h3>
-              <p>Agendar entrevistas y reuniones (próximamente)</p>
             </div>
           </div>
         </section>

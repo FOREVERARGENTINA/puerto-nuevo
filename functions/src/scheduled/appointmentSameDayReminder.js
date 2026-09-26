@@ -46,7 +46,7 @@ async function runAppointmentSameDayReminder({
     const appointmentDate = toJsDate(appointment.fechaHora);
     if (!appointmentDate || appointmentDate.getTime() <= now.getTime()) continue;
 
-    const recipients = collectFamilyUids(appointment);
+    const recipients = collectAppointmentRecipientUids(appointment);
     if (recipients.length === 0) continue;
 
     const reminderState = appointment.recordatorioReunionMismoDia || {};
@@ -64,6 +64,7 @@ async function runAppointmentSameDayReminder({
       modality: appointment.modalidad || null,
       childName: appointment.hijoNombre || appointment.childName || null,
       appointmentId,
+      targetRole: appointment.targetRole || null,
       apiKey,
     });
 
@@ -105,12 +106,15 @@ async function sendAppointmentReminderEmails({
   modality,
   childName,
   appointmentId,
+  targetRole,
   apiKey,
 }) {
   const sentToUids = [];
   const batchSize = 10;
   const subject = 'Recordatorio: turno de hoy - Montessori Puerto Nuevo';
-  const appointmentUrl = 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
+  const appointmentUrl = targetRole === 'aspirante'
+    ? 'https://montessoripuertonuevo.com.ar/portal/aspirante/turnos'
+    : 'https://montessoripuertonuevo.com.ar/portal/familia/turnos';
   const safeAppointmentUrl = escapeHtml(appointmentUrl);
 
   const fechaTexto = appointmentDate.toLocaleString('es-AR', {
@@ -196,7 +200,7 @@ async function sendAppointmentReminderEmails({
   return sentToUids;
 }
 
-function collectFamilyUids(appointment) {
+function collectAppointmentRecipientUids(appointment) {
   const set = new Set();
   if (Array.isArray(appointment.familiasUids)) {
     appointment.familiasUids.forEach((uid) => {
@@ -205,6 +209,7 @@ function collectFamilyUids(appointment) {
   }
 
   if (appointment.familiaUid) set.add(appointment.familiaUid);
+  if (appointment.aspiranteUid) set.add(appointment.aspiranteUid);
   return Array.from(set);
 }
 

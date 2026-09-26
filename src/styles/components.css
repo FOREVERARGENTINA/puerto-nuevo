@@ -10425,15 +10425,60 @@
     flex-wrap: wrap;
   }
 
+  .appointments-manager-page > .dashboard-content {
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+  }
+
+  .appointments-manager-page .appointments-list-panel > .card {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .appointments-manager-page .appointments-list-panel > .card > .card__body {
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
+  .appointments-manager-page .day-appointments-list {
+    gap: 6px;
+    margin-top: var(--spacing-sm);
+  }
+
   .admin-day-appointment-item {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) minmax(96px, 42%);
+    align-items: start;
     gap: var(--spacing-sm);
+    width: 100%;
+    min-width: 0;
+    padding: var(--spacing-sm) 10px;
+    box-sizing: border-box;
   }
 
   .appointment-info-section {
+    grid-column: 2;
     margin-left: 0;
-    flex-wrap: wrap;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+
+  .appointment-time-section,
+  .appointment-identity {
+    min-width: 0;
+  }
+
+  .appointment-identity {
+    width: 100%;
+  }
+
+  .appointment-duration,
+  .appointment-family,
+  .appointment-child,
+  .appointment-note-preview {
+    overflow-wrap: anywhere;
   }
 
   .admin-calendar-day {

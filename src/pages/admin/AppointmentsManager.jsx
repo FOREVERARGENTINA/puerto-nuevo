@@ -1034,6 +1034,7 @@ const AppointmentsManager = () => {
   const getCancelledByLabel = (value) => {
     const map = {
       familia: 'familia',
+      aspirante: 'aspirante',
       escuela: 'escuela',
       admin: 'escuela'
     };
@@ -1146,8 +1147,8 @@ const AppointmentsManager = () => {
   const searchedAppointments = searchTerm.trim()
     ? filteredAppointments.filter(app => {
         const term = searchTerm.trim().toLowerCase();
-        const email = (app.familiaEmail || '').toLowerCase();
-        const name = (app.familiaDisplayName || '').toLowerCase();
+        const email = (app.aspiranteEmail || app.familiaEmail || '').toLowerCase();
+        const name = (app.aspiranteDisplayName || app.familiaDisplayName || '').toLowerCase();
         const child = (app.hijoNombre || '').toLowerCase();
         const estado = (app.estado || '').toLowerCase();
         const modalidad = getAppointmentModeLabel(app.modalidad).toLowerCase();
@@ -1788,7 +1789,7 @@ const AppointmentsManager = () => {
                         ) : (
                           group.items.map(app => {
                             const familiesInfo = Array.isArray(app.familiasInfo) ? app.familiasInfo : [];
-                            const fallbackFamilyLabel = app.familiaDisplayName || app.familiaEmail;
+                            const fallbackFamilyLabel = app.aspiranteDisplayName || app.aspiranteEmail || app.familiaDisplayName || app.familiaEmail;
                             const familyLabels = familiesInfo.length > 0
                               ? familiesInfo.map(fam => fam.displayName || fam.email).filter(Boolean)
                               : (fallbackFamilyLabel ? [fallbackFamilyLabel] : []);
@@ -1806,6 +1807,7 @@ const AppointmentsManager = () => {
                                   <div className="appointment-duration">
                                     {app.duracionMinutos} min • {getAppointmentModeLabel(app.modalidad)}
                                     {app.origenSlot === 'manual' ? ' • Sobreturno' : ''}
+                                    {app.targetRole === 'aspirante' ? ' • Aspirantes' : ''}
                                     {getAmbienteLabel(app.ambiente) && (
                                       <span className={`admin-ambiente-badge admin-ambiente-badge--${app.ambiente}`}>
                                         {getAmbienteLabel(app.ambiente)}
@@ -1993,6 +1995,9 @@ const AppointmentsManager = () => {
               <div className="appointment-details-summary">
                 <p><strong>Fecha y Hora:</strong> {formatFullDate(selectedAppointment.fechaHora?.toDate ? selectedAppointment.fechaHora.toDate() : new Date(selectedAppointment.fechaHora))} - {formatTime(selectedAppointment.fechaHora)}</p>
                 <p><strong>Modalidad:</strong> {getAppointmentModeLabel(selectedAppointment.modalidad)}</p>
+                {selectedAppointment.targetRole === 'aspirante' && (
+                  <p><strong>Destinado a:</strong> Aspirantes</p>
+                )}
                 <p><strong>Estado:</strong> <span className={`badge badge--${
                   selectedAppointment.estado === 'disponible' ? 'success' :
                   selectedAppointment.estado === 'bloqueado' ? 'secondary' :
@@ -2002,6 +2007,14 @@ const AppointmentsManager = () => {
                 }`}>{getStatusLabel(selectedAppointment.estado)}</span></p>
                 {selectedAppointment.estado !== 'disponible' && (
                   <>
+                    {selectedAppointment.aspiranteEmail && (
+                      <>
+                        <p><strong>Aspirante:</strong> {selectedAppointment.aspiranteDisplayName || selectedAppointment.aspiranteEmail}</p>
+                        {selectedAppointment.aspiranteDisplayName && (
+                          <p><strong>Email:</strong> {selectedAppointment.aspiranteEmail}</p>
+                        )}
+                      </>
+                    )}
                     {selectedFamiliesInfo.length > 0 ? (
                       <>
                         <p><strong>Familias:</strong> {selectedFamiliesInfo.map(fam => fam.displayName || fam.email).filter(Boolean).join(', ')}</p>
@@ -2038,13 +2051,15 @@ const AppointmentsManager = () => {
               <div className="modal-actions-grid">
                 {selectedAppointment.estado === 'disponible' && (
                   <>
-                    <button
-                      onClick={handleOpenAssignModal}
-                      className="btn btn--full modal-action-btn modal-action-btn--assign"
-                      disabled={isPastAppointment(selectedAppointment) || actionLoading}
-                    >
-                      Asignar a familia/s
-                    </button>
+                    {selectedAppointment.targetRole !== 'aspirante' && (
+                      <button
+                        onClick={handleOpenAssignModal}
+                        className="btn btn--full modal-action-btn modal-action-btn--assign"
+                        disabled={isPastAppointment(selectedAppointment) || actionLoading}
+                      >
+                        Asignar a familia/s
+                      </button>
+                    )}
                     <button
                       onClick={() => confirmBlockAppointment(selectedAppointment.id)}
                       className="btn btn--full modal-action-btn modal-action-btn--block"

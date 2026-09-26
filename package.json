@@ -19,6 +19,7 @@
     "seed:emulators": "node scripts/seed-emulators.cjs",
     "scheduled:snacks": "node scripts/run-scheduled.cjs snacks",
     "scheduled:appointments": "node scripts/run-scheduled.cjs appointments",
+    "seed:aspirante-appointments": "node scripts/seedAspiranteAppointments.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rules": "vitest run --config vitest.emulator.config.js tests/rules",

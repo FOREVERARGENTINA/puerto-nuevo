@@ -464,6 +464,25 @@ async function seedEmulators() {
       createdAt: commonTimestamp,
       updatedAt: commonTimestamp,
     }),
+    ...[
+      ['aspirante-2026-10-02-1600', '2026-10-02', 16, 0],
+      ['aspirante-2026-10-02-1640', '2026-10-02', 16, 40],
+      ['aspirante-2026-10-02-1720', '2026-10-02', 17, 20],
+      ['aspirante-2026-10-09-1600', '2026-10-09', 16, 0],
+      ['aspirante-2026-10-09-1640', '2026-10-09', 16, 40],
+      ['aspirante-2026-10-09-1720', '2026-10-09', 17, 20],
+    ].map(([id, dateKey, hour, minute]) => (
+      db.collection('appointments').doc(id).set({
+        estado: 'disponible',
+        targetRole: 'aspirante',
+        modalidad: 'presencial',
+        origenSlot: 'admision_aspirantes_2026',
+        fechaHora: buildArgentinaTimestamp(dateKey, hour, minute),
+        duracionMinutos: 30,
+        createdAt: commonTimestamp,
+        updatedAt: commonTimestamp,
+      })
+    )),
     db.collection('snackAssignments').doc('snack_demo_pending').set({
       childName: 'Ana Demo',
       ambiente: 'taller1',

@@ -51,6 +51,10 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'family';
     }
 
+    function isAspirante() {
+      return isAuthenticated() && getUserRole() == 'aspirante';
+    }
+
     function isResponsibleFamilyForChild(childId, familyUid) {
       let childData = get(/databases/$(database)/documents/children/$(childId)).data;
       return isFamily() &&
@@ -450,10 +454,14 @@ service cloud.firestore {
 
     // Colección: /appointments (turnos - Fase 3)
     match /appointments/{appointmentId} {
-      // Leer: Admin ve todos, familias ven todos (incluye disponibles y sus propios turnos)
+      // Aspirantes solo leen cupos disponibles para su rol y sus propias reservas.
       allow read: if isAuthenticated() && (
         isAdmin() ||
-        isFamily()
+        isFamily() ||
+        (isAspirante() &&
+          resource.data.get('targetRole', '') == 'aspirante' &&
+          (resource.data.estado == 'disponible' ||
+           resource.data.get('aspiranteUid', '') == request.auth.uid))
       );
 
       // Crear: Solo SuperAdmin y Coordinacion.
@@ -468,6 +476,7 @@ service cloud.firestore {
         isFamily() && (
           (resource.data.estado == 'disponible' &&
             resource.data.get('origenSlot', '') != 'manual' &&
+            resource.data.get('targetRole', '') != 'aspirante' &&
             request.resource.data.familiaUid == request.auth.uid &&
             request.resource.data.estado == 'reservado' &&
             (
@@ -478,6 +487,26 @@ service cloud.firestore {
           ((resource.data.familiaUid == request.auth.uid ||
             request.auth.uid in resource.data.get('familiasUids', [])) &&
             request.resource.data.estado == 'cancelado')
+        )
+      ) || (
+        isAspirante() && resource.data.get('targetRole', '') == 'aspirante' && (
+          (resource.data.estado == 'disponible' &&
+            resource.data.get('aspiranteUid', '') == '' &&
+            request.resource.data.aspiranteUid == request.auth.uid &&
+            request.resource.data.targetRole == 'aspirante' &&
+            request.resource.data.modalidad == 'presencial' &&
+            request.resource.data.estado == 'reservado' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'aspiranteUid', 'aspiranteEmail', 'aspiranteDisplayName',
+              'nota', 'estado', 'modalidad', 'targetRole', 'updatedAt'
+            ])) ||
+          (resource.data.get('aspiranteUid', '') == request.auth.uid &&
+            request.resource.data.aspiranteUid == request.auth.uid &&
+            request.resource.data.targetRole == 'aspirante' &&
+            request.resource.data.estado == 'cancelado' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'estado', 'canceladoPor', 'canceladoAt', 'updatedAt'
+            ]))
         )
       );
 

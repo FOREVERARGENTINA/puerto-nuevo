@@ -263,6 +263,7 @@ export const ROUTES = {
 
   // Aspirante
   ASPIRANTE_DASHBOARD: '/portal/aspirante',
+  ASPIRANTE_APPOINTMENTS: '/portal/aspirante/turnos',
   ASPIRANTE_DOCUMENTS: '/portal/aspirante/documentos',
   INSTITUTIONAL_GALLERY_ASPIRANTE: '/portal/aspirante/galeria'
 };

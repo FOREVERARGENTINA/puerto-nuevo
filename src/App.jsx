@@ -915,6 +915,18 @@ function App() {
             }
           />
           <Route
+            path={ROUTES.ASPIRANTE_APPOINTMENTS}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleGuard allowedRoles={[ROLES.ASPIRANTE]}>
+                    <BookAppointment audience="aspirante" />
+                  </RoleGuard>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/portal/aspirante/documentos/:documentId"
             element={
               <ProtectedRoute>

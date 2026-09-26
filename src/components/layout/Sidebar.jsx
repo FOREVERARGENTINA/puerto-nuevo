@@ -90,6 +90,7 @@ export function Sidebar({ isOpen = false, onNavigate }) {
     ],
     [ROLES.ASPIRANTE]: [
       { path: '/portal/aspirante', icon: 'home', label: 'Inicio' },
+      { path: ROUTES.ASPIRANTE_APPOINTMENTS, icon: 'calendar', label: 'Reuniones' },
       { path: '/portal/aspirante/documentos', icon: 'file', label: 'Documentos' },
       { path: '/portal/aspirante/galeria', icon: 'image', label: 'Galería' }
     ]

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentsService } from '../../services/appointments.service';
@@ -36,8 +36,9 @@ const getAppointmentModeLabel = (value) => {
   return 'Sin definir';
 };
 
-const BookAppointment = () => {
+const BookAppointment = ({ audience = 'family' }) => {
   const { user } = useAuth();
+  const isAspirante = audience === 'aspirante';
   const [searchParams, setSearchParams] = useSearchParams();
   const [availableAppointments, setAvailableAppointments] = useState([]);
   const [myAppointments, setMyAppointments] = useState([]);
@@ -53,6 +54,7 @@ const BookAppointment = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [earliestAllowed, setEarliestAllowed] = useState(null);
   const [focusedAppointmentId, setFocusedAppointmentId] = useState('');
+  const hasFocusedFirstAvailableMonth = useRef(false);
 
   const getMonthRange = (date) => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -73,8 +75,13 @@ const BookAppointment = () => {
   );
 
   const loadAvailableAppointments = async (children = []) => {
-    const { start, end } = getMonthRange(currentMonth);
-    const result = await appointmentsService.getAppointmentsByDateRange(start, end);
+    let result;
+    if (isAspirante) {
+      result = await appointmentsService.getAvailableAspiranteAppointments();
+    } else {
+      const { start, end } = getMonthRange(currentMonth);
+      result = await appointmentsService.getAppointmentsByDateRange(start, end);
+    }
     if (result.success) {
       const minLeadTimeMs = 12 * 60 * 60 * 1000;
       const earliestAllowedDate = new Date(Date.now() + minLeadTimeMs);
@@ -88,11 +95,15 @@ const BookAppointment = () => {
 
       const available = result.appointments.filter(app => {
         if (app.estado !== 'disponible') return false;
+        const fechaDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
+        if (isAspirante) {
+          return app.targetRole === 'aspirante' && !app.aspiranteUid && fechaDate >= earliestAllowedDate;
+        }
+        if (app.targetRole === 'aspirante') return false;
         if (app.origenSlot === 'manual') return false;
         if (app.familiaUid) return false;
         if (Array.isArray(app.familiasUids) && app.familiasUids.length > 0) return false;
 
-        const fechaDate = app.fechaHora?.toDate ? app.fechaHora.toDate() : new Date(app.fechaHora);
         if (fechaDate < earliestAllowedDate) return false;
 
         if (app.ambiente) {
@@ -103,17 +114,32 @@ const BookAppointment = () => {
       });
 
       setAvailableAppointments(available);
+      if (isAspirante && available.length > 0 && !hasFocusedFirstAvailableMonth.current) {
+        hasFocusedFirstAvailableMonth.current = true;
+        const hasSlotsInCurrentMonth = available.some(app => {
+          const date = getAppointmentDate(app.fechaHora);
+          return date.getFullYear() === currentMonth.getFullYear()
+            && date.getMonth() === currentMonth.getMonth();
+        });
+        if (!hasSlotsInCurrentMonth) {
+          const firstDate = getAppointmentDate(available[0].fechaHora);
+          setCurrentMonth(new Date(firstDate.getFullYear(), firstDate.getMonth(), 1));
+        }
+      }
     }
   };
 
   const loadMyAppointments = async () => {
-    const result = await appointmentsService.getAppointmentsByFamily(user.uid);
+    const result = isAspirante
+      ? await appointmentsService.getAppointmentsByAspirante(user.uid)
+      : await appointmentsService.getAppointmentsByFamily(user.uid);
     if (result.success) {
       setMyAppointments(result.appointments);
     }
   };
 
   const loadUserData = async () => {
+    if (isAspirante) return [];
     const result = await childrenService.getChildrenByResponsable(user.uid);
     if (result.success) {
       setUserChildren(result.children);
@@ -141,6 +167,10 @@ const BookAppointment = () => {
 
   useEffect(() => {
     const loadNotes = async () => {
+      if (isAspirante) {
+        setAppointmentNotes({});
+        return;
+      }
       const attended = myAppointments.filter(app => app.estado === 'asistio');
       if (attended.length === 0) {
         setAppointmentNotes({});
@@ -159,7 +189,7 @@ const BookAppointment = () => {
     };
 
     loadNotes();
-  }, [myAppointments]);
+  }, [isAspirante, myAppointments]);
 
   useEffect(() => {
     if (user) {
@@ -177,6 +207,35 @@ const BookAppointment = () => {
   };
 
   const handleBookingSubmit = async (data) => {
+    if (isAspirante) {
+      const result = await appointmentsService.bookAspiranteSlot(data.appointmentId, {
+        payload: {
+          aspiranteUid: user.uid,
+          aspiranteEmail: user.email || '',
+          aspiranteDisplayName: user.displayName || '',
+          nota: data.nota || ''
+        }
+      });
+
+      if (result.success) {
+        alertDialog.openDialog({
+          title: 'Éxito',
+          message: 'Reunión presencial reservada exitosamente',
+          type: 'success'
+        });
+        setShowBookingForm(false);
+        setSelectedSlot(null);
+        loadData();
+      } else {
+        alertDialog.openDialog({
+          title: 'Error',
+          message: 'Error al reservar turno: ' + result.error,
+          type: 'error'
+        });
+      }
+      return;
+    }
+
     const selectedChild = userChildren.find(child => child.id === data.hijoId);
     const selectedMode = data.modalidad === 'presencial' || data.modalidad === 'virtual'
       ? data.modalidad
@@ -221,7 +280,10 @@ const BookAppointment = () => {
   };
 
   const handleCancelAppointment = async (appointmentId) => {
-    const result = await appointmentsService.cancelAppointment(appointmentId, 'familia');
+    const result = await appointmentsService.cancelAppointment(
+      appointmentId,
+      isAspirante ? 'aspirante' : 'familia'
+    );
     if (result.success) {
       alertDialog.openDialog({
         title: 'Éxito',
@@ -349,12 +411,14 @@ const BookAppointment = () => {
   if (loading) {
     return (
       <div className="container page-container">
-        <div className="dashboard-header dashboard-header--compact">
-          <div>
-            <h1 className="dashboard-title">Turnos para Reuniones</h1>
-            <p className="dashboard-subtitle">Reservá un turno con la escuela.</p>
+        {!isAspirante && (
+          <div className="dashboard-header dashboard-header--compact">
+            <div>
+              <h1 className="dashboard-title">Turnos para Reuniones</h1>
+              <p className="dashboard-subtitle">Reservá un turno presencial con la escuela.</p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="card">
           <div className="card__body" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
             <div className="spinner spinner--lg"></div>
@@ -374,6 +438,7 @@ const BookAppointment = () => {
           userChildren={userChildren}
           onSubmit={handleBookingSubmit}
           onCancel={handleCancelBooking}
+          audience={audience}
         />
         {dialogElement}
       </div>
@@ -434,12 +499,14 @@ const BookAppointment = () => {
 
   return (
     <div className="container page-container">
-      <div className="dashboard-header dashboard-header--compact">
-        <div>
-          <h1 className="dashboard-title">Turnos para Reuniones</h1>
-          <p className="dashboard-subtitle">Reservá turnos y consultá tu agenda.</p>
+      {!isAspirante && (
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">Turnos para Reuniones</h1>
+            <p className="dashboard-subtitle">Reservá turnos y consultá tu agenda.</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/*
         DOM order matches the desired mobile stack:
@@ -505,9 +572,11 @@ const BookAppointment = () => {
           <div className="card__header">
             <div>
               <h2 className="card__title">Calendario</h2>
-              <p className="card__subtitle">
-                {monthNames[currentMonthIndex]} {currentMonthYear}
-              </p>
+              {!isAspirante && (
+                <p className="card__subtitle">
+                  {monthNames[currentMonthIndex]} {currentMonthYear}
+                </p>
+              )}
             </div>
             <span className="badge badge--info">{availableAppointmentsForMonth.length} este mes</span>
           </div>
@@ -708,7 +777,8 @@ const BookAppointment = () => {
                     <ol className="appointments-guide-list">
                       <li>Elegí un día en el calendario con disponibilidad.</li>
                       <li>Seleccioná un horario en la lista de turnos.</li>
-                      <li>Elegí modalidad: virtual o presencial.</li>
+                      {!isAspirante && <li>Elegí modalidad: virtual o presencial.</li>}
+                      {isAspirante && <li>La reunión será presencial en la escuela.</li>}
                       <li>Completá el formulario y confirmá.</li>
                     </ol>
                     <p className="form-help">Solo se pueden reservar turnos con 12 hs de anticipación.</p>

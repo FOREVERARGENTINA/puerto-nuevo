@@ -108,6 +108,28 @@ describe('Firestore security rules', () => {
           origenSlot: 'agenda',
           ambiente: 'taller2',
         }),
+        db.collection('appointments').doc('rules_appt_aspirante_available').set({
+          estado: 'disponible',
+          targetRole: 'aspirante',
+          modalidad: 'presencial',
+          fechaHora: new Date('2026-10-02T16:00:00-03:00'),
+          duracionMinutos: 30,
+        }),
+        db.collection('appointments').doc('rules_appt_aspirante_other').set({
+          estado: 'reservado',
+          targetRole: 'aspirante',
+          modalidad: 'presencial',
+          aspiranteUid: 'rules_aspirante_2',
+          fechaHora: new Date('2026-10-02T16:40:00-03:00'),
+          duracionMinutos: 30,
+        }),
+        db.collection('appointments').doc('rules_appt_aspirante_family_block').set({
+          estado: 'disponible',
+          targetRole: 'aspirante',
+          modalidad: 'presencial',
+          fechaHora: new Date('2026-10-02T17:20:00-03:00'),
+          duracionMinutos: 30,
+        }),
         // Setup para Clases Abiertas
         db.collection('children').doc('rules_child_taller1_family3').set({
           nombreCompleto: 'Alumno Rules Taller 1 Family 3',
@@ -219,6 +241,63 @@ describe('Firestore security rules', () => {
 
     await assertFails(
       familyDb.collection('appointments').doc('rules_appt_taller2').update({
+        familiaUid: 'rules_family_1',
+        familiasUids: ['rules_family_1'],
+        hijoId: 'rules_child_taller1',
+        estado: 'reservado',
+      })
+    );
+  });
+
+  test('aspirante puede leer cupos disponibles y no reservas ajenas', async () => {
+    const aspiranteDb = testEnv.authenticatedContext('rules_aspirante_1', { role: 'aspirante' }).firestore();
+
+    await assertSucceeds(
+      aspiranteDb.collection('appointments').doc('rules_appt_aspirante_available').get()
+    );
+    await assertFails(
+      aspiranteDb.collection('appointments').doc('rules_appt_aspirante_other').get()
+    );
+    await assertSucceeds(
+      aspiranteDb.collection('appointments')
+        .where('targetRole', '==', 'aspirante')
+        .where('estado', '==', 'disponible')
+        .get()
+    );
+  });
+
+  test('aspirante reserva su cupo solo en modalidad presencial', async () => {
+    const aspiranteDb = testEnv.authenticatedContext('rules_aspirante_1', { role: 'aspirante' }).firestore();
+
+    await assertSucceeds(
+      aspiranteDb.collection('appointments').doc('rules_appt_aspirante_available').update({
+        aspiranteUid: 'rules_aspirante_1',
+        aspiranteEmail: 'aspirante1@test.local',
+        aspiranteDisplayName: 'Aspirante Uno',
+        nota: '',
+        modalidad: 'presencial',
+        targetRole: 'aspirante',
+        estado: 'reservado',
+        updatedAt: new Date(),
+      })
+    );
+
+    const ownAppointment = await aspiranteDb
+      .collection('appointments').doc('rules_appt_aspirante_available').get();
+    expect(ownAppointment.data().aspiranteUid).toBe('rules_aspirante_1');
+    await assertSucceeds(
+      aspiranteDb.collection('appointments')
+        .where('aspiranteUid', '==', 'rules_aspirante_1')
+        .where('targetRole', '==', 'aspirante')
+        .get()
+    );
+  });
+
+  test('familia no puede reservar un cupo exclusivo de aspirantes', async () => {
+    const familyDb = testEnv.authenticatedContext('rules_family_1', { role: 'family' }).firestore();
+
+    await assertFails(
+      familyDb.collection('appointments').doc('rules_appt_aspirante_family_block').update({
         familiaUid: 'rules_family_1',
         familiasUids: ['rules_family_1'],
         hijoId: 'rules_child_taller1',
