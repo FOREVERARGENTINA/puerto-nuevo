@@ -12,7 +12,8 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  deleteField
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -387,6 +388,10 @@ export const appointmentsService = {
         nota: null,
         canceladoPor: null,
         canceladoAt: null,
+        // deleteField, no null: las rules exigen aspiranteUid ausente o '' para reservar
+        aspiranteUid: deleteField(),
+        aspiranteEmail: deleteField(),
+        aspiranteDisplayName: deleteField(),
         updatedAt: serverTimestamp()
       });
       return { success: true };
