@@ -13,7 +13,7 @@ import { readReceiptsService } from '../services/readReceipts.service';
 import { ADMIN_ROLES, COMMUNICATION_TYPES, ROLES } from '../config/constants';
 
 export function useCommunications(limitCount = 50) {
-  const { user, role } = useAuth();
+  const { user, role, roleSince } = useAuth();
   const [communications, setCommunications] = useState([]);
   const [unreadCommunications, setUnreadCommunications] = useState([]);
   const [unreadRequired, setUnreadRequired] = useState([]);
@@ -39,8 +39,10 @@ export function useCommunications(limitCount = 50) {
     setError(null);
 
     const checkUnreadCommunications = async (comms) => {
+      // Comunicados anteriores a que el usuario tuviera su rol no cuentan como pendientes.
       const trackableComms = comms.filter((comm) => (
-        comm.requiereLecturaObligatoria || comm.type === COMMUNICATION_TYPES.INDIVIDUAL
+        (comm.createdAt?.toMillis?.() ?? Infinity) >= roleSince &&
+        (comm.requiereLecturaObligatoria || comm.type === COMMUNICATION_TYPES.INDIVIDUAL)
       ));
 
       const unreadPromises = trackableComms.map(async (comm) => {
@@ -138,7 +140,7 @@ export function useCommunications(limitCount = 50) {
     }, 5000);
 
     return () => { unsubscribe(); clearInterval(intervalId); };
-  }, [user, role, limitCount]);
+  }, [user, role, roleSince, limitCount]);
 
   const markAsRead = async (commId) => {
     if (!user) return { success: false, error: 'Usuario no autenticado' };

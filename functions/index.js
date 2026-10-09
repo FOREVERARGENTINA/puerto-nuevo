@@ -226,7 +226,12 @@ exports.setUserRole = onCallWithCors(async (request) => {
       throw new HttpsError('permission-denied', 'Coordinacion no puede modificar a un superadmin');
     }
 
-    await admin.auth().setCustomUserClaims(uid, { role });
+    // roleSince: desde cuándo tiene este rol; el cliente ignora comunicados anteriores.
+    const { customClaims = {} } = await admin.auth().getUser(uid);
+    const claims = { role };
+    const roleSince = targetRole === role ? customClaims.roleSince : Date.now();
+    if (roleSince) claims.roleSince = roleSince;
+    await admin.auth().setCustomUserClaims(uid, claims);
 
     await admin.firestore().collection('users').doc(uid).set(
       { role },

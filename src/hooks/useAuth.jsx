@@ -18,6 +18,8 @@ const AuthContext = createContext({});
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
+  // ms desde que el usuario tiene su rol actual (claim roleSince o alta de la cuenta)
+  const [roleSince, setRoleSince] = useState(0);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +48,7 @@ export function AuthProvider({ children }) {
           const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
 
           setUser(firebaseUser);
+          setRoleSince(tokenResult.claims.roleSince || Date.parse(firebaseUser.metadata.creationTime) || 0);
           setRole(userRole);
           setPermissions(getRolePermissions(userRole));
         } else {
@@ -78,6 +81,7 @@ export function AuthProvider({ children }) {
       await user.getIdToken(true); // Force refresh
       const tokenResult = await user.getIdTokenResult();
       const userRole = normalizeRole(tokenResult.claims.role) || ROLES.FAMILY;
+      setRoleSince(tokenResult.claims.roleSince || Date.parse(user.metadata.creationTime) || 0);
       setRole(userRole);
       setPermissions(getRolePermissions(userRole));
     }
@@ -91,6 +95,7 @@ export function AuthProvider({ children }) {
   const value = {
     user: user ? { ...user, role } : null,
     role,
+    roleSince,
     permissions,
     loading,
     refreshToken,

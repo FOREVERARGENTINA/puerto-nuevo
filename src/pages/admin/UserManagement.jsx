@@ -320,6 +320,8 @@ export function UserManagement() {
             </div>
           )}
 
+          {/* Al editar se oculta la barra de filtros: su "Rol" se confundía con el del formulario. */}
+          {!showEditForm && (
           <div className="user-toolbar">
             <div className="user-toolbar__left">
               <div className="user-toolbar__summary">
@@ -385,6 +387,7 @@ export function UserManagement() {
               </button>
             </div>
           </div>
+          )}
 
           {showCreateForm && (
             <div className="card create-form-card">
@@ -550,6 +553,7 @@ export function UserManagement() {
             </div>
           )}
 
+          {!showEditForm && (
           <div className="table-container">
             <table className="table table--compact">
               <thead>
@@ -607,6 +611,7 @@ export function UserManagement() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       </div>
 
