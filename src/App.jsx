@@ -181,7 +181,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE, ROLES.FACTURACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.DOCENTE, ROLES.FACTURACION, ROLES.EOE]}>
                     <SendCommunication />
                   </RoleGuard>
                 </Layout>
@@ -205,7 +205,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.EOE]}>
                     <ChildrenManager />
                   </RoleGuard>
                 </Layout>
@@ -325,7 +325,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION, ROLES.EOE]}>
                     <AdminConversations />
                   </RoleGuard>
                 </Layout>
@@ -337,7 +337,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION, ROLES.EOE]}>
                     <AdminNewConversation />
                   </RoleGuard>
                 </Layout>
@@ -349,7 +349,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION]}>
+                  <RoleGuard allowedRoles={[ROLES.SUPERADMIN, ROLES.COORDINACION, ROLES.FACTURACION, ROLES.EOE]}>
                     <AdminConversationDetail />
                   </RoleGuard>
                 </Layout>
@@ -671,7 +671,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE, ROLES.EOE]}>
                     <TeacherCommunications />
                   </RoleGuard>
                 </Layout>
@@ -683,7 +683,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <RoleGuard allowedRoles={[ROLES.DOCENTE]}>
+                  <RoleGuard allowedRoles={[ROLES.DOCENTE, ROLES.EOE]}>
                     <TeacherCommunicationDetail />
                   </RoleGuard>
                 </Layout>

@@ -4,6 +4,7 @@
   onEdit,
   onDelete,
   isAdmin = false,
+  editLabel = 'Editar',
   meetingNotes = [],
   meetingNotesLoading = false,
   meetingNotesLoaded = false,
@@ -79,6 +80,7 @@
       persona && (persona.nombreCompleto || persona.dni || persona.telefono)
     ))
     : [];
+  const terapias = Array.isArray(child.terapias) ? child.terapias : [];
   const hasMeetingNotes = Array.isArray(meetingNotes) && meetingNotes.length > 0;
   const shouldShowMeetingNotes = meetingNotesLoading || hasMeetingNotes || meetingNotesLoaded;
   const cardClassName = isAdmin ? 'child-card child-card--admin' : 'child-card';
@@ -90,7 +92,7 @@
         <div className="child-card__title">
           <h3 className="child-card__name">{child.nombreCompleto}</h3>
           <div className="child-card__badges">
-            <span className="badge badge--primary">{getAmbienteLabel(child.ambiente)}</span>
+            <span className={`badge badge--primary badge--ambiente badge--${child.ambiente === 'taller1' ? 'taller1' : 'taller2'}`}>{getAmbienteLabel(child.ambiente)}</span>
             {age && <span className="badge badge--outline">{age} años</span>}
             {hasAlerts && <span className="badge badge--warning">{medicalBadgeText}</span>}
           </div>
@@ -183,6 +185,23 @@
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {isAdmin && terapias.length > 0 && (
+          <div className="child-card__section">
+            <span className="child-card__section-title">Terapias ({terapias.length})</span>
+            <ul className="child-card__therapies">
+              {terapias.map((t, index) => (
+                <li key={`${child.id}-terapia-${index}`} className="child-card__therapy">
+                  <strong>{t.nombreCompleto}</strong>
+                  {t.cargoInstitucion && <span className="muted-text">{t.cargoInstitucion}</span>}
+                  {t.email && <span>{t.email}</span>}
+                  {t.telefono && <span>{t.telefono}</span>}
+                  {t.notas && <span className="muted-text">{t.notas}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -284,14 +303,16 @@
       </div>
 
       {/* Footer con acciones */}
-      {isAdmin && (
+      {isAdmin && onEdit && (
         <div className="child-card__footer">
           <button onClick={() => onEdit(child)} className="btn btn--sm btn--outline">
-            Editar
+            {editLabel}
           </button>
-          <button onClick={() => onDelete(child.id)} className="btn btn--sm btn--text btn--danger">
-            Eliminar
-          </button>
+          {onDelete && (
+            <button onClick={() => onDelete(child.id)} className="btn btn--sm btn--text btn--danger">
+              Eliminar
+            </button>
+          )}
         </div>
       )}
     </div>

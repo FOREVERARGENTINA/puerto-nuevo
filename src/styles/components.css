@@ -3503,6 +3503,27 @@
   border-color: rgba(39, 174, 96, 0.14);
 }
 
+/* Ambiente: etiqueta suave, un color por taller */
+.children-page .badge--ambiente {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+
+.children-page .badge--taller1 {
+  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.children-page .badge--taller2 {
+  background-color: color-mix(in srgb, var(--color-secondary) 12%, transparent);
+  color: var(--color-secondary-dark);
+  border-color: color-mix(in srgb, var(--color-secondary) 26%, transparent);
+}
+
 /* ========== CHILDREN GRID ========== */
 .children-grid {
   display: grid;
@@ -4156,6 +4177,11 @@
 .new-form-card {
   margin-top: var(--spacing-lg);
   padding: var(--spacing-lg);
+}
+
+/* Ficha de alumno: el encabezado ya deja aire, la tarjeta va pegada */
+.children-page .new-form-card {
+  margin-top: 0;
 }
 
 /* SNACKS PAGE */
@@ -10783,6 +10809,516 @@
   border-top: 1px solid var(--color-secondary-light);
 }
 
+/* Ficha por pestañas */
+.child-form--tabs {
+  gap: var(--spacing-lg);
+}
+
+.child-form__tabs {
+  margin-bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  /* línea base como sombra interna: el subrayado activo la tapa sin desbordar */
+  border-bottom: 0;
+  box-shadow: inset 0 -2px 0 var(--color-border);
+}
+
+.child-form__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pestañas repartidas en todo el ancho; en pantallas angostas scrollean sin barra visible */
+.child-form__tabs .tabs__tab {
+  flex: 1 0 0;
+  min-width: max-content;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 12px var(--spacing-md);
+  bottom: 0;
+}
+
+.child-form__tabs {
+  gap: 4px;
+}
+
+/* Cada pestaña: superficie tenue con esquinas superiores redondeadas; la activa en petróleo suave */
+.child-form__tabs .tabs__tab {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.child-form__tabs .tabs__tab:hover {
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  color: var(--color-primary);
+  border-bottom-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+.child-form__tabs .tabs__tab--active,
+.child-form__tabs .tabs__tab--active:hover {
+  font-weight: var(--font-weight-semibold);
+  background: color-mix(in srgb, var(--color-primary) 11%, transparent);
+  border-bottom-color: var(--color-primary);
+}
+
+.child-form__tabs .tabs__tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -4px;
+  border-radius: var(--radius-md);
+}
+
+.child-form__tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-warning);
+}
+
+.child-form__fieldset {
+  min-width: 0;
+  margin: 0;
+}
+
+.child-form__fieldset:disabled .form-input,
+.child-form__fieldset:disabled .form-select,
+.child-form__fieldset:disabled .form-textarea {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.child-form__lock {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+}
+
+/* Sí / No como control segmentado, misma altura que los inputs */
+.child-form .form-group .child-form__yesno {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+}
+
+.child-form .form-group .child-form__yesno-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  margin: 0;
+  padding: 0 18px;
+  line-height: 1;
+  height: 34px;
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* el radio queda accesible por teclado pero oculto visualmente */
+.child-form__yesno-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.child-form .form-group .child-form__yesno-option:hover {
+  color: var(--color-primary);
+}
+
+.child-form .form-group .child-form__yesno-option:has(input:checked) {
+  background: var(--color-primary);
+  color: var(--color-white, #fff);
+}
+
+.child-form__yesno-option:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.child-form .child-form__fieldset:disabled .form-group .child-form__yesno-option {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+/* Paneles de pestañas planos, como la maqueta: sin recuadro ni degradé */
+.child-form--tabs .form-section {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: var(--spacing-xs) 0 0;
+}
+
+/* Sin manija de redimensionar: el campo crece solo con el contenido donde el navegador lo soporta */
+.child-form--tabs .form-textarea {
+  resize: none;
+  field-sizing: content;
+  min-height: 0;
+  height: auto;
+  max-height: 16em;
+}
+
+.child-form__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.child-form__stack .child-form__subtitle:not(:first-child) {
+  margin-top: var(--spacing-sm);
+}
+
+.child-form__section-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.child-form__section-grid .form-group {
+  margin-bottom: 0;
+}
+
+.child-form__span-all {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .child-form__section-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .child-form__section-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+.child-form__family {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.child-form__family .child-form__subtitle {
+  margin-top: var(--spacing-xs);
+}
+
+.child-form__family .child-form__chips {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.child-form__person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-background-alt);
+  font-size: var(--font-size-sm);
+}
+
+.child-form__chip-remove,
+.child-form__row-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-light);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.child-form__chip-remove:hover,
+.child-form__row-remove:hover {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+}
+
+.child-form__link-btn {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.child-form__link-btn:hover {
+  background: var(--color-primary-soft);
+}
+
+.child-form__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+}
+
+.child-form__picker-head {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.child-form__picker-head .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.child-form__pickup-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.child-form__pickup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.child-form__pickup-row--head {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-light);
+}
+
+@media (max-width: 640px) {
+  .child-form__pickup-row {
+    grid-template-columns: minmax(0, 1fr) 28px;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .child-form__pickup-row > input:not(:first-child) {
+    grid-column: 1;
+  }
+
+  .child-form__pickup-row > :last-child {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .child-form__pickup-row--head {
+    display: none;
+  }
+}
+
+.child-form__therapies-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+}
+
+.child-form__therapies-head .form-helper-text {
+  margin: 0;
+}
+
+.child-form__therapies-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.child-form__therapy-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+
+.child-form__add-card {
+  min-height: 140px;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.child-form__add-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+/* Archivos de la ficha (informes + documentos): una lista y una carga */
+.child-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.child-files__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.child-files__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.child-files__item:last-child {
+  border-bottom: 0;
+}
+
+.child-files__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.child-files__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.child-files__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.child-files__meta {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+  overflow-wrap: anywhere;
+}
+
+.child-files__kind {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.child-files__kind--informe {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+}
+
+.child-files__kind--documento {
+  background: color-mix(in srgb, var(--color-secondary) 14%, transparent);
+  color: var(--color-secondary-dark);
+}
+
+.child-files__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.child-files__upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
+}
+
+.child-files__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: var(--spacing-sm);
+}
+
+.child-files__fields .form-group {
+  margin-bottom: 0;
+}
+
+.child-files__desc {
+  grid-column: 1 / -1;
+}
+
+.child-files .pn-upload-selector {
+  min-height: 0;
+  padding-block: var(--spacing-sm);
+}
+
+.child-files__submit {
+  align-self: flex-end;
+}
+
+@media (max-width: 560px) {
+  .child-files__item {
+    flex-wrap: wrap;
+  }
+
+  .child-files__actions {
+    width: 100%;
+    padding-left: 42px;
+  }
+}
+
+.child-form__actions-hint {
+  margin: 0 auto 0 0;
+  align-self: center;
+}
+
 @media (max-width: 1400px) {
   .child-form__pickup-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -14126,4 +14662,30 @@
     border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
     box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
   }
+}
+
+.child-files__type {
+  margin-bottom: 0;
+}
+
+/* Terapias en la tarjeta de detalle: una por fila, ancho completo */
+.child-card__therapies {
+  list-style: none;
+  margin: var(--spacing-xs) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--spacing-xs);
+}
+
+.child-card__therapy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background-alt);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }

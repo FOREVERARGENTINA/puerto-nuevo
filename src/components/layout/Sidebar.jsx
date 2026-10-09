@@ -64,6 +64,12 @@ export function Sidebar({ isOpen = false, onNavigate }) {
       { path: '/portal/docente/horarios', icon: 'calendar', label: 'Horarios' },
       { path: '/portal/docente/galeria', icon: 'image', label: 'Galería' }
     ],
+    [ROLES.EOE]: [
+      { path: ROUTES.TEACHER_COMMUNICATIONS, icon: 'bell', label: 'Comunicados' },
+      { path: `${ROUTES.SEND_COMMUNICATION}/nuevo`, icon: 'send', label: 'Enviar comunicado' },
+      { path: '/portal/admin/conversaciones', icon: 'chat', label: 'Conversaciones' },
+      { path: '/portal/admin/alumnos', icon: 'user', label: 'Alumnos' }
+    ],
     [ROLES.TALLERISTA]: [
       { path: '/portal/tallerista', icon: 'home', label: 'Inicio' },
       { path: '/portal/tallerista/mi-taller', icon: 'book', label: 'Mi Taller' },

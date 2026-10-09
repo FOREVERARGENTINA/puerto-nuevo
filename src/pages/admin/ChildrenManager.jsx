@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { appointmentsService } from '../../services/appointments.service';
-import { ROUTES } from '../../config/constants';
+import { ROLES, ROUTES } from '../../config/constants';
+import { useAuth } from '../../hooks/useAuth';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { AlertDialog } from '../../components/common/AlertDialog';
@@ -16,6 +17,9 @@ import Icon from '../../components/ui/Icon';
 const CHILDREN_PAGE_SIZE = 12;
 
 const ChildrenManager = () => {
+  const { role } = useAuth();
+  // EOE: solo lectura de fichas (incluye info médica) + carga de informes
+  const readOnly = role === ROLES.EOE;
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,7 +89,9 @@ const ChildrenManager = () => {
     setSaving(true);
     let result;
     try {
-      if (editingChild) {
+      if (editingChild && readOnly) {
+        result = await childrenService.updateTerapias(editingChild.id, data.terapias);
+      } else if (editingChild) {
         result = await childrenService.updateChild(editingChild.id, data);
       } else {
         result = await childrenService.createChild(data);
@@ -97,8 +103,12 @@ const ChildrenManager = () => {
           message: editingChild ? 'Alumno actualizado exitosamente' : 'Alumno creado exitosamente',
           type: 'success'
         });
-        setShowForm(false);
-        setEditingChild(null);
+        // Quedarse en la ficha (misma pestaña). Un alumno nuevo pasa a modo edición para cargar informes y documentos.
+        setEditingChild(prev => (
+          prev
+            ? { ...prev, ...(readOnly ? { terapias: data.terapias } : data) }
+            : { id: result.id, ...data }
+        ));
         loadData();
       } else {
         alertDialog.openDialog({
@@ -263,11 +273,47 @@ const ChildrenManager = () => {
   };
 
   useEffect(() => {
-    if (!selectedChildId) return;
+    if (!selectedChildId || readOnly) return; // ponytail: EOE no lee turnos; dar acceso a notas si lo piden
     if (notesByChildId[selectedChildId] !== undefined) return;
     loadNotesForChild(selectedChildId);
-  }, [selectedChildId, notesByChildId]);
+  }, [selectedChildId, notesByChildId, readOnly]);
 
+
+  if (showForm) {
+    return (
+      <div className="container page-container children-page">
+        <div className="dashboard-header dashboard-header--compact">
+          <div>
+            <h1 className="dashboard-title">{editingChild ? editingChild.nombreCompleto || 'Editar alumno' : 'Nuevo alumno'}</h1>
+            <p className="dashboard-subtitle">
+              {readOnly ? 'Podés cargar terapias e informes.' : 'Actualizá la información del alumno y sus responsables.'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+            <button onClick={handleCancel} className="btn btn--outline btn--back">
+              <Icon name="chevron-left" size={16} />
+              Volver
+            </button>
+          </div>
+        </div>
+        <div className="card new-form-card">
+          <ChildForm
+            child={editingChild}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
+        </div>
+
+        <AlertDialog
+          isOpen={alertDialog.isOpen}
+          onClose={alertDialog.closeDialog}
+          title={alertDialog.dialogData.title}
+          message={alertDialog.dialogData.message}
+          type={alertDialog.dialogData.type}
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -294,40 +340,6 @@ const ChildrenManager = () => {
     );
   }
 
-  if (showForm) {
-    return (
-      <div className="container page-container children-page">
-        <div className="dashboard-header dashboard-header--compact">
-          <div>
-            <h1 className="dashboard-title">{editingChild ? 'Editar alumno' : 'Nuevo alumno'}</h1>
-            <p className="dashboard-subtitle">Actualizá la información del alumno y sus responsables.</p>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            <button onClick={handleCancel} className="btn btn--outline btn--back">
-              <Icon name="chevron-left" size={16} />
-              Volver
-            </button>
-          </div>
-        </div>
-        <div className="card new-form-card">
-          <ChildForm
-            child={editingChild}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-            reportsSection={editingChild?.id ? (
-              <StudentReports
-                childId={editingChild.id}
-                canUpload={true}
-                canDelete={true}
-                embeddedInForm={true}
-              />
-            ) : null}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container page-container children-page">
       <div className="dashboard-header dashboard-header--compact">
@@ -340,9 +352,11 @@ const ChildrenManager = () => {
             <Icon name="chevron-left" size={16} />
             Volver
           </Link>
-          <button onClick={handleCreate} className="btn btn--primary">
-            + Nuevo Alumno
-          </button>
+          {!readOnly && (
+            <button onClick={handleCreate} className="btn btn--primary">
+              + Nuevo Alumno
+            </button>
+          )}
         </div>
       </div>
 
@@ -434,7 +448,7 @@ const ChildrenManager = () => {
                           </div>
                         </td>
                         <td>
-                          <span className="badge badge--primary">{getAmbienteLabel(child.ambiente)}</span>
+                          <span className={`badge badge--ambiente badge--${child.ambiente === 'taller1' ? 'taller1' : 'taller2'}`}>{getAmbienteLabel(child.ambiente)}</span>
                         </td>
                         <td>
                           <div className="children-table__families">
@@ -460,15 +474,17 @@ const ChildrenManager = () => {
                               className="btn btn--sm btn--outline"
                               onClick={(e) => { e.stopPropagation(); handleEdit(child); }}
                             >
-                              Editar
+                              {readOnly ? 'Abrir ficha' : 'Editar'}
                             </button>
-                            <button
-                              type="button"
-                              className="btn btn--sm btn--text btn--danger"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(child.id); }}
-                            >
-                              Eliminar
-                            </button>
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                className="btn btn--sm btn--text btn--danger"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(child.id); }}
+                              >
+                                Eliminar
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -496,7 +512,8 @@ const ChildrenManager = () => {
                 child={selectedChild}
                 familyUsers={familyUsers}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                editLabel={readOnly ? 'Abrir ficha' : 'Editar'}
+                onDelete={readOnly ? undefined : handleDelete}
                 isAdmin={true}
                 meetingNotes={selectedChildNotes}
                 meetingNotesLoading={selectedChildNotesLoading}
@@ -504,8 +521,8 @@ const ChildrenManager = () => {
                 reportsSection={(
                   <StudentReports
                     childId={selectedChild.id}
-                    canUpload={true}
-                    canDelete={true}
+                    canUpload={false}
+                    canDelete={false}
                   />
                 )}
               />

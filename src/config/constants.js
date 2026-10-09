@@ -4,6 +4,7 @@ export const ROLES = {
   COORDINACION: 'coordinacion',  // Emilse, Camila, Rosana
   DOCENTE: 'docente',            // Emilse, Camila, Rosana, Vanesa, Gise, Javi
   FACTURACION: 'facturacion',    // Rol administrativo - gestiona comunicados y conversaciones
+  EOE: 'eoe',                    // Equipo de Orientación Escolar - comunicados, conversaciones propias, fichas e informes
   TALLERISTA: 'tallerista',      // Camila como nexo, NO envían mensajes
   FAMILY: 'family',
   ASPIRANTE: 'aspirante'
@@ -82,6 +83,11 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.SEND_COMMUNICATIONS
   ],
 
+  [ROLES.EOE]: [
+    PERMISSIONS.SEND_COMMUNICATIONS,
+    PERMISSIONS.VIEW_MEDICAL_INFO
+  ],
+
   [ROLES.TALLERISTA]: [
     // Tallerista sin permiso de carga documental institucional
     PERMISSIONS.EDIT_TALLER_INFO
@@ -98,6 +104,7 @@ export const ROLE_HIERARCHY = {
   [ROLES.COORDINACION]: 5,
   [ROLES.DOCENTE]: 4,
   [ROLES.FACTURACION]: 4,
+  [ROLES.EOE]: 4,
   [ROLES.TALLERISTA]: 3,
   [ROLES.FAMILY]: 2,
   [ROLES.ASPIRANTE]: 1
@@ -114,7 +121,8 @@ export const CAN_SEND_COMMUNICATIONS = [
   ROLES.SUPERADMIN,
   ROLES.COORDINACION,
   ROLES.DOCENTE,
-  ROLES.FACTURACION
+  ROLES.FACTURACION,
+  ROLES.EOE
 ];
 
 // Roles que pueden aprobar comunicaciones (Emilse, Camila, Rosana)
@@ -127,7 +135,8 @@ export const CAN_APPROVE_COMMUNICATIONS = [
 export const CAN_VIEW_MEDICAL_INFO = [
   ROLES.SUPERADMIN,
   ROLES.COORDINACION,
-  ROLES.DOCENTE  // Algunos docentes (Vanesa, Gise)
+  ROLES.DOCENTE,  // Algunos docentes (Vanesa, Gise)
+  ROLES.EOE
 ];
 
 // Roles que pueden administrar turnos (Emilse, Camila, Rosana)
@@ -156,11 +165,15 @@ export const COMMUNICATION_TYPES = {
   INDIVIDUAL: 'individual'
 };
 
+// Máximo de profesionales de terapia por alumno (ficha > Terapias)
+export const MAX_TERAPIAS = 4;
+
 // Áreas escolares para conversaciones privadas
 export const ESCUELA_AREAS = {
   COORDINACION: 'coordinacion',
   ADMINISTRACION: 'administracion',  // Gestionada por rol FACTURACION
-  DIRECCION: 'direccion'
+  DIRECCION: 'direccion',
+  EOE: 'eoe'                         // Solo rol EOE y superadmin (coordinación NO)
 };
 
 // Estados de conversaciones privadas
@@ -180,6 +193,7 @@ export const CONVERSATION_CATEGORIES = [
   { value: 'documentacion', label: 'Documentación' },
   { value: 'medica', label: 'Información médica' },
   { value: 'pagos', label: 'Consulta sobre pagos' },
+  { value: 'seguimiento', label: 'Seguimiento' },
   { value: 'otro', label: 'Otro' }
 ];
 
@@ -205,6 +219,12 @@ export const CATEGORIES_BY_AREA = {
     { value: 'administrativa', label: 'Consulta administrativa' },
     { value: 'pagos', label: 'Consulta sobre pagos' },
     { value: 'documentacion', label: 'Documentación' },
+    { value: 'otro', label: 'Otro' }
+  ],
+  [ESCUELA_AREAS.EOE]: [
+    { value: 'entrevista', label: 'Solicitud de entrevista' },
+    { value: 'pedagogica', label: 'Consulta pedagógica' },
+    { value: 'seguimiento', label: 'Seguimiento' },
     { value: 'otro', label: 'Otro' }
   ]
 };
@@ -274,6 +294,7 @@ export const ROLE_DASHBOARDS = {
   [ROLES.COORDINACION]: ROUTES.ADMIN_DASHBOARD,
   [ROLES.DOCENTE]: ROUTES.TEACHER_DASHBOARD,
   [ROLES.FACTURACION]: ROUTES.ADMIN_DASHBOARD,
+  [ROLES.EOE]: ROUTES.TEACHER_COMMUNICATIONS,
   [ROLES.TALLERISTA]: ROUTES.TALLERISTA_DASHBOARD,
   [ROLES.FAMILY]: ROUTES.FAMILY_DASHBOARD,
   [ROLES.ASPIRANTE]: ROUTES.ASPIRANTE_DASHBOARD

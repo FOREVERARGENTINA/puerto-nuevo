@@ -81,7 +81,7 @@ function UploadZone({ id, onChange, hint, disabled }) {
 export function SendCommunication({ embedded = false, onSuccess, onCancel }) {
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const returnRoute = role === ROLES.DOCENTE ? ROUTES.TEACHER_COMMUNICATIONS : ROUTES.SEND_COMMUNICATION;
+  const returnRoute = [ROLES.DOCENTE, ROLES.EOE].includes(role) ? ROUTES.TEACHER_COMMUNICATIONS : ROUTES.SEND_COMMUNICATION;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const maxEventMediaSizeBytes = 50 * 1024 * 1024;

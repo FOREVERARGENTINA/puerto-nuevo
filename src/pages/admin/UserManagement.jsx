@@ -12,6 +12,7 @@ const USER_ROLE_OPTIONS = [
   { value: ROLES.FAMILY, label: 'Familia' },
   { value: ROLES.DOCENTE, label: 'Docente' },
   { value: ROLES.FACTURACION, label: 'Facturación' },
+  { value: ROLES.EOE, label: 'EOE' },
   { value: ROLES.TALLERISTA, label: 'Tallerista' },
   { value: ROLES.COORDINACION, label: 'Coordinación' },
   { value: ROLES.SUPERADMIN, label: 'SuperAdmin' },
@@ -274,6 +275,7 @@ export function UserManagement() {
       [ROLES.COORDINACION]: 'Coordinación',
       [ROLES.DOCENTE]: 'Docente',
       [ROLES.FACTURACION]: 'Facturación',
+      [ROLES.EOE]: 'EOE',
       [ROLES.TALLERISTA]: 'Tallerista',
       [ROLES.FAMILY]: 'Familia',
       [ROLES.ASPIRANTE]: 'Aspirante'
@@ -345,6 +347,7 @@ export function UserManagement() {
                   <option value={ROLES.FAMILY}>Familia</option>
                   <option value={ROLES.DOCENTE}>Docente</option>
                   <option value={ROLES.FACTURACION}>Facturación</option>
+                  <option value={ROLES.EOE}>EOE</option>
                   <option value={ROLES.TALLERISTA}>Tallerista</option>
                   <option value={ROLES.COORDINACION}>Coordinación</option>
                   <option value={ROLES.SUPERADMIN}>SuperAdmin</option>

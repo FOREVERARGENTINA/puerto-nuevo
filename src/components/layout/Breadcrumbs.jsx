@@ -42,6 +42,8 @@ const resolveRoleRootPath = (role) => {
       return '/portal/admin';
     case 'docente':
       return '/portal/docente';
+    case 'eoe':
+      return '/portal/docente/comunicados';
     case 'tallerista':
       return '/portal/tallerista';
     case 'family':

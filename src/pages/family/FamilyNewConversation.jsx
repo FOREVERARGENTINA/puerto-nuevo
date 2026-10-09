@@ -39,6 +39,11 @@ const AreaIcons = {
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  eoe: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  ),
 };
 
 export function FamilyNewConversation() {
@@ -170,6 +175,16 @@ export function FamilyNewConversation() {
                     <AreaIcons.direccion />
                     <span className="sc-type-card__label">Dirección</span>
                     <span className="sc-type-card__desc">Institucional y general</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sc-type-card${form.destinatarioEscuela === ESCUELA_AREAS.EOE ? ' sc-type-card--active' : ''}`}
+                    onClick={() => handleAreaSelect(ESCUELA_AREAS.EOE)}
+                    disabled={loading}
+                  >
+                    <AreaIcons.eoe />
+                    <span className="sc-type-card__label">EOE</span>
+                    <span className="sc-type-card__desc">Orientación escolar</span>
                   </button>
                 </div>
               </div>

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usersService } from '../../services/users.service';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../../config/firebase';
 import { useAuth } from '../../hooks/useAuth';
-import { FileSelectionList, FileUploadSelector } from '../common/FileUploadSelector';
+import { MAX_TERAPIAS, ROLES } from '../../config/constants';
+import { ChildFiles } from './ChildFiles';
 
 const DEFAULT_DATOS_MEDICOS = {
   alergias: '',
@@ -16,6 +15,25 @@ const DEFAULT_DATOS_MEDICOS = {
   clinicaCercana: '',
   telefonoClinica: ''
 };
+
+const createEmptyTerapia = () => ({
+  nombreCompleto: '',
+  cargoInstitucion: '',
+  email: '',
+  telefono: '',
+  notas: ''
+});
+
+const getTerapias = (terapias = []) => (
+  (Array.isArray(terapias) ? terapias : [])
+    .slice(0, MAX_TERAPIAS)
+    .map(t => ({ ...createEmptyTerapia(), ...t }))
+);
+
+// Descarta profesionales sin ningún dato cargado y recorta espacios
+const cleanTerapias = (terapias) => terapias
+  .map(t => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])))
+  .filter(t => t.nombreCompleto || t.cargoInstitucion || t.email || t.telefono || t.notas);
 
 const createEmptyRetiroAutorizado = () => ({
   nombreCompleto: '',
@@ -30,9 +48,30 @@ const getRetiroAutorizados = (personas = []) => (
   }))
 );
 
-const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) => {
-  const { isSuperAdmin, isCoordinacion } = useAuth();
-  const canEditMedical = isSuperAdmin || isCoordinacion;
+// ponytail: el campo siempre fue 'si'/'no'; por si alguien lo cargó como booleano desde la consola
+const normalizeAptoFisico = (value) => {
+  if (value === true) return 'si';
+  if (value === false) return 'no';
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+};
+
+const TABS = [
+  { id: 'personales', label: 'Datos personales' },
+  { id: 'familia', label: 'Familia y retiro' },
+  { id: 'salud', label: 'Salud' },
+  { id: 'terapias', label: 'Terapias' },
+  { id: 'informes', label: 'Informes y documentos' }
+];
+
+const ChildForm = ({ child = null, onSubmit, onCancel }) => {
+  const { isSuperAdmin, isCoordinacion, role } = useAuth();
+  const isEoe = role === ROLES.EOE;
+  // Admin edita toda la ficha; EOE solo Terapias (e informes, que van por su propio componente)
+  const canEditFicha = isSuperAdmin || isCoordinacion;
+  const canEditTerapias = canEditFicha || isEoe;
+
+  const formRef = useRef(null);
+  const [activeTab, setActiveTab] = useState(isEoe ? 'terapias' : 'personales');
 
   const [formData, setFormData] = useState({
     nombreCompleto: '',
@@ -41,27 +80,30 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
     responsables: [],
     documentos: [],
     personasAutorizadasRetiro: getRetiroAutorizados(),
+    terapias: [],
     datosMedicos: {
       ...DEFAULT_DATOS_MEDICOS
     }
   });
 
+  // En pantallas angostas la barra de pestañas scrollea: mantener visible la activa
+  useEffect(() => {
+    document.getElementById(`child-tabbtn-${activeTab}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeTab]);
+
   const [familyUsers, setFamilyUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [fileToUpload, setFileToUpload] = useState(null);
-  const [fileDescription, setFileDescription] = useState('');
   const [responsablesError, setResponsablesError] = useState('');
   const [responsablesSearch, setResponsablesSearch] = useState('');
+  const [familyPickerOpen, setFamilyPickerOpen] = useState(false);
+  const [retiroVisibleCount, setRetiroVisibleCount] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
-      // Load family users
       const familyResult = await usersService.getUsersByRole('family');
       if (familyResult.success) {
         setFamilyUsers(familyResult.users);
       }
-
     };
     loadData();
   }, []);
@@ -76,9 +118,11 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
         responsables: child.responsables || [],
         documentos: child.documentos || [],
         personasAutorizadasRetiro: getRetiroAutorizados(child.personasAutorizadasRetiro),
+        terapias: getTerapias(child.terapias),
         datosMedicos: {
           ...DEFAULT_DATOS_MEDICOS,
-          ...(child.datosMedicos || {})
+          ...(child.datosMedicos || {}),
+          aptoFisico: normalizeAptoFisico(child.datosMedicos?.aptoFisico)
         }
       });
     }
@@ -94,6 +138,19 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
     return name.includes(term) || email.includes(term);
   });
 
+  // Filas de autorizados visibles: las que tienen datos (mínimo 1) o las que se agregaron a mano
+  const lastFilledRetiro = formData.personasAutorizadasRetiro
+    .reduce((last, p, i) => (p.nombreCompleto || p.dni || p.telefono ? i + 1 : last), 0);
+  const visibleRetiro = Math.min(5, Math.max(1, lastFilledRetiro, retiroVisibleCount));
+
+  // Indicadores de pestañas con datos obligatorios faltantes
+  const dm = formData.datosMedicos;
+  const missingByTab = {
+    personales: !formData.nombreCompleto || !formData.fechaNacimiento,
+    familia: formData.responsables.length === 0,
+    salud: !dm.obraSocial || !dm.numeroAfiliado || !dm.clinicaCercana || !dm.telefonoClinica
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -104,12 +161,11 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
 
   const handleMedicalDataChange = (e) => {
     const { name, value } = e.target;
-    const nextValue = value;
     setFormData(prev => ({
       ...prev,
       datosMedicos: {
         ...prev.datosMedicos,
-        [name]: nextValue
+        [name]: value
       }
     }));
   };
@@ -139,110 +195,102 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
     }));
   };
 
-  const handleFileSelect = (selectedFiles) => {
-    const file = Array.isArray(selectedFiles) ? selectedFiles[0] : null;
-    if (file) {
-      // Validar tamaño (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('El archivo no debe superar los 5MB');
-        return;
-      }
-      setFileToUpload(file);
-    }
+  // Quita la fila y sube las siguientes; se mantienen los 5 lugares del modelo de datos
+  const handleRemoveRetiro = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      personasAutorizadasRetiro: getRetiroAutorizados(prev.personasAutorizadasRetiro.filter((_, i) => i !== index))
+    }));
+    setRetiroVisibleCount(count => Math.max(0, count - 1));
   };
 
-  const handleUploadDocument = async () => {
-    if (!fileToUpload) return;
-    if (!fileDescription.trim()) {
-      alert('Por favor ingresa una descripción para el documento');
-      return;
-    }
-    
-    if (!child?.id) {
-      alert('Debes crear el alumno primero antes de adjuntar documentos. Guarda la ficha y luego edítala para agregar documentos.');
-      return;
-    }
-    
-    setUploadingFile(true);
-    try {
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${fileToUpload.name}`;
-      const storageRef = ref(storage, `private/children/${child.id}/${fileName}`);
-      
-      await uploadBytes(storageRef, fileToUpload);
-      const url = await getDownloadURL(storageRef);
-      
-      const newDoc = {
-        nombre: fileToUpload.name,
-        descripcion: fileDescription,
-        url,
-        storagePath: `private/children/${child.id}/${fileName}`,
-        tipo: fileToUpload.type,
-        tamaño: fileToUpload.size,
-        fechaSubida: new Date().toISOString()
-      };
-      
-      setFormData(prev => ({
-        ...prev,
-        documentos: [...prev.documentos, newDoc]
-      }));
-      
-      setFileToUpload(null);
-      setFileDescription('');
-    } catch (error) {
-      console.error('Error al subir archivo:', error);
-      alert('Error al subir el archivo: ' + error.message);
-    } finally {
-      setUploadingFile(false);
-    }
+  const handleTerapiaChange = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      terapias: prev.terapias.map((t, i) => (i === index ? { ...t, [field]: value } : t))
+    }));
   };
 
-  const handleDeleteDocument = async (index, doc) => {
-    if (!confirm('¿Eliminar este documento?')) return;
-    
-    try {
-      // Si tiene storagePath, eliminar de Storage
-      if (doc.storagePath) {
-        const storageRef = ref(storage, doc.storagePath);
-        try {
-          await deleteObject(storageRef);
-        } catch (error) {
-          // Si el archivo ya no existe, continuar igual y quitar de la lista
-          if (error?.code !== 'storage/object-not-found') {
-            throw error;
-          }
-        }
-      }
-      
-      setFormData(prev => ({
-        ...prev,
-        documentos: prev.documentos.filter((_, i) => i !== index)
-      }));
-    } catch (error) {
-      console.error('Error al eliminar documento:', error);
-      alert('Error al eliminar el documento: ' + error.message);
+  const handleAddTerapia = () => {
+    setFormData(prev => (
+      prev.terapias.length >= MAX_TERAPIAS
+        ? prev
+        : { ...prev, terapias: [...prev.terapias, createEmptyTerapia()] }
+    ));
+  };
+
+  const handleRemoveTerapia = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      terapias: prev.terapias.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Los campos obligatorios pueden estar en una pestaña oculta: llevar al usuario a esa pestaña
+  const handleSaveClick = (e) => {
+    const invalid = formRef.current?.querySelector(':invalid');
+    if (!invalid) return;
+    const panel = invalid.closest('[data-tab]');
+    if (panel && panel.dataset.tab !== activeTab) {
+      e.preventDefault();
+      setActiveTab(panel.dataset.tab);
+      requestAnimationFrame(() => formRef.current?.reportValidity());
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.responsables.length) {
+    if (canEditFicha && !formData.responsables.length) {
       setResponsablesError('Selecciona al menos una familia responsable.');
+      setActiveTab('familia');
+      setFamilyPickerOpen(true);
       return;
     }
     setLoading(true);
-    await onSubmit(formData);
+    await onSubmit({ ...formData, terapias: cleanTerapias(formData.terapias) });
     setLoading(false);
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="child-form">
-      <div className="child-form__grid">
-        <div className="form-section child-form__medical-section">
-          <h3>Datos Personales</h3>
+  const lockNote = !canEditFicha && (
+    <p className="child-form__lock">Solo lectura. Esta sección la editan coordinación y administración.</p>
+  );
 
+  const panelProps = (id) => ({
+    'data-tab': id,
+    id: `child-tab-${id}`,
+    role: 'tabpanel',
+    'aria-labelledby': `child-tabbtn-${id}`,
+    hidden: activeTab !== id
+  });
+
+  return (
+    <form ref={formRef} onSubmit={handleSubmit} className="child-form child-form--tabs">
+      <div className="tabs__header child-form__tabs" role="tablist" aria-label="Secciones de la ficha">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            id={`child-tabbtn-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`child-tab-${tab.id}`}
+            className={`tabs__tab${activeTab === tab.id ? ' tabs__tab--active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+            {canEditFicha && missingByTab[tab.id] && (
+              <span className="child-form__tab-dot" title="Faltan datos obligatorios" aria-label="Faltan datos obligatorios" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Datos personales */}
+      <div {...panelProps('personales')}>
+        <fieldset disabled={!canEditFicha} className="child-form__fieldset form-section child-form__medical-section">
+          {lockNote}
           <div className="form-group child-form__medical-wide-field">
-            <label htmlFor="nombreCompleto" className="form-label required">Nombre Completo</label>
+            <label htmlFor="nombreCompleto" className="form-label required">Nombre completo</label>
             <input
               type="text"
               id="nombreCompleto"
@@ -255,7 +303,7 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
           </div>
 
           <div className="form-group child-form__medical-compact-field">
-            <label htmlFor="fechaNacimiento" className="form-label required">Fecha de Nacimiento</label>
+            <label htmlFor="fechaNacimiento" className="form-label required">Fecha de nacimiento</label>
             <input
               type="date"
               id="fechaNacimiento"
@@ -277,149 +325,214 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
               className="form-select"
               required
             >
-            <option value="taller1">Taller 1</option>
-            <option value="taller2">Taller 2</option>
+              <option value="taller1">Taller 1</option>
+              <option value="taller2">Taller 2</option>
             </select>
           </div>
+        </fieldset>
+      </div>
 
-          <div className="form-group child-form__medical-wide-field">
-            <label id="responsables-label" className="form-label required">Responsables</label>
-            {familyUsers.length === 0 ? (
-              <p className="form-helper-text">No hay familias disponibles para asignar.</p>
-            ) : (
-              <>
-                {selectedFamilies.length > 0 && (
-                  <div className="child-form__chips">
-                    {selectedFamilies.map(user => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        className="child-form__chip"
-                        onClick={() => handleResponsableToggle(user.id)}
-                        aria-label={`Quitar ${user.displayName || user.email}`}
-                      >
-                        {user.displayName || user.email}
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    ))}
-                  </div>
+      {/* Familia y retiro */}
+      <div {...panelProps('familia')}>
+        <fieldset disabled={!canEditFicha} className="child-form__fieldset form-section child-form__family">
+          {lockNote}
+          <h4 className="child-form__subtitle" id="responsables-label">Responsables</h4>
+          <div className="child-form__chips">
+            {selectedFamilies.map(user => (
+              <span key={user.id} className="child-form__person-chip">
+                {user.displayName || user.email}
+                {canEditFicha && (
+                  <button
+                    type="button"
+                    className="child-form__chip-remove"
+                    onClick={() => handleResponsableToggle(user.id)}
+                    aria-label={`Quitar ${user.displayName || user.email}`}
+                  >
+                    ×
+                  </button>
                 )}
+              </span>
+            ))}
+            {selectedFamilies.length === 0 && !familyPickerOpen && (
+              <span className="form-helper-text">Sin responsables asignados.</span>
+            )}
+            {canEditFicha && !familyPickerOpen && (
+              <button type="button" className="child-form__link-btn" onClick={() => setFamilyPickerOpen(true)}>
+                + Agregar
+              </button>
+            )}
+          </div>
+
+          {canEditFicha && familyPickerOpen && (
+            <div className="child-form__picker">
+              <div className="child-form__picker-head">
                 <input
                   type="search"
                   className="form-input form-input--sm"
-                  placeholder="Buscar por nombre o email..."
+                  placeholder="Buscar familia por nombre o email..."
                   value={responsablesSearch}
                   onChange={(e) => setResponsablesSearch(e.target.value)}
                   aria-label="Buscar familias responsables"
+                  autoFocus
                 />
-                <div className="family-selector" role="group" aria-labelledby="responsables-label">
-                  {filteredFamilyUsers.length === 0 ? (
-                    <div className="family-selector-item">
-                      <p className="form-helper-text" style={{ padding: 'var(--spacing-sm)' }}>
-                        No se encontraron familias.
-                      </p>
-                    </div>
-                  ) : (
-                    filteredFamilyUsers.map(user => {
-                  const isChecked = formData.responsables.includes(user.id);
-                  return (
-                    <div key={user.id} className="family-selector-item">
-                      <label className="family-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleResponsableToggle(user.id)}
-                          aria-checked={isChecked}
-                        />
-                        <div className="family-info">
-                          <span className="family-name">{user.displayName || user.email}</span>
-                          {user.displayName && user.email && (
-                            <span className="family-email">{user.email}</span>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-                  );
-                    })
-                  )}
-                </div>
-              </>
-            )}
-            {responsablesError && (
-              <div className="form-error" role="alert">
-                {responsablesError}
+                <button type="button" className="btn btn--sm btn--outline" onClick={() => setFamilyPickerOpen(false)}>
+                  Listo
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="form-section child-form__medical-section">
-          <h3>Datos Médicos</h3>
-          {!canEditMedical && (
-            <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
-              Solo coordinación y superadmin pueden editar estos datos.
-            </p>
+              <div className="family-selector" role="group" aria-labelledby="responsables-label">
+                {filteredFamilyUsers.length === 0 ? (
+                  <p className="form-helper-text" style={{ padding: 'var(--spacing-sm)' }}>
+                    {familyUsers.length === 0 ? 'No hay familias disponibles para asignar.' : 'No se encontraron familias.'}
+                  </p>
+                ) : (
+                  filteredFamilyUsers.map(user => {
+                    const isChecked = formData.responsables.includes(user.id);
+                    return (
+                      <div key={user.id} className="family-selector-item">
+                        <label className="family-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleResponsableToggle(user.id)}
+                          />
+                          <div className="family-info">
+                            <span className="family-name">{user.displayName || user.email}</span>
+                            {user.displayName && user.email && (
+                              <span className="family-email">{user.email}</span>
+                            )}
+                          </div>
+                        </label>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+          {responsablesError && (
+            <div className="form-error" role="alert">
+              {responsablesError}
+            </div>
           )}
 
-          <h4 className="child-form__subtitle">Salud</h4>
+          <h4 className="child-form__subtitle">Autorizados para retirar</h4>
+          <div className="child-form__pickup-rows">
+            <div className="child-form__pickup-row child-form__pickup-row--head" aria-hidden="true">
+              <span>Nombre y apellido</span>
+              <span>DNI</span>
+              <span>Teléfono</span>
+              <span />
+            </div>
+            {formData.personasAutorizadasRetiro.slice(0, visibleRetiro).map((persona, index) => (
+              <div key={`retiro-${index}`} className="child-form__pickup-row">
+                <input
+                  type="text"
+                  id={`retiro-nombre-${index}`}
+                  value={persona.nombreCompleto}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'nombreCompleto', e.target.value)}
+                  className="form-input"
+                  placeholder="Nombre y apellido"
+                  aria-label={`Autorizado ${index + 1}: nombre y apellido`}
+                />
+                <input
+                  type="text"
+                  id={`retiro-dni-${index}`}
+                  value={persona.dni}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'dni', e.target.value)}
+                  className="form-input"
+                  placeholder="DNI"
+                  aria-label={`Autorizado ${index + 1}: DNI`}
+                />
+                <input
+                  type="text"
+                  id={`retiro-telefono-${index}`}
+                  value={persona.telefono}
+                  onChange={(e) => handleRetiroAutorizadoChange(index, 'telefono', e.target.value)}
+                  className="form-input"
+                  placeholder="Teléfono"
+                  aria-label={`Autorizado ${index + 1}: teléfono`}
+                />
+                {canEditFicha ? (
+                  <button
+                    type="button"
+                    className="child-form__row-remove"
+                    onClick={() => handleRemoveRetiro(index)}
+                    aria-label={`Quitar autorizado ${index + 1}`}
+                  >
+                    ×
+                  </button>
+                ) : <span />}
+              </div>
+            ))}
+          </div>
+          {canEditFicha && visibleRetiro < 5 && (
+            <button type="button" className="child-form__link-btn" onClick={() => setRetiroVisibleCount(visibleRetiro + 1)}>
+              + Agregar autorizado
+            </button>
+          )}
+        </fieldset>
+      </div>
 
-          <div className="form-group child-form__medical-compact-field">
+      {/* Salud */}
+      <div {...panelProps('salud')}>
+        <fieldset disabled={!canEditFicha} className="child-form__fieldset form-section child-form__stack">
+          {lockNote}
+          <h4 className="child-form__subtitle">Salud</h4>
+          <div className="child-form__section-grid">
+          <div className="form-group">
             <label htmlFor="alergias" className="form-label">Alergias</label>
             <textarea
               id="alergias"
               name="alergias"
               value={formData.datosMedicos.alergias}
               onChange={handleMedicalDataChange}
-              rows="2"
+              rows="1"
               className="form-textarea child-form__medical-compact-textarea"
-              disabled={!canEditMedical}
             />
           </div>
-
-          <div className="form-group child-form__medical-compact-field">
-            <label htmlFor="aptoFisico" className="form-label">Apto Fisico</label>
-            <select
-              id="aptoFisico"
-              name="aptoFisico"
-              value={formData.datosMedicos.aptoFisico}
-              onChange={handleMedicalDataChange}
-              className="form-select"
-              disabled={!canEditMedical}
-            >
-              <option value="">Seleccionar</option>
-              <option value="si">Si</option>
-              <option value="no">No</option>
-            </select>
-          </div>
-
-          <div className="form-group child-form__medical-compact-field">
+          <div className="form-group">
             <label htmlFor="medicamentos" className="form-label">Medicamentos</label>
             <textarea
               id="medicamentos"
               name="medicamentos"
               value={formData.datosMedicos.medicamentos}
               onChange={handleMedicalDataChange}
-              rows="2"
+              rows="1"
               className="form-textarea child-form__medical-compact-textarea"
-              disabled={!canEditMedical}
             />
           </div>
-
-          <div className="form-group child-form__medical-compact-field">
-            <label htmlFor="indicaciones" className="form-label">Indicaciones Médicas</label>
+          <div className="form-group">
+            <span id="aptoFisico-label" className="form-label">Apto físico</span>
+            <div className="child-form__yesno" role="radiogroup" aria-labelledby="aptoFisico-label">
+              {[{ value: 'si', label: 'Sí' }, { value: 'no', label: 'No' }].map(opt => (
+                <label key={opt.value} className="child-form__yesno-option">
+                  <input
+                    type="radio"
+                    name="aptoFisico"
+                    value={opt.value}
+                    checked={formData.datosMedicos.aptoFisico === opt.value}
+                    onChange={handleMedicalDataChange}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="form-group child-form__span-all">
+            <label htmlFor="indicaciones" className="form-label">Indicaciones médicas</label>
             <textarea
               id="indicaciones"
               name="indicaciones"
               value={formData.datosMedicos.indicaciones}
               onChange={handleMedicalDataChange}
-              rows="2"
+              rows="1"
               className="form-textarea child-form__medical-compact-textarea"
-              disabled={!canEditMedical}
             />
+          </div>
           </div>
 
           <h4 className="child-form__subtitle">Cobertura médica</h4>
-
+          <div className="child-form__section-grid">
           <div className="form-group">
             <label htmlFor="obraSocial" className="form-label required">Obra social / prepaga</label>
             <input
@@ -431,10 +544,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
               className="form-input"
               placeholder="Ej: IOMA, OSDE, Swiss Medical"
               required
-              disabled={!canEditMedical}
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="numeroAfiliado" className="form-label required">Número de afiliado</label>
             <input
@@ -445,12 +556,12 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
               onChange={handleMedicalDataChange}
               className="form-input"
               required
-              disabled={!canEditMedical}
             />
+          </div>
           </div>
 
           <h4 className="child-form__subtitle">Emergencias</h4>
-
+          <div className="child-form__section-grid">
           <div className="form-group">
             <label htmlFor="clinicaCercana" className="form-label required">
               Clínica/hospital cercano (San Martín)
@@ -463,10 +574,8 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
               onChange={handleMedicalDataChange}
               className="form-input"
               required
-              disabled={!canEditMedical}
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="telefonoClinica" className="form-label required">Teléfono/Dirección</label>
             <input
@@ -478,206 +587,144 @@ const ChildForm = ({ child = null, onSubmit, onCancel, reportsSection = null }) 
               className="form-input"
               placeholder="Ej: 351 123-4567 o Av. Siempreviva 742"
               required
-              disabled={!canEditMedical}
             />
           </div>
-
-          <div className="form-group child-form__medical-wide-field">
-            <label htmlFor="contactosEmergencia" className="form-label">Contactos de Emergencia</label>
+          <div className="form-group child-form__span-all">
+            <label htmlFor="contactosEmergencia" className="form-label">Contactos de emergencia</label>
             <textarea
               id="contactosEmergencia"
               name="contactosEmergencia"
               value={formData.datosMedicos.contactosEmergencia}
               onChange={handleMedicalDataChange}
-              rows="3"
+              rows="1"
               className="form-textarea"
               placeholder="Nombre: Teléfono&#10;Nombre: Teléfono"
-              disabled={!canEditMedical}
             />
           </div>
-        </div>
-      </div>
-
-      {reportsSection && (
-        <div className="child-form__reports-section">
-          {reportsSection}
-        </div>
-      )}
-
-      {/* Sección de documentos adjuntos */}
-      <div className="form-section child-form__pickup-section" style={{ gridColumn: '1 / -1' }}>
-        <h3>Personas autorizadas para retiro</h3>
-        <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
-          Carga hasta 5 personas que puedan retirar al alumno de la escuela.
-        </p>
-
-        <div className="child-form__pickup-grid">
-          {formData.personasAutorizadasRetiro.map((persona, index) => (
-            <div key={`retiro-${index}`} className="child-form__pickup-card">
-              <div className="child-form__pickup-card-title">Autorizado {index + 1}</div>
-
-              <div className="form-group">
-                <label htmlFor={`retiro-nombre-${index}`} className="form-label">Nombre y apellido</label>
-                <input
-                  type="text"
-                  id={`retiro-nombre-${index}`}
-                  value={persona.nombreCompleto}
-                  onChange={(e) => handleRetiroAutorizadoChange(index, 'nombreCompleto', e.target.value)}
-                  className="form-input"
-                  placeholder="Nombre completo"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor={`retiro-dni-${index}`} className="form-label">DNI</label>
-                <input
-                  type="text"
-                  id={`retiro-dni-${index}`}
-                  value={persona.dni}
-                  onChange={(e) => handleRetiroAutorizadoChange(index, 'dni', e.target.value)}
-                  className="form-input"
-                  placeholder="Documento"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor={`retiro-telefono-${index}`} className="form-label">Telefono</label>
-                <input
-                  type="text"
-                  id={`retiro-telefono-${index}`}
-                  value={persona.telefono}
-                  onChange={(e) => handleRetiroAutorizadoChange(index, 'telefono', e.target.value)}
-                  className="form-input"
-                  placeholder="Telefono de contacto"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="form-section" style={{ gridColumn: '1 / -1', marginTop: 'var(--spacing-md)', borderTop: '2px solid var(--color-border)', paddingTop: 'var(--spacing-md)' }}>
-        <h3>Documentos Adjuntos</h3>
-        <p className="form-helper-text" style={{ marginBottom: 'var(--spacing-sm)' }}>
-          Sube fichas de inscripción, certificados médicos, autorizaciones y otros documentos importantes.
-        </p>
-
-        {!child?.id && (
-          <div className="alert alert--info" style={{ marginBottom: 'var(--spacing-md)' }}>
-            <strong>Primero crea la ficha del alumno</strong>
-            <span style={{ display: 'block', marginTop: '4px', fontSize: 'var(--font-size-sm)' }}>
-              Guarda el alumno y luego edítalo para adjuntar documentos.
-            </span>
           </div>
-        )}
+        </fieldset>
+      </div>
 
-        {/* Lista de documentos existentes */}
-        {formData.documentos.length > 0 && (
-          <div style={{ marginBottom: 'var(--spacing-md)' }}>
-            <div style={{ display: 'grid', gap: 'var(--spacing-xs)' }}>
-              {formData.documentos.map((doc, index) => (
-                <div key={index} style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-xs)', 
-                  padding: 'var(--spacing-sm)', 
-                  backgroundColor: 'var(--color-background-alt)', 
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--spacing-sm)' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', marginBottom: '2px' }}>
-                        {doc.nombre}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)' }}>
-                        {doc.descripcion}
-                      </div>
-                      {doc.fechaSubida && (
-                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginTop: '2px' }}>
-                          Subido: {new Date(doc.fechaSubida).toLocaleDateString('es-AR')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                    <a 
-                      href={doc.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="btn btn--sm btn--outline"
-                      style={{ flex: '1 1 auto', minWidth: '100px' }}
-                    >
-                      Ver documento
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDocument(index, doc)}
-                      className="btn btn--sm btn--danger"
-                      style={{ flex: '1 1 auto', minWidth: '100px' }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
+      {/* Terapias */}
+      <div {...panelProps('terapias')}>
+        <fieldset disabled={!canEditTerapias} className="child-form__fieldset form-section">
+          <div className="child-form__therapies-head">
+            <p className="form-helper-text">
+              Profesionales que atienden al alumno fuera de la escuela. Hasta {MAX_TERAPIAS}.
+            </p>
+          </div>
+
+          <div className="child-form__pickup-grid child-form__therapies-grid">
+            {formData.terapias.map((terapia, index) => (
+              <div key={`terapia-${index}`} className="child-form__pickup-card">
+                <div className="child-form__therapy-title">
+                  <span className="child-form__pickup-card-title">Profesional {index + 1}</span>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--text btn--danger"
+                    onClick={() => handleRemoveTerapia(index)}
+                  >
+                    Quitar
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Formulario para subir nuevo documento */}
-        {child?.id && (
-          <div style={{ 
-            padding: 'var(--spacing-md)', 
-            backgroundColor: 'var(--color-primary-soft)', 
-            borderRadius: 'var(--radius-md)',
-            border: '2px dashed var(--color-primary)'
-          }}>
-            <div className="form-group" style={{ marginBottom: 'var(--spacing-sm)' }}>
-              <label htmlFor="fileInput" className="form-label">Seleccionar archivo</label>
-              <FileUploadSelector
-                id="fileInput"
-                multiple={false}
-                onFilesSelected={handleFileSelect}
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                disabled={uploadingFile}
-                hint="Max 5MB (PDF, imagenes, Word)"
-              />
-              {fileToUpload && (
-                <FileSelectionList files={[fileToUpload]} onRemove={() => setFileToUpload(null)} />
-              )}
-            </div>
-            <div className="form-group" style={{ marginBottom: 'var(--spacing-sm)' }}>
-              <label htmlFor="fileDescription" className="form-label">Descripción</label>
-              <input
-                type="text"
-                id="fileDescription"
-                value={fileDescription}
-                onChange={(e) => setFileDescription(e.target.value)}
-                className="form-input"
-                placeholder="Ej: Ficha de inscripción 2026"
-                disabled={uploadingFile}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleUploadDocument}
-              disabled={!fileToUpload || uploadingFile}
-              className="btn btn--primary"
-            >
-              {uploadingFile ? 'Subiendo...' : 'Subir documento'}
-            </button>
+                <div className="form-group">
+                  <label htmlFor={`terapia-nombre-${index}`} className="form-label required">Nombre completo</label>
+                  <input
+                    type="text"
+                    id={`terapia-nombre-${index}`}
+                    value={terapia.nombreCompleto}
+                    onChange={(e) => handleTerapiaChange(index, 'nombreCompleto', e.target.value)}
+                    className="form-input"
+                    placeholder="Ej: Lic. Mariana Sosa"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor={`terapia-cargo-${index}`} className="form-label">Cargo o institución</label>
+                  <input
+                    type="text"
+                    id={`terapia-cargo-${index}`}
+                    value={terapia.cargoInstitucion}
+                    onChange={(e) => handleTerapiaChange(index, 'cargoInstitucion', e.target.value)}
+                    className="form-input"
+                    placeholder="Ej: Fonoaudióloga · Centro Crecer"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor={`terapia-email-${index}`} className="form-label">Email</label>
+                  <input
+                    type="email"
+                    id={`terapia-email-${index}`}
+                    value={terapia.email}
+                    onChange={(e) => handleTerapiaChange(index, 'email', e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor={`terapia-telefono-${index}`} className="form-label">Teléfono</label>
+                  <input
+                    type="tel"
+                    id={`terapia-telefono-${index}`}
+                    value={terapia.telefono}
+                    onChange={(e) => handleTerapiaChange(index, 'telefono', e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor={`terapia-notas-${index}`} className="form-label">Notas</label>
+                  <textarea
+                    id={`terapia-notas-${index}`}
+                    value={terapia.notas}
+                    onChange={(e) => handleTerapiaChange(index, 'notas', e.target.value)}
+                    rows="1"
+                    className="form-textarea"
+                    placeholder="Días de atención, forma de contacto preferida..."
+                  />
+                </div>
+              </div>
+            ))}
+
+            {formData.terapias.length < MAX_TERAPIAS && canEditTerapias && (
+              <button type="button" className="child-form__add-card" onClick={handleAddTerapia}>
+                + Agregar profesional
+              </button>
+            )}
           </div>
-        )}
+
+          {formData.terapias.length === 0 && !canEditTerapias && (
+            <p className="form-helper-text">Sin profesionales cargados.</p>
+          )}
+        </fieldset>
+      </div>
+
+      {/* Informes y documentos */}
+      <div {...panelProps('informes')}>
+        <ChildFiles
+          childId={child?.id}
+          documentos={formData.documentos}
+          onDocumentosChange={(documentos) => setFormData(prev => ({ ...prev, documentos }))}
+          canUploadReports={canEditTerapias}
+          canManageAll={canEditFicha}
+        />
       </div>
 
       <div className="form-actions child-form__actions">
+        <span className="form-helper-text child-form__actions-hint">
+          {canEditFicha ? 'Los cambios de todas las pestañas se guardan juntos.' : 'Se guardan solo los cambios en Terapias.'}
+        </span>
         <button type="button" onClick={onCancel} className="btn btn--secondary">
           Cancelar
         </button>
-        <button type="submit" className="btn btn--primary btn--lg" disabled={loading}>
-          {loading ? 'Guardando...' : child ? 'Actualizar' : 'Crear'}
-        </button>
+        {canEditTerapias && (
+          <button type="submit" className="btn btn--primary btn--lg" disabled={loading} onClick={handleSaveClick}>
+            {loading ? 'Guardando...' : child ? 'Guardar cambios' : 'Crear alumno'}
+          </button>
+        )}
       </div>
     </form>
   );

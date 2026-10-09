@@ -504,7 +504,7 @@ async function getGlobalRecipients() {
   const usersSnapshot = await admin
     .firestore()
     .collection('users')
-    .where('role', 'in', ['family', 'docente', 'coordinacion', 'superadmin', 'facturacion'])
+    .where('role', 'in', ['family', 'docente', 'coordinacion', 'superadmin', 'facturacion', 'eoe'])
     .where('disabled', '==', false)
     .get();
 

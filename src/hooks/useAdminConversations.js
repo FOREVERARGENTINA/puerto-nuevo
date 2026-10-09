@@ -21,6 +21,7 @@ const PAGE_SIZE = 50;
 const resolveAreasForRole = (role) => {
   if (role === ROLES.COORDINACION) return ['coordinacion'];
   if (role === ROLES.FACTURACION) return ['administracion'];
+  if (role === ROLES.EOE) return ['eoe'];
   return null;
 };
 

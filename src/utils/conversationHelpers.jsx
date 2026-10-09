@@ -38,6 +38,8 @@ export const getAreaLabel = (area) => {
       return 'Facturación';
     case ESCUELA_AREAS.DIRECCION:
       return 'Dirección';
+    case ESCUELA_AREAS.EOE:
+      return 'EOE';
     default:
       return 'Escuela';
   }

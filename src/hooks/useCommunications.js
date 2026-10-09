@@ -55,9 +55,9 @@ export function useCommunications(limitCount = 50) {
       setUnreadRequired(unread.filter((comm) => comm.requiereLecturaObligatoria));
     };
 
-    // Docente: ve comunicados globales/ambiente + individuales dirigidos a él.
+    // Docente/EOE: ven comunicados globales/ambiente + individuales dirigidos a ellos.
     // Firestore no soporta OR entre campos distintos → dos listeners mergeados.
-    if (role === ROLES.DOCENTE) {
+    if (role === ROLES.DOCENTE || role === ROLES.EOE) {
       let broadcastComms = [];
       let individualComms = [];
       let currentComms = [];

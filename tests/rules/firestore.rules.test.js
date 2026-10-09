@@ -98,6 +98,16 @@ describe('Firestore security rules', () => {
           iniciadoPor: 'familia',
           estado: 'activa',
         }),
+        db.collection('conversations').doc('rules_conv_eoe').set({
+          familiaUid: 'rules_family_3',
+          participantesUids: ['rules_family_3'],
+          participanteMap: { rules_family_3: true },
+          destinatarioEscuela: 'eoe',
+          asunto: 'Consulta EOE',
+          categoria: 'seguimiento',
+          iniciadoPor: 'familia',
+          estado: 'activa',
+        }),
         db.collection('appointments').doc('rules_appt_taller1').set({
           estado: 'disponible',
           origenSlot: 'agenda',
@@ -206,6 +216,64 @@ describe('Firestore security rules', () => {
     await assertFails(
       coordinacionDb.collection('conversations').doc('rules_conv_facturacion').get()
     );
+  });
+
+  test('EOE: solo EOE y superadmin leen conversaciones del area eoe', async () => {
+    const ctx = (uid, role) => testEnv.authenticatedContext(uid, { role }).firestore();
+    const ref = (db) => db.collection('conversations').doc('rules_conv_eoe');
+
+    await assertSucceeds(ref(ctx('rules_eoe', 'eoe')).get());
+    await assertSucceeds(ref(ctx('rules_super', 'superadmin')).get());
+    await assertFails(ref(ctx('rules_coord', 'coordinacion')).get());
+    await assertFails(ref(ctx('rules_facturacion', 'facturacion')).get());
+    await assertFails(ref(ctx('rules_docente', 'docente')).get());
+    // EOE no ve otras areas
+    await assertFails(ctx('rules_eoe', 'eoe').collection('conversations').doc('rules_conv_facturacion').get());
+  });
+
+  test('EOE: coordinacion no puede crear conversaciones en el area eoe; EOE si', async () => {
+    const base = { familiaUid: 'rules_family_1', asunto: 'x', categoria: 'otro', iniciadoPor: 'escuela', estado: 'activa' };
+    const coordDb = testEnv.authenticatedContext('rules_coord', { role: 'coordinacion' }).firestore();
+    const eoeDb = testEnv.authenticatedContext('rules_eoe', { role: 'eoe' }).firestore();
+
+    await assertFails(coordDb.collection('conversations').doc('rules_new_coord_eoe').set({ ...base, destinatarioEscuela: 'eoe' }));
+    await assertSucceeds(coordDb.collection('conversations').doc('rules_new_coord_dir').set({ ...base, destinatarioEscuela: 'direccion' }));
+    await assertSucceeds(eoeDb.collection('conversations').doc('rules_new_eoe').set({ ...base, destinatarioEscuela: 'eoe' }));
+    await assertFails(eoeDb.collection('conversations').doc('rules_new_eoe_coord').set({ ...base, destinatarioEscuela: 'coordinacion' }));
+  });
+
+  test('EOE: lee fichas e informes y puede subir informes, pero no borrarlos', async () => {
+    const eoeDb = testEnv.authenticatedContext('rules_eoe', { role: 'eoe', email: 'eoe@test.local' }).firestore();
+    const reports = eoeDb.collection('children').doc('rules_child_reports').collection('reports');
+
+    await assertSucceeds(eoeDb.collection('children').doc('rules_child_reports').get());
+    await assertSucceeds(reports.doc('rules_report_family').get());
+    await assertSucceeds(reports.doc('rules_report_eoe').set({
+      childId: 'rules_child_reports',
+      periodo: 'Informe EOE',
+      anio: 2026,
+      archivoNombre: 'eoe.pdf',
+      archivoTamanoBytes: 1200,
+      archivoTipo: 'application/pdf',
+      storagePath: 'private/children/rules_child_reports/reports/rules_report_eoe/eoe.pdf',
+      uploadedBy: 'rules_eoe',
+      uploadedByEmail: 'eoe@test.local',
+      createdAt: new Date(),
+    }));
+    await assertFails(reports.doc('rules_report_family').delete());
+  });
+
+  test('EOE: puede editar solo las terapias de la ficha (max 4)', async () => {
+    const eoeDb = testEnv.authenticatedContext('rules_eoe', { role: 'eoe' }).firestore();
+    const docenteDb = testEnv.authenticatedContext('rules_docente', { role: 'docente' }).firestore();
+    const childRef = (db) => db.collection('children').doc('rules_child_taller1');
+    const terapia = { nombreCompleto: 'Lic. Prueba', cargoInstitucion: 'Fono', email: 'a@b.c', telefono: '1', notas: '' };
+
+    await assertSucceeds(childRef(eoeDb).update({ terapias: [terapia], updatedAt: new Date() }));
+    await assertFails(childRef(eoeDb).update({ terapias: [terapia, terapia, terapia, terapia, terapia] }));
+    await assertFails(childRef(eoeDb).update({ terapias: [terapia], nombreCompleto: 'Otro nombre' }));
+    await assertFails(childRef(eoeDb).update({ datosMedicos: { alergias: 'x' } }));
+    await assertFails(childRef(docenteDb).update({ terapias: [terapia] }));
   });
 
   test('permite a facturacion leer una conversacion dirigida a facturacion', async () => {

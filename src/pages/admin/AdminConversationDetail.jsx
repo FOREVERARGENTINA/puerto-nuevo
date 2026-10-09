@@ -275,6 +275,7 @@ export function AdminConversationDetail() {
                 <option value={ESCUELA_AREAS.COORDINACION}>Coordinación</option>
                 <option value={ESCUELA_AREAS.ADMINISTRACION}>Administración</option>
                 <option value={ESCUELA_AREAS.DIRECCION}>Dirección</option>
+                <option value={ESCUELA_AREAS.EOE}>EOE</option>
               </select>
               <button
                 className="btn btn--outline"

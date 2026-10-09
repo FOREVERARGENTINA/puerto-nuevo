@@ -123,6 +123,19 @@ export const childrenService = {
     }
   },
 
+  // EOE solo puede escribir este campo (ver firestore.rules /children)
+  async updateTerapias(childId, terapias) {
+    try {
+      await updateDoc(doc(childrenCollection, childId), {
+        terapias,
+        updatedAt: serverTimestamp()
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   async updateDatosMedicos(childId, datosMedicos) {
     try {
       await updateDoc(doc(childrenCollection, childId), {

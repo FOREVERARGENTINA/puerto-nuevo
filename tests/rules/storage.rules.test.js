@@ -54,6 +54,14 @@ async function seedFirestoreFixturesForStorageRules() {
         db.collection('talleres').doc('rules_taller_assigned').set({
           talleristaId: 'rules_tallerista',
         }),
+        db.collection('conversations').doc('rules_conv_eoe_storage').set({
+          familiaUid: 'rules_family_1',
+          destinatarioEscuela: 'eoe',
+        }),
+        db.collection('conversations').doc('rules_conv_admin_storage').set({
+          familiaUid: 'rules_family_1',
+          destinatarioEscuela: 'administracion',
+        }),
       ]);
     })
   );
@@ -85,6 +93,8 @@ describe('Storage security rules', () => {
           'raw',
           { contentType: 'application/pdf' }
         ),
+        storage.ref('conversations/rules_conv_eoe_storage/msg1/adjunto.pdf').putString('x', 'raw', { contentType: 'application/pdf' }),
+        storage.ref('conversations/rules_conv_admin_storage/msg1/adjunto.pdf').putString('x', 'raw', { contentType: 'application/pdf' }),
         storage.ref('private/children/rules_child_report_orphan/reports/missing_report/informe.pdf').putString(
           'informe huerfano',
           'raw',
@@ -235,6 +245,30 @@ describe('Storage security rules', () => {
         { contentType: 'application/pdf' }
       )
     );
+  });
+
+  test('adjuntos de conversaciones: cada area ve solo lo suyo (coordinacion no ve EOE ni administracion)', async () => {
+    const st = (uid, role) => testEnv.authenticatedContext(uid, { role }).storage(`gs://${STORAGE_BUCKET}`);
+    const eoeFile = 'conversations/rules_conv_eoe_storage/msg1/adjunto.pdf';
+    const adminFile = 'conversations/rules_conv_admin_storage/msg1/adjunto.pdf';
+
+    await assertSucceeds(st('rules_eoe', 'eoe').ref(eoeFile).getDownloadURL());
+    await assertSucceeds(st('rules_super', 'superadmin').ref(eoeFile).getDownloadURL());
+    await assertSucceeds(st('rules_family_1', 'family').ref(eoeFile).getDownloadURL());
+    await assertFails(st('rules_coord', 'coordinacion').ref(eoeFile).getDownloadURL());
+    await assertFails(st('rules_coord', 'coordinacion').ref(adminFile).getDownloadURL());
+    await assertSucceeds(st('rules_fact', 'facturacion').ref(adminFile).getDownloadURL());
+    await assertFails(st('rules_eoe', 'eoe').ref(adminFile).getDownloadURL());
+  });
+
+  test('informes: EOE puede subir y descargar, pero no borrar', async () => {
+    const eoe = testEnv.authenticatedContext('rules_eoe', { role: 'eoe' }).storage(`gs://${STORAGE_BUCKET}`);
+
+    await assertSucceeds(eoe.ref('private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf').getDownloadURL());
+    await assertSucceeds(
+      eoe.ref('private/children/rules_child_report_storage/reports/new_report_eoe/informe.pdf').putString('pdf-demo', 'raw', { contentType: 'application/pdf' })
+    );
+    await assertFails(eoe.ref('private/children/rules_child_report_storage/reports/rules_report_storage/informe.pdf').delete());
   });
 
   test('informes: rechaza tipos de archivo no permitidos', async () => {

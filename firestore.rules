@@ -55,6 +55,10 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'aspirante';
     }
 
+    function isEoe() {
+      return isAuthenticated() && getUserRole() == 'eoe';
+    }
+
     function isResponsibleFamilyForChild(childId, familyUid) {
       let childData = get(/databases/$(database)/documents/children/$(childId)).data;
       return isFamily() &&
@@ -80,8 +84,8 @@ service cloud.firestore {
 
     // Permisos específicos
     function canSendCommunications() {
-      // SuperAdmin, Coordinación, Docentes (NO talleristas)
-      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente'];
+      // SuperAdmin, Coordinación, Docentes, Facturación, EOE (NO talleristas)
+      return isAuthenticated() && getUserRole() in ['superadmin', 'coordinacion', 'docente', 'facturacion', 'eoe'];
     }
 
     function canManageAppointments() {
@@ -173,7 +177,8 @@ service cloud.firestore {
     function isConversationSchool(conv) {
       return isSuperAdmin() ||
         (isCoordinacion() && conv.destinatarioEscuela == 'coordinacion') ||
-        (getUserRole() == 'facturacion' && conv.destinatarioEscuela == 'administracion');
+        (getUserRole() == 'facturacion' && conv.destinatarioEscuela == 'administracion') ||
+        (isEoe() && conv.destinatarioEscuela == 'eoe');
     }
 
     function isConversationParticipant(conv) {
@@ -204,8 +209,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        ((isDocente() || isTallerista()) && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion']) ||
-        (isFamily() && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion'])
+        ((isDocente() || isTallerista() || isEoe()) && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion', 'eoe']) ||
+        (isFamily() && resource.data.role in ['family', 'docente', 'tallerista', 'coordinacion', 'superadmin', 'facturacion', 'eoe'])
       );
 
       // Crear/Actualizar: Solo admin puede crear usuarios o el propio usuario puede actualizar ciertos campos
@@ -309,22 +314,31 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isAdmin() ||
         isDocente() ||
+        isEoe() ||
         isTallerista() ||
         isFamily() ||
         (resource.data.responsables is list && request.auth.uid in resource.data.responsables)
       );
 
-      // Crear/Actualizar/Eliminar: Solo admin
-      allow create, update, delete: if isAdmin();
+      // Crear/Actualizar/Eliminar: Solo admin. EOE solo actualiza las terapias (hasta 4).
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isEoe() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['terapias', 'updatedAt']) &&
+        request.resource.data.terapias is list &&
+        request.resource.data.terapias.size() <= 4
+      );
 
       // Subcolección: /children/{childId}/reports (informes por alumno)
       match /reports/{reportId} {
         allow read: if isAuthenticated() && (
           isAdmin() ||
+          isEoe() ||
           isResponsibleFamilyForChild(childId, request.auth.uid)
         );
 
-        allow create: if isAdmin() &&
+        // EOE sube informes; eliminar queda solo para admin
+        allow create: if (isAdmin() || isEoe()) &&
           hasValidStudentReportData(request.resource.data, reportId);
 
         allow update: if false;
@@ -340,7 +354,7 @@ service cloud.firestore {
         isAdmin() ||
         resource.data.sentBy == request.auth.uid ||
         request.auth.uid in resource.data.destinatarios ||
-        (isDocente() && resource.data.type in ['global', 'ambiente'])
+        ((isDocente() || isEoe()) && resource.data.type in ['global', 'ambiente'])
       );
 
       // Crear: SuperAdmin, Coordinación, Docentes (NO talleristas)
@@ -391,14 +405,18 @@ service cloud.firestore {
           resource.data.participanteMap[request.auth.uid] == true)
       );
 
-      // Crear: familia crea su consulta o admin/coordinación crea mensaje
+      // Crear: familia crea su consulta o la escuela inicia en un área propia.
+      // Coordinación además puede derivar a administración/dirección, nunca a EOE.
       allow create: if isAuthenticated() && (
         (isFamily() && request.resource.data.familiaUid == request.auth.uid) ||
-        (isAdmin() && request.resource.data.iniciadoPor == 'escuela')
+        (request.resource.data.iniciadoPor == 'escuela' && (
+          isConversationSchool(request.resource.data) ||
+          (isCoordinacion() && request.resource.data.destinatarioEscuela in ['administracion', 'direccion'])
+        ))
       );
 
-      // Actualizar: admin/coordinación (según área) o familia participante
-      allow update: if (isAdmin() && isConversationSchool(resource.data)) || (
+      // Actualizar: escuela (según área) o familia participante
+      allow update: if isConversationSchool(resource.data) || (
         isConversationFamily(resource.data) &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'familiaUid',

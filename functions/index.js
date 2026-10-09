@@ -33,7 +33,7 @@ const { getDocumentAccessUrl, getProtectedDocumentPreview } = require('./src/htt
 const { maskEmail } = require('./src/utils/logging');
 
 const onCallWithCors = (handler) => onCall({ cors: true }, handler);
-const VALID_ROLES = ['superadmin', 'coordinacion', 'docente', 'tallerista', 'family', 'aspirante'];
+const VALID_ROLES = ['superadmin', 'coordinacion', 'docente', 'facturacion', 'eoe', 'tallerista', 'family', 'aspirante'];
 
 const normalizeRole = (value) => {
   if (typeof value !== 'string') return '';

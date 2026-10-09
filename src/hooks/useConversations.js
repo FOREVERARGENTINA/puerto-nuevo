@@ -9,6 +9,7 @@ import { sortConversationsByLatestMessage } from '../utils/conversationHelpers';
 const resolveAreasForRole = (role) => {
   if (role === ROLES.COORDINACION) return ['coordinacion'];
   if (role === ROLES.FACTURACION) return ['administracion'];
+  if (role === ROLES.EOE) return ['eoe'];
   if (role === ROLES.SUPERADMIN) return null;
   return null;
 };
