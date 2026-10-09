@@ -7,7 +7,8 @@ import {
   where,
   limit,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -281,6 +282,15 @@ export const documentReadReceiptsService = {
       console.error('Error obteniendo receipts del documento:', error);
       return { success: false, error: error.message };
     }
+  },
+
+  /**
+   * Borra todos los receipts de un documento (al eliminarlo). Solo admin por reglas.
+   * @param {string} documentId - ID del documento
+   */
+  async deleteDocumentReceipts(documentId) {
+    const snapshot = await getDocs(query(readReceiptsCollection, where('documentId', '==', documentId)));
+    await Promise.all(snapshot.docs.map((receipt) => deleteDoc(receipt.ref)));
   },
 
   /**

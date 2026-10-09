@@ -320,7 +320,7 @@ export const documentsService = {
         uploadedBy: metadata.uploadedBy
       });
 
-      if (destinatarios.length > 0) {
+      if (docData.requiereLectura && destinatarios.length > 0) {
         await documentReadReceiptsService.createPendingReceipts(docRef.id, destinatarios);
       }
 
@@ -475,6 +475,10 @@ export const documentsService = {
   async deleteDocument(docId, categoria, fileName) {
     try {
       await deleteDoc(doc(documentsCollection, docId));
+      // ponytail: best-effort; no-admin no puede leer/borrar recibos ajenos → quedan huérfanos.
+      await documentReadReceiptsService.deleteDocumentReceipts(docId).catch((err) => {
+        console.warn('No se pudieron borrar los recibos del documento:', err);
+      });
       const storageRef = ref(storage, `documents/${categoria}/${fileName}`);
       await deleteObject(storageRef);
       return { success: true };

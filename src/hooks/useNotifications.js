@@ -211,7 +211,7 @@ const writeDismissedIds = (storageKey, ids) => {
 export function useNotifications() {
   const { user, role } = useAuth();
   const location = useLocation();
-  const { unreadCommunications } = useCommunications();
+  const { unreadCommunications, markAsRead: markCommunicationAsRead } = useCommunications();
   const { conversations } = useConversations({ user, role });
   const [dismissedSnackAssignedKeys, setDismissedSnackAssignedKeys] = useState([]);
   const [dismissedAppointmentAssignedKeys, setDismissedAppointmentAssignedKeys] = useState([]);
@@ -859,7 +859,8 @@ export function useNotifications() {
       message: comm.title,
       timestamp: comm.createdAt?.toDate() || new Date(),
       urgent: comm.requiereLecturaObligatoria,
-      actionUrl: `${communicationsUrl}/${comm.id}`,
+      // Admin no tiene ruta de detalle: va al historial.
+      actionUrl: ADMIN_ROLES.includes(role) ? '/portal/admin/comunicar' : `${communicationsUrl}/${comm.id}`,
       metadata: { commId: comm.id }
     })),
     ...recentEventItems,
@@ -1035,6 +1036,12 @@ export function useNotifications() {
         if (!notificationId) return;
         void markNotificationsAsRead([notificationId]);
         return;
+      }
+
+      if (notification.type === 'comunicado') {
+        const commId = notification.metadata?.commId;
+        // Lectura obligatoria se confirma en el detalle, no desde el dropdown.
+        if (commId && !notification.urgent) void markCommunicationAsRead(commId);
       }
     },
     byType: {
