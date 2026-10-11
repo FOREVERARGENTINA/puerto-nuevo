@@ -75,7 +75,6 @@ export function Breadcrumbs() {
   const roleSegmentIndex = isPortalRoute ? 1 : 0;
   const roleSegment = pathSegments[roleSegmentIndex];
   const isRoleRootRoute = ROOT_ROLE_SEGMENTS.has(roleSegment);
-  const isSharedDocumentsRoute = isPortalRoute && roleSegment === 'documentos';
 
   const visibleSegments = pathSegments
     .map((segment, originalIndex) => ({ segment, originalIndex }))
@@ -106,9 +105,10 @@ export function Breadcrumbs() {
     return null;
   }
 
-  const roleRootPath = isRoleRootRoute
-    ? (isPortalRoute ? `/portal/${roleSegment}` : `/${roleSegment}`)
-    : (isSharedDocumentsRoute ? resolveRoleRootPath(role) : '/');
+  // "Inicio" lleva al home del rol, no al segmento de la URL (EOE navega rutas /admin y /docente sin acceso a sus raíces)
+  const roleRootPath = role
+    ? resolveRoleRootPath(role)
+    : (isRoleRootRoute ? (isPortalRoute ? `/portal/${roleSegment}` : `/${roleSegment}`) : '/');
 
   const hasTrailingDocumentId = isDocumentId(pathSegments[pathSegments.length - 1] || '');
   const parentPathFromTrailingId = hasTrailingDocumentId

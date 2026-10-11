@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { childrenService } from '../../services/children.service';
 import { usersService } from '../../services/users.service';
 import { appointmentsService } from '../../services/appointments.service';
-import { ROLES, ROUTES } from '../../config/constants';
+import { ROLES, ROLE_DASHBOARDS } from '../../config/constants';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingModal } from '../../components/common/LoadingModal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
@@ -324,7 +324,7 @@ const ChildrenManager = () => {
             <p className="dashboard-subtitle">Datos principales y responsables.</p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+            <Link to={ROLE_DASHBOARDS[role]} className="btn btn--outline btn--back">
               <Icon name="chevron-left" size={16} />
               Volver
             </Link>
@@ -348,7 +348,7 @@ const ChildrenManager = () => {
           <p className="dashboard-subtitle">Organizá familias, datos médicos y responsables desde un mismo lugar.</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-          <Link to={ROUTES.ADMIN_DASHBOARD} className="btn btn--outline btn--back">
+          <Link to={ROLE_DASHBOARDS[role]} className="btn btn--outline btn--back">
             <Icon name="chevron-left" size={16} />
             Volver
           </Link>
