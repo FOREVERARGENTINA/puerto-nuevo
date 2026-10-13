@@ -1,11 +1,26 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
 import { ROUTES } from '../../config/constants';
 import { useAuth } from '../../hooks/useAuth';
 import { WelcomeModal } from '../../components/family/WelcomeModal';
+import { useClasesAbiertas } from '../../hooks/useClasesAbiertas';
+import { childrenService } from '../../services/children.service';
 
 export function FamilyDashboard() {
   const { user } = useAuth();
+  const [hijos, setHijos] = useState([]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    childrenService.getChildrenByResponsable(user.uid).then((res) => {
+      if (res.success) setHijos(res.children);
+    });
+  }, [user?.uid]);
+
+  const ambientes = [...new Set(hijos.map((h) => h.ambiente).filter(Boolean))];
+  const { convocatorias } = useClasesAbiertas(ambientes, hijos);
+  const hayClasesAbiertas = Object.keys(convocatorias).length > 0;
 
   return (
     <div className="container page-container family-dashboard-page">
@@ -18,6 +33,22 @@ export function FamilyDashboard() {
       </div>
 
       <div className="dashboard-content">
+        {hayClasesAbiertas && (
+          <section className="dashboard-section admin-dashboard-panel admin-dashboard-panel--featured">
+            <div className="grid-cards-sm admin-dashboard-grid admin-dashboard-grid--featured">
+              <Link to={ROUTES.FAMILY_CLASES_ABIERTAS} className="card card--compact card--clickable link-unstyled admin-dashboard-card admin-dashboard-card--featured family-card-warning">
+                <div className="admin-dashboard-card__icon">
+                  <Icon name="calendar" size={18} />
+                </div>
+                <div className="admin-dashboard-card__content">
+                  <h3 className="card__title">Clases Abiertas</h3>
+                  <p>Inscripción disponible: elegí el día</p>
+                </div>
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* Accesos prioritarios */}
         <section className="dashboard-section admin-dashboard-panel admin-dashboard-panel--featured">
           <div className="section-heading section-heading--inline">
