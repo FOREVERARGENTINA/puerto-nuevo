@@ -23,6 +23,15 @@ const formatFechaDisplay = (v) => {
   return d.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+// Pasada = el día ya terminó (hoy todavía se puede reservar)
+const esFechaPasada = (v) => {
+  const d = v?.toDate ? v.toDate() : new Date(v);
+  if (Number.isNaN(d.getTime())) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return d < hoy;
+};
+
 function SelectorHijo({ hijos, onSeleccionar, onCancelar }) {
   const [hijoId, setHijoId] = useState(hijos[0]?.id || '');
   return (
@@ -71,6 +80,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
     (convocatoria.dias || []).forEach((dia) => {
       const cupo = convocatoria.cupos?.[dia.id] || 0;
       if (inscripcionFamilia?.diaId === dia.id) m.set(dia.id, 'inscripto');
+      else if (esFechaPasada(dia.fecha)) m.set(dia.id, 'pasada');
       else if (cupo >= cupoMaximo) m.set(dia.id, 'completo');
       else m.set(dia.id, 'disponible');
     });
@@ -79,6 +89,7 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
   const esDiaDeFamilia = inscripcionFamilia?.diaId === selectedDiaId;
+  const esPasada = selectedDia ? esFechaPasada(selectedDia.fecha) : false;
   const estaCompleto = selectedDia
     ? (convocatoria?.cupos?.[selectedDia.id] || 0) >= cupoMaximo
     : false;
@@ -159,10 +170,14 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                   {esDiaDeFamilia ? (
                     <>
                       <span className="badge badge--success">Fecha reservada</span>
-                      <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
-                        Eliminar
-                      </button>
+                      {!esPasada && (
+                        <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
+                          Eliminar
+                        </button>
+                      )}
                     </>
+                  ) : esPasada ? (
+                    <span className="badge badge--outline">Fecha pasada</span>
                   ) : estaCompleto ? (
                     <span className="badge badge--error">Completo</span>
                   ) : inscripcionFamilia ? (
@@ -214,7 +229,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
     if (!convocatoria) return new Map();
     const m = new Map();
     (convocatoria.dias || []).forEach((dia) => {
-      m.set(dia.id, getMiInscripcion(dia.id) ? 'inscripto' : 'disponible');
+      m.set(dia.id, getMiInscripcion(dia.id) ? 'inscripto' : esFechaPasada(dia.fecha) ? 'pasada' : 'disponible');
     });
     return m;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -246,6 +261,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
 
   const selectedDia = convocatoria?.dias?.find((d) => d.id === selectedDiaId) || null;
   const miInscripcionSelected = selectedDia ? getMiInscripcion(selectedDia.id) : null;
+  const esPasada = selectedDia ? esFechaPasada(selectedDia.fecha) : false;
 
   const handleAnotarme = async (dia, hijo) => {
     setSubmitting(true);
@@ -344,10 +360,14 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
                   {miInscripcionSelected ? (
                     <>
                       <span className="badge badge--success">Fecha reservada</span>
-                      <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
-                        Eliminar
-                      </button>
+                      {!esPasada && (
+                        <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={() => handleDesanotarme(miInscripcionSelected.id)}>
+                          Eliminar
+                        </button>
+                      )}
                     </>
+                  ) : esPasada ? (
+                    <span className="badge badge--outline">Fecha pasada</span>
                   ) : (
                     <button className="btn btn--primary" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleClickAnotarme}>
                       Reservar fecha
@@ -367,12 +387,15 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
 }
 
 function PanelAmbiente({ ambiente, convocatorias, inscripcionesPropia, hijos, onRecargar }) {
-  const [tipoActivo, setTipoActivo] = useState('ambiente_abierto');
-
   const convAA = convocatorias[`${ambiente}_ambiente_abierto`] || null;
   const convTA = convocatorias[`${ambiente}_taller_abierto`] || null;
   const inscAA = convAA ? (inscripcionesPropia[convAA.id] || []) : [];
   const inscTA = convTA ? (inscripcionesPropia[convTA.id] || []) : [];
+
+  // Abrir en la pestaña donde la familia ya tiene turno
+  const [tipoActivo, setTipoActivo] = useState(() =>
+    !inscAA.length && inscTA.length ? 'taller_abierto' : 'ambiente_abierto'
+  );
 
   return (
     <div>
@@ -440,6 +463,7 @@ export default function ClasesAbiertas() {
       )}
       {ambienteActivo && (
         <PanelAmbiente
+          key={ambienteActivo}
           ambiente={ambienteActivo}
           convocatorias={convocatorias}
           inscripcionesPropia={inscripcionesPropia}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -39,7 +39,7 @@ const getDaysInMonth = (year, month) => {
  *   dias            — array de días de la convocatoria (cada uno con .id y .fecha Timestamp)
  *   selectedFechaKey — clave de fecha seleccionada ("año-mes-día") o '' para ninguna
  *   onSelectFecha   — fn(dias[] | null) — recibe todos los días de esa fecha al clickear
- *   marcadores      — Map<diaId, 'inscripto' | 'completo' | 'disponible'> (opcional)
+ *   marcadores      — Map<diaId, 'inscripto' | 'completo' | 'pasada' | 'disponible'> (opcional)
  *
  * Compatibilidad legacy (un solo día por fecha):
  *   selectedDiaId   — si se pasa, se deriva selectedFechaKey automáticamente
@@ -60,6 +60,13 @@ export default function CalendarioConvocatoria({
   const activeFechaKey = selectedFechaKey !== undefined
     ? selectedFechaKey
     : (selectedDiaId ? toDayKey(dias.find((d) => d.id === selectedDiaId)?.fecha) : '');
+
+  // Llevar el calendario al mes de la fecha seleccionada (ej: turno ya reservado)
+  useEffect(() => {
+    if (!activeFechaKey) return;
+    const [y, m] = activeFechaKey.split('-').map(Number);
+    setCurrentDate((prev) => (prev.getFullYear() === y && prev.getMonth() === m ? prev : new Date(y, m, 1)));
+  }, [activeFechaKey]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -89,7 +96,7 @@ export default function CalendarioConvocatoria({
   const getMarkerForGroup = (diasGroup) => {
     if (!diasGroup?.length || !marcadores) return null;
     if (diasGroup.some((d) => marcadores.get(d.id) === 'inscripto')) return 'inscripto';
-    if (diasGroup.every((d) => marcadores.get(d.id) === 'completo')) return 'completo';
+    if (diasGroup.every((d) => ['completo', 'pasada'].includes(marcadores.get(d.id)))) return 'completo';
     if (diasGroup.some((d) => marcadores.get(d.id) === 'disponible')) return 'disponible';
     return null;
   };
