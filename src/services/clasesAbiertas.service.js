@@ -327,17 +327,6 @@ export const clasesAbiertasService = {
     }
   },
 
-  async getInscripcionesByHijoIds(convocatoriaId, hijoIds) {
-    try {
-      if (!hijoIds?.length) return { success: true, inscripciones: [] };
-      const q = query(inscripcionesCol(convocatoriaId), where('hijoId', 'in', hijoIds));
-      const snap = await getDocs(q);
-      return { success: true, inscripciones: snap.docs.map((d) => ({ id: d.id, ...d.data() })) };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
   async getInscripcionesByFamilia(convocatoriaId, familiaUid) {
     try {
       const q = query(inscripcionesCol(convocatoriaId), where('familiaUid', '==', familiaUid));

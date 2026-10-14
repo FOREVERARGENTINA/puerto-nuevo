@@ -16,6 +16,14 @@ const guardarCacheClases = (uid, data) => {
   try { localStorage.setItem(`pn_clases_abiertas_${uid}`, JSON.stringify(data)); } catch { /* sin storage */ }
 };
 
+const toDate = (v) => (v?.toDate ? v.toDate() : new Date(v));
+// Hoy todavía cuenta: un día es pasado recién desde mañana
+const esFutura = (v) => {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return toDate(v) >= hoy;
+};
+
 export function FamilyDashboard() {
   const { user } = useAuth();
   const [hijos, setHijos] = useState(null);
@@ -33,16 +41,22 @@ export function FamilyDashboard() {
   const { convocatorias, inscripcionesPropia, loading } = useClasesAbiertas(ambientes, listaHijos);
   const datosListos = hijos !== null && !loading;
 
-  // Fechas ya reservadas por la familia (una por convocatoria)
-  const fechasLive = Object.values(convocatorias).flatMap((conv) =>
-    (inscripcionesPropia[conv.id] || []).map((insc) => {
-      const dia = conv.dias?.find((d) => d.id === insc.diaId);
-      if (!dia?.fecha) return null;
-      const fecha = dia.fecha.toDate ? dia.fecha.toDate() : new Date(dia.fecha);
-      return fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-    }).filter(Boolean)
-  );
-  const live = { hay: Object.keys(convocatorias).length > 0, fechas: fechasLive };
+  // Fechas reservadas (propias o, en Ambiente Abierto, el turno de cada hijo
+  // sacado por cualquier responsable) que todavía no pasaron, en orden
+  const fechasLive = Object.values(convocatorias)
+    .flatMap((conv) => {
+      const diaIds = new Set((inscripcionesPropia[conv.id] || []).map((insc) => insc.diaId));
+      listaHijos.forEach((h) => { if (conv.hijosDia?.[h.id]) diaIds.add(conv.hijosDia[h.id]); });
+      return [...diaIds]
+        .map((diaId) => conv.dias?.find((d) => d.id === diaId)?.fecha)
+        .filter((fecha) => fecha && esFutura(fecha));
+    })
+    .map(toDate)
+    .sort((a, b) => a - b)
+    .map((d) => d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }));
+  // Mostrar la card solo si hay algo reservable o un turno por venir
+  const hayDiasFuturos = Object.values(convocatorias).some((conv) => (conv.dias || []).some((d) => esFutura(d.fecha)));
+  const live = { hay: hayDiasFuturos || fechasLive.length > 0, fechas: fechasLive };
   const liveKey = JSON.stringify(live);
 
   useEffect(() => {

@@ -59,11 +59,14 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
   const showErr = (m) => { setError(m); setTimeout(() => setError(''), 4000); };
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 3000); };
 
-  // Inscripción del grupo familiar (cualquier responsable pudo haberla creado)
-  const inscripcionFamilia = inscripcionesPropia?.find((i) =>
-    hijos.some((h) => h.id === i.hijoId)
-  ) || inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
-  const esMiInscripcion = inscripcionFamilia?.familiaUid === user?.uid;
+  // El turno es por hijo: puede haberlo sacado cualquier responsable.
+  // Las inscripciones del otro responsable no son legibles (reglas), pero la
+  // convocatoria publica hijosDia { hijoId: diaId }, que alcanza para mostrarlo.
+  const inscripcionPropia = inscripcionesPropia?.find((i) => i.familiaUid === user?.uid);
+  const hijoConTurno = hijos.find((h) => convocatoria?.hijosDia?.[h.id]);
+  const inscripcionFamilia = inscripcionPropia ||
+    (hijoConTurno ? { diaId: convocatoria.hijosDia[hijoConTurno.id], hijoId: hijoConTurno.id } : null);
+  const esMiInscripcion = Boolean(inscripcionPropia);
 
   const [selectedDiaId, setSelectedDiaId] = useState(() => inscripcionFamilia?.diaId || '');
 
@@ -170,8 +173,8 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                   {esDiaDeFamilia ? (
                     <>
                       <span className="badge badge--success">Fecha reservada</span>
-                      {!esPasada && (
-                        <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting || !esMiInscripcion} onClick={handleDesanotarme}>
+                      {!esPasada && esMiInscripcion && (
+                        <button className="btn btn--ghost btn--eliminar" style={{ fontSize: 'var(--font-size-sm)' }} disabled={submitting} onClick={handleDesanotarme}>
                           Eliminar
                         </button>
                       )}
@@ -188,9 +191,9 @@ function SeccionAmbienteAbierto({ convocatoria, inscripcionesPropia, hijos, ambi
                     </button>
                   )}
                 </div>
-                {esDiaDeFamilia && !esMiInscripcion && inscripcionFamilia?.familiaNombre && (
+                {esDiaDeFamilia && !esMiInscripcion && (
                   <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-light)', marginTop: 'calc(var(--spacing-xs) * -1)' }}>
-                    Anotado por {inscripcionFamilia.familiaNombre.split(' ')[0]}
+                    Reservado por otro responsable de {hijos.find((h) => h.id === inscripcionFamilia.hijoId)?.nombreCompleto?.split(' ')[0] || 'tu hijo/a'}
                   </p>
                 )}
                 {seleccionandoHijo && (
@@ -235,7 +238,7 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convocatoria, inscripcionesPropia]);
 
-  // Inicializar con el primer día inscripto (cronológicamente)
+  // Inicializar con el próximo día inscripto (cronológicamente)
   const primerDiaInscriptoId = useMemo(() => {
     if (!convocatoria?.dias?.length || !inscripcionesPropia?.length) return '';
     const diasOrdenados = [...convocatoria.dias].sort((a, b) => {
@@ -243,7 +246,9 @@ function SeccionTallerAbierto({ convocatoria, inscripcionesPropia, hijos, ambien
       const db = b.fecha?.toDate ? b.fecha.toDate() : new Date(b.fecha);
       return da - db;
     });
-    return diasOrdenados.find((d) => getMiInscripcion(d.id))?.id || '';
+    // Preferir el próximo turno; si todos pasaron, el primero
+    const inscriptos = diasOrdenados.filter((d) => getMiInscripcion(d.id));
+    return (inscriptos.find((d) => !esFechaPasada(d.fecha)) || inscriptos[0])?.id || '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convocatoria, inscripcionesPropia]);
 

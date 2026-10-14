@@ -19,7 +19,11 @@ const getInitialMonth = (dias) => {
     .filter((d) => d && !Number.isNaN(d.getTime()));
   if (!dates.length) return new Date();
   dates.sort((a, b) => a - b);
-  return new Date(dates[0].getFullYear(), dates[0].getMonth(), 1);
+  // Abrir en el mes de la próxima fecha; si todas pasaron, en el de la primera
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const ref = dates.find((d) => d >= hoy) || dates[0];
+  return new Date(ref.getFullYear(), ref.getMonth(), 1);
 };
 
 const getDaysInMonth = (year, month) => {

@@ -9,8 +9,8 @@ const TIPOS = ['ambiente_abierto', 'taller_abierto'];
  * Las convocatorias activas se piden en una sola consulta apenas monta el hook,
  * en paralelo con la carga de hijos del componente; solo las inscripciones
  * esperan a conocer ambientes e hijos.
- * Busca inscripciones por familiaUid Y por hijoIds para que ambos responsables
- * vean las inscripciones realizadas por cualquiera de ellos.
+ * Inscripciones: solo las propias (familiaUid). El turno de Ambiente Abierto
+ * sacado por el otro responsable se ve vía convocatoria.hijosDia.
  * @param {string[]} ambientes
  * @param {Array<{id:string}>} hijos — array de hijos para buscar por hijoId
  */
@@ -56,24 +56,12 @@ export function useClasesAbiertas(ambientes = [], hijos = []) {
     try {
       const convIds = convIdsKey ? convIdsKey.split(',') : [];
       if (user?.uid && convIds.length) {
-        // Para cada convocatoria: buscar por familiaUid Y por hijoIds, mergear sin duplicados
+        // Solo las propias: las reglas no dejan leer las del otro responsable.
+        // El turno de Ambiente Abierto por hijo sale de convocatoria.hijosDia.
         const inscResults = await Promise.all(
           convIds.map(async (id) => {
-            const [porFamilia, porHijos] = await Promise.all([
-              clasesAbiertasService.getInscripcionesByFamilia(id, user.uid),
-              hijoIds.length
-                ? clasesAbiertasService.getInscripcionesByHijoIds(id, hijoIds)
-                : { success: true, inscripciones: [] }
-            ]);
-            const vistas = new Set();
-            const merged = [];
-            for (const insc of [
-              ...(porFamilia.success ? porFamilia.inscripciones : []),
-              ...(porHijos.success ? porHijos.inscripciones : [])
-            ]) {
-              if (!vistas.has(insc.id)) { vistas.add(insc.id); merged.push(insc); }
-            }
-            return merged;
+            const res = await clasesAbiertasService.getInscripcionesByFamilia(id, user.uid);
+            return res.success ? res.inscripciones : [];
           })
         );
         const nuevasInscripciones = {};
