@@ -80,6 +80,24 @@ export const clasesAbiertasService = {
     }
   },
 
+  // Todas las convocatorias activas en una sola consulta (vista de familias).
+  // Si quedara más de una activa por tipo+ambiente, gana la más nueva por createdAt.
+  async getConvocatoriasActivas() {
+    try {
+      const snap = await getDocs(query(clasesAbiertasCol, where('activo', '==', true)));
+      const ms = (v) => (v?.toMillis ? v.toMillis() : new Date(v || 0).getTime());
+      const porClave = {};
+      snap.docs.forEach((d) => {
+        const conv = { id: d.id, ...d.data() };
+        const key = `${conv.ambiente}_${conv.tipo}`;
+        if (!porClave[key] || ms(conv.createdAt) > ms(porClave[key].createdAt)) porClave[key] = conv;
+      });
+      return { success: true, convocatorias: porClave };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
   // Busca la convocatoria más reciente (activa o no) para ese tipo+ambiente.
   // Usada por el admin para mostrar la opción de reactivar o arrancar nueva.
   async getConvocatoriaReciente(tipo, ambiente) {

@@ -7,20 +7,51 @@ import { WelcomeModal } from '../../components/family/WelcomeModal';
 import { useClasesAbiertas } from '../../hooks/useClasesAbiertas';
 import { childrenService } from '../../services/children.service';
 
+// Último estado de Clases Abiertas guardado en el navegador: la tarjeta se
+// muestra al instante y las consultas solo lo actualizan por detrás.
+const leerCacheClases = (uid) => {
+  try { return JSON.parse(localStorage.getItem(`pn_clases_abiertas_${uid}`)) || null; } catch { return null; }
+};
+const guardarCacheClases = (uid, data) => {
+  try { localStorage.setItem(`pn_clases_abiertas_${uid}`, JSON.stringify(data)); } catch { /* sin storage */ }
+};
+
 export function FamilyDashboard() {
   const { user } = useAuth();
-  const [hijos, setHijos] = useState([]);
+  const [hijos, setHijos] = useState(null);
+  const [cacheClases] = useState(() => (user?.uid ? leerCacheClases(user.uid) : null));
 
   useEffect(() => {
     if (!user?.uid) return;
     childrenService.getChildrenByResponsable(user.uid).then((res) => {
-      if (res.success) setHijos(res.children);
+      setHijos(res.success ? res.children : []);
     });
   }, [user?.uid]);
 
-  const ambientes = [...new Set(hijos.map((h) => h.ambiente).filter(Boolean))];
-  const { convocatorias } = useClasesAbiertas(ambientes, hijos);
-  const hayClasesAbiertas = Object.keys(convocatorias).length > 0;
+  const listaHijos = hijos || [];
+  const ambientes = [...new Set(listaHijos.map((h) => h.ambiente).filter(Boolean))];
+  const { convocatorias, inscripcionesPropia, loading } = useClasesAbiertas(ambientes, listaHijos);
+  const datosListos = hijos !== null && !loading;
+
+  // Fechas ya reservadas por la familia (una por convocatoria)
+  const fechasLive = Object.values(convocatorias).flatMap((conv) =>
+    (inscripcionesPropia[conv.id] || []).map((insc) => {
+      const dia = conv.dias?.find((d) => d.id === insc.diaId);
+      if (!dia?.fecha) return null;
+      const fecha = dia.fecha.toDate ? dia.fecha.toDate() : new Date(dia.fecha);
+      return fecha.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    }).filter(Boolean)
+  );
+  const live = { hay: Object.keys(convocatorias).length > 0, fechas: fechasLive };
+  const liveKey = JSON.stringify(live);
+
+  useEffect(() => {
+    if (datosListos && user?.uid) guardarCacheClases(user.uid, live);
+  }, [datosListos, liveKey, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clases = datosListos ? live : (cacheClases || { hay: false, fechas: [] });
+  const hayClasesAbiertas = clases.hay;
+  const fechasReservadas = clases.fechas;
 
   return (
     <div className="container page-container family-dashboard-page">
@@ -42,7 +73,11 @@ export function FamilyDashboard() {
                 </div>
                 <div className="admin-dashboard-card__content">
                   <h3 className="card__title">Clases Abiertas</h3>
-                  <p>Inscripción disponible: elegí el día</p>
+                  <p>
+                    {fechasReservadas.length
+                      ? `Tu fecha: ${fechasReservadas.join(' · ')}`
+                      : 'Inscripción disponible: elegí el día'}
+                  </p>
                 </div>
               </Link>
             </div>
