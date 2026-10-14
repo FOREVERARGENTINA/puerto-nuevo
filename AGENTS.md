@@ -10,4 +10,4 @@ Actualizado como mínimo cada 6 meses, o inmediatamente después de un cambio ar
 relevante. Para actualizaciones incrementales usar:
 `graphify update`
 
-Última actualización del grafo: 2026-07-11.
+Última actualización del grafo: 2026-10-14.

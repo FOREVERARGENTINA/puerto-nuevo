@@ -265,6 +265,32 @@
    - `src/hooks/useClasesAbiertas.js`: se corrigio `react-hooks/use-memo` sacando expresiones `.join(',')` del array de dependencias.
    - Tests de Clases Abiertas: se actualizo el caso de desanotarse de `ambiente_abierto`, porque la UI y las reglas permiten que una familia cancele su propia inscripcion. Se agrego cobertura para impedir que una familia desanote a otra.
 
+### ✅ Cambios registrados el 14 de octubre de 2026 — Clases Abiertas (familias)
+
+1. **Acceso en el home de familias** (`src/pages/family/FamilyDashboard.jsx`)
+   - Card destacada "Clases Abiertas" solo si hay convocatoria activa con fechas por venir para el ambiente de algún hijo, o un turno por venir.
+   - Si la familia ya tiene turno muestra "Tu fecha: …" (solo fechas de hoy en adelante, ordenadas); si no, "Inscripción disponible: elegí el día".
+   - Aparece al instante: el último estado se guarda en `localStorage` (`pn_clases_abiertas_<uid>`) y las consultas solo lo actualizan por detrás.
+
+2. **Turno ya elegido visible al entrar** (`ClasesAbiertas.jsx`, `CalendarioConvocatoria.jsx`)
+   - El calendario abre en el mes de la fecha seleccionada / próxima fecha (no en la primera, que puede ser pasada).
+   - Abre en la pestaña (Ambiente/Taller Abierto) donde la familia tiene turno; Taller Abierto preselecciona el próximo turno.
+   - `PanelAmbiente` con `key` por ambiente: no arrastra la selección al cambiar de ambiente.
+
+3. **Fechas pasadas bloqueadas** (solo UI): badge "Fecha pasada", sin botón de reservar ni de eliminar. Hoy todavía cuenta como disponible. Las reglas de Firestore siguen aceptando fechas pasadas si se fuerza.
+
+4. **Turno de Ambiente Abierto por hijo**
+   - Las reglas solo dejan a cada responsable leer sus propias inscripciones, así que la query por `hijoId` siempre era rechazada (en silencio): el otro responsable veía al hijo sin turno.
+   - Ahora el turno del hijo se toma de `convocatoria.hijosDia` (legible por familias). El otro responsable ve "Fecha reservada · Reservado por otro responsable de …", sin poder reservar otra ni eliminar.
+   - Se eliminó `getInscripcionesByHijoIds` del servicio.
+   - **Pendiente:** en Taller Abierto cada responsable sigue viendo solo sus inscripciones; compartirlas requiere cambiar reglas.
+
+5. **Carga más rápida** (`useClasesAbiertas.js`, `clasesAbiertas.service.js`)
+   - Nuevo `getConvocatoriasActivas()`: una sola query `activo == true` (si hubiera dos activas por tipo+ambiente gana la más nueva por `createdAt`), lanzada al montar y en paralelo con la carga de hijos. Antes: 4 punteros + 4 docs en cadena. El admin sigue usando `getConvocatoriaActiva` (puntero).
+   - `loading` se calcula por `requestKey` (ambientes+hijos+uid): no reporta "listo" con datos viejos; `recargar()` es silencioso.
+
+**Datos a revisar:** hay convocatorias activas con todas sus fechas pasadas (Taller Abierto de agosto en ambos talleres, Ambiente Abierto Taller 2 de junio). Conviene desactivarlas desde el admin.
+
 ### ✅ Items recientemente implementados y documentados
 
 1. **Flujo de envío de comunicados** — **Implementado y documentado (Opción A: enviar al crear)**

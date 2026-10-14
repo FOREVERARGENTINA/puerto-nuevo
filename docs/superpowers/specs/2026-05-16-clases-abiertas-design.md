@@ -291,3 +291,17 @@ Todos los componentes nuevos deben seguir estrictamente el sistema existente:
 - **Denormalización de nombres**: `familiaNombre` e `hijoNombre` en inscripciones evitan joins para la vista de admin.
 - **Sin notificaciones**: por decisión explícita del cliente, no se envían avisos al inscribirse o desanotarse.
 - **Edición libre de días**: cambiar fecha/horario/nombreTaller no cancela inscripciones existentes; las familias ven el dato actualizado automáticamente.
+
+---
+
+## Actualización 2026-10-14 (implementación vigente)
+
+Este documento es el diseño original. Diferencias con lo implementado hoy:
+
+- **Convocatoria activa:** el admin usa el puntero `/clasesAbiertasActivas/{tipo}_{ambiente}` (`getConvocatoriaActiva`). La vista de familias usa `getConvocatoriasActivas()`: una sola query `activo == true` para todos los tipos y ambientes.
+- **Turno por hijo (Ambiente Abierto):** las familias solo pueden leer sus propias inscripciones. El turno sacado por otro responsable del mismo hijo se obtiene de `hijosDia` en el doc de la convocatoria. Las reglas ya impiden un segundo turno por hijo (`childAlreadyInscribed`).
+- **Fechas pasadas:** la UI no permite reservar ni eliminar en fechas pasadas (solo UI, no en reglas).
+- **Home de familias:** card de acceso con la fecha reservada, cacheada en `localStorage`.
+- **UI:** la vista familia usa calendario (`CalendarioConvocatoria`) + panel de fecha seleccionada, no la lista de días descrita arriba. Cupo de Ambiente Abierto: 3 en Taller 1, 2 en Taller 2.
+
+Detalle de cambios: `ESTADO-IMPLEMENTACION-REAL.md` → "Cambios registrados el 14 de octubre de 2026".
